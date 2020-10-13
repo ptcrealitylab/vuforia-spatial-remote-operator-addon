@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>HoloLens Editor</title>
+    <style type="text/css">
+    	#left {
+			position: absolute;
+			left: 0;
+			top: 0;
+    		width: 50vw;
+			height: 100vh;
+    	}
+
+    	#right {
+			position: absolute;
+			left: 50vw;
+			top: 0;
+    		width: 50vw;
+			height: 100vh;
+    	}
+    </style>
+</head>
+
+<body touch-action="none">
+
+<iframe id='left' src="index.html" frameborder="0"></iframe>
+<iframe id='right' src="index.html" frameborder="0"></iframe>
+
+<script>
+	var left;
+	var right;
+
+	window.addEventListener('load', function() {
+	    console.log('hololens editor loaded');
+	    left = document.getElementById('left');
+	    right = document.getElementById('right');
+	    setupHololenDefaults();
+	    setTimeout(setupHololenDefaults, 4000);
+	});
+
+	function setMatrixLeft(matrix) {
+		postMessageIntoFrame(left, {projectionMatrix: matrix});	
+	}
+
+	function setMatrixRight(matrix) {
+		postMessageIntoFrame(right, {projectionMatrix: matrix});
+	}
+
+	function toggleNodeView(isNodeView) {
+		postMessageIntoFrame(left, {toggleNodeView: isNodeView});
+		postMessageIntoFrame(right, {toggleNodeView: isNodeView});
+	}
+
+	function toggleHololensMode(isHololens) {
+		postMessageIntoFrame(left, {toggleHololensMode: isHololens, hololensSide: 'left'});
+		postMessageIntoFrame(right, {toggleHololensMode: isHololens, hololensSide: 'right'});
+	}
+
+	function postMessageIntoFrame(iframe, messageObject) {
+	    iframe.contentWindow.postMessage(JSON.stringify({hololensMessage: messageObject}), '*');
+	}
+
+	function setupHololenDefaults() {
+
+		var defaultProjectionMatrix = [-1146.105088,0,0,0,0,-1148.091138,0,0,21.187968,13.580856,2.004004,2,0,0,-4.004004,0];
+		var eyeOffset = 50000;
+		var matrixLeft = [-1146.105088,0,0,0,0,-1148.091138,0,0,21.187968,13.580856,2.004004,2, -1 * eyeOffset, 0,-4.004004,0];
+		var matrixRight = [-1146.105088,0,0,0,0,-1148.091138,0,0,21.187968,13.580856,2.004004,2, eyeOffset, 0,-4.004004,0];
+
+		function sendDefaultMatrices() {
+			setMatrixLeft(JSON.parse(JSON.stringify(matrixLeft)));
+			setMatrixRight(JSON.parse(JSON.stringify(matrixRight)));
+		}
+
+		toggleHololensMode(true);
+	    setTimeout(sendDefaultMatrices, 3000);
+	}
+
+
+</script>
+
+</body>
+</html>
