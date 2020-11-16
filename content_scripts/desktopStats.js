@@ -19,7 +19,9 @@ createNameSpace('realityEditor.device.desktopStats');
 	let isVisible = false;
 
     function initService() {
-    	document.body.appendChild(stats.dom);
+        if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
+
+        document.body.appendChild(stats.dom);
 
     	imagesPerSecondElement = document.createElement('div');
     	imagesPerSecondElement.style.color = 'white';

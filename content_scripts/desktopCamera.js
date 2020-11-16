@@ -14,7 +14,7 @@ createNameSpace('realityEditor.device.desktopCamera');
     var isFollowingObjectTarget = false;
     var closestObjectLog = null;
 
-    var targetOnLoad = 'kepwareBox4Qimhnuea3n6';
+    var targetOnLoad = 'kepwareBox4Qimhnuea3n6'; // TODO: load from localStorage the last targeted thing
 
     var DEBUG_SHOW_LOGGER = false;
     var DEBUG_REMOVE_KEYBOARD_CONTROLS = false;
@@ -132,7 +132,7 @@ createNameSpace('realityEditor.device.desktopCamera');
      * Public init method to enable rendering if isDesktop
      */
     function initService() {
-        if (!realityEditor.device.utilities.isDesktop()) { return; }
+        if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
         
         // disable right-click context menu so we can use right-click to rotate camera
         document.addEventListener('contextmenu', event => event.preventDefault());
@@ -592,13 +592,17 @@ createNameSpace('realityEditor.device.desktopCamera');
         currentDistanceToTarget.toFixed(0) + ') ' + (isFollowingObjectTarget ? '(Following)' : '()'));
 
         // tween the matrix every frame to animate it to the new position
-        realityEditor.gui.ar.draw.correctedCameraMatrix = tweenMatrix(realityEditor.gui.ar.draw.correctedCameraMatrix, destinationCameraMatrix, 0.3);
+        let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
+        let newCameraMatrix = tweenMatrix(currentCameraMatrix, realityEditor.gui.ar.utilities.invertMatrix(destinationCameraMatrix), 0.3);
+        realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
 
-        var rotatedGroundPlaneMatrix = [];
+        // TODO ben: make sure groundplane matrix works on desktop
+        // var rotatedGroundPlaneMatrix = [];
         //var rotation3d = makeRotationY(Math.PI/2);
-        realityEditor.gui.ar.utilities.multiplyMatrix(window.gpMat, realityEditor.gui.ar.draw.correctedCameraMatrix, rotatedGroundPlaneMatrix);
-
-        realityEditor.gui.ar.draw.groundPlaneMatrix = rotatedGroundPlaneMatrix;
+        // realityEditor.gui.ar.utilities.multiplyMatrix(window.gpMat, realityEditor.gui.ar.draw.correctedCameraMatrix, rotatedGroundPlaneMatrix);
+        //
+        // realityEditor.gui.ar.draw.groundPlaneMatrix = rotatedGroundPlaneMatrix;
     }
 
     function getBaseLog(x, y) {
