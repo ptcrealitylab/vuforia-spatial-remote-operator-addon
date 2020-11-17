@@ -755,9 +755,13 @@ var mRot = function(pitch, roll, yaw) {
      * @todo: should we just send the camera position instead? or just one matrix (one matrix -> one image)
      */
     function sendMatricesToRealityZones() {
+
+        let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
+        
         // TODO: move this to the update loop and send every frame if we have established a connection with a reality zone
         var messageBody = {
-            cameraPoseMatrix: realityEditor.gui.ar.draw.correctedCameraMatrix, // doesnt matter
+            cameraPoseMatrix: currentCameraMatrix, // doesnt matter
             realProjectionMatrix: globalStates.realProjectionMatrix, // doesnt matter
             projectionMatrix: globalStates.projectionMatrix, // uses this
             visibleObjectMatrices: realityEditor.gui.ar.draw.visibleObjects, // this should contain modelViewMatrix
