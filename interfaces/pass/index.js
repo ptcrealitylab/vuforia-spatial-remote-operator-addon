@@ -451,6 +451,47 @@ if (exports.enabled) {
       }
     });
 
+    // this is for the 2020 scene graph version
+    socket.on('cameraPosition', function(data) {
+        if (stations.length > 0) {
+            try {
+                var poseInfo = JSON.parse(data);
+
+                var cameraPoseMatrix = poseInfo.cameraPoseMatrix;
+                // validMatrix = cameraPoseMatrix;
+
+                //with RDV origin mode: overwrite with RDV camera to RDV origin matrix
+                // if (poseInfo.cameraMode === "REALITY_ZONE_ORIGIN") {
+                //     validMatrix = poseInfo.RDVCameraPoseMatrix;
+                // }
+
+                if (cameraPoseMatrix) {
+                    var data_for_old_unity_version = poseInfo;
+                    // data_for_old_unity_version.modelViewMatrix = validMatrix;
+                    // data_for_old_unity_version.projectionMatrix = poseInfo.projectionMatrix;
+                    data_for_old_unity_version.realProjectionMatrix = poseInfo.realProjectionMatrix;
+
+                    if ((socket.viewer_width != poseInfo.resolution.width) || (socket.viewer_height != poseInfo.resolution.height)) {
+                        socket.viewer_width = poseInfo.resolution.width;
+                        socket.viewer_height = poseInfo.resolution.height;
+                        console.log('setting unity resolution from valid matrix to: ' +socket.viewer_width+','+socket.viewer_height);
+                        for (let station of stations) {
+                            station.emit('resolution',""+socket.viewer_width+','+socket.viewer_height);
+                        }
+                    }
+
+                    data_for_old_unity_version = JSON.stringify(data_for_old_unity_version);
+                    for (let station of stations) {
+                        station.emit('cameraPosition',data_for_old_unity_version);
+                    }
+                }
+
+            } catch(e) {
+                console.log('error! could not parse camera pose info: ' + e);
+            }
+        }
+    });
+
     // ben is testing this with the new version of the RDV camera system - 11/1/19
     socket.on('poseVuforiaCamera', function(data) {
       if (stations.length > 0) {
