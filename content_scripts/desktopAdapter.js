@@ -784,12 +784,9 @@ var mRot = function(pitch, roll, yaw) {
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
         
-        // TODO: move this to the update loop and send every frame if we have established a connection with a reality zone
         var messageBody = {
-            cameraPoseMatrix: currentCameraMatrix, // doesnt matter
-            realProjectionMatrix: globalStates.realProjectionMatrix, // doesnt matter
-            projectionMatrix: globalStates.projectionMatrix, // uses this
-            visibleObjectMatrices: realityEditor.gui.ar.draw.visibleObjects, // this should contain modelViewMatrix
+            cameraPoseMatrix: currentCameraMatrix,
+            projectionMatrix: globalStates.realProjectionMatrix,
             resolution: {
                 width: window.innerWidth,
                 height: window.innerHeight
@@ -797,7 +794,7 @@ var mRot = function(pitch, roll, yaw) {
             editorId: globalStates.tempUuid
         };
 
-        realityEditor.network.realtime.sendMessageToSocketSet('realityZones', 'poseVuforiaCamera', messageBody);
+        realityEditor.network.realtime.sendMessageToSocketSet('realityZones', 'cameraPosition', messageBody);
     }
 
     /**
