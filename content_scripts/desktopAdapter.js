@@ -234,6 +234,10 @@ var mRot = function(pitch, roll, yaw) {
             }
         });
     }
+    
+    let defaultPrimaryZoneIP = '10.10.10.105';
+    let primaryZoneIP = defaultPrimaryZoneIP;
+    let isUsingCustomPrimaryIP = false;
 
     /**
      * Adjust visuals for desktop rendering -> set background color and add "Waiting for Connection..." indicator
@@ -254,6 +258,27 @@ var mRot = function(pitch, roll, yaw) {
         // TODO: remove memory bar from pocket... instead maybe be able to save camera positions?
         
         createZoneConnectionDropdown();
+        
+        // add setting to type in IP address of primary zone
+        realityEditor.gui.settings.addToggleWithText('Primary Zone URL', 'IP address of first zone (e.g. 10.10.10.105)', 'primaryZoneIP' ,'../../../svg/download.svg', false, '10.10.10.105',
+            function(toggleValue, textValue) {
+                isUsingCustomPrimaryIP = toggleValue;
+                if (toggleValue && textValue.length > 0) {
+                    primaryZoneIP = textValue;
+                } else {
+                    primaryZoneIP = defaultPrimaryZoneIP;
+                }
+                console.log('primaryZoneIP = ' + primaryZoneIP);
+            },
+            function(textValue) {
+                console.log('zone text was set to ' + textValue);
+                if (isUsingCustomPrimaryIP) {
+                    primaryZoneIP = textValue;
+                }
+                console.log('primaryZoneIP = ' + primaryZoneIP);
+            },
+            true);//.setValue(!window.location.href.includes('127.0.0.1')); // default value is based on the current source
+
     }
 
     /**
@@ -692,7 +717,7 @@ var mRot = function(pitch, roll, yaw) {
         // only establish a new connection if we don't already have one with that server
         if (socketsIps.indexOf(zoneIp) < 0) {
             console.log('zoip', zoneIp);
-            let socketId = zoneIp.includes('10.10.10.105') ? 'primary' : 'secondary';
+            let socketId = zoneIp.includes(primaryZoneIP) ? 'primary' : 'secondary';
 
             // zoneConnectionSwitch.innerHTML = '[CONNECTED TO ZONE]';
 
