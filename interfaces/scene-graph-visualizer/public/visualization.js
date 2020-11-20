@@ -5,6 +5,7 @@ var clickedItem = null;
     function getData(sceneGraph) {
         console.log(sceneGraph);
         console.log('... processing ...');
+        removeDeactivatedObjects(sceneGraph);
         removeRotateXNodes(sceneGraph);
         let data = convertSceneGraphFormat(sceneGraph);
         console.log(data);
@@ -320,12 +321,33 @@ var clickedItem = null;
             let node = sceneGraph[id];
             if (!node) { return; }
             convertedChildren.push(convertNodeToJson(sceneGraph, node));
-            console.log(convertedChildren);
+            // console.log(convertedChildren);
         });
         return {
             name: node.id,
             children: convertedChildren
         }
+    }
+    
+    function removeDeactivatedObjects(sceneGraph) {
+        let keysToRemove = [];
+        Object.keys(sceneGraph).forEach(function(key) {
+            let node = sceneGraph[key];
+            if (node.deactivated) {
+                keysToRemove.push(key);
+                if (node.parent) {
+                    let parentNode = sceneGraph[node.parent];
+                    if (parentNode) {
+                        let index = parentNode.children.indexOf(key);
+                        parentNode.children.splice(index, 1);
+                    }
+                }
+            }
+        });
+        keysToRemove.forEach(function(key) {
+            console.log('remove deactivated ' + key + ' from ' + sceneGraph[key].parent);
+            delete sceneGraph[key];
+        });
     }
     
     function removeRotateXNodes(sceneGraph) {
@@ -366,7 +388,7 @@ var clickedItem = null;
             }
         });
         keysToRemove.forEach(function(key) {
-            console.log('remove ' + key + ' from ' + sceneGraph[key].parent);
+            // console.log('remove ' + key + ' from ' + sceneGraph[key].parent);
             delete sceneGraph[key];
         });
     }

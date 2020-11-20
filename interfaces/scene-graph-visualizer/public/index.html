@@ -88,10 +88,7 @@
     
     socket.on('sceneGraph', function(e) {
         sceneGraphReference = e;
-        // console.log('received scene graph', sceneGraphReference);
-        // let svg = d3.select("#Viz_area");
         visualize(sceneGraphReference);
-        // window.visualize2(sceneGraphReference);
     });
     socket.emit('getSceneGraph', null);
 
