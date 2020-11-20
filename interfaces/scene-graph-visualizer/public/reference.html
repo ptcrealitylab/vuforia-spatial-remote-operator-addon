@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scene Graph Debugger</title>
+    <style>
+        body {
+            margin: 10px;
+        }
+        div {
+            margin-bottom: 10px;
+        }
+        #title {
+            font-weight: bold;
+        }
+        #drawing01 {
+            position: absolute;
+            left: -150px;
+            top: 850px;
+            width: 300px;
+            height: 300px;
+            /*transform: scale(0.4);*/
+            pointer-events: none;
+        }
+        #drawing10 {
+            position: absolute;
+            left: 850px;
+            top: -150px;
+            width: 300px;
+            height: 300px;
+            /*transform: scale(0.4);*/
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<script src="/socket.io/socket.io.js"></script>
+
+<div id="container">
+    <div id="title">
+        Object Mover
+    </div>
+    <div id="dropdownContainer"></div>
+    <div>
+        X Offset: <input type="number" id="xOffsetField" value="0">
+    </div>
+    <div>
+        Y Offset: <input type="number" id="yOffsetField" value="0">
+    </div>
+    <div>
+        Z Offset: <input type="number" id="zOffsetField" value="0">
+    </div>
+    <div>
+        Rotation: <input type="number" id="rotationField" value="0">
+    </div>
+    <!--    <div>-->
+    <!--        Matrix: <textarea type="text" id="matrixTextField">[0.841218,-0.013899,0.540517,0,0.050835,0.997275,-0.053472,0,-0.538301,0.072459,0.839632,0,-271.7233889999999,116.11174,-2338.165527000001,1]</textarea>-->
+    <!--    </div>-->
+    <input type="button" value="Reset" id="resetButton">
+    <input type="button" value="Submit" id="submitButton">
+    <input type="button" value="Stream On" id="streamOnButton">
+    <input type="button" value="Stream Off" id="streamOffButton">
+
+    <iframe id='drawing01' src="http://localhost:8080/obj/drawing01/frames/default01/"></iframe>
+    <iframe id='drawing10' src="http://localhost:8080/obj/drawing10/frames/default10/"></iframe>
+</div>
+
+<script>
+    var xOffsetField = document.getElementById('xOffsetField');
+    var yOffsetField = document.getElementById('yOffsetField');
+    var zOffsetField = document.getElementById('zOffsetField');
+    var rotationField = document.getElementById('rotationField');
+    // var matrixTextField = document.getElementById('matrixTextField');
+    var submitButton = document.getElementById('submitButton');
+    var streamOnButton = document.getElementById('streamOnButton');
+    var streamOffButton = document.getElementById('streamOffButton');
+    xOffsetField.addEventListener('keyup', xChanged);
+    xOffsetField.addEventListener('change', xChanged);
+    yOffsetField.addEventListener('keyup', yChanged);
+    yOffsetField.addEventListener('change', yChanged);
+    zOffsetField.addEventListener('keyup', zChanged);
+    zOffsetField.addEventListener('change', zChanged);
+    rotationField.addEventListener('keyup', rotationChanged);
+    rotationField.addEventListener('change', rotationChanged);
+    // matrixTextField.addEventListener('keyup', matrixChanged);
+    resetButton.addEventListener('click', resetMatrix);
+    submitButton.addEventListener('click', matrixChanged);
+    streamOnButton.addEventListener('click', streamOn);
+    streamOffButton.addEventListener('click', streamOff);
+    document.addEventListener('mousemove', onPointerMove);
+    // var defaultMatrix = "[0.841218,-0.013899,0.540517,0,0.050835,0.997275,-0.053472,0,-0.538301,0.072459,0.839632,0,-271.7233889999999,116.11174,-2338.165527000001,1]";
+    // var defaultMatrix = '[0.9999010560091449,0.01203435538199682,-0.007265124494630683,0,-0.011959516021826377,0.9998757167509125,0.010281784874970532,0,0.007387583011282801,-0.010193258515928729,0.9999199474424679,0,989.0695336846786,-33.02772389802351,42.77521617565003,1]' // drawing10 matrix
+    var defaultMatrix = '[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]';
+    var defaultObjectKey = 'stoneTestrmix4u3rq5ve';
+    var editorId = 'testid01';
+
+    // matrixTextField.innerText = defaultMatrix;
+
+    var allObjectKeys = [];
+
+    var socket = io();
+    socket.on('allObjects', function(e) {
+        console.log('allObjects', e);
+        allObjectKeys = Object.keys(e);
+
+        // create dropdown for objects
+        var dropdown = document.createElement('select');
+        dropdown.id = 'dropdown';
+        allObjectKeys.forEach(function(discoveredObjectKey) {
+            var isDefault = discoveredObjectKey === defaultObjectKey;
+            dropdown.options.add(new Option(discoveredObjectKey, discoveredObjectKey, isDefault, isDefault));
+        });
+        document.getElementById('dropdownContainer').appendChild(dropdown);
+    });
+    socket.emit('getAllObjects', null);
+
+    var serverSocket = io.connect('http://localhost:8080');
+    serverSocket.on('connect', function() {
+        console.log('connected to server socket');
+    });
+
+    function xChanged(event) {
+        var value = parseFloat(event.target.value) || 0;
+        console.log('x', value);
+        socket.emit('newX', value);
+        matrixChanged();
+    }
+
+    function yChanged(event) {
+        var value = parseFloat(event.target.value) || 0;
+        console.log('y', value);
+        socket.emit('newY', value);
+        matrixChanged();
+    }
+
+    function zChanged(event) {
+        var value = parseFloat(event.target.value) || 0;
+        console.log('z', value);
+        socket.emit('newZ', value);
+        matrixChanged();
+    }
+
+    function rotationChanged(event) {
+        var value = parseFloat(event.target.value) || 0;
+        console.log('rotation', value);
+        socket.emit('newRotation', value);
+        matrixChanged();
+    }
+
+    function getXOffset() {
+        return parseFloat(xOffsetField.value) || 0;
+    }
+
+    function getYOffset() {
+        return parseFloat(yOffsetField.value) || 0;
+    }
+
+    function getZOffset() {
+        return parseFloat(zOffsetField.value) || 0;
+    }
+
+    function getRotationRadians() {
+        var degrees = parseFloat(rotationField.value) || 0;
+        return (degrees / 180) * Math.PI;
+    }
+
+    function getSelectedObjectKey() {
+        return document.getElementById('dropdown').value || defaultObjectKey;
+    }
+
+    function resetMatrix() {
+        xOffsetField.value = 0;
+        yOffsetField.value = 0;
+        zOffsetField.value = 0;
+        rotationField.value = 0;
+        // matrixTextField.value = defaultMatrix;
+        matrixChanged();
+    }
+
+    function matrixChanged() {
+        // var matrixArray = JSON.parse(matrixTextField.value);
+        // matrixArray[12] += getXOffset() * 10;
+        // matrixArray[13] += getYOffset() * 10;
+
+        var rotationMatrix = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        var radians = getRotationRadians();
+        rotationMatrix[0] = Math.cos(radians);
+        rotationMatrix[1] = -Math.sin(radians);
+        rotationMatrix[4] = Math.sin(radians);
+        rotationMatrix[5] = Math.cos(radians);
+
+        rotationMatrix[12] = getXOffset();
+        rotationMatrix[13] = getYOffset();
+        rotationMatrix[14] = getZOffset();
+
+        // matrixTextField.value = JSON.stringify(rotationMatrix);
+
+        var selectedObjectKey = getSelectedObjectKey();
+
+        if (serverSocket) {
+            // var messageBody = {
+            //     objectKey: selectedObjectKey,
+            //     matrix: rotationMatrix, //matrixArray,
+            //     editorId: editorId
+            // };
+            // serverSocket.emit('/update/object/matrix', JSON.stringify(messageBody));
+
+            var messageBody = {
+                objectKey: selectedObjectKey,
+                position: {
+                    x: getXOffset(),
+                    y: getYOffset(),
+                    z: getZOffset()
+                },
+                rotationInRadians: getRotationRadians(),
+                editorId: 'testID'
+            };
+            serverSocket.emit('/update/object/position', JSON.stringify(messageBody));
+        }
+    }
+
+    var isStreamOn = false;
+    function streamOff() {
+        isStreamOn = false;
+    }
+    function streamOn() {
+        isStreamOn = true;
+    }
+
+    function onPointerMove(event) {
+        if (isStreamOn) {
+            var x = event.pageX;
+            var y = event.pageY;
+
+            var selectedObjectKey = getSelectedObjectKey();
+
+            if (serverSocket) {
+                var messageBody = {
+                    objectKey: selectedObjectKey,
+                    position: {
+                        x: x,
+                        y: y,
+                        z: 0
+                    },
+                    rotationInRadians: getRotationRadians(),
+                    editorId: 'testID'
+                };
+                serverSocket.emit('/update/object/position', JSON.stringify(messageBody));
+            }
+        }
+    }
+
+</script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vuforia Spatial Edge Server</title>
+    <style>
+        body {
+            margin: 10px;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+        div {
+            margin-bottom: 10px;
+        }
+        #title {
+            font-weight: bold;
+        }
+        .dropdownContainer {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://d3js.org/d3.v6.min.js"></script>
+<script src="visualization.js"></script>
+
+<div id="container">
+    <div id="title">
+        Scene Graph Debugger
+    </div>
+    <div id="dropdownContainer" class="dropdownContainer"></div>
+    <div id="vizTypeDropdownContainer" class="dropdownContainer"></div>
+
+    <!-- Add a svg area, empty -->
+    <div id="my_dataviz"></div>
+</div>
+
+<script>
+    
+    let sceneGraphReference = null;
+
+    var allObjectKeys = [];
+    
+    let SPATIAL_COMPUTATIONS = [
+        'Distance'
+    ];
+    let defaultComputation = 'Distance';
+
+    var useTree = false;
+
+    var socket = io();
+    socket.on('allObjects', function(e) {
+        console.log('allObjects', e);
+        allObjectKeys = Object.keys(e);
+
+        // create dropdown for objects
+        var dropdown = document.createElement('select');
+        dropdown.id = 'dropdown';
+        // allObjectKeys.forEach(function(discoveredObjectKey) {
+        //     var isDefault = discoveredObjectKey === defaultObjectKey;
+        //     dropdown.options.add(new Option(discoveredObjectKey, discoveredObjectKey, isDefault, isDefault));
+        // });
+        SPATIAL_COMPUTATIONS.forEach(function(computationName) {
+            var isDefault = computationName === defaultComputation;
+            dropdown.options.add(new Option(computationName, computationName, isDefault, isDefault));
+        });
+        document.getElementById('dropdownContainer').appendChild(dropdown);
+
+        // create dropdown for visualization types
+        let vizDropdown = document.createElement('select');
+        vizDropdown.id = 'vizDropdown';
+        ['Cluster Diagram', 'Tree Diagram'].forEach(function(vizType) {
+            var isDefault = vizType === 'Cluster Diagram';
+            vizDropdown.options.add(new Option(vizType, vizType, isDefault, isDefault));
+        });
+        document.getElementById('vizTypeDropdownContainer').appendChild(vizDropdown);
+        
+        vizDropdown.addEventListener('change', function(e) {
+            console.log('viz change');
+            useTree = (e.target.value === 'Tree Diagram');
+            if (sceneGraphReference) {
+                visualize(sceneGraphReference);
+            }
+        });
+
+    });
+    socket.emit('getAllObjects', null);
+    
+    socket.on('sceneGraph', function(e) {
+        sceneGraphReference = e;
+        // console.log('received scene graph', sceneGraphReference);
+        // let svg = d3.select("#Viz_area");
+        visualize(sceneGraphReference);
+        // window.visualize2(sceneGraphReference);
+    });
+    socket.emit('getSceneGraph', null);
+
+    var serverSocket = io.connect('http://localhost:8080');
+    serverSocket.on('connect', function() {
+        console.log('connected to server socket');
+    });
+
+    function getDistanceOneToOne(id1, id2) {
+        socket.emit('/spatial/distance/oneToOne', JSON.stringify({ // todo implement other side
+            id1: id1,
+            id2: id2
+        }));
+    }
+    
+    let pendingOneToManyCallback = null;
+    function getDistanceOneToMany(id1, ids, callback) {
+        socket.emit('/spatial/distance/oneToMany', JSON.stringify({
+            id1: id1,
+            ids: ids
+        }));
+        pendingOneToManyCallback = callback;
+    }
+    
+    socket.on('/spatial/distance/oneToMany', function(data) {
+        if (!pendingOneToManyCallback) { return; }
+        pendingOneToManyCallback(data);
+        pendingOneToManyCallback = null;
+    });
+    
+    function getDistanceOneToAll(id) {
+        socket.emit('/spatial/distance/oneToAll', JSON.stringify({
+            id: id
+        }));
+    }
+
+
+</script>
+</body>
+</html>
