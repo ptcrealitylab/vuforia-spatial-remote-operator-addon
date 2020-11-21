@@ -86,7 +86,9 @@ if (exports.enabled) {
                     });
                     
                     socket.on('getSceneGraph', function() {
-                        let sceneGraph = server.getSceneGraph();
+                        // let sceneGraph = server.getSceneGraph();
+                        let sceneGraph = server.getWorldGraph();
+
                         // let stringifiedGraph = JSON.stringify(sceneGraph);
                         // console.log(stringifiedGraph);
                         socket.emit('sceneGraph', sceneGraph);
