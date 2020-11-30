@@ -7,14 +7,14 @@ createNameSpace('realityEditor.device.desktopCamera');
 
 (function() {
 
-    var cameraPosition = [735, -1575, -162]; //[1000, -500, 500];
+    var cameraPosition = [1800, 7300, -5300]; //[735, -1575, -162]; //[1000, -500, 500];
     var cameraTargetPosition = [0, 0, 0];
     var previousTargetPosition = [0, 0, 0];
     var currentDistanceToTarget = 500;
     var isFollowingObjectTarget = false;
     var closestObjectLog = null;
 
-    var targetOnLoad = 'kepwareBox4Qimhnuea3n6'; // TODO: load from localStorage the last targeted thing
+    var targetOnLoad = 'kepwareBox7Cjeujc54h5y'; //'kepwareBox4Qimhnuea3n6'; // TODO: load from localStorage the last targeted thing
 
     var DEBUG_SHOW_LOGGER = false;
     var DEBUG_REMOVE_KEYBOARD_CONTROLS = false;
@@ -490,13 +490,13 @@ createNameSpace('realityEditor.device.desktopCamera');
             // pan if shift held down
             if (keyStates[keyCodes.SHIFT] === 'down') {
                 // STRAFE LEFT-RIGHT
-                let vector = scalarMultiply(horizontalVector, -1 * distancePanFactor * unprocessedMouseDX * getCameraPanSensitivity());
+                let vector = scalarMultiply(horizontalVector, distancePanFactor * unprocessedMouseDX * getCameraPanSensitivity());
                 cameraTargetVelocity = add(cameraTargetVelocity, vector);
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             } else {
                 // rotate otherwise 
-                let vector = scalarMultiply(vCamX, -1 * cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
+                let vector = scalarMultiply(vCamX, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
                 cameraVelocity = add(cameraVelocity, vector);
             }
 
@@ -507,13 +507,13 @@ createNameSpace('realityEditor.device.desktopCamera');
             // pan if shift held down
             if (keyStates[keyCodes.SHIFT] === 'down') {
                 // STRAFE UP-DOWN
-                let vector = scalarMultiply(verticalVector, -1 * distancePanFactor * unprocessedMouseDY * getCameraPanSensitivity());
+                let vector = scalarMultiply(verticalVector, distancePanFactor * unprocessedMouseDY * getCameraPanSensitivity());
                 cameraTargetVelocity = add(cameraTargetVelocity, vector);
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             } else {
                 // rotate otherwise 
-                let vector = scalarMultiply(vCamY, -1 * cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDY);
+                let vector = scalarMultiply(vCamY, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDY);
                 cameraVelocity = add(cameraVelocity, vector);
             }
 
