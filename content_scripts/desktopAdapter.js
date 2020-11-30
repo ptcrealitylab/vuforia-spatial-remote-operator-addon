@@ -591,10 +591,23 @@ var mRot = function(pitch, roll, yaw) {
 
         // trigger main update function after a 100ms delay, to synchronize with the approximate lag of the realityZone image processing
         // updateAfterDelay(visibleMatrixCopy, 100);
-        updateAfterDelay(visibleObjects, 100);
+        updateAfterDelay(getVisibleObjects(), 100);
 
         // repeat loop on next render
         requestAnimationFrame(update);
+    }
+    
+    function getVisibleObjects() {
+        // render everything that has been localized
+        let tempVisibleObjects = {};
+        
+        Object.keys(objects).forEach(function(objectKey) {
+            // todo: check if object.worldId matches a world that is currently loaded
+
+            tempVisibleObjects[objectKey] = objects[objectKey].matrix; // right side here doesn't matter
+        });
+        
+        return tempVisibleObjects;
     }
 
     function updateAfterDelay(matrices, delayInMs) {
