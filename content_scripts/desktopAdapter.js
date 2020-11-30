@@ -356,13 +356,13 @@ var mRot = function(pitch, roll, yaw) {
         // realityEditor.gui.ar.draw.rotateX_desktopWorld = rotateX;
 
         // TODO ben: determine if rotoateX in sceneGraph needs to be updated like this
-        rotateX = [
-            1, 0, 0, 0,
-            0, -1, 0, 0,
-            0, 0, -1, 0,
-            0, 0, 0, 1
-        ];
-        realityEditor.gui.ar.draw.rotateX = rotateX;
+        // rotateX = [
+        //     1, 0, 0, 0,
+        //     0, -1, 0, 0,
+        //     0, 0, -1, 0,
+        //     0, 0, 0, 1
+        // ];
+        // realityEditor.gui.ar.draw.rotateX = rotateX;
 
         // desktopFrameTransform = mRot(0,0,90); // fixes the rotation but too late, not the resulting translation
 
