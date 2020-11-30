@@ -31,7 +31,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
 
     // holds the most recent set of objectId/matrix pairs so that they can be rendered on the next frame
-    // var visibleObjects = {};
 
     // hold the current camera position/rotation information, which can be updated with keyboard input
     var cameraTranslationMatrix = []; // these are defined here for memory allocation optimization, but updated each time
@@ -273,12 +272,9 @@ createNameSpace('realityEditor.device.desktopCamera');
             return;
         }
 
-        var mObj = realityEditor.gui.ar.draw.visibleObjects[objectKey];
-        if (mObj) {
-            var objX = mObj[12] / mObj[15];
-            var objY = mObj[13] / mObj[15];
-            var objZ = mObj[14] / mObj[15];
-            cameraTargetPosition = [objX, objY, objZ];
+        var targetPosition = realityEditor.sceneGraph.getWorldPosition(objectKey);
+        if (targetPosition) {
+            cameraTargetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
             isFollowingObjectTarget = true;
         }
     }
@@ -647,15 +643,11 @@ createNameSpace('realityEditor.device.desktopCamera');
             };
         }
 
-        var mObj = realityEditor.gui.ar.draw.visibleObjects[targetObjectKey];
-        var objX = mObj[12] / mObj[15];
-        var objY = mObj[13] / mObj[15];
-        var objZ = mObj[14] / mObj[15];
-
+        var targetPosition = realityEditor.sceneGraph.getWorldPosition(targetObjectKey);
         return {
-            x: objX,
-            y: objY,
-            z: objZ
+            x: targetPosition.x,
+            y: targetPosition.y,
+            z: targetPosition.z
         };
     }
 
