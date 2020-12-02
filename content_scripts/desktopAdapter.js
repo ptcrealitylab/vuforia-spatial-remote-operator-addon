@@ -6,18 +6,9 @@ createNameSpace('realityEditor.device.desktopAdapter');
  * waits for a connection from a mobile editor that will stream matrices here
  */
 
-var mRot = function(pitch, roll, yaw) {
-    return realityEditor.gui.ar.utilities.getMatrixFromQuaternion(realityEditor.gui.ar.utilities.getQuaternionFromPitchRollYaw(pitch * Math.PI / 180, roll * Math.PI / 180, yaw * Math.PI / 180));
-};
-
 (function(exports) {
     // Automatically connect to all discovered reality zones
     const AUTO_ZONE_CONNECT = true;
-    
-    /**
-     * @type {number} - the handle for the setInterval for mobile editors to connect to desktops
-     */
-    var broadcastInterval;
 
     /**
      * @type {boolean} - when paused, desktops ignore matrices received from mobile editors and use their own
@@ -76,47 +67,34 @@ var mRot = function(pitch, roll, yaw) {
      * initialize the desktop adapter only if we are running on a desktop environment
      */
     function initService() {
-        if (isDesktop()) {
-            env.requiresMouseEvents = true; // this fixes touch events to become mouse events
-            env.supportsDistanceFading = false; // this prevents things from disappearing when the camera zooms out
-            env.ignoresFreezeButton = true; // this 
-            env.shouldDisplayLogicMenuModally = true;
-            env.lineWidthMultiplier = 5;
-            env.distanceScaleFactor = 10;
-            env.localServerPort = 8080; // this would let it find world_local if it exists
-            env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
-            env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
+        // by including this check, we can tolerate compiling this add-on into the app without breaking everything
+        // (ideally this add-on should only be added to a "desktop" server but this should effectively ignore it on mobile)
+        if (!isDesktop()) { return; }
 
-            // default values that I may or may not need to invert:
-            // env.providesOwnUpdateLoop: false,
-            // shouldBroadcastUpdateObjectMatrix: false,
-            // doWorldObjectsRequireCameraTransform: false,
-            // distanceRequiresCameraTransform: false,
-        } else {
+        // Set the correct environment variables so that this add-on changes the app to run in desktop mode
+        env.requiresMouseEvents = true; // this fixes touch events to become mouse events
+        env.supportsDistanceFading = false; // this prevents things from disappearing when the camera zooms out
+        env.ignoresFreezeButton = true; // no need to "freeze the camera" on desktop
+        env.shouldDisplayLogicMenuModally = true; // affects appearance of crafting board
+        env.lineWidthMultiplier = 5; // makes links thicker (more visible)
+        env.distanceScaleFactor = 10; // makes distance-based interactions work at further distances than mobile
+        env.localServerPort = 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
+        env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
+        env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
 
-            // // TODO: replace this with a better version that isn't reliant on editor being open at same time
-            // // for NON desktop editors, they should broadcast their visible object matrices when enabled
-            // realityEditor.gui.ar.draw.addUpdateListener(function(visibleObjects) {
-            //     if (globalStates.matrixBroadcastEnabled) {
-            //         broadcastMatrices(visibleObjects);
-            //     }
-            // });
-
-            return;
-        }
+        // default values that I may or may not need to invert:
+        // shouldBroadcastUpdateObjectMatrix: false,
         
         restyleForDesktop();
         modifyGlobalNamespace();
 
+        // TODO realtime interactions between remote operator and AR clients need to be re-tested and possibly fixed
         setTimeout(function() {
             addSocketListeners(); // HACK. this needs to happen after realtime module finishes loading
         }, 100);
         
         addZoneDiscoveredListener();
         addZoneControlListener();
-
-        // TODO: is this really the best way to do this? data should come from server, not browser storage
-        // visibleObjects = JSON.parse(window.localStorage.getItem('realityEditor.desktopAdapter.savedMatrices') || '{}');
 
         savedZoneSocketIPs = JSON.parse(window.localStorage.getItem('realityEditor.desktopAdapter.savedZoneSocketIPs') || '[]');
 
@@ -135,7 +113,7 @@ var mRot = function(pitch, roll, yaw) {
         }
 
         var desktopProjectionMatrix = projectionMatrixFrom(25, -window.innerWidth / window.innerHeight, 0.1, 300000);
-        console.log('desktop matrix', desktopProjectionMatrix);
+        console.log('calculated desktop projection matrix:', desktopProjectionMatrix);
 
         // noinspection JSSuspiciousNameCombination
         globalStates.height = window.innerWidth;
@@ -235,10 +213,6 @@ var mRot = function(pitch, roll, yaw) {
             }
         });
     }
-    
-    let defaultPrimaryZoneIP = '10.10.10.105';
-    let primaryZoneIP = defaultPrimaryZoneIP;
-    let isUsingCustomPrimaryIP = false;
 
     /**
      * Adjust visuals for desktop rendering -> set background color and add "Waiting for Connection..." indicator
@@ -262,26 +236,21 @@ var mRot = function(pitch, roll, yaw) {
         
         // add setting to type in IP address of primary zone
         realityEditor.gui.settings.addToggleWithText('Primary Zone URL', 'IP address of first zone (e.g. 10.10.10.105)', 'primaryZoneIP' ,'../../../svg/download.svg', false, '10.10.10.105',
-            function(toggleValue, textValue) {
+            function(_toggleValue, _textValue) {
                 // isUsingCustomPrimaryIP = toggleValue;
-                // if (toggleValue && textValue.length > 0) {
-                //     primaryZoneIP = textValue;
-                // } else {
-                //     primaryZoneIP = defaultPrimaryZoneIP;
-                // }
-                // console.log('primaryZoneIP = ' + primaryZoneIP);
             },
             function(textValue) {
                 console.log('zone text was set to ' + textValue);
-                // if (isUsingCustomPrimaryIP) {
-                //     primaryZoneIP = textValue;
-                // }
-                // console.log('primaryZoneIP = ' + primaryZoneIP);
             },
-            true);//.setValue(!window.location.href.includes('127.0.0.1')); // default value is based on the current source
+            true);
 
     }
-    
+
+    /**
+     * Images coming from a reality zone at this IP address will be rendered into background.
+     * Images coming from another IP address will be treated as a "secondary" zone
+     * @return {string|*}
+     */
     function getPrimaryZoneIP() {
         if (realityEditor.gui.settings.toggleStates.primaryZoneIP && realityEditor.gui.settings.toggleStates.primaryZoneIPText) {
             return realityEditor.gui.settings.toggleStates.primaryZoneIPText;
@@ -328,35 +297,10 @@ var mRot = function(pitch, roll, yaw) {
             }
         };
 
-        // polyfill webkit functions on Chrome browser
-        // if (typeof window.webkitConvertPointFromPageToNode === 'undefined') {
-        //     console.log('Polyfilling webkitConvertPointFromPageToNode for this browser');
-        //
-        //     polyfillWebkitConvertPointFromPageToNode();
-        //
-        //     var ssEl = document.createElement('style'),
-        //         css = '.or{position:absolute;opacity:0;height:33.333%;width:33.333%;top:0;left:0}.or.r-2{left:33.333%}.or.r-3{left:66.666%}.or.r-4{top:33.333%}.or.r-5{top:33.333%;left:33.333%}.or.r-6{top:33.333%;left:66.666%}.or.r-7{top:66.666%}.or.r-8{top:66.666%;left:33.333%}.or.r-9{top:66.666%;left:66.666%}';
-        //     ssEl.type = 'text/css';
-        //     (ssEl.styleSheet) ?
-        //         ssEl.styleSheet.cssText = css :
-        //         ssEl.appendChild(document.createTextNode(css));
-        //     document.getElementsByTagName('head')[0].appendChild(ssEl);
-        // }
-        
-        // pocketBegin = [4809.935578545477, -21.448650897337046, 0.4699633267584691, 0.46996614495062317, -44.91500625468903, 4866.661791176597, 0.11589206604418023, 0.11589146054651356, 1868.0710976511762, 151.4880583152451, 3.796594149786673, 3.7967717726783503, 253912.5079441294, -209710.60820716852, 4880.993541501766, 4881.118759195814];
-        
-        // realityEditor.gui.ar.draw.correctedCameraMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
+        // don't need to polyfill webkit functions for Chrome here because it is already polyfilled in the userinterface
 
-        // realityEditor.gui.ar.draw.groundPlaneMatrix = realityEditor.gui.ar.draw.correctedCameraMatrix; // ground plane just points to camera matrix on desktop
-
-        // rotateX = mRot(0,0,-90);
-
-        // rotateX = mRot(0,-90,0);
-
-        // rotateX = mFlipYZ;
-        // realityEditor.gui.ar.draw.rotateX_desktopWorld = rotateX;
-
-        // TODO ben: determine if rotoateX in sceneGraph needs to be updated like this
+        // TODO: unsure if env.isCameraOrientationFlipped was only necessary because rotateX needs to be different on desktop..
+        //       investigate this further to potentially simplify calculations
         // rotateX = [
         //     1, 0, 0, 0,
         //     0, -1, 0, 0,
@@ -364,80 +308,7 @@ var mRot = function(pitch, roll, yaw) {
         //     0, 0, 0, 1
         // ];
         // realityEditor.gui.ar.draw.rotateX = rotateX;
-
-        // desktopFrameTransform = mRot(0,0,90); // fixes the rotation but too late, not the resulting translation
-
-        // desktopFrameTransform = mFlipYZ;
     }
-
-    // /**
-    //  * Based off of https://gist.github.com/Yaffle/1145197 with modifications to
-    //  * support more complex matrices
-    //  */
-    // function polyfillWebkitConvertPointFromPageToNode() {
-    //     const identity = new DOMMatrix([
-    //         1, 0, 0, 0,
-    //         0, 1, 0, 0,
-    //         0, 0, 1, 0,
-    //         0, 0, 0, 1
-    //     ]);
-    //
-    //     if (!window.WebKitPoint) {
-    //         window.WebKitPoint = DOMPoint;
-    //     }
-    //
-    //     function getTransformationMatrix(element) {
-    //         var transformationMatrix = identity;
-    //         var x = element;
-    //
-    //         while (x !== undefined && x !== x.ownerDocument.documentElement) {
-    //             var computedStyle = window.getComputedStyle(x);
-    //             var transform = computedStyle.transform || "none";
-    //             var c = transform === "none" ? identity : new DOMMatrix(transform);
-    //
-    //             transformationMatrix = c.multiply(transformationMatrix);
-    //             x = x.parentNode;
-    //         }
-    //
-    //         // Normalize current matrix to have m44=1 (w = 1). Math does not work
-    //         // otherwise because nothing knows how to scale based on w
-    //         let baseArr = transformationMatrix.toFloat64Array();
-    //         baseArr = baseArr.map(b => b / baseArr[15]);
-    //         transformationMatrix = new DOMMatrix(baseArr);
-    //
-    //         var w = element.offsetWidth;
-    //         var h = element.offsetHeight;
-    //         var i = 4;
-    //         var left = +Infinity;
-    //         var top = +Infinity;
-    //         while (--i >= 0) {
-    //             var p = transformationMatrix.transformPoint(new DOMPoint(i === 0 || i === 1 ? 0 : w, i === 0 || i === 3 ? 0 : h, 0));
-    //             if (p.x < left) {
-    //                 left = p.x;
-    //             }
-    //             if (p.y < top) {
-    //                 top = p.y;
-    //             }
-    //         }
-    //         var rect = element.getBoundingClientRect();
-    //         transformationMatrix = identity.translate(window.pageXOffset + rect.left - left, window.pageYOffset + rect.top - top, 0).multiply(transformationMatrix);
-    //         return transformationMatrix;
-    //     }
-    //
-    //     window.convertPointFromPageToNode = window.webkitConvertPointFromPageToNode = function (element, point) {
-    //         let mati = getTransformationMatrix(element).inverse();
-    //         // This involves a lot of math, sorry.
-    //         // Given $v = M^{-1}p$ we have p.x, p.y, p.w, M^{-1}, and know that v.z
-    //         // should be equal to 0.
-    //         // Solving for p.z we get the following:
-    //         let projectedZ = -(mati.m13 * point.x + mati.m23 * point.y + mati.m43) / mati.m33;
-    //         return mati.transformPoint(new DOMPoint(point.x, point.y, projectedZ));
-    //     };
-    //
-    //     window.convertPointFromNodeToPage = function (element, point) {
-    //         return getTransformationMatrix(element).transformPoint(point);
-    //     };
-    // }
 
     /**
      * Adds socket.io listeners for matrix streams and UDP messages necessary to setup editor without mobile environment
@@ -485,7 +356,7 @@ var mRot = function(pitch, roll, yaw) {
                         callbackHandler.triggerCallbacks('objectMatrixDiscovered', {objectKey: msgData.objectKey});
                     }
                     
-                    // TODO: set sceneGraph localMatrix to msgData.newValue
+                    // TODO: set sceneGraph localMatrix to msgData.newValue?
                     // var rotatedObjectMatrix = realityEditor.gui.ar.utilities.copyMatrix(msgData.newValue);
                     // object.matrix = rotatedObjectMatrix;
                     // visibleObjects[msgData.objectKey] = rotatedObjectMatrix;
@@ -502,7 +373,7 @@ var mRot = function(pitch, roll, yaw) {
                 realityEditor.network.addHeartbeatObject(msgContent);
             }
 
-            // TODO: understand what this is doing and if it's still necessary
+            // TODO: I believe this can be removed because it was an old method for synchronizing the desktop camera with an AR client's camera
             if (!currentConnectedDeviceIP) {
                 if (typeof msgContent.projectionMatrix !== 'undefined') {
                     if (typeof msgContent.ip !== 'undefined' && typeof msgContent.port !== 'undefined') {
@@ -615,16 +486,6 @@ var mRot = function(pitch, roll, yaw) {
         setTimeout(function() {
             realityEditor.gui.ar.draw.update(matrices);
         }, delayInMs);
-    }
-
-    /**
-     * Sends the current matrix set to all connected desktop editors
-     * @param {Object.<string, Array.<number>>} visibleObjects
-     */
-    function broadcastMatrices(visibleObjects) {
-        var eventName = '/matrix/visibleObjects';
-        var messageBody = {visibleObjects: visibleObjects, ip: window.location.hostname, port: window.location.port};
-        realityEditor.network.realtime.sendMessageToSocketSet('desktopEditors', eventName, messageBody);
     }
     
     /**
@@ -859,39 +720,6 @@ var mRot = function(pitch, roll, yaw) {
         realityEditor.app.getUDPMessages('realityEditor.app.callbacks.receivedUDPMessage');
     }
 
-    /**
-     * Broadcasts this editor's projection matrix to all desktop editors, so that they can use it.
-     * Checks if there are any objects from new servers, and establishes a socket connection to their desktop clients.
-     * Should be called on mobile editors only.
-     */
-    function broadcastEditorInformation() {
-
-        realityEditor.app.sendUDPMessage({
-            action: 'mobileEditorDiscovered',
-            ip: window.location.hostname,
-            port: parseInt(window.location.port),
-            // uuid: globalStates.tempUuid
-            projectionMatrix: globalStates.projectionMatrix,
-            realProjectionMatrix: globalStates.realProjectionMatrix
-        });
-
-        var ipList = [];
-        realityEditor.forEachObject(function(object, _objectKey) {
-            if (ipList.indexOf(object.ip) === -1) {
-                ipList.push(object.ip);
-            }
-        });
-
-        var desktopEditorPort = 8081;
-        ipList.forEach(function(ip) {
-            var potentialDesktopEditorAddress = 'http://' + ip + ':' + desktopEditorPort;
-            var socketsIps = realityEditor.network.realtime.getSocketIPsForSet('desktopEditors');
-            if (socketsIps.indexOf(potentialDesktopEditorAddress) < 0) {
-                realityEditor.network.realtime.createSocketInSet('desktopEditors', potentialDesktopEditorAddress);
-            }
-        });
-    }
-
     function resetIdleTimeout() {
         if (idleTimeout) {
             clearTimeout(idleTimeout);
@@ -909,29 +737,6 @@ var mRot = function(pitch, roll, yaw) {
         window.localStorage.setItem('realityEditor.desktopAdapter.savedZoneSocketIPs', JSON.stringify(zoneSocketIPs));
         window.location.reload();
     }
-
-    // exports.updateObjectMatrix = function(objectKey, pitch, roll, yaw) {
-    //     var object = realityEditor.getObject(objectKey);
-    //     var rotatedObjectMatrix = realityEditor.gui.ar.utilities.copyMatrix(object.matrix);
-    //
-    //     // var rotatedObjectMatrix = [];
-    //     var rotation3d = [
-    //         1, 0, 0, 0,
-    //         0, 0, -1, 0,
-    //         0, -1, 0, 0,
-    //         0, 0, 0, 1
-    //     ];
-    //     realityEditor.gui.ar.utilities.multiplyMatrix(rotation3d, object.matrix, rotatedObjectMatrix);
-    //     var rotation2d = mRot(pitch, roll, yaw);
-    //     realityEditor.gui.ar.utilities.multiplyMatrix(rotation2d, rotatedObjectMatrix, rotatedObjectMatrix);
-    //     var oldZ = rotatedObjectMatrix[14];
-    //     rotatedObjectMatrix[14] = -rotatedObjectMatrix[13];
-    //     rotatedObjectMatrix[13] = -oldZ;
-    //
-    //     console.log('object ' + objectKey + 'is at (' + rotatedObjectMatrix[12] / rotatedObjectMatrix[15] + ', ' + rotatedObjectMatrix[13] / rotatedObjectMatrix[15] + ', ' + rotatedObjectMatrix[14] / rotatedObjectMatrix[15] + ')');
-    //
-    //     visibleObjects[objectKey] = rotatedObjectMatrix;
-    // };
 
     // Currently unused
     exports.registerCallback = registerCallback;
