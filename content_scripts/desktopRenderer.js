@@ -7,16 +7,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
  */
 
 (function(exports) {
-
-    var TEMP_DISABLE_MARKER_PLANES = true;
-
-    var visibleObjectsCopy = {};
-    var elementsAdded = [];
-
-    var utilities = realityEditor.gui.ar.utilities;
-    var tempResMatrix = [];
-    var activeObjectMatrix = [];
-
     /**
      * @type {Canvas} - the DOM element where the images streamed from a reality zone are rendered
      */
@@ -46,37 +36,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
      */
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
-
-        // if (!TEMP_DISABLE_MARKER_PLANES) {
-        //
-        //     // registers a callback to the gui.ar.draw.update loop so that this module can manage its own rendering
-        //     realityEditor.gui.ar.draw.addUpdateListener(function(visibleObjects) {
-        //
-        //         // remove old plane elements that have disappeared
-        //         for (var objectKey in visibleObjectsCopy) {
-        //             if (!visibleObjectsCopy.hasOwnProperty(objectKey)) continue;
-        //             if (!visibleObjects.hasOwnProperty(objectKey)) {
-        //                 removePlaneElement(objectKey);
-        //             }
-        //         }
-        //
-        //         // cache the most recent visible objects so we can detect when one disappears
-        //         visibleObjectsCopy = visibleObjects;
-        //
-        //         for (objectKey in visibleObjects) {
-        //             if (!visibleObjects.hasOwnProperty(objectKey)) continue;
-        //             if (!objects.hasOwnProperty(objectKey)) continue;
-        //
-        //             var object = realityEditor.getObject(objectKey);
-        //             if (object.isWorldObject) continue;
-        //             if (object.hasOwnProperty('targetType') && object.targetType === 'model') continue;
-        //
-        //             renderMarkerPlane(objectKey, visibleObjects[objectKey]);
-        //         }
-        //
-        //     });
-        //
-        // }
 
         // create background canvas and supporting canvasses
 
@@ -223,86 +182,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             gfx.putImageData(id, 0, 0);
         });
     }
-
-    // function renderMarkerPlane(objectKey, visibleObjectMatrix) {
-    //     // var object = realityEditor.getObject(objectKey);
-    //
-    //     // create div for ghost if needed
-    //     if (!globalDOMCache['plane' + objectKey]) {
-    //         createPlaneElement(objectKey);
-    //     } else {
-    //         if (globalDOMCache['plane' + objectKey].style.display === 'none') {
-    //             globalDOMCache['plane' + objectKey].style.display = 'inline';
-    //         }
-    //     }
-    //
-    //     utilities.multiplyMatrix(visibleObjectMatrix, globalStates.projectionMatrix, activeObjectMatrix);
-    //
-    //     var finalMatrix = activeObjectMatrix;
-    //
-    //     // adjust Z-index so it gets rendered behind all the real frames/nodes
-    //     // calculate center Z of frame to know if it is mostly in front or behind the marker plane
-    //     var projectedPoint = realityEditor.gui.ar.utilities.multiplyMatrix4([0, 0, 0, 1], activeObjectMatrix);
-    //     finalMatrix[14] = -5 + 1000000 / Math.max(10, projectedPoint[2]); // (don't add extra 200) so it goes behind real
-    //
-    //     if (globalStates.guiState !== 'ui') {
-    //         finalMatrix[14] = 100;
-    //     }
-    //
-    //     // actually adjust the CSS to draw it with the correct transformation
-    //     globalDOMCache['plane' + objectKey].style.transform = 'matrix3d(' + finalMatrix.toString() + ')'; // TODO: simplify to something meaningful
-    //
-    //     // // store the screenX and screenY within the ghost to help us later draw lines to the ghosts
-    //     // var ghostCenterPosition = getDomElementCenterPosition(globalDOMCache['ghost' + activeKey]);
-    //     // ghostVehicle.screenX = ghostCenterPosition.x;
-    //     // ghostVehicle.screenY = ghostCenterPosition.y;
-    //
-    // }
-
-    // /**
-    //  * Creates a dotted-outline DOM element for the given frame or node, using its width and height.
-    //  * Styles it differently (red) if the reason for the ghost is that the frame/node was deleted.
-    //  * Also add it to the elementsAdded list, to keep track of which ghosts are in existence.
-    //  * @param {string} objectKey
-    //  */
-    // function createPlaneElement(objectKey) {
-    //     var object = realityEditor.getObject(objectKey);
-    //
-    //     var planeDiv = document.createElement('div');
-    //     planeDiv.id = 'plane' + objectKey;
-    //     planeDiv.classList.add('main', 'ignorePointerEvents', 'visibleFrameContainer');
-    //
-    //     planeDiv.style.width = globalStates.height + 'px';
-    //     planeDiv.style.height = globalStates.width + 'px';
-    //     planeDiv.style.left = 0;
-    //     planeDiv.style.top = 0;
-    //
-    //     var innerPlane = document.createElement('img');
-    //     innerPlane.classList.add('markerPlaneElement');
-    //     var innerWidth = object.targetSize.width * 1000;
-    //     var innerHeight = object.targetSize.height * 1000;
-    //     innerPlane.style.width = innerWidth + 'px';
-    //     innerPlane.style.height = innerHeight + 'px';
-    //     innerPlane.style.left = (globalStates.height - innerWidth) / 2 + 'px';
-    //     innerPlane.style.top = (globalStates.width - innerHeight) / 2 + 'px';
-    //
-    //     var objectName = objectKey.slice(0, -12); // get objectName from objectId
-    //     innerPlane.src = 'http://' + object.ip + ':' + httpPort + '/obj/' + objectName + '/target/target.jpg';
-    //
-    //     planeDiv.appendChild(innerPlane);
-    //
-    //     document.getElementById('GUI').appendChild(planeDiv);
-    //     globalDOMCache['plane' + objectKey] = planeDiv;
-    //
-    //     // maintain an elementsAdded list so that we can remove them all on demand
-    //     elementsAdded.push(objectKey);
-    // }
-    //
-    // function removePlaneElement(objectKey) {
-    //     if (globalDOMCache['plane' + objectKey]) {
-    //         globalDOMCache['plane' + objectKey].style.display = 'none';
-    //     }
-    // }
 
     exports.processImageFromSource = processImageFromSource;
 

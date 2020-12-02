@@ -75,7 +75,7 @@ createNameSpace('realityEditor.device.desktopStats');
 
     function updateImagesPerSecond() {
     	currentImageTime = (new Date()).getTime() - imageStartTime;
-    	imagesPerSecond = numImages / (currentImageTime/1000);
+    	imagesPerSecond = numImages / (currentImageTime / 1000);
     	imagesPerSecondElement.innerText = imagesPerSecond.toFixed(2);
     }
 
