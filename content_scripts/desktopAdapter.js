@@ -85,6 +85,7 @@ var mRot = function(pitch, roll, yaw) {
             env.distanceScaleFactor = 10;
             env.localServerPort = 8080; // this would let it find world_local if it exists
             env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
+            env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
 
             // default values that I may or may not need to invert:
             // env.providesOwnUpdateLoop: false,
