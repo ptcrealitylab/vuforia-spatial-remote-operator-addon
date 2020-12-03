@@ -7,86 +7,66 @@ createNameSpace('realityEditor.device.desktopCamera');
 
 (function() {
 
-    var cameraPosition = [735, -1575, -162]; //[1000, -500, 500];
+    var cameraPosition = [1800, 7300, -5300]; //[735, -1575, -162]; //[1000, -500, 500];
     var cameraTargetPosition = [0, 0, 0];
     var previousTargetPosition = [0, 0, 0];
     var currentDistanceToTarget = 500;
     var isFollowingObjectTarget = false;
-    var closestObjectLog = null;
 
-    var targetOnLoad = 'kepwareBox4Qimhnuea3n6';
+    // this is the final camera matrix that will be computed from lookAt(cameraPosition, cameraTargetPosition)
+    var destinationCameraMatrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+    var targetOnLoad = window.localStorage.getItem('selectedObjectKey');
 
     var DEBUG_SHOW_LOGGER = false;
     var DEBUG_REMOVE_KEYBOARD_CONTROLS = false;
     var DEBUG_PREVENT_CAMERA_SINGULARITIES = false;
+    var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
 
     /**
      * @type {Dropdown} - DOM element to choose which object to target for the camera
      */
     var objectDropdown;
-    var selectedObjectKey = null; //null; //'closestObject';
+    var selectedObjectKey = null;
 
     // polyfill for requestAnimationFrame to provide a smooth update loop
     var requestAnimationFrame = window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
 
-    // holds the most recent set of objectId/matrix pairs so that they can be rendered on the next frame
-    // var visibleObjects = {};
+    /* ---------- how fast the camera will pan and rotate each frame --------- */
+    // affects keyboard and mouse controls
+    var cameraSpeed = 0.0001;
 
-    // hold the current camera position/rotation information, which can be updated with keyboard input
-    var cameraTranslationMatrix = []; // these are defined here for memory allocation optimization, but updated each time
-    var cameraRotationMatrix = [];
-
-    var cameraX = 200; //0;
-    var cameraY = -1170; //0;
-    var cameraZ = 2230; //7000;
-
-    var cameraVelocityX = 0;
-    var cameraVelocityY = 0;
-    var cameraVelocityZ = 0;
-
-    var cameraPitch = 0;
-    var cameraRoll = 0;
-    var cameraYaw = 0;
-
-    var cameraVelocityPitch = 0;
-    var cameraVelocityRoll = 0;
-    var cameraVelocityYaw = 0;
-
-    // how fast the camera will pan and rotate each frame (units are scaled for vuforia modelview matrix)
-    var cameraSpeed = 0.0001; // 0.01;
+    // affects keyboard controls
     var keyboardSpeedMultiplier = {
         translation: 50000,
         rotation: 10,
         scale: 250000
-    }; //1000;
-    
-    let scrollWheelMultiplier = 10000;
+    };
 
+    // affects mouse controls
+    let scrollWheelMultiplier = 10000;
     var mouseSpeedMultiplier = {
         translation: 250,
         rotation: .0015,
         scale: 350
     };
+    /* ----------------------------------------------------------------------- */
 
+    /* ------------- keep track of mouse and scroll wheel movement ----------- */
     var firstX = 0;
     var firstY = 0;
     var lastX = 0;
     var lastY = 0;
-    // var firstMouse = true;
     var isMouseDown = false;
-    // var sensitivity = 1;
     var unprocessedMouseMovements = [];
-    
     let unprocessedScrollDY = 0;
     let unprocessedMouseDX = 0;
     let unprocessedMouseDY = 0;
 
+    // this is used for 6D mouse controls
     var mouseMovement = {};
-
-    var cameraUpVector = [0, 1, 0];
-
-    var areControlsInverted = true;
+    /* ----------------------------------------------------------------------- */
 
     /**
      * Enum mapping readable keyboard names to their keyCode
@@ -116,23 +96,10 @@ createNameSpace('realityEditor.device.desktopCamera');
     var keyStates = {};
 
     /**
-     * for cameraModes.CLOSEST_OBJECT - holds how much the camera has rotated while each objectId was the closest
-     * @type {Object.<string, {roll: number, pitch: number, yaw: number}>}
-     */
-    var rotations = {};
-
-    var speedMultipliers = {
-        translation: -100,
-        rotation: 0.01
-    };
-
-    var destinationCameraMatrix = []; //JSON.parse("[0.9970872369217663,-0.0195192707153495,-0.0737295058877905,0,0,0.9666966751096482,-0.2559248685297132,0,0.076269534990826,0.2551794200218579,0.9638809167265376,0,9.292587708200172e-166,2.2737367544323196e-13,-4789.705780105794,1]"); //[];
-
-    /**
      * Public init method to enable rendering if isDesktop
      */
     function initService() {
-        if (!realityEditor.device.utilities.isDesktop()) { return; }
+        if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
         
         // disable right-click context menu so we can use right-click to rotate camera
         document.addEventListener('contextmenu', event => event.preventDefault());
@@ -177,11 +144,6 @@ createNameSpace('realityEditor.device.desktopCamera');
             closestObjectLog.style.color = 'cyan';
             document.body.appendChild(closestObjectLog);
         }
-
-        // setInterval(function() {
-        //     var closestObjectKey = realityEditor.gui.ar.getClosestObject()[0];
-        //     closestObjectLog.innerText = closestObjectKey;
-        // }, 1000);
     }
     
     function addSensitivitySlidersToMenu() {
@@ -225,16 +187,10 @@ createNameSpace('realityEditor.device.desktopCamera');
 
             objectDropdown.addSelectable('origin', 'World Origin');
 
-            // objectDropdown.addSelectable('null', 'No Target');
-            // objectDropdown.addSelectable('inverted', 'Inverted');
-            // objectDropdown.addSelectable('classic', 'Classic');
-            // objectDropdown.addSelectable('closestObject', 'Closest Object');
             // objectDropdown.addSelectable('floatingPoint2000', 'Floating Point (2m)');
             // objectDropdown.addSelectable('floatingPoint5000', 'Floating Point (5m)');
             // objectDropdown.addSelectable('floatingPoint10000', 'Floating Point (10m)');
             // objectDropdown.addSelectable('floatingPoint20000', 'Floating Point (20m)');
-
-            // objectDropdown.setText('Selected: Inverted', true);
 
             Object.keys(objects).forEach(function(objectKey) {
                 tryAddingObjectToDropdown(objectKey);
@@ -273,12 +229,9 @@ createNameSpace('realityEditor.device.desktopCamera');
             return;
         }
 
-        var mObj = realityEditor.gui.ar.draw.visibleObjects[objectKey];
-        if (mObj) {
-            var objX = mObj[12] / mObj[15];
-            var objY = mObj[13] / mObj[15];
-            var objZ = mObj[14] / mObj[15];
-            cameraTargetPosition = [objX, objY, objZ];
+        var targetPosition = realityEditor.sceneGraph.getWorldPosition(objectKey);
+        if (targetPosition) {
+            cameraTargetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
             isFollowingObjectTarget = true;
         }
     }
@@ -299,11 +252,8 @@ createNameSpace('realityEditor.device.desktopCamera');
         selectedObjectKey = objectKey;
         setTargetPositionToObject(objectKey);
         previousTargetPosition = [cameraTargetPosition[0], cameraTargetPosition[1], cameraTargetPosition[2]];
-        // if (objectKey === 'null' || objectKey === 'inverted') {
-        //     areControlsInverted = objectKey === 'inverted';
-        //     objectKey = null;
-        //     // resetCamera(); // TODO: instead of reset, calculate the position+rotation needed to maintain visual consistency
-        // }
+
+        window.localStorage.setItem('selectedObjectKey', objectKey);
     }
 
     function onObjectExpandedChanged(_isExpanded) {
@@ -375,10 +325,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         var cv = cameraTargetPosition; //[objX, objY, objZ];
         var uv = [0, 1, 0];
 
-        // var forwardVector = normalize(add(ev, negate(cv))); // vector from the camera to the center point
-        // var horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
-        // var verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
-
         currentDistanceToTarget = magnitude(add(ev, negate(cv)));
         // console.log(distanceToCenter);
         // var upRotationVelocity = 0;
@@ -386,11 +332,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         var mCamera = destinationCameraMatrix; // translation is based on what direction you're facing,
         var vCamX = normalize([mCamera[0], mCamera[4], mCamera[8]]);
         var vCamY = normalize([mCamera[1], mCamera[5], mCamera[9]]);
-        var vCamZ = normalize([mCamera[2], mCamera[6], mCamera[10]]);
-
-        // var strafeSpeedMultiplier = 25;
-        // var zoomSpeedMultiplier = 100;
-        // var threshold = 0.1;
+        var _vCamZ = normalize([mCamera[2], mCamera[6], mCamera[10]]);
 
         cameraSpeed = 0.001; // 0.01;
 
@@ -488,19 +430,19 @@ createNameSpace('realityEditor.device.desktopCamera');
             unprocessedScrollDY = 0;
         }
 
-        let distancePanFactor = currentDistanceToTarget / 1000; // speed when 1 meter units away, scales up w/ distance
+        let distancePanFactor = Math.max(1, currentDistanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
         
         if (unprocessedMouseDX !== 0) {
             // pan if shift held down
             if (keyStates[keyCodes.SHIFT] === 'down') {
                 // STRAFE LEFT-RIGHT
-                let vector = scalarMultiply(horizontalVector, -1 * distancePanFactor * unprocessedMouseDX * getCameraPanSensitivity());
+                let vector = scalarMultiply(horizontalVector, distancePanFactor * unprocessedMouseDX * getCameraPanSensitivity());
                 cameraTargetVelocity = add(cameraTargetVelocity, vector);
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             } else {
                 // rotate otherwise 
-                let vector = scalarMultiply(vCamX, -1 * cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
+                let vector = scalarMultiply(vCamX, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
                 cameraVelocity = add(cameraVelocity, vector);
             }
 
@@ -511,13 +453,13 @@ createNameSpace('realityEditor.device.desktopCamera');
             // pan if shift held down
             if (keyStates[keyCodes.SHIFT] === 'down') {
                 // STRAFE UP-DOWN
-                let vector = scalarMultiply(verticalVector, -1 * distancePanFactor * unprocessedMouseDY * getCameraPanSensitivity());
+                let vector = scalarMultiply(verticalVector, distancePanFactor * unprocessedMouseDY * getCameraPanSensitivity());
                 cameraTargetVelocity = add(cameraTargetVelocity, vector);
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             } else {
                 // rotate otherwise 
-                let vector = scalarMultiply(vCamY, -1 * cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDY);
+                let vector = scalarMultiply(vCamY, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDY);
                 cameraVelocity = add(cameraVelocity, vector);
             }
 
@@ -592,13 +534,12 @@ createNameSpace('realityEditor.device.desktopCamera');
         currentDistanceToTarget.toFixed(0) + ') ' + (isFollowingObjectTarget ? '(Following)' : '()'));
 
         // tween the matrix every frame to animate it to the new position
-        realityEditor.gui.ar.draw.correctedCameraMatrix = tweenMatrix(realityEditor.gui.ar.draw.correctedCameraMatrix, destinationCameraMatrix, 0.3);
+        let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
+        let newCameraMatrix = tweenMatrix(currentCameraMatrix, realityEditor.gui.ar.utilities.invertMatrix(destinationCameraMatrix), 0.3);
+        realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
 
-        var rotatedGroundPlaneMatrix = [];
-        //var rotation3d = makeRotationY(Math.PI/2);
-        realityEditor.gui.ar.utilities.multiplyMatrix(window.gpMat, realityEditor.gui.ar.draw.correctedCameraMatrix, rotatedGroundPlaneMatrix);
-
-        realityEditor.gui.ar.draw.groundPlaneMatrix = rotatedGroundPlaneMatrix;
+        // TODO ben: make sure groundplane matrix works on desktop
     }
 
     function getBaseLog(x, y) {
@@ -628,33 +569,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         return m;
     }
 
-    function getTargetPosition(targetObjectKey) {
-        if (targetObjectKey === 'floatingPoint2000' || targetObjectKey === 'floatingPoint5000' || targetObjectKey === 'floatingPoint10000' || targetObjectKey === 'floatingPoint20000') {
-            // figure out camera position and forward vector. choose a point distance D along the forward vector.
-            var floatingPointDistance = parseInt(targetObjectKey.split('floatingPoint')[1]); // pulls out 2000, 5000, or 10000 from targetObjectKey
-            var mCamera = destinationCameraMatrix;
-            var vCamZ = normalize([mCamera[2], mCamera[6], mCamera[10]]); // this is the forward vector
-            var relativePos = scalarMultiply(vCamZ, floatingPointDistance);
-            var targetPos = add([cameraX, cameraY, cameraZ], negate(relativePos)); // not sure why it has to be negated, but flips camera otherwise
-            return {
-                x: targetPos[0],
-                y: targetPos[1],
-                z: targetPos[2]
-            };
-        }
-
-        var mObj = realityEditor.gui.ar.draw.visibleObjects[targetObjectKey];
-        var objX = mObj[12] / mObj[15];
-        var objY = mObj[13] / mObj[15];
-        var objZ = mObj[14] / mObj[15];
-
-        return {
-            x: objX,
-            y: objY,
-            z: objZ
-        };
-    }
-
     function multiplyMatrixVector(M, v) {
         return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
             M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
@@ -668,7 +582,6 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         console.log('add desktop camera keyboard, mouse, and 3d mouse controls');
 
-        cameraTranslationMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
         destinationCameraMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
 
         // set up the keyStates map with default value of "up" for each key
@@ -699,27 +612,6 @@ createNameSpace('realityEditor.device.desktopCamera');
                     resetCamera();
                 }
             }
-        });
-
-        var prevScrollTop = 0;
-        var direction = 'neutral';
-        document.addEventListener('scroll', function(event) {
-            var newScrollTop = event.currentTarget.scrollingElement.scrollTop;
-
-            if (direction !== 'up' && newScrollTop < 0) {
-                direction = 'up';
-            } else if (direction !== 'down' && newScrollTop > 0) {
-                direction = 'down';
-            }
-
-            if (newScrollTop > prevScrollTop && direction === 'down') {
-                cameraVelocityZ -= cameraSpeed * keyboardSpeedMultiplier.scale;
-            } else if (newScrollTop < prevScrollTop && direction === 'up') {
-                cameraVelocityZ += cameraSpeed * keyboardSpeedMultiplier.scale;
-            }
-
-            prevScrollTop = newScrollTop;
-            event.preventDefault();
         });
 
         window.addEventListener("wheel", function(event) {
@@ -811,27 +703,9 @@ createNameSpace('realityEditor.device.desktopCamera');
     }
 
     function resetCamera() {
-        rotations = {};
-        cameraX = 0; //-500; //-1500; //0;
-        cameraY = 0; //-11673; //7639; //0;
-        cameraZ = -7000; //13307; //-12993; //5000;
-        cameraVelocityX = 0;
-        cameraVelocityY = 0;
-        cameraVelocityZ = 0;
-        cameraPitch = 0;
-        cameraRoll = 0;
-        cameraYaw = 0;
-        cameraTranslationMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
-        cameraRotationMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
-        // cameraUpVector = [0.058374143427579205, -0.9982947757947471, 0];
-        // destinationCameraMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
-
-        // realityEditor.gui.ar.draw.correctedCameraMatrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 600, 200, -4750, 1];
-        // destinationCameraMatrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 600, 200, -4750, 1];
-
-        // realityEditor.gui.ar.draw.correctedCameraMatrix = [-0.9979047869606354,0.04357977057008431,-0.04782091339682644,0,0,0.7391224253723763,0.673571110063114,0,0.06469958393257225,0.6721598350903706,-0.7375738064290496,0,-7.3603317075507955e-62,1.8189894035458557e-12,-13467.956791262939,1];
-        // destinationCameraMatrix = [-0.9979047869606354,0.04357977057008431,-0.04782091339682644,0,0,0.7391224253723763,0.673571110063114,0,0.06469958393257225,0.6721598350903706,-0.7375738064290496,0,-7.3603317075507955e-62,1.8189894035458557e-12,-13467.956791262939,1];
-
+        // all that's needed to fully reset the camera is to set its location and what it's looking at
+        cameraPosition = [1800, 7300, -5300];
+        cameraTargetPosition = [0, 0, 0];
     }
 
     // Working look-at matrix generator (with a set of vector3 math functions)
@@ -884,29 +758,3 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     realityEditor.addons.addCallback('init', initService);
 })();
-
-    var gp_makeRotationX = function ( theta ) {
-        var c = Math.cos( theta ), s = Math.sin( theta );
-        return [1, 0, 0, 0,
-                0, c, - s, 0,
-                0, s, c, 0,
-                0, 0, 0, 1];
-    };
-
-    var gp_makeRotationY = function ( theta ) {
-        var c = Math.cos( theta ), s = Math.sin( theta );
-        return [c, 0, s, 0,
-                0, 1, 0, 0,
-                -s, 0, c, 0,
-                0, 0, 0, 1];
-    };
-
-    var gp_makeRotationZ = function ( theta ) {
-        var c = Math.cos( theta ), s = Math.sin( theta );
-        return [c, -s, 0, 0,
-                s, c, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1];
-    };
-
-    window.gpMat = gp_makeRotationY(0);

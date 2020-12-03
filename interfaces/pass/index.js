@@ -451,6 +451,34 @@ if (exports.enabled) {
       }
     });
 
+    // this is for the 2020 scene graph version
+    socket.on('cameraPosition', function(data) {
+        if (stations.length > 0) {
+            try {
+                var poseInfo = JSON.parse(data);
+
+                if (poseInfo.cameraPoseMatrix && poseInfo.projectionMatrix) {
+
+                    if ((socket.viewer_width !== poseInfo.resolution.width) || (socket.viewer_height !== poseInfo.resolution.height)) {
+                        socket.viewer_width = poseInfo.resolution.width;
+                        socket.viewer_height = poseInfo.resolution.height;
+                        console.log('setting unity resolution from valid matrix to: ' + socket.viewer_width + ',' + socket.viewer_height);
+                        for (let station of stations) {
+                            station.emit('resolution',""+socket.viewer_width+','+socket.viewer_height);
+                        }
+                    }
+
+                    for (let station of stations) {
+                        station.emit('cameraPosition', JSON.stringify(poseInfo));
+                    }
+                }
+
+            } catch(e) {
+                console.log('error! could not parse camera pose info: ' + e);
+            }
+        }
+    });
+
     // ben is testing this with the new version of the RDV camera system - 11/1/19
     socket.on('poseVuforiaCamera', function(data) {
       if (stations.length > 0) {

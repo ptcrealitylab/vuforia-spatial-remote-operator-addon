@@ -19,7 +19,9 @@ createNameSpace('realityEditor.device.desktopStats');
 	let isVisible = false;
 
     function initService() {
-    	document.body.appendChild(stats.dom);
+        if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
+
+        document.body.appendChild(stats.dom);
 
     	imagesPerSecondElement = document.createElement('div');
     	imagesPerSecondElement.style.color = 'white';
@@ -73,7 +75,7 @@ createNameSpace('realityEditor.device.desktopStats');
 
     function updateImagesPerSecond() {
     	currentImageTime = (new Date()).getTime() - imageStartTime;
-    	imagesPerSecond = numImages / (currentImageTime/1000);
+    	imagesPerSecond = numImages / (currentImageTime / 1000);
     	imagesPerSecondElement.innerText = imagesPerSecond.toFixed(2);
     }
 
