@@ -5,14 +5,14 @@ The Remote Operator is an add-on for [Vuforia Spatial Toolbox](https://github.co
 Full installation instructions are in the Azure Kinect Reality Zone [README](https://github.com/ptcrealitylab/AzureKinectRealityZone#azure-kinect-reality-zone).
 
 This add-on contains two hardware interfaces:
-1. `pass`: This interface provides a websocket-based communication layer between the Vuforia Spatial Edge Server and the Unity application.
-2. `desktopEditor`: This interface will serve the Remote Operator web app on `localhost:8081`.
+1. `azureKinectRealityZone`: This interface provides a websocket-based communication layer between the Vuforia Spatial Edge Server and the Unity application.
+2. `remoteOperator`: This interface will serve the Remote Operator web app on `localhost:8081`.
 
 The add-on also contains some `content_scripts` that will modify the [Vuforia Spatial Toolbox User Interface](https://github.com/ptcrealitylab/vuforia-spatial-toolbox-userinterface) to be able to run in a desktop browser environment in addition to on a mobile AR device.
 
 **Special Setup instructions:**
 1. Make sure to turn on both of these hardware interfaces in the "Manage Hardware Interfaces" tab of your Edge Server's web interface (`localhost:8080`)
-2. The `desktopEditor` interface needs to be configured with a path to a local copy of the [Vuforia Spatial Toolbox User Interface](https://github.com/ptcrealitylab/vuforia-spatial-toolbox-userinterface) repository. Click on the yellow gear on the `desktopEditor` interface to view its configurations, and type in the path (e.g. `/Users/Benjamin/Documents/vuforia-spatial-toolbox-userinterface`) and hit save.
+2. The `remoteOperatorUI` interface needs to be configured with a path to a local copy of the [Vuforia Spatial Toolbox User Interface](https://github.com/ptcrealitylab/vuforia-spatial-toolbox-userinterface) repository. Click on the yellow gear on the `remoteOperatorUI` interface to view its configurations, and type in the path (e.g. `/Users/Benjamin/Documents/vuforia-spatial-toolbox-userinterface`) and hit save.
 3. After configuring, restart your edge server to serve the web app on port 8081.
 
 **Using the Remote Operator:**
