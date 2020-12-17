@@ -243,7 +243,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
         createZoneConnectionDropdown();
         
         // add setting to type in IP address of primary zone
-        realityEditor.gui.settings.addToggleWithText('Primary Zone URL', 'IP address of first zone (e.g. 10.10.10.105)', 'primaryZoneIP' ,'../../../svg/download.svg', false, '10.10.10.105',
+        realityEditor.gui.settings.addToggleWithText('Primary Virtualizer URL', 'IP address of first virtualizer (e.g. 10.10.10.105)', 'primaryZoneIP' ,'../../../svg/download.svg', false, '10.10.10.105',
             function(_toggleValue, _textValue) {
                 // isUsingCustomPrimaryIP = toggleValue;
             },
@@ -504,9 +504,9 @@ createNameSpace('realityEditor.device.desktopAdapter');
         if (!zoneDropdown) {
 
             var textStates = {
-                collapsedUnselected: 'Search for Reality Zones',
-                expandedEmpty: 'Searching for Zones...',
-                expandedOptions: 'Select a Zone',
+                collapsedUnselected: 'Search for Virtualizers',
+                expandedEmpty: 'Searching for Virtualizers...',
+                expandedOptions: 'Select a Virtualizer',
                 selected: 'Connected: '
             };
 
