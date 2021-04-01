@@ -121,7 +121,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
             }, 1000);
         }
 
-        var desktopProjectionMatrix = projectionMatrixFrom(25, -window.innerWidth / window.innerHeight, 0.1, 300000);
+        var desktopProjectionMatrix = projectionMatrixFrom(25, window.innerWidth / window.innerHeight, 0.1, 300000);
         console.log('calculated desktop projection matrix:', desktopProjectionMatrix);
 
         // noinspection JSSuspiciousNameCombination

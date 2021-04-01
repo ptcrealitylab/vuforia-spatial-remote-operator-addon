@@ -27,7 +27,7 @@ createNameSpace('realityEditor.device.desktopCamera');
     var targetOnLoad = window.localStorage.getItem('selectedObjectKey');
 
     var DEBUG_SHOW_LOGGER = false;
-    var DEBUG_REMOVE_KEYBOARD_CONTROLS = false;
+    var DEBUG_REMOVE_KEYBOARD_CONTROLS = true;
     var DEBUG_PREVENT_CAMERA_SINGULARITIES = false;
     var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
 
@@ -227,6 +227,24 @@ createNameSpace('realityEditor.device.desktopCamera');
             if (object.matrix && object.matrix.length === 16) {
                 objectDropdown.addSelectable(objectKey, objectKey);
             }
+            
+            for (let frameKey in object.frames) {
+                tryAddingFrameToDropdown(objectKey, frameKey);
+            }
+        }
+    }
+    
+    function tryAddingFrameToDropdown(objectKey, frameKey) {
+        var alreadyContained = objectDropdown.selectables.map(function(selectable) {
+            return selectable.id;
+        }).indexOf(frameKey) > -1;
+
+        if (!alreadyContained) {
+            // don't show objects that don't have a valid matrix... todo: add them to menu as soon as a first valid matrix is received
+            var frame = realityEditor.getFrame(objectKey, frameKey);
+            if (frame) {
+                objectDropdown.addSelectable(frameKey, frameKey);
+            }
         }
     }
 
@@ -362,13 +380,13 @@ createNameSpace('realityEditor.device.desktopCamera');
 
             // move the cameraTargetPosition and the cameraPosition equally if you strafe
             if (keyStates[keyCodes.LEFT] === 'down') {
-                let vector = scalarMultiply(horizontalVector, cameraSpeed * keyboardSpeedMultiplier.translation);
+                let vector = scalarMultiply(negate(horizontalVector), cameraSpeed * keyboardSpeedMultiplier.translation);
                 cameraTargetVelocity = add(cameraTargetVelocity, vector);
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             }
             if (keyStates[keyCodes.RIGHT] === 'down') {
-                let vector = scalarMultiply(negate(horizontalVector), cameraSpeed * keyboardSpeedMultiplier.translation);
+                let vector = scalarMultiply(horizontalVector, cameraSpeed * keyboardSpeedMultiplier.translation);
                 cameraTargetVelocity = add(cameraTargetVelocity, vector);
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
@@ -398,23 +416,22 @@ createNameSpace('realityEditor.device.desktopCamera');
                     cameraVelocity = add(cameraVelocity, vector);
                 }
             }
-        }
-
-        if (keyStates[keyCodes.W] === 'down') {
-            let vector = scalarMultiply(vCamY, cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-            cameraVelocity = add(cameraVelocity, vector);
-        }
-        if (keyStates[keyCodes.S] === 'down') {
-            let vector = scalarMultiply(negate(vCamY), cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-            cameraVelocity = add(cameraVelocity, vector);
-        }
-        if (keyStates[keyCodes.A] === 'down') {
-            let vector = scalarMultiply(vCamX, cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-            cameraVelocity = add(cameraVelocity, vector);
-        }
-        if (keyStates[keyCodes.D] === 'down') {
-            let vector = scalarMultiply(negate(vCamX), cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-            cameraVelocity = add(cameraVelocity, vector);
+            if (keyStates[keyCodes.W] === 'down') {
+                let vector = scalarMultiply(vCamY, cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
+                cameraVelocity = add(cameraVelocity, vector);
+            }
+            if (keyStates[keyCodes.S] === 'down') {
+                let vector = scalarMultiply(negate(vCamY), cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
+                cameraVelocity = add(cameraVelocity, vector);
+            }
+            if (keyStates[keyCodes.A] === 'down') {
+                let vector = scalarMultiply(negate(vCamX), cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
+                cameraVelocity = add(cameraVelocity, vector);
+            }
+            if (keyStates[keyCodes.D] === 'down') {
+                let vector = scalarMultiply(vCamX, cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
+                cameraVelocity = add(cameraVelocity, vector);
+            }
         }
         
         if (unprocessedScrollDY !== 0) {
@@ -444,13 +461,13 @@ createNameSpace('realityEditor.device.desktopCamera');
             // pan if shift held down
             if (keyStates[keyCodes.SHIFT] === 'down') {
                 // STRAFE LEFT-RIGHT
-                let vector = scalarMultiply(horizontalVector, distancePanFactor * unprocessedMouseDX * getCameraPanSensitivity());
+                let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * unprocessedMouseDX * getCameraPanSensitivity());
                 cameraTargetVelocity = add(cameraTargetVelocity, vector);
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             } else {
                 // rotate otherwise 
-                let vector = scalarMultiply(vCamX, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
+                let vector = scalarMultiply(negate(vCamX), cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
                 cameraVelocity = add(cameraVelocity, vector);
             }
 
@@ -661,9 +678,13 @@ createNameSpace('realityEditor.device.desktopCamera');
             });
 
             if (firstVisibleFrame) {
-                var objectKey = firstVisibleFrame.getAttribute('data-object-key');
-                console.log(objectKey);
-                selectObject(objectKey);
+                // var objectKey = firstVisibleFrame.getAttribute('data-object-key');
+                // console.log(objectKey);
+                // selectObject(objectKey);
+
+                var frameKey = firstVisibleFrame.getAttribute('data-frame-key');
+                console.log(frameKey);
+                selectObject(frameKey);
             }
             
             // overlappingDivs.filter(function(elt) {
