@@ -38,12 +38,17 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     var secondaryDrawn = false;
 
     var ONLY_REQUIRE_PRIMARY = true;
+    
+    let gltfPath = './svg/BenApt1_authoring.glb';
 
     /**
      * Public init method to enable rendering if isDesktop
      */
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
+
+        // try loading area target GLB file into the threejs scene
+        realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: 0, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
 
         // create background canvas and supporting canvasses
 
