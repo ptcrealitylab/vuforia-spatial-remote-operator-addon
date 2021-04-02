@@ -1,0 +1,22 @@
+{
+  "name": "vuforia-spatial-remote-operator-addon",
+  "version": "1.0.0",
+  "description": "Remote Operator Add-on for the Vuforia Spatial Edge Server",
+  "scripts": {
+    "test": "npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ptcrealitylab/vuforia-spatial-remote-operator-addon.git"
+  },
+  "author": "Ben Reynolds <breynolds@ptc.com>",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/ptcrealitylab/vuforia-spatial-remote-operator-addon/issues"
+  },
+  "homepage": "https://github.com/ptcrealitylab/vuforia-spatial-remote-operator-addon#readme",
+  "dependencies": {
+    "socket.io": "~2.2.0",
+    "socket.io-client": "~2.3.1"
+  }
+}
