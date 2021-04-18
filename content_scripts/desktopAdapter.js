@@ -68,7 +68,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
     function isDesktop() {
         return window.navigator.userAgent.indexOf('Mobile') === -1 || window.navigator.userAgent.indexOf('Macintosh') > -1;
     }
-    
+
     let env = realityEditor.device.environment.variables;
 
     /**
@@ -86,6 +86,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
         env.shouldDisplayLogicMenuModally = true; // affects appearance of crafting board
         env.lineWidthMultiplier = 5; // makes links thicker (more visible)
         env.distanceScaleFactor = 10; // makes distance-based interactions work at further distances than mobile
+        env.newFrameDistanceMultiplier = 6; // makes new tools spawn further away from camera position
+        globalStates.defaultScale = 1.5;
         env.localServerPort = 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
         env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
         env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
@@ -93,7 +95,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
         // default values that I may or may not need to invert:
         // shouldBroadcastUpdateObjectMatrix: false,
-        
+
         restyleForDesktop();
         modifyGlobalNamespace();
 
@@ -101,7 +103,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
         setTimeout(function() {
             addSocketListeners(); // HACK. this needs to happen after realtime module finishes loading
         }, 100);
-        
+
         addZoneDiscoveredListener();
         addZoneControlListener();
 
@@ -240,9 +242,9 @@ createNameSpace('realityEditor.device.desktopAdapter');
         }
 
         // TODO: remove memory bar from pocket... instead maybe be able to save camera positions?
-        
+
         createZoneConnectionDropdown();
-        
+
         // add setting to type in IP address of primary zone
         realityEditor.gui.settings.addToggleWithText('Primary Virtualizer URL', 'IP address of first virtualizer (e.g. 10.10.10.105)', 'primaryZoneIP' ,'../../../svg/download.svg', false, '10.10.10.105',
             function(_toggleValue, _textValue) {
@@ -317,6 +319,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
         //     0, 0, 0, 1
         // ];
         // realityEditor.gui.ar.draw.rotateX = rotateX;
+
+        DEBUG_CLIENT_NAME = 'Remote Operator';
     }
 
     /**
@@ -325,6 +329,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
      */
     function addSocketListeners() {
 
+        // @deprecated
+        // todo: remove
         realityEditor.network.realtime.addDesktopSocketMessageListener('/matrix/visibleObjects', function(msgContent) {
             console.log('received matrix message: ' + msgContent);
             // serverSocket.on('/matrix/visibleObjects', function(msgContent) {
@@ -364,12 +370,12 @@ createNameSpace('realityEditor.device.desktopAdapter');
                         console.log('discovered a matrix for an object that didn\'t have one before');
                         callbackHandler.triggerCallbacks('objectMatrixDiscovered', {objectKey: msgData.objectKey});
                     }
-                    
+
                     // TODO: set sceneGraph localMatrix to msgData.newValue?
                     // var rotatedObjectMatrix = realityEditor.gui.ar.utilities.copyMatrix(msgData.newValue);
                     // object.matrix = rotatedObjectMatrix;
                     // visibleObjects[msgData.objectKey] = rotatedObjectMatrix;
-                    
+
                     visibleObjects[msgData.objectKey] = realityEditor.gui.ar.utilities.newIdentityMatrix();
                 }
             });
@@ -456,7 +462,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
         return false;
     }
-    
+
     /**
      * The 60 FPS render loop. Smoothly calls realityEditor.gui.ar.draw.update to render the most recent visibleObjects
      * Also smoothly updates camera postion when paused
@@ -467,7 +473,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
         if (realityEditor.network.realtime.getSocketIPsForSet('realityZones').length > 0) {
             sendMatricesToRealityZones();
         }
-        
+
         // TODO: ensure that visibleObjects that aren't known objects get filtered out
 
         // trigger main update function after a 100ms delay, to synchronize with the approximate lag of the realityZone image processing
@@ -477,17 +483,17 @@ createNameSpace('realityEditor.device.desktopAdapter');
         // repeat loop on next render
         requestAnimationFrame(update);
     }
-    
+
     function getVisibleObjects() {
         // render everything that has been localized
         let tempVisibleObjects = {};
-        
+
         Object.keys(objects).forEach(function(objectKey) {
             // todo: check if object.worldId matches a world that is currently loaded
 
             tempVisibleObjects[objectKey] = objects[objectKey].matrix; // right side here doesn't matter
         });
-        
+
         return tempVisibleObjects;
     }
 
@@ -496,7 +502,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
             realityEditor.gui.ar.draw.update(matrices);
         }, delayInMs);
     }
-    
+
     /**
      * Creates a switch that, when activated, begins broadcasting UDP messages
      * to discover any Reality Zones in the network for volumetric rendering
@@ -674,7 +680,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
-        
+
         var messageBody = {
             cameraPoseMatrix: currentCameraMatrix,
             projectionMatrix: globalStates.realProjectionMatrix,
@@ -751,7 +757,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
     exports.registerCallback = registerCallback;
 
     exports.resetIdleTimeout = resetIdleTimeout;
-    
+
     exports.isDesktop = isDesktop;
 
     // this happens only for desktop editors
