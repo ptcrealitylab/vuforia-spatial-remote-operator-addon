@@ -26,7 +26,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     var targetOnLoad = window.localStorage.getItem('selectedObjectKey');
 
-    var DEBUG_SHOW_LOGGER = false;
+    var DEBUG_SHOW_LOGGER = true;
     var DEBUG_REMOVE_KEYBOARD_CONTROLS = true;
     var DEBUG_PREVENT_CAMERA_SINGULARITIES = false;
     var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
@@ -108,7 +108,7 @@ createNameSpace('realityEditor.device.desktopCamera');
      */
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
-        
+
         // disable right-click context menu so we can use right-click to rotate camera
         document.addEventListener('contextmenu', event => event.preventDefault());
 
@@ -153,7 +153,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             document.body.appendChild(closestObjectLog);
         }
     }
-    
+
     function addSensitivitySlidersToMenu() {
         // add sliders for strafe, rotate, and zoom sensitivity
         realityEditor.gui.settings.addSlider('Zoom Sensitivity', 'how fast scroll wheel zooms camera', 'cameraZoomSensitivity',  '../../../svg/cameraZoom.svg', 0.5, function(newValue) {
@@ -227,13 +227,13 @@ createNameSpace('realityEditor.device.desktopCamera');
             if (object.matrix && object.matrix.length === 16) {
                 objectDropdown.addSelectable(objectKey, objectKey);
             }
-            
+
             for (let frameKey in object.frames) {
                 tryAddingFrameToDropdown(objectKey, frameKey);
             }
         }
     }
-    
+
     function tryAddingFrameToDropdown(objectKey, frameKey) {
         var alreadyContained = objectDropdown.selectables.map(function(selectable) {
             return selectable.id;
@@ -321,6 +321,8 @@ createNameSpace('realityEditor.device.desktopCamera');
         requestAnimationFrame(update);
     }
 
+    let cameraFollowerElementId = null;
+
     function updateMode_Target() {
 
         var cameraVelocity = [0, 0, 0];
@@ -329,12 +331,67 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (isFollowingObjectTarget) {
             setTargetPositionToObject(selectedObjectKey);
 
-            // move camera to preserve relative position to target
-            var movement = add(cameraTargetPosition, negate(previousTargetPosition));
-            if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-                console.log(movement);
+            // TODO preserve relative transform between camera and target
+            // let positionRelativeToTarget = [];
+
+            let relativeMatrix = [
+              1, 0, 0, 0,
+              0, 1, 0, 0,
+              0, 0, 1, 0,
+              cameraPosition[0] - cameraTargetPosition[0], cameraPosition[1] - cameraTargetPosition[1], cameraPosition[2] - cameraTargetPosition[2], 1
+            ];
+
+            if (!realityEditor.sceneGraph.getVisualElement('cameraFollower')) {
+              let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+              let selectedNode = realityEditor.sceneGraph.getSceneNodeById(selectedObjectKey);
+              // let cameraWorldMatrix = realityEditor.sceneGraph.getSceneNodeById('CAMERA').worldMatrix;
+              let relativeToTarget = cameraNode.getMatrixRelativeTo(selectedNode);
+              // let parentSceneNode = realityEditor.sceneGraph.getSceneNodeById(selectedObjectKey);
+              // elementName, optionalParent, linkedDataObject (includes x,y,scale), initialLocalMatrix
+              cameraFollowerElementId = realityEditor.sceneGraph.addVisualElement('cameraFollower', selectedNode, null, relativeToTarget);
+
+
+              // // immediately position it correctly so it doesn't go too crazy
+              // let followerSceneNode = realityEditor.sceneGraph.getVisualElement('cameraFollower');
+              // let followerPosition = realityEditor.sceneGraph.getWorldPosition(cameraFollowerElementId);
+              // // let targetWorldMatrix =
+              // console.log(followerPosition);
+              // let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
+              // let movement = add(newPosVec, negate(cameraPosition));
+              // if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+              //   // console.log(movement);
+              //   cameraVelocity = add(cameraVelocity, movement);
+              // }
+            } else {
+              // let followerSceneNode = realityEditor.sceneGraph.getVisualElement('cameraFollower');
+
+              // ghostSceneNode.linkedVehicle = ghostVehicle; // make sure this points to up-to-date vehicle for x,y,scale
+              // ghostSceneNode.setLocalMatrix(ghostPosition.matrix);
+              // ghostElementId = ghostSceneNode.id;
+              // let followerWorldMatrix = followerSceneNode.worldMatrix;
+              let followerPosition = realityEditor.sceneGraph.getWorldPosition(cameraFollowerElementId);
+              // let targetWorldMatrix =
+              // console.log(followerPosition);
+              let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
+              let movement = add(newPosVec, negate(cameraPosition));
+              if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+                // console.log(movement);
                 cameraVelocity = add(cameraVelocity, movement);
+              }
             }
+
+            // move camera to preserve relative position to target
+            // var movement = add(cameraTargetPosition, negate(previousTargetPosition));
+            // if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+            //     // console.log(movement);
+            //     cameraVelocity = add(cameraVelocity, movement);
+            // }
+        } else {
+          // reset target follower
+          if (cameraFollowerElementId) {
+            realityEditor.sceneGraph.removeElementAndChildren(cameraFollowerElementId);
+            cameraFollowerElementId = null;
+          }
         }
 
         previousTargetPosition = [cameraTargetPosition[0], cameraTargetPosition[1], cameraTargetPosition[2]];
@@ -352,6 +409,17 @@ createNameSpace('realityEditor.device.desktopCamera');
         var uv = [0, 1, 0];
 
         currentDistanceToTarget = magnitude(add(ev, negate(cv)));
+
+        if (currentDistanceToTarget < 3000) {
+          realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6;
+        } else if (currentDistanceToTarget < 12000) {
+          realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (currentDistanceToTarget / 3000);
+        } else {
+          realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (4);
+        }
+
+        // map(currentDistanceToTarget, 0, 10000, 1, 10);
+
         // console.log(distanceToCenter);
         // var upRotationVelocity = 0;
 
@@ -433,13 +501,13 @@ createNameSpace('realityEditor.device.desktopCamera');
                 cameraVelocity = add(cameraVelocity, vector);
             }
         }
-        
+
         if (unprocessedScrollDY !== 0) {
-            
+
             // increase speed as distance increases
             let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
             let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, currentDistanceToTarget) / 100);
-            
+
             let vector = scalarMultiply(forwardVector, cameraSpeed * distanceMultiplier * scrollWheelMultiplier * getCameraZoomSensitivity() * unprocessedScrollDY);
 
             // prevent you from zooming beyond it
@@ -456,7 +524,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         let distancePanFactor = Math.max(1, currentDistanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
-        
+
         if (unprocessedMouseDX !== 0) {
             // pan if shift held down
             if (keyStates[keyCodes.SHIFT] === 'down') {
@@ -466,7 +534,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             } else {
-                // rotate otherwise 
+                // rotate otherwise
                 let vector = scalarMultiply(negate(vCamX), cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
                 cameraVelocity = add(cameraVelocity, vector);
             }
@@ -483,7 +551,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                 cameraVelocity = add(cameraVelocity, vector);
                 deselectTarget();
             } else {
-                // rotate otherwise 
+                // rotate otherwise
                 let vector = scalarMultiply(vCamY, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDY);
                 cameraVelocity = add(cameraVelocity, vector);
             }
@@ -686,7 +754,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                 console.log(frameKey);
                 selectObject(frameKey);
             }
-            
+
             // overlappingDivs.filter(function(elt) {
             //     return (typeof elt.parentNode.dataset.displayAfterTouch !== 'undefined');
             // }).forEach(function(elt) {

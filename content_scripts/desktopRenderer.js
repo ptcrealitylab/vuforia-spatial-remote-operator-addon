@@ -38,8 +38,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     var secondaryDrawn = false;
 
     var ONLY_REQUIRE_PRIMARY = true;
-    
-    let gltfPath = './svg/BenApt1_authoring.glb';
+
+    let gltfPath = null; // './svg/BenApt1_authoring.glb';
+    let isGlbLoaded = false;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -47,8 +48,27 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
-        // try loading area target GLB file into the threejs scene
-        realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: 0, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
+        // when a new object is detected, check if we need to create a socket connection with its server
+        realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
+          if (isGlbLoaded) { return; } // only do this for the first world object detected
+          // addServerForObjectIfNeeded(object, objectKey);
+          // try loading area target GLB file into the threejs scene
+          if (object.isWorldObject || object.type === 'world') { // backwards compatible with isWorldObject
+            gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
+            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: 0, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
+
+            let floorOffset = -1.5009218056996663 * 1000; // meters -> mm
+            let buffer = 100;
+            floorOffset += buffer;
+            let groundPlaneMatrix = [
+              1, 0, 0, 0,
+              0, 1, 0, 0,
+              0, 0, 1, 0,
+              0, floorOffset, 0, 1
+            ];
+            realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+          }
+        });
 
         // create background canvas and supporting canvasses
 
