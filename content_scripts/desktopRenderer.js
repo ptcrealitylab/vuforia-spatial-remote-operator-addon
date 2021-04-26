@@ -57,7 +57,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
             realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: 0, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
 
-            let floorOffset = -1.5009218056996663 * 1000; // meters -> mm
+            let floorOffset = (-1.5009218056996663 + 0.77) * 1000; // meters -> mm // -1.5009218056996663
             let buffer = 100;
             floorOffset += buffer;
             let groundPlaneMatrix = [

@@ -15,8 +15,19 @@ createNameSpace('realityEditor.device.desktopCamera');
 
 (function() {
 
-    var cameraPosition = [1800, 7300, -5300]; //[735, -1575, -162]; //[1000, -500, 500];
-    var cameraTargetPosition = [0, 0, 0];
+  // desk
+  // var cameraPosition = [757, 1410, -956]; //[735, -1575, -162]; //[1000, -500, 500];
+  // var cameraTargetPosition = [583, -345, 2015];
+  // var cameraPosition = [330, 3751, -1575]; //[735, -1575, -162]; //[1000, -500, 500];
+  // var cameraTargetPosition = [14, -180, 1611];
+
+  // kitchen
+    var cameraPosition = [-3127, 3732, -3493]; //[735, -1575, -162]; //[1000, -500, 500];
+    var cameraTargetPosition = [-339, 988, -4633];
+
+  // bedroom
+    // var cameraPosition = [1800, 7300, -5300]; //[735, -1575, -162]; //[1000, -500, 500];
+    // var cameraTargetPosition = [0, 0, 0];
     var previousTargetPosition = [0, 0, 0];
     var currentDistanceToTarget = 500;
     var isFollowingObjectTarget = false;
@@ -26,7 +37,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     var targetOnLoad = window.localStorage.getItem('selectedObjectKey');
 
-    var DEBUG_SHOW_LOGGER = true;
+    var DEBUG_SHOW_LOGGER = false;
     var DEBUG_REMOVE_KEYBOARD_CONTROLS = true;
     var DEBUG_PREVENT_CAMERA_SINGULARITIES = false;
     var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
@@ -130,18 +141,26 @@ createNameSpace('realityEditor.device.desktopCamera');
             tryAddingObjectToDropdown(params.objectKey);
         });
 
-        // add a spacebar keyboard listener to toggle visibility of the zone/phone discovery buttons
-        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+        if (!DEBUG_DISABLE_DROPDOWNS) {
+          // add a spacebar keyboard listener to toggle visibility of the zone/phone discovery buttons
+          realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function (params) {
             if (params.event.code === 'KeyV') {
-                if (objectDropdown) {
-                    if (objectDropdown.dom.style.display !== 'none') {
-                        objectDropdown.dom.style.display = 'none';
-                    } else {
-                        objectDropdown.dom.style.display = '';
-                    }
+              if (objectDropdown) {
+                if (objectDropdown.dom.style.display !== 'none') {
+                  objectDropdown.dom.style.display = 'none';
+                } else {
+                  objectDropdown.dom.style.display = '';
                 }
+              }
             }
-        });
+          });
+        } else {
+          if (objectDropdown) {
+            if (objectDropdown.dom.style.display !== 'none') {
+              objectDropdown.dom.style.display = 'none';
+            }
+          }
+        }
 
         if (DEBUG_SHOW_LOGGER) {
             closestObjectLog = document.createElement('div');
@@ -801,8 +820,34 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     function resetCamera() {
         // all that's needed to fully reset the camera is to set its location and what it's looking at
-        cameraPosition = [1800, 7300, -5300];
-        cameraTargetPosition = [0, 0, 0];
+        // cameraPosition = [1800, 7300, -5300];
+        // cameraTargetPosition = [0, 0, 0];
+
+      // desk
+      var cameraPosition = [-3127, 3732, -3493]; //[735, -1575, -162]; //[1000, -500, 500];
+      var cameraTargetPosition = [-339, 988, -4633];
+
+      // deselectTarget();
+      if (isFollowingObjectTarget) {
+        // objectDropdown.setText('Select Camera Target', true);
+        objectDropdown.resetSelection();
+      }
+      isFollowingObjectTarget = false;
+
+      // reset target follower
+      if (cameraFollowerElementId) {
+        realityEditor.sceneGraph.removeElementAndChildren(cameraFollowerElementId);
+        cameraFollowerElementId = null;
+      }
+
+      // follow the person from current position
+        // get the first human object
+        let humanObjects = realityEditor.humanObjects.getHumanObjects();
+        if (Object.keys(humanObjects).length > 0) {
+          selectedObjectKey = Object.keys(humanObjects)[0];
+
+          setTargetPositionToObject(selectedObjectKey);
+        }
     }
 
     // Working look-at matrix generator (with a set of vector3 math functions)
