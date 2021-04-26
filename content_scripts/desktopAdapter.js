@@ -13,6 +13,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
  * If the editor frontend is loaded on a desktop browser, re-maps some native functions, adjusts some CSS, and
  * waits for a connection from a mobile editor that will stream matrices here
  */
+const DEBUG_DISABLE_DROPDOWNS = true;
 
 (function(exports) {
     // Automatically connect to all discovered reality zones
@@ -134,28 +135,40 @@ createNameSpace('realityEditor.device.desktopAdapter');
         realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
 
         // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
-        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+
+        if (!DEBUG_DISABLE_DROPDOWNS) {
+          realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
             if (params.event.code === 'KeyV') {
 
-                if (zoneDropdown) {
-                    if (zoneDropdown.dom.style.display !== 'none') {
-                        zoneDropdown.dom.style.display = 'none';
-                        realityEditor.device.desktopStats.hide(); // also toggle stats
-                    } else {
-                        zoneDropdown.dom.style.display = '';
-                        realityEditor.device.desktopStats.show();
-                    }
+              if (zoneDropdown) {
+                if (zoneDropdown.dom.style.display !== 'none') {
+                  zoneDropdown.dom.style.display = 'none';
+                  realityEditor.device.desktopStats.hide(); // also toggle stats
+                } else {
+                  zoneDropdown.dom.style.display = '';
+                  realityEditor.device.desktopStats.show();
                 }
+              }
 
-                if (deviceDropdown) {
-                    if (deviceDropdown.dom.style.display !== 'none') {
-                        deviceDropdown.dom.style.display = 'none';
-                    } else {
-                        deviceDropdown.dom.style.display = '';
-                    }
+              if (deviceDropdown) {
+                if (deviceDropdown.dom.style.display !== 'none') {
+                  deviceDropdown.dom.style.display = 'none';
+                } else {
+                  deviceDropdown.dom.style.display = '';
                 }
+              }
             }
-        });
+          });
+        } else {
+          if (zoneDropdown) {
+            zoneDropdown.dom.style.display = 'none';
+            realityEditor.device.desktopStats.hide();
+          }
+          if (deviceDropdown) {
+            deviceDropdown.dom.style.display = 'none';
+          }
+        }
+
 
         update();
     }
