@@ -13,7 +13,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
  * If the editor frontend is loaded on a desktop browser, re-maps some native functions, adjusts some CSS, and
  * waits for a connection from a mobile editor that will stream matrices here
  */
-const DEBUG_DISABLE_DROPDOWNS = true;
+const DEBUG_DISABLE_DROPDOWNS = false;
 
 (function(exports) {
     // Automatically connect to all discovered reality zones

@@ -39,7 +39,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     var ONLY_REQUIRE_PRIMARY = true;
 
-    let gltfPath = null; // './svg/BenApt1_authoring.glb';
+    let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
     let isGlbLoaded = false;
 
     /**
@@ -54,7 +54,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
           // addServerForObjectIfNeeded(object, objectKey);
           // try loading area target GLB file into the threejs scene
           if (object.isWorldObject || object.type === 'world') { // backwards compatible with isWorldObject
-            gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
+            if (!gltfPath) {
+              gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
+            }
             realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: 0, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
 
             let floorOffset = (-1.5009218056996663 + 0.77) * 1000; // meters -> mm // -1.5009218056996663
