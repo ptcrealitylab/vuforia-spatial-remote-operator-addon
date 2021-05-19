@@ -57,9 +57,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             if (!gltfPath) {
               gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
             }
+
+            let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
+            let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
+            let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
+
+            // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, 2.3);
+
+            // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
             realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: 0, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
 
-            let floorOffset = (-1.5009218056996663 + 0.77) * 1000; // meters -> mm // -1.5009218056996663
+            let tableHeight = 0.77;
+            let floorOffset = (-1.5009218056996663 /*+ tableHeight */) * 1000; // meters -> mm // -1.5009218056996663
             let buffer = 100;
             floorOffset += buffer;
             let groundPlaneMatrix = [
@@ -72,7 +81,19 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
           }
         });
 
-        // create background canvas and supporting canvasses
+        // add sliders to calibrate rotation and translation of model
+      realityEditor.gui.settings.addSlider('Calibrate Rotation', '', 'rotationCalibration',  '../../../svg/cameraRotate.svg', 0, function(newValue) {
+        console.log('rotation value = ' + newValue);
+      });
+      realityEditor.gui.settings.addSlider('Calibrate X', '', 'xCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
+        console.log('x value = ' + newValue);
+      });
+      realityEditor.gui.settings.addSlider('Calibrate Z', '', 'zCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
+        console.log('z value = ' + newValue);
+      });
+
+
+      // create background canvas and supporting canvasses
 
         backgroundCanvas = document.createElement('canvas');
         backgroundCanvas.id = 'desktopBackgroundRenderer';

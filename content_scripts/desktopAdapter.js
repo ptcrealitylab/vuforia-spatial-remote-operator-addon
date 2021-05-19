@@ -86,7 +86,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         env.ignoresFreezeButton = true; // no need to "freeze the camera" on desktop
         env.shouldDisplayLogicMenuModally = true; // affects appearance of crafting board
         env.lineWidthMultiplier = 5; // makes links thicker (more visible)
-        env.distanceScaleFactor = 10; // makes distance-based interactions work at further distances than mobile
+        env.distanceScaleFactor = 30; // makes distance-based interactions work at further distances than mobile
         env.newFrameDistanceMultiplier = 6; // makes new tools spawn further away from camera position
         globalStates.defaultScale = 1.5;
         env.localServerPort = 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
@@ -243,6 +243,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
      */
     function restyleForDesktop() {
         document.body.style.backgroundColor = 'rgb(50,50,50)';
+        document.body.style.pointerEvents = 'none'; // on chrome desktop, body captures pointer some events too early
         document.getElementById('canvas').style.backgroundColor = 'transparent';
         document.getElementById('canvas').style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)'; // set Z to 1 to render in front
         document.getElementById('canvas').style.pointerEvents = 'none';

@@ -21,9 +21,13 @@ createNameSpace('realityEditor.device.desktopCamera');
   // var cameraPosition = [330, 3751, -1575]; //[735, -1575, -162]; //[1000, -500, 500];
   // var cameraTargetPosition = [14, -180, 1611];
 
+  // lab
+  var cameraPosition = [7066.684466616695, 3344.0095575328837, -4973.6206380271005];
+  var cameraTargetPosition = [3551.6304646761555, 1499.0868827846332, -4285.2567421747035];
+
   // kitchen
-    var cameraPosition = [-3127, 3732, -3493]; //[735, -1575, -162]; //[1000, -500, 500];
-    var cameraTargetPosition = [-339, 988, -4633];
+  //   var cameraPosition = [-3127, 3732, -3493]; //[735, -1575, -162]; //[1000, -500, 500];
+  //   var cameraTargetPosition = [-339, 988, -4633];
 
   // bedroom
     // var cameraPosition = [1800, 7300, -5300]; //[735, -1575, -162]; //[1000, -500, 500];
@@ -247,8 +251,11 @@ createNameSpace('realityEditor.device.desktopCamera');
                 objectDropdown.addSelectable(objectKey, objectKey);
             }
 
-            for (let frameKey in object.frames) {
+            let INCLUDE_TOOLS_IN_DROPDOWN = false;
+            if (INCLUDE_TOOLS_IN_DROPDOWN) {
+              for (let frameKey in object.frames) {
                 tryAddingFrameToDropdown(objectKey, frameKey);
+              }
             }
         }
     }
@@ -362,7 +369,11 @@ createNameSpace('realityEditor.device.desktopCamera');
 
             if (!realityEditor.sceneGraph.getVisualElement('cameraFollower')) {
               let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-              let selectedNode = realityEditor.sceneGraph.getSceneNodeById(selectedObjectKey);
+              let thisNodeKey = selectedObjectKey;
+              if (thisNodeKey === 'origin') {
+                thisNodeKey = realityEditor.worldObjects.getBestWorldObject().objectId;
+              }
+              let selectedNode = realityEditor.sceneGraph.getSceneNodeById(thisNodeKey);
               // let cameraWorldMatrix = realityEditor.sceneGraph.getSceneNodeById('CAMERA').worldMatrix;
               let relativeToTarget = cameraNode.getMatrixRelativeTo(selectedNode);
               // let parentSceneNode = realityEditor.sceneGraph.getSceneNodeById(selectedObjectKey);
@@ -538,6 +549,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             }
 
             cameraVelocity = add(cameraVelocity, vector);
+            deselectTarget();
 
             unprocessedScrollDY = 0;
         }
@@ -556,6 +568,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                 // rotate otherwise
                 let vector = scalarMultiply(negate(vCamX), cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
                 cameraVelocity = add(cameraVelocity, vector);
+                deselectTarget();
             }
 
             unprocessedMouseDX = 0;
@@ -573,6 +586,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                 // rotate otherwise
                 let vector = scalarMultiply(vCamY, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDY);
                 cameraVelocity = add(cameraVelocity, vector);
+                deselectTarget();
             }
 
             unprocessedMouseDY = 0;
