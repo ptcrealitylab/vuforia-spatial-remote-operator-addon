@@ -88,12 +88,13 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         env.lineWidthMultiplier = 5; // makes links thicker (more visible)
         env.distanceScaleFactor = 30; // makes distance-based interactions work at further distances than mobile
         env.newFrameDistanceMultiplier = 6; // makes new tools spawn further away from camera position
-        globalStates.defaultScale = 1.5;
+        // globalStates.defaultScale *= 3; // make new tools bigger
         env.localServerPort = 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
         env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
         env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
         env.waitForARTracking = false; // don't show loading UI waiting for vuforia to give us camera matrices
 
+        globalStates.groundPlaneOffset = 0.77;
         // default values that I may or may not need to invert:
         // shouldBroadcastUpdateObjectMatrix: false,
 
@@ -243,7 +244,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
      */
     function restyleForDesktop() {
         document.body.style.backgroundColor = 'rgb(50,50,50)';
-        document.body.style.pointerEvents = 'none'; // on chrome desktop, body captures pointer some events too early
+        // document.body.style.pointerEvents = 'none'; // on chrome desktop, body captures pointer some events too early
         document.getElementById('canvas').style.backgroundColor = 'transparent';
         document.getElementById('canvas').style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)'; // set Z to 1 to render in front
         document.getElementById('canvas').style.pointerEvents = 'none';

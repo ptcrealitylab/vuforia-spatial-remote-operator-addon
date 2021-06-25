@@ -21,9 +21,13 @@ createNameSpace('realityEditor.device.desktopCamera');
   // var cameraPosition = [330, 3751, -1575]; //[735, -1575, -162]; //[1000, -500, 500];
   // var cameraTargetPosition = [14, -180, 1611];
 
-  // lab
-  var cameraPosition = [7066.684466616695, 3344.0095575328837, -4973.6206380271005];
-  var cameraTargetPosition = [3551.6304646761555, 1499.0868827846332, -4285.2567421747035];
+  // lab table
+  var cameraPosition = [-1499.9648912671637, 8275.552791086136, 5140.3791620707225];
+  // var cameraTargetPosition = [-5142.168341070036, 924.9535037677615, -1269.0232578867729];
+
+  // lab desk
+  // var cameraPosition = [7066.684466616695, 3344.0095575328837, -4973.6206380271005];
+  // var cameraTargetPosition = [3551.6304646761555, 1499.0868827846332, -4285.2567421747035];
 
   // kitchen
   //   var cameraPosition = [-3127, 3732, -3493]; //[735, -1575, -162]; //[1000, -500, 500];
@@ -31,7 +35,9 @@ createNameSpace('realityEditor.device.desktopCamera');
 
   // bedroom
     // var cameraPosition = [1800, 7300, -5300]; //[735, -1575, -162]; //[1000, -500, 500];
-    // var cameraTargetPosition = [0, 0, 0];
+
+    var cameraTargetPosition = [0, 0, 0];
+
     var previousTargetPosition = [0, 0, 0];
     var currentDistanceToTarget = 500;
     var isFollowingObjectTarget = false;
