@@ -243,11 +243,14 @@ const DEBUG_DISABLE_DROPDOWNS = false;
      * Adjust visuals for desktop rendering -> set background color and add "Waiting for Connection..." indicator
      */
     function restyleForDesktop() {
-        document.body.style.backgroundColor = 'rgb(50,50,50)';
+        // document.body.style.backgroundColor = 'rgb(50,50,50)';
+        // document.getElementById('canvas').style.backgroundColor = 'transparent';
+        // document.getElementById('canvas').style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)'; // set Z to 1 to render in front
+        // document.getElementById('canvas').style.pointerEvents = 'none';
+
         // document.body.style.pointerEvents = 'none'; // on chrome desktop, body captures pointer some events too early
-        document.getElementById('canvas').style.backgroundColor = 'transparent';
-        document.getElementById('canvas').style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)'; // set Z to 1 to render in front
-        document.getElementById('canvas').style.pointerEvents = 'none';
+        // // but children of body need to use pointerEvents
+        // document.getElementById('UIButtons').style.pointerEvents = 'auto';
 
         var DISABLE_SAFE_MODE = true;
         if (!DISABLE_SAFE_MODE) {
