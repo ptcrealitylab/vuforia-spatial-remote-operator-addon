@@ -42,6 +42,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
     let isGlbLoaded = false;
 
+    let gltf = null;
+    let staticModelMode = true;
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -64,7 +67,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
             let floorOffset = 0;
             // let floorOffset = -1.55 * 1000;
-            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, 2.3);
+            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, 2.3, function (createdMesh) {
+              gltf = createdMesh;
+            });
 
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: -floorOffset, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
@@ -138,6 +143,17 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         //     }
         //
         // }
+
+        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+          if (params.event.code === 'KeyT' && gltf) {
+            staticModelMode = !staticModelMode;
+            if (staticModelMode) {
+              gltf.visible = true;
+            } else {
+              gltf.visible = false;
+            }
+          }
+        });
     }
 
     /**
