@@ -430,7 +430,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             }
 
             if (typeof msgContent.action !== 'undefined') {
-                console.log(msgContent.action);
+                // console.log(msgContent.action);
                 if (typeof msgContent.action === 'string') {
                     try {
                         msgContent.action = JSON.parse(msgContent.action);
