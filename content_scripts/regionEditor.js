@@ -254,6 +254,53 @@ createNameSpace('realityEditor.regionEditor');
     isPointerDown = false;
 
     // TODO: write the bitmap data to disk... store as an image on the server? or an array of values
+
+    let object = realityEditor.getObject(selectedRegion);
+    if (!object) { return; }
+
+    var b64Image = ctx.canvas.toDataURL('image/jpeg');
+    var u8Image  = b64ToUint8Array(b64Image);
+
+    var formData = new FormData();
+    formData.append("image", new Blob([ u8Image ], {type: "image/jpg"}));
+
+    var xhr = new XMLHttpRequest();
+
+    // let url = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '';
+    let postUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/object/' + selectedRegion + '/uploadMediaFile';
+    xhr.open('POST', postUrl, true);
+
+    // Set up a handler for when the request finishes.
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        // File(s) uploaded.
+        console.log('successful upload');
+
+        let mediaUuid = JSON.parse(xhr.responseText).mediaUuid;
+
+        // let extension = isVideo ? '.mov' : '.jpg';
+        // let filepath = 'http://' + spatialObject.serverIp + ':' + spatialObject.serverPort + '/mediaFile/' + spatialObject.object + '/' + mediaUuid + extension;
+        callback('uploaded mediaUuid = ' + mediaUuid);
+
+        // }, 1000);
+
+      } else {
+        console.log('error uploading');
+      }
+    };
+
+    xhr.send(formData);
+  }
+
+  function b64ToUint8Array(b64Image) {
+    var img = atob(b64Image.split(',')[1]);
+    var img_buffer = [];
+    var i = 0;
+    while (i < img.length) {
+      img_buffer.push(img.charCodeAt(i));
+      i++;
+    }
+    return new Uint8Array(img_buffer);
   }
 
   realityEditor.addons.addCallback('init', initService);
