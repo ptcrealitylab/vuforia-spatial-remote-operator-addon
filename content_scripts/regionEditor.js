@@ -26,7 +26,7 @@ createNameSpace('realityEditor.regionEditor');
   let isPointerDown = false;
 
   const ctx = document.createElement('canvas').getContext('2d');
-  let texture;
+  // let texture;
 
   let lastUV = null;
 
@@ -92,7 +92,7 @@ createNameSpace('realityEditor.regionEditor');
         renderRegions();
       }
     } else {
-      console.log('no region selected');
+      // console.log('no region selected');
       selectedRegion = null;
       console.log('stop rendering regions');
       hideRegions();
@@ -111,58 +111,62 @@ createNameSpace('realityEditor.regionEditor');
   }
 
   function renderRegions() {
-    if (!ground) {
-      const THREE = realityEditor.gui.threejsScene.THREE;
+    const THREE = realityEditor.gui.threejsScene.THREE;
 
-      // const divisions = 10 * 2 * 2;
-      // const size = (1000 / (2 * 2)) * divisions;
-      // const colorCenterLine = new THREE.Color(1, 0.3, 0.3);
-      // const colorGrid = new THREE.Color(1, 1, 1);
-      // ground = new THREE.GridHelper( size, divisions, colorCenterLine, colorGrid );
-      // // threejsContainerObj.add( gridHelper );
-      // realityEditor.gui.threejsScene.addToScene(ground, {occluded: true});
+    for (let regionId in regionInfo) {
+      let thisRegion = regionInfo[regionId];
 
-      const boxWidth = 30000;
-      const boxHeight = 30000;
-      // const boxDepth = 1000;
-      const geometry = new THREE.PlaneGeometry(boxWidth, boxHeight); //, boxDepth);
+      if (!thisRegion.ctx) {
+        thisRegion.ctx = document.createElement('canvas').getContext('2d');
+        thisRegion.ctx.canvas.width = bitmapSize;
+        thisRegion.ctx.canvas.height = bitmapSize;
+        thisRegion.ctx.canvas.style.backgroundColor = 'transparent';
 
-      const cubes = [];  // just an array we can use to rotate the cubes
-      ctx.canvas.width = bitmapSize;
-      ctx.canvas.height = bitmapSize;
-      ctx.canvas.style.backgroundColor = 'transparent';
-      // ctx.fillStyle = '#FFF';
-      // ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      texture = new THREE.CanvasTexture(ctx.canvas);
+        // if (thisRegion.loadedImage) {
+        //   thisRegion.ctx.drawImage(thisRegion.loadedImage, 0, 0);
+        // }
+      }
 
-      const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true
-      });
-      ground = new THREE.Mesh(geometry, material);
-      ground.rotation.x = -Math.PI / 2;
-      ground.position.y = 100;
-      // scene.add(cube);
-      cubes.push(ground);  // add to our list of cubes to rotate
+      if (!thisRegion.mesh) {
+        const boxWidth = 30000;
+        const boxHeight = 30000;
+        const geometry = new THREE.PlaneGeometry(boxWidth, boxHeight);
 
-      realityEditor.gui.threejsScene.addToScene(ground, {occluded: true});
+        thisRegion.texture = new THREE.CanvasTexture(thisRegion.ctx.canvas);
+
+        const material = new THREE.MeshBasicMaterial({
+          map: thisRegion.texture,
+          transparent: true
+        });
+
+        thisRegion.mesh = new THREE.Mesh(geometry, material);
+        thisRegion.mesh.rotation.x = -Math.PI / 2;
+
+        realityEditor.gui.threejsScene.addToScene(thisRegion.mesh, {occluded: true});
+      }
+
+      thisRegion.mesh.position.y = 100;
+      thisRegion.mesh.visible = true;
     }
-    ground.visible = true;
+
+    if (selectedRegion && regionInfo[selectedRegion]) {
+      regionInfo[selectedRegion].mesh.position.y = 200;
+    }
 
     regionEventCatcher.style.display = '';
     regionEventCatcher.style.transform = 'translateZ(9999px)'; // buttons are at 10000
   }
 
-  function drawRandomDot() {
-    ctx.fillStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
-    ctx.beginPath();
-
-    const x = randInt(bitmapSize);
-    const y = randInt(bitmapSize);
-    const radius = randInt(10, 64);
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  // function drawRandomDot() {
+  //   ctx.fillStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
+  //   ctx.beginPath();
+  //
+  //   const x = randInt(bitmapSize);
+  //   const y = randInt(bitmapSize);
+  //   const radius = randInt(10, 64);
+  //   ctx.arc(x, y, radius, 0, Math.PI * 2);
+  //   ctx.fill();
+  // }
 
   function randInt(min, max) {
     if (max === undefined) {
@@ -173,8 +177,12 @@ createNameSpace('realityEditor.regionEditor');
   }
 
   function hideRegions() {
-    if (!ground) { return; }
-    ground.visible = false;
+    for (let regionId in regionInfo) {
+      let thisRegion = regionInfo[regionId];
+      if (!thisRegion.mesh) { return; }
+      thisRegion.mesh.visible = false;
+    }
+
     regionEventCatcher.style.display = 'none';
   }
 
@@ -189,6 +197,18 @@ createNameSpace('realityEditor.regionEditor');
       if (!alreadyContained) {
         regionDropdown.addSelectable(objectKey, object.name);
         regionInfo[objectKey] = { name: object.name, color: `#${randInt(0x1000000).toString(16).padStart(6, '0')}` };
+
+        // try to load bitmap for region boundary
+        // http://localhost:8080/mediaFile/regionLAB_Zdzx9v4fqml/region.jpg
+        let bitmapUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/mediaFile/' + objectKey + '/region.jpg';
+        let image = document.createElement('img');
+        image.src = bitmapUrl;
+        regionInfo[objectKey].loadedImage = image;
+        // image.addEventListener('load', e => {
+        //   if (regionInfo[objectKey].ctx) {
+        //     regionInfo[objectKey].ctx.drawImage(image, 0, 0);
+        //   }
+        // });
       }
     }
   }
@@ -201,6 +221,9 @@ createNameSpace('realityEditor.regionEditor');
   function onPointerMove(event) {
     if (!isPointerDown) { return }
     if (event.button === 2) { return; }
+
+    let ctx = regionInfo[selectedRegion].ctx;
+    let texture = regionInfo[selectedRegion].texture;
 
     // calculate objects intersecting the picking ray
     const intersects = realityEditor.gui.threejsScene.getRaycastIntersects(event.clientX, event.clientY);
@@ -216,7 +239,7 @@ createNameSpace('realityEditor.regionEditor');
     });
 
     if (planeIntersect) {
-      console.log(planeIntersect.uv);
+      // console.log(planeIntersect.uv);
 
       ctx.fillStyle = regionInfo[selectedRegion].color || 'rgb(0,0,0)'; //`#${randInt(0x1000000).toString(16).padStart(6,
       // '0')}`;
@@ -239,21 +262,63 @@ createNameSpace('realityEditor.regionEditor');
         y: planeIntersect.uv.y
       }
     }
-
-    // if (intersects.length > 0) {
-    //   let firstIntersect = intersects[0];
-    //   // console.log('intersect', firstIntersect.uv);
-    //   console.log(intersects);
-    //
-    //   intersects[1].object.geometry.type
-    //
-    // }
   }
 
   function onPointerUp(event) {
     isPointerDown = false;
 
     // TODO: write the bitmap data to disk... store as an image on the server? or an array of values
+
+    let object = realityEditor.getObject(selectedRegion);
+    if (!object) { return; }
+
+    let ctx = regionInfo[selectedRegion].ctx;
+
+    var b64Image = ctx.canvas.toDataURL('image/jpeg');
+    var u8Image  = b64ToUint8Array(b64Image);
+
+    var formData = new FormData();
+    // formData.append("region", new Blob([ u8Image ], {type: "image/jpg"}));
+    // formData.append('filename', 'regionMap');
+    formData.append('regionMap', new Blob([ u8Image ], {type: "image/jpg"}), 'region.jpg');
+
+    var xhr = new XMLHttpRequest();
+
+    // let url = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '';
+    let postUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/object/' + selectedRegion + '/uploadMediaFile';
+    xhr.open('POST', postUrl, true);
+
+    // Set up a handler for when the request finishes.
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        // File(s) uploaded.
+        console.log('successful upload');
+
+        let mediaUuid = JSON.parse(xhr.responseText).mediaUuid;
+
+        // let extension = isVideo ? '.mov' : '.jpg';
+        // let filepath = 'http://' + spatialObject.serverIp + ':' + spatialObject.serverPort + '/mediaFile/' + spatialObject.object + '/' + mediaUuid + extension;
+        console.log('uploaded mediaUuid = ' + mediaUuid);
+
+        // }, 1000);
+
+      } else {
+        console.log('error uploading');
+      }
+    };
+
+    xhr.send(formData);
+  }
+
+  function b64ToUint8Array(b64Image) {
+    var img = atob(b64Image.split(',')[1]);
+    var img_buffer = [];
+    var i = 0;
+    while (i < img.length) {
+      img_buffer.push(img.charCodeAt(i));
+      i++;
+    }
+    return new Uint8Array(img_buffer);
   }
 
   realityEditor.addons.addCallback('init', initService);
