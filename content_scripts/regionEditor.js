@@ -277,37 +277,43 @@ createNameSpace('realityEditor.regionEditor');
     var b64Image = ctx.canvas.toDataURL('image/jpeg');
     var u8Image  = b64ToUint8Array(b64Image);
 
-    var formData = new FormData();
-    // formData.append("region", new Blob([ u8Image ], {type: "image/jpg"}));
-    // formData.append('filename', 'regionMap');
-    formData.append('regionMap', new Blob([ u8Image ], {type: "image/jpg"}), 'region.jpg');
+    uploadTarget(object, new Blob([ u8Image ], {type: "image/jpg"}), function() {
+      console.log('target upload success');
+    }, function() {
+      console.log('target upload error');
+    });
 
-    var xhr = new XMLHttpRequest();
-
-    // let url = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '';
-    let postUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/object/' + selectedRegion + '/uploadMediaFile';
-    xhr.open('POST', postUrl, true);
-
-    // Set up a handler for when the request finishes.
-    xhr.onload = function () {
-      if (xhr.status === 200) {
-        // File(s) uploaded.
-        console.log('successful upload');
-
-        let mediaUuid = JSON.parse(xhr.responseText).mediaUuid;
-
-        // let extension = isVideo ? '.mov' : '.jpg';
-        // let filepath = 'http://' + spatialObject.serverIp + ':' + spatialObject.serverPort + '/mediaFile/' + spatialObject.object + '/' + mediaUuid + extension;
-        console.log('uploaded mediaUuid = ' + mediaUuid);
-
-        // }, 1000);
-
-      } else {
-        console.log('error uploading');
-      }
-    };
-
-    xhr.send(formData);
+    // var formData = new FormData();
+    // // formData.append("region", new Blob([ u8Image ], {type: "image/jpg"}));
+    // // formData.append('filename', 'regionMap');
+    // formData.append('regionMap', new Blob([ u8Image ], {type: "image/jpg"}), 'region.jpg');
+    //
+    // var xhr = new XMLHttpRequest();
+    //
+    // // let url = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '';
+    // let postUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/object/' + selectedRegion + '/uploadMediaFile';
+    // xhr.open('POST', postUrl, true);
+    //
+    // // Set up a handler for when the request finishes.
+    // xhr.onload = function () {
+    //   if (xhr.status === 200) {
+    //     // File(s) uploaded.
+    //     console.log('successful upload');
+    //
+    //     let mediaUuid = JSON.parse(xhr.responseText).mediaUuid;
+    //
+    //     // let extension = isVideo ? '.mov' : '.jpg';
+    //     // let filepath = 'http://' + spatialObject.serverIp + ':' + spatialObject.serverPort + '/mediaFile/' + spatialObject.object + '/' + mediaUuid + extension;
+    //     console.log('uploaded mediaUuid = ' + mediaUuid);
+    //
+    //     // }, 1000);
+    //
+    //   } else {
+    //     console.log('error uploading');
+    //   }
+    // };
+    //
+    // xhr.send(formData);
   }
 
   function b64ToUint8Array(b64Image) {
@@ -319,6 +325,39 @@ createNameSpace('realityEditor.regionEditor');
       i++;
     }
     return new Uint8Array(img_buffer);
+  }
+
+  function uploadTarget(object, imageBlob, onSuccess, onError) {
+    let ip = object.ip;
+    let port = realityEditor.network.getPort(object);
+    let objectName = object.name;
+
+    // Set up the request.
+    var xhr = new XMLHttpRequest();
+
+    var postUrl = 'http://' + ip + ':' + port + '/content/' + objectName; // set to target upload endpoint on server
+
+    // Open the connection.
+    xhr.open('POST', postUrl, true);
+
+    // Set up a handler for when the request finishes.
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        // File(s) uploaded.
+        onSuccess();
+      } else {
+        console.log('error uploading');
+        onError();
+      }
+    };
+
+    xhr.setRequestHeader('type', 'targetUpload');
+
+    // Send the Data.
+    var formData = new FormData();
+    formData.append('target', imageBlob, 'target.jpg');
+
+    xhr.send(formData);
   }
 
   realityEditor.addons.addCallback('init', initService);
