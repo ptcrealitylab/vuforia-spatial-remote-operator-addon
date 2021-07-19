@@ -22,7 +22,7 @@ createNameSpace('realityEditor.regionRenderer');
             const lightGeometry = new THREE.BoxGeometry(lightWidth,2,lightLength);
             const lightMaterial = new THREE.MeshBasicMaterial({color:0xFFFFCC, transparent:true});
             const topMaterial = new THREE.MeshBasicMaterial({color:0x000000, transparent:true});
-            const wallMaterial = new THREE.MeshBasicMaterial({color:0xffff00, transparent:true, opacity:0.8});
+            const wallMaterial = new THREE.MeshBasicMaterial({color:0x01fffc, transparent:true, opacity:0.8});
 
             // // Fade effect
             // const startFadeInDist = 600; // 0.6m
@@ -59,7 +59,7 @@ createNameSpace('realityEditor.regionRenderer');
         const rampLength = rampHeight / rampRatio;
         path[path.length - 1].y = path[0].y; // Simplifies math later
         const pathWidth = 50; // 50mm
-        const pathHeight = 50; // 50mm
+        const pathHeight = 250; // 50mm
         const topGeometry = new THREE.BufferGeometry(); // The top represents the flat black top of the line
         const wallGeometry = new THREE.BufferGeometry(); // The wall represents the yellow sides of the line
         let topVertices = [];
