@@ -31,6 +31,10 @@ createNameSpace('realityEditor.regionEditor');
   let lastUV = null;
 
   let bitmapSize = 128;
+  const planeWidth = 30000;
+  const planeHeight = 30000;
+
+  const LOAD_PREVIOUS_ZONES = false;
 
   function initService() {
     if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
@@ -122,15 +126,46 @@ createNameSpace('realityEditor.regionEditor');
         thisRegion.ctx.canvas.height = bitmapSize;
         thisRegion.ctx.canvas.style.backgroundColor = 'transparent';
 
-        // if (thisRegion.loadedImage) {
-        //   thisRegion.ctx.drawImage(thisRegion.loadedImage, 0, 0);
-        // }
+        if (LOAD_PREVIOUS_ZONES) {
+          if (thisRegion.loadedImage && thisRegion.loadedImage.complete) {
+            console.log('loadedImage is complete:');
+            console.log(thisRegion.loadedImage);
+            // thisRegion.ctx.drawImage(thisRegion.loadedImage, 0, 0);
+
+            let img = new Image();
+            img.onload = function() {
+              console.log('img loaded... draw');
+              // thisRegion.ctx.drawImage(img, 0, 0);
+
+              // var img1 = document.getElementById('img1');
+              // var img2 = document.getElementById('img2');
+              // var canvas = document.getElementById("canvas");
+              // var context = canvas.getContext("2d");
+              let width = img.width;
+              let height = img.height;
+              let pixels = 4 * width * height;
+
+              thisRegion.ctx.drawImage(thisRegion.loadedImage, 0, 0);
+              var image1 = thisRegion.ctx.getImageData(0, 0, width, height);
+              var imageData1 = image1.data;
+
+              let stride = 4;
+              let tolerance = 20;
+              for (let i = 0; i < imageData1.length; i += stride) {
+                if (imageData1[i] < tolerance && imageData1[i+1] < tolerance && imageData1[i+2] < tolerance) {
+                  imageData1[i+3] = 0; // set black to transparent
+                }
+              }
+              image1.data = imageData1;
+              thisRegion.ctx.putImageData(image1, 0, 0);
+            }
+            img.src = thisRegion.loadedImage.src;
+          }
+        }
       }
 
       if (!thisRegion.mesh) {
-        const boxWidth = 30000;
-        const boxHeight = 30000;
-        const geometry = new THREE.PlaneGeometry(boxWidth, boxHeight);
+        const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
 
         thisRegion.texture = new THREE.CanvasTexture(thisRegion.ctx.canvas);
 
@@ -142,15 +177,17 @@ createNameSpace('realityEditor.regionEditor');
         thisRegion.mesh = new THREE.Mesh(geometry, material);
         thisRegion.mesh.rotation.x = -Math.PI / 2;
 
-        realityEditor.gui.threejsScene.addToScene(thisRegion.mesh, {occluded: true});
+        // realityEditor.gui.threejsScene.addToScene(thisRegion.mesh, {occluded: true});
+        realityEditor.gui.threejsScene.addToScene(thisRegion.mesh);
       }
 
-      thisRegion.mesh.position.y = 100;
-      thisRegion.mesh.visible = true;
+      thisRegion.mesh.position.y = 200;
+      const DEBUG_SHOW_CANVAS = false;
+      thisRegion.mesh.visible = DEBUG_SHOW_CANVAS; // true
     }
 
     if (selectedRegion && regionInfo[selectedRegion]) {
-      regionInfo[selectedRegion].mesh.position.y = 200;
+      regionInfo[selectedRegion].mesh.position.y = 300;
     }
 
     regionEventCatcher.style.display = '';
@@ -200,15 +237,30 @@ createNameSpace('realityEditor.regionEditor');
 
         // try to load bitmap for region boundary
         // http://localhost:8080/mediaFile/regionLAB_Zdzx9v4fqml/region.jpg
-        let bitmapUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/mediaFile/' + objectKey + '/region.jpg';
-        let image = document.createElement('img');
-        image.src = bitmapUrl;
-        regionInfo[objectKey].loadedImage = image;
+        // let bitmapUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/mediaFile/' + objectKey + '/region.jpg';
+        let bitmapUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.jpg';
         // image.addEventListener('load', e => {
         //   if (regionInfo[objectKey].ctx) {
         //     regionInfo[objectKey].ctx.drawImage(image, 0, 0);
         //   }
         // });
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", bitmapUrl);
+        xhr.responseType = "blob";
+        xhr.onload = function() {
+          var urlCreator = window.URL || window.webkitURL;
+          var imageUrl = urlCreator.createObjectURL(this.response);
+          // document.querySelector("#image").src = imageUrl;
+          let image = document.createElement('img');
+          // image.src = bitmapUrl;
+          image.src = imageUrl;
+          regionInfo[objectKey].loadedImage = image;
+          console.log('created image from loaded target');
+          console.log(imageUrl);
+        };
+        xhr.send();
+
       }
     }
   }
@@ -222,8 +274,14 @@ createNameSpace('realityEditor.regionEditor');
     if (!isPointerDown) { return }
     if (event.button === 2) { return; }
 
-    let ctx = regionInfo[selectedRegion].ctx;
-    let texture = regionInfo[selectedRegion].texture;
+    const THREE = realityEditor.gui.threejsScene.THREE;
+    const MeshLine = realityEditor.gui.threejsScene.MeshLine;
+    const MeshLineMaterial = realityEditor.gui.threejsScene.MeshLineMaterial;
+
+    let thisRegion = regionInfo[selectedRegion];
+
+    let ctx = thisRegion.ctx;
+    let texture = thisRegion.texture;
 
     // calculate objects intersecting the picking ray
     const intersects = realityEditor.gui.threejsScene.getRaycastIntersects(event.clientX, event.clientY);
@@ -241,7 +299,7 @@ createNameSpace('realityEditor.regionEditor');
     if (planeIntersect) {
       // console.log(planeIntersect.uv);
 
-      ctx.fillStyle = regionInfo[selectedRegion].color || 'rgb(0,0,0)'; //`#${randInt(0x1000000).toString(16).padStart(6,
+      ctx.fillStyle = thisRegion.color || 'rgb(0,0,0)'; //`#${randInt(0x1000000).toString(16).padStart(6,
       // '0')}`;
       ctx.beginPath();
 
@@ -261,7 +319,170 @@ createNameSpace('realityEditor.regionEditor');
         x: planeIntersect.uv.x,
         y: planeIntersect.uv.y
       }
+
+      // let rgb = regionInfo[selectedRegion].color;
+
+      let imageData = ctx.getImageData(0, 0, bitmapSize, bitmapSize).data;
+      let hull = realityEditor.regionRenderer.calculateConvexHull(imageData, bitmapSize, thisRegion.color);
+
+      realityEditor.regionRenderer.drawHull(hull, bitmapSize);
+
+      // console.log('new convex hull', hull);
+
+      let worldCoordinates = hullToWorldCoordinates(hull, bitmapSize, planeWidth);
+      console.log(worldCoordinates);
+
+      // realityEditor.regionRenderer.drawHull3D(worldCoordinates);
+
+      if (!thisRegion.hullGroup) {
+        thisRegion.hullGroup = new THREE.Group();
+        realityEditor.gui.threejsScene.addToScene(thisRegion.hullGroup);
+      }
+
+      if (thisRegion.hullGroup) {
+        // clear the group
+        while (thisRegion.hullGroup.children.length) {
+          thisRegion.hullGroup.remove(thisRegion.hullGroup.children[0]);
+        }
+
+//         const points = [];
+//         worldCoordinates.forEach(function(coord) {
+//           points.push(coord.x, coord.y, coord.z);
+//         });
+//         // for (let j = 0; j < Math.PI; j += (2 * Math.PI) / 100) {
+//         //   points.push(Math.cos(j), Math.sin(j), 0);
+//         // }
+//
+//         const line = new MeshLine();
+//
+//         var nCoordsComponents = 3; // x,y,z
+//         var nColorComponents = 3;  // r,g,b
+//         var nFaces = 6;            // e.g. for a pyramid
+//         var nVerticesPerFace = 3;  // Triangle faces
+//
+// // Non-indexed arrays which have to be populated with your data.
+//         var vertices = new Float32Array(nFaces*nVerticesPerFace*nCoordsComponents);
+//         var colors = new Float32Array(nFaces*nVerticesPerFace*nColorComponents);
+//
+//         // pve Pyramid Vertices Expanded
+//         var pve = new Float32Array(nFaces*nVerticesPerFace*nCoordsComponents);
+//         function expandPyramidVertices()
+//         {
+//           for (i=0; i<nFaces; i++)
+//           {
+//             for (j=0; j<nVerticesPerFace; j++)
+//             {
+//               for (k=0; k<nCoordsComponents; k++)
+//               {
+//                 pve[(i*3+j)*3+k] = pv[pvi[i*3+j]*3+k];
+//               }
+//             }
+//           }
+//         }
+//
+//         var bufferGeometry = new THREE.BufferGeometry();
+//         bufferGeometry.addAttribute('position', new THREE.Float32BufferAttribute(pve, nCoordsComponents));
+//         bufferGeometry.addAttribute('color', new THREE.Float32BufferAttribute(colors, nColorComponents));
+//
+//         // var material = new THREE.MeshBasicMaterial ({vertexColors: THREE.VertexColors});
+//         // var mesh  = new THREE.Mesh (bufferGeometry, material);
+//
+//         scene = new THREE.Scene();
+//         scene.add(mesh);
+//
+//         // const geometry = new THREE.Geometry();
+//         // for (let j = 0; j < Math.PI; j += 2 * Math.PI / 100) {
+//         //   const v = new THREE.Vector3(coord.x, coord.y, coord.z);
+//         //   geometry.vertices.push(v);
+//         // }
+//
+//         line.setPoints(points);
+//         // p is a decimal percentage of the number of points
+// // ie. point 200 of 250 points, p = 0.8
+// //         line.setPoints(points, p => 10); // makes width 2 * lineWidth
+//
+//         // line.setGeometry(geometry);
+//
+//         const material = new MeshLineMaterial({});
+//         const mesh = new THREE.Mesh(line, material);
+
+        let mesh = realityEditor.regionRenderer.pathToMesh(worldCoordinates);
+        thisRegion.hullGroup.add(mesh);
+
+        const DRAW_BOXES = false;
+        if (DRAW_BOXES) {
+          worldCoordinates.forEach(function (coord) {
+            const vertexBox = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), new THREE.MeshNormalMaterial());
+            vertexBox.position.x = coord.x;
+            vertexBox.position.y = coord.y + 500;
+            vertexBox.position.z = coord.z;
+            vertexBox.scale.set(20, 20, 20)
+            thisRegion.hullGroup.add(vertexBox);
+          });
+        }
+
+      }
+
+
+        // worldObjectGroups[worldObjectId] = group;
+        // group.matrixAutoUpdate = false; // this is needed to position it directly with matrices
+        // scene.add(group);
+
+        // // Helps visualize world object origin point for debugging
+        // if (DISPLAY_ORIGIN_BOX && worldObjectId !== realityEditor.worldObjects.getLocalWorldId()) {
+        //   const originBox = new THREE.Mesh(new THREE.BoxGeometry(10,10,10),new THREE.MeshNormalMaterial());
+        //   const xBox = new THREE.Mesh(new THREE.BoxGeometry(5,5,5),new THREE.MeshBasicMaterial({color:0xff0000}));
+        //   const yBox = new THREE.Mesh(new THREE.BoxGeometry(5,5,5),new THREE.MeshBasicMaterial({color:0x00ff00}));
+        //   const zBox = new THREE.Mesh(new THREE.BoxGeometry(5,5,5),new THREE.MeshBasicMaterial({color:0x0000ff}));
+        //   xBox.position.x = 15;
+        //   yBox.position.y = 15;
+        //   zBox.position.z = 15;
+        //   group.add(originBox);
+        //   originBox.scale.set(10,10,10);
+        //   originBox.add(xBox);
+        //   originBox.add(yBox);
+        //   originBox.add(zBox);
+        //
+        //   // const plane =
+        //
+        //   // const geometry = new THREE.PlaneGeometry( 1000, 1000 );
+        //   // const material = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
+        //   // const groundplaneMesh = new THREE.Mesh( geometry, material );
+        //   // group.add(groundplaneMesh);
+        //   // // realityEditor.gui.threejsScene.addToScene(groundplaneMesh, {attach: true});
+        // }
+        // const geometry = new THREE.Box(planeWidth, planeHeight);
+
+        // thisRegion.texture = new THREE.CanvasTexture(thisRegion.ctx.canvas);
+        //
+        // const material = new THREE.MeshBasicMaterial({
+        //   map: thisRegion.texture,
+        //   transparent: true
+        // });
+        //
+        // thisRegion.mesh = new THREE.Mesh(geometry, material);
+        // thisRegion.mesh.rotation.x = -Math.PI / 2;
+        //
+        // realityEditor.gui.threejsScene.addToScene(thisRegion.mesh, {occluded: true});
+      // }
     }
+  }
+
+  function hullToWorldCoordinates(hull, bitmapSize, planeSize) {
+    const THREE = realityEditor.gui.threejsScene.THREE;
+
+    return hull.map(function(pt) {
+      return new THREE.Vector3((pt[0] / bitmapSize - 0.5) * planeSize, 0, (pt[1] / bitmapSize - 0.5) * planeSize);
+    });
+
+    // new THREE.Vector3(0,1,0);
+    // return hull.map(function(pt) {
+    //   return {
+    //     x: (pt[0] / bitmapSize - 0.5) * planeSize,
+    //     y: 0,
+    //     z: (pt[1] / bitmapSize - 0.5) * planeSize
+    //   }
+    // });
   }
 
   function onPointerUp(event) {
