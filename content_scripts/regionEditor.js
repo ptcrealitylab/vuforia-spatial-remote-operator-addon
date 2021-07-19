@@ -32,6 +32,12 @@ createNameSpace('realityEditor.regionEditor');
   const LOAD_PREVIOUS_ZONES = true;
   const DEBUG_SHOW_CANVAS = false;
 
+  let COLORS = Object.freeze({
+    Pencil: '#ffffff',
+    Eraser: '#000000'
+  });
+  let currentColor = COLORS.Pencil;
+
   function initService() {
     if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
@@ -49,6 +55,20 @@ createNameSpace('realityEditor.regionEditor');
     // update(); // start update loop
 
     realityEditor.network.addObjectDiscoveredCallback(onObjectDiscovered);
+  }
+
+  function onResourcesLoaded(_resourceList) {
+    // resources = resourceList;
+    console.log('Region Editor loaded resource list: ', _resourceList);
+    let pencilButton = createButton('pencilButton', '/addons/vuforia-spatial-remote-operator-addon/pencil-icon.svg', 40, {right: '340px', top: '30px'});
+    let eraserButton = createButton('eraserButton', '/addons/vuforia-spatial-remote-operator-addon/eraser-icon.svg', 40, {right: '290px', top: '30px'});
+
+    pencilButton.addEventListener('pointerup', function() {
+      currentColor = COLORS.Pencil;
+    });
+    eraserButton.addEventListener('pointerup', function() {
+      currentColor = COLORS.Eraser;
+    });
   }
 
   // function update() {
@@ -108,6 +128,41 @@ createNameSpace('realityEditor.regionEditor');
       //   console.log('stop rendering regions');
       // }
     }
+  }
+
+  function createButton(id, src, size, style) {
+    let thisButton = document.createElement('div');
+    thisButton.id = id;
+    thisButton.classList.add('remoteOperatorButton');
+
+    // size and position are determined programmatically rather than in CSS
+    let buttonWidth = size;
+    let buttonHeight = size;
+    thisButton.style.width = buttonWidth + 'px';
+    thisButton.style.height = buttonHeight + 'px';
+    document.body.appendChild(thisButton);
+
+    if (typeof style !== 'undefined') {
+      for (let prop in style) {
+        thisButton.style[prop] = style[prop];
+      }
+    }
+
+    let thisButtonIcon = document.createElement('img');
+    // thisButtonIcon.src = 'svg/bw-pencil.svg';
+    thisButtonIcon.src = src;
+    thisButton.appendChild(thisButtonIcon);
+
+    thisButtonIcon.width = buttonWidth + 'px';
+    thisButtonIcon.height = buttonHeight + 'px';
+    thisButtonIcon.style.width = buttonWidth + 'px';
+    thisButtonIcon.style.height = buttonHeight + 'px';
+
+    // pencilButton.addEventListener('pointerup', onPencilButtonPressed);
+
+    // setupButtonVisualFeedback(pencilButton);
+
+    return thisButton;
   }
 
   function renderRegions() {
@@ -229,7 +284,7 @@ createNameSpace('realityEditor.regionEditor');
       if (!alreadyContained) {
         regionDropdown.addSelectable(objectKey, object.name);
         // regionInfo[objectKey] = { name: object.name, color: `#${randInt(0x1000000).toString(16).padStart(6, '0')}` };
-        regionInfo[objectKey] = { name: object.name, color: '#ffffff' };
+        regionInfo[objectKey] = { name: object.name, color: COLORS.Pencil }; // pencil color is interpreted as the region when forming convex hull
 
         // try to load bitmap for region boundary
         // http://localhost:8080/mediaFile/regionLAB_Zdzx9v4fqml/region.jpg
@@ -291,7 +346,8 @@ createNameSpace('realityEditor.regionEditor');
     });
 
     if (planeIntersect) {
-      ctx.fillStyle = thisRegion.color;
+      // ctx.fillStyle = thisRegion.color;
+      ctx.fillStyle = currentColor;
       ctx.beginPath();
       const x = bitmapSize * planeIntersect.uv.x; //randInt(256);
       const y = bitmapSize * (1.0 - planeIntersect.uv.y); //randInt(256);
@@ -308,7 +364,7 @@ createNameSpace('realityEditor.regionEditor');
     let ctx = thisRegion.ctx;
 
     let imageData = ctx.getImageData(0, 0, bitmapSize, bitmapSize).data;
-    let hull = realityEditor.regionRenderer.calculateConvexHull(imageData, bitmapSize, thisRegion.color);
+    let hull = realityEditor.regionRenderer.calculateConvexHull(imageData, bitmapSize, thisRegion.color, 20);
 
     realityEditor.regionRenderer.drawHull(hull, bitmapSize);
 
@@ -434,4 +490,5 @@ createNameSpace('realityEditor.regionEditor');
   }
 
   realityEditor.addons.addCallback('init', initService);
+  realityEditor.addons.addCallback('resourcesLoaded', onResourcesLoaded);
 })(realityEditor.regionEditor);
