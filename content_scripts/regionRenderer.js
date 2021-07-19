@@ -130,8 +130,8 @@ createNameSpace('realityEditor.regionRenderer');
         svg.style.position = 'absolute';
         svg.style.left = '0';
         svg.style.top = '0';
-        svg.style.backgroundColor = 'rgb(200, 0, 0)';
-        svg.style.opacity = '0.5';
+        svg.style.backgroundColor = 'rgb(200, 200, 200)';
+        svg.style.opacity = '0.8';
     }
 
     function checkPoint(x, y, hull) {
