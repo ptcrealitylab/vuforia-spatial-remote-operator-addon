@@ -17,6 +17,7 @@
 (function(_exports) {
     let size = 256;
     let isPointerDown = false;
+    let hullShape = null;
 
     let canvas = document.getElementById('canvas');
     canvas.style.width = size + 'px';
@@ -37,6 +38,11 @@
         g: 255,
         b: 252
     };
+    let rgbActive = {
+        r: 0,
+        g: 255,
+        b: 0
+    };
 
     document.addEventListener('pointerdown', function(e) {
         // right-click to clear
@@ -48,26 +54,46 @@
 
         isPointerDown = true;
         // console.log(isPointerDown);
-        clearHulls(svg);
+        // clearHulls(svg);
 
         canvas.style.visibility = 'visible';
     });
     document.addEventListener('pointermove', function (e) {
-        if (!isPointerDown) { return; }
+        if (!isPointerDown) {
+            updateActivity(e.clientX, e.clientY, hullShape);
+            return;
+        }
 
         drawCircle(ctx, e.clientX, e.clientY, 10, 'rgb('+rgb.r+','+rgb.g+','+rgb.b+')');
 
         clearHulls(svg);
         calculateConvexHull(ctx);
     });
-    document.addEventListener('pointerup', function () {
+    document.addEventListener('pointerup', function (e) {
         isPointerDown = false;
         // console.log(isPointerDown);
 
         calculateConvexHull(ctx);
+        updateActivity(e.clientX, e.clientY, hullShape);
 
         canvas.style.visibility = 'hidden';
     });
+
+    function updateActivity(x, y, hull) {
+        if (!hull) { return; }
+
+        let hullSVG = document.querySelector('.hullContents');
+        let isContained = checkPoint(x, y, hull);
+
+        if (hullSVG) {
+            if (isContained) {
+                // hullSVG.setAttribute("fill", 'rgba('+rgb.r+','+rgb.g+','+rgb.b+',1.0)');
+                hullSVG.setAttribute("fill", 'rgba('+rgbActive.r+','+rgbActive.g+','+rgbActive.b+',0.5)');
+            } else {
+                hullSVG.setAttribute("fill", 'rgba('+rgb.r+','+rgb.g+','+rgb.b+',0.5)');
+            }
+        }
+    }
 
     function clearImage(context) {
         context.clearRect(0, 0, size, size);
@@ -134,7 +160,7 @@
         }
 
         // create hull points
-        let hullShape = hull(hullPoints, concavity);
+        hullShape = hull(hullPoints, concavity);
         var hullString = '';
         hullShape.forEach(function(pt) {
             hullString += ' ' + pt[0] + ', ' + pt[1];
@@ -146,6 +172,7 @@
         if (hullString.indexOf("undefined") === -1) {
             hullSVG.setAttribute("points", hullString);
             hullSVG.setAttribute("fill", 'rgba('+rgb.r+','+rgb.g+','+rgb.b+',0.5)');
+            hullSVG.classList.add('hullContents');
             hullSVG.setAttribute("stroke", "#FFF");
             hullSVG.setAttribute("stroke-width", "5");
             hullSVG.classList.add("hull");
@@ -153,6 +180,41 @@
         }
     }
 
+    function checkPoint(x, y, hull) {
+        let isInAnyTriangle = false;
+        let pt0 = hull[0];
+        for (let i = 1; i < hull.length - 1; i++) {
+            let pt1 = hull[i];
+            let pt2 = hull[i+1];
+
+            // check if x,y is within the triangle [pt0, pt1, pt2]
+            if (isPointWithinTriangle(x, y, pt0[0], pt0[1], pt1[0], pt1[1], pt2[0], pt2[1])) {
+                isInAnyTriangle = true;
+            }
+        }
+        return isInAnyTriangle;
+    }
+
+    function isPointWithinTriangle(x, y, x1, y1, x2, y2, x3, y3) {
+        /* Calculate area of triangle ABC */
+        let A = triangleArea (x1, y1, x2, y2, x3, y3);
+
+        /* Calculate area of triangle PBC */
+        let A1 = triangleArea (x, y, x2, y2, x3, y3);
+
+        /* Calculate area of triangle PAC */
+        let A2 = triangleArea (x1, y1, x, y, x3, y3);
+
+        /* Calculate area of triangle PAB */
+        let A3 = triangleArea (x1, y1, x2, y2, x, y);
+
+        /* Check if sum of A1, A2 and A3 is same as A */
+        return (A === A1 + A2 + A3);
+    }
+
+    function triangleArea(x1, y1, x2, y2, x3, y3) {
+        return Math.abs((x1*(y2-y3) + x2*(y3-y1)+ x3*(y1-y2))/2.0);
+    }
 
 })(window);
 </script>
