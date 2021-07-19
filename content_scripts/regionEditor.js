@@ -52,7 +52,7 @@ createNameSpace('realityEditor.regionEditor');
     regionEventCatcher.addEventListener('pointermove', onPointerMove);
     regionEventCatcher.addEventListener('pointerup', onPointerUp);
 
-    // update(); // start update loop
+    update(); // start update loop
 
     realityEditor.network.addObjectDiscoveredCallback(onObjectDiscovered);
   }
@@ -71,18 +71,30 @@ createNameSpace('realityEditor.regionEditor');
     });
   }
 
-  // function update() {
-  //   try {
-  //     if (selectedRegion) {
-  //       // drawRandomDot();
-  //       // texture.needsUpdate = true;
-  //     }
-  //   } catch (e) {
-  //     console.warn(e);
-  //   }
-  //
-  //   requestAnimationFrame(update);
-  // }
+  function update() {
+    try {
+      // if (selectedRegion) {
+      //   // drawRandomDot();
+      //   // texture.needsUpdate = true;
+      // }
+
+      let cameraPosition = realityEditor.sceneGraph.getWorldPosition('CAMERA');
+
+      for (let regionId in regionInfo) {
+        let thisRegion = regionInfo[regionId];
+        if (!thisRegion.hull) { continue; }
+        let camCoords = worldToHullCoordinates(cameraPosition.x, cameraPosition.z, bitmapSize, planeWidth);
+        let isInsideRegion = realityEditor.regionRenderer.checkPointConcave(camCoords.x, camCoords.y, thisRegion.hull);
+        if (isInsideRegion) {
+          console.log('INSIDE REGION: ' + thisRegion.name);
+        }
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+
+    requestAnimationFrame(update);
+  }
 
   /**
    * Creates a switch that, when activated, begins broadcasting UDP messages
@@ -368,6 +380,8 @@ createNameSpace('realityEditor.regionEditor');
 
     realityEditor.regionRenderer.drawHull(hull, bitmapSize);
 
+    thisRegion.hull = hull;
+
     let worldCoordinates = hullToWorldCoordinates(hull, bitmapSize, planeWidth);
     console.log(worldCoordinates);
 
@@ -391,6 +405,13 @@ createNameSpace('realityEditor.regionEditor');
     return hull.map(function(pt) {
       return new THREE.Vector3((pt[0] / bitmapSize - 0.5) * planeSize, 0, (pt[1] / bitmapSize - 0.5) * planeSize);
     });
+  }
+
+  function worldToHullCoordinates(x, y, bitmapSize, planeSize) {
+    return {
+      x: (x / planeSize + 0.5) * bitmapSize,
+      y: (y / planeSize + 0.5) * bitmapSize
+    };
   }
 
   function onPointerUp(event) {

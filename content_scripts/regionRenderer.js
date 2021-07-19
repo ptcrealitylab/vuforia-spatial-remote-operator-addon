@@ -134,45 +134,75 @@ createNameSpace('realityEditor.regionRenderer');
         svg.style.opacity = '0.8';
     }
 
-    function checkPoint(x, y, hull) {
-        let isInAnyTriangle = false;
-        let pt0 = hull[0];
-        for (let i = 1; i < hull.length - 1; i++) {
-            let pt1 = hull[i];
-            let pt2 = hull[i+1];
+    // function checkPoint(x, y, hull) {
+    //     let isInAnyTriangle = false;
+    //     let pt0 = hull[0];
+    //     for (let i = 1; i < hull.length - 1; i++) {
+    //         let pt1 = hull[i];
+    //         let pt2 = hull[i+1];
+    //
+    //         // check if x,y is within the triangle [pt0, pt1, pt2]
+    //         if (isPointWithinTriangle(x, y, pt0[0], pt0[1], pt1[0], pt1[1], pt2[0], pt2[1])) {
+    //             isInAnyTriangle = true;
+    //         }
+    //     }
+    //     return isInAnyTriangle;
+    // }
+    //
+    // function isPointWithinTriangle(x, y, x1, y1, x2, y2, x3, y3) {
+    //     /* Calculate area of triangle ABC */
+    //     let A = triangleArea (x1, y1, x2, y2, x3, y3);
+    //
+    //     /* Calculate area of triangle PBC */
+    //     let A1 = triangleArea (x, y, x2, y2, x3, y3);
+    //
+    //     /* Calculate area of triangle PAC */
+    //     let A2 = triangleArea (x1, y1, x, y, x3, y3);
+    //
+    //     /* Calculate area of triangle PAB */
+    //     let A3 = triangleArea (x1, y1, x2, y2, x, y);
+    //
+    //     /* Check if sum of A1, A2 and A3 is same as A */
+    //     return (A === A1 + A2 + A3);
+    // }
+    //
+    // function triangleArea(x1, y1, x2, y2, x3, y3) {
+    //     return Math.abs((x1*(y2-y3) + x2*(y3-y1)+ x3*(y1-y2))/2.0);
+    // }
 
-            // check if x,y is within the triangle [pt0, pt1, pt2]
-            if (isPointWithinTriangle(x, y, pt0[0], pt0[1], pt1[0], pt1[1], pt2[0], pt2[1])) {
-                isInAnyTriangle = true;
+    // uses the even-odd rule (https://en.wikipedia.org/wiki/Even–odd_rule) to check if a point is inside the shape
+    // casts a ray horizontally to the right from this point and counts number of segment intersections
+    function checkPointConcave(x, y, hull) {
+        let evenOddCounter = 0;
+        for (let i = 0; i < hull.length; i++) {
+            let x1 = hull[i][0];
+            let y1 = hull[i][1];
+            let x2, y2;
+            if (i+1 < hull.length) {
+                x2 = hull[i+1][0];
+                y2 = hull[i+1][1];
+            } else {
+                x2 = hull[0][0]; // edge case for last segment
+                y2 = hull[0][1];
+            }
+
+
+            if (x1 < x && x2 < x) {
+                continue;
+            }
+
+            if (y1 < y && y2 > y || y1 > y && y2 < y) {
+                evenOddCounter += 1; // intersection between horizontal ray and segment
             }
         }
-        return isInAnyTriangle;
-    }
 
-    function isPointWithinTriangle(x, y, x1, y1, x2, y2, x3, y3) {
-        /* Calculate area of triangle ABC */
-        let A = triangleArea (x1, y1, x2, y2, x3, y3);
-
-        /* Calculate area of triangle PBC */
-        let A1 = triangleArea (x, y, x2, y2, x3, y3);
-
-        /* Calculate area of triangle PAC */
-        let A2 = triangleArea (x1, y1, x, y, x3, y3);
-
-        /* Calculate area of triangle PAB */
-        let A3 = triangleArea (x1, y1, x2, y2, x, y);
-
-        /* Check if sum of A1, A2 and A3 is same as A */
-        return (A === A1 + A2 + A3);
-    }
-
-    function triangleArea(x1, y1, x2, y2, x3, y3) {
-        return Math.abs((x1*(y2-y3) + x2*(y3-y1)+ x3*(y1-y2))/2.0);
+        return evenOddCounter % 2 === 1;
     }
 
     exports.calculateConvexHull = calculateConvexHull;
     exports.drawHull = drawHull;
     // exports.drawHull3D = drawHull3D;
+    exports.checkPointConcave = checkPointConcave;
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.regionRenderer);
