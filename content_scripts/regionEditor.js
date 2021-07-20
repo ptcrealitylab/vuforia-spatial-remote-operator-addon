@@ -112,9 +112,9 @@ createNameSpace('realityEditor.regionEditor');
     if (!regionDropdown) {
 
       var textStates = {
-        collapsedUnselected: 'Edit Regions',
-        expandedEmpty: 'No Regions',
-        expandedOptions: 'Select a Region',
+        collapsedUnselected: 'Edit Zones',
+        expandedEmpty: 'No Zones...',
+        expandedOptions: 'Select a Zone',
         selected: 'Selected: '
       };
 
