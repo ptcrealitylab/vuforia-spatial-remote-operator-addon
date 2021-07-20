@@ -6,7 +6,7 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-createNameSpace('realityEditor.regionRenderer');
+createNameSpace('realityEditor.zoneHulls');
 
 (function(exports) {
 
@@ -204,4 +204,4 @@ createNameSpace('realityEditor.regionRenderer');
     exports.pathToMesh = pathToMesh;
 
     realityEditor.addons.addCallback('init', initService);
-})(realityEditor.regionRenderer);
+})(realityEditor.zoneHulls);

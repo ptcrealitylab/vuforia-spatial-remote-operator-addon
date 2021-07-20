@@ -6,33 +6,21 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-createNameSpace('realityEditor.regionEditor');
+createNameSpace('realityEditor.zoneEditor');
 
-/**
- * @fileOverview realityEditor.device.desktopRenderer.js
- * For remote desktop operation: renders background graphics simulating the context streamed from a connected phone.
- * e.g. a point or plane for each marker, or an entire point cloud of the background contents
- */
-
-(function(exports) {
-
-  let regionDropdown = null;
-
-  let regionInfo = {};
-  let selectedRegion = null;
-
-  let regionEventCatcher = null;
-  let ground = null;
-  let isPointerDown = false;
-
-  let bitmapSize = 128;
-  const planeWidth = 50000;
-  const planeHeight = 50000;
+(function(_exports) {
 
   const LOAD_PREVIOUS_ZONES = true;
   const DEBUG_SHOW_CANVAS = false;
-
-  let COLORS = Object.freeze({
+  let dropdown = null;
+  let zoneInfo = {};
+  let selectedZoneId = null;
+  let zoneEventCatcher = null;
+  let isPointerDown = false;
+  let bitmapSize = 128;
+  const planeWidth = 50000;
+  const planeHeight = 50000;
+  const COLORS = Object.freeze({
     Pencil: '#ffffff',
     Eraser: '#000000'
   });
@@ -41,16 +29,16 @@ createNameSpace('realityEditor.regionEditor');
   function initService() {
     if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
-    createRegionDropdown();
+    createDropdown();
 
-    regionEventCatcher = document.createElement('div');
-    regionEventCatcher.id = 'regionEventCatcher';
-    document.body.appendChild(regionEventCatcher);
-    regionEventCatcher.style.display = 'none';
+    zoneEventCatcher = document.createElement('div');
+    zoneEventCatcher.id = 'zoneEventCatcher';
+    document.body.appendChild(zoneEventCatcher);
+    zoneEventCatcher.style.display = 'none';
 
-    regionEventCatcher.addEventListener('pointerdown', onPointerDown);
-    regionEventCatcher.addEventListener('pointermove', onPointerMove);
-    regionEventCatcher.addEventListener('pointerup', onPointerUp);
+    zoneEventCatcher.addEventListener('pointerdown', onPointerDown);
+    zoneEventCatcher.addEventListener('pointermove', onPointerMove);
+    zoneEventCatcher.addEventListener('pointerup', onPointerUp);
 
     update(); // start update loop
 
@@ -59,7 +47,6 @@ createNameSpace('realityEditor.regionEditor');
 
   function onResourcesLoaded(_resourceList) {
     // resources = resourceList;
-    console.log('Region Editor loaded resource list: ', _resourceList);
     let pencilButton = createButton('pencilButton', '/addons/vuforia-spatial-remote-operator-addon/pencil-icon.svg', 40, {right: '340px', top: '30px'});
     let eraserButton = createButton('eraserButton', '/addons/vuforia-spatial-remote-operator-addon/eraser-icon.svg', 40, {right: '290px', top: '30px'});
 
@@ -73,27 +60,22 @@ createNameSpace('realityEditor.regionEditor');
 
   function update() {
     try {
-      // if (selectedRegion) {
-      //   // drawRandomDot();
-      //   // texture.needsUpdate = true;
-      // }
-
       let cameraPosition = realityEditor.sceneGraph.getWorldPosition('CAMERA');
 
-      for (let regionId in regionInfo) {
-        let thisRegion = regionInfo[regionId];
-        if (!thisRegion.hull) { continue; }
+      for (let zoneId in zoneInfo) {
+        let thisZone = zoneInfo[zoneId];
+        if (!thisZone.hull) { continue; }
         let camCoords = worldToHullCoordinates(cameraPosition.x, cameraPosition.z, bitmapSize, planeWidth);
-        let isInsideRegion = realityEditor.regionRenderer.checkPointConcave(camCoords.x, camCoords.y, thisRegion.hull);
-        if (isInsideRegion) {
-          console.log('INSIDE REGION: ' + thisRegion.name);
-          if (thisRegion.hullGroup) {
+        let isInsideZone = realityEditor.zoneHulls.checkPointConcave(camCoords.x, camCoords.y, thisZone.hull);
+        if (isInsideZone) {
+          console.log('INSIDE ZONE: ' + thisZone.name);
+          if (thisZone.hullGroup) {
             // cube.material.color.setHex( 0xffffff );
-            thisRegion.hullGroup.children[0].children[1].material.color.setHex(0xffffff);
+            thisZone.hullGroup.children[0].children[1].material.color.setHex(0xffffff);
           }
         } else {
-          if (thisRegion.hullGroup) {
-            thisRegion.hullGroup.children[0].children[1].material.color.setHex(0x01fffc);
+          if (thisZone.hullGroup) {
+            thisZone.hullGroup.children[0].children[1].material.color.setHex(0x01fffc);
           }
         }
       }
@@ -108,8 +90,8 @@ createNameSpace('realityEditor.regionEditor');
    * Creates a switch that, when activated, begins broadcasting UDP messages
    * to discover any Reality Zones in the network for volumetric rendering
    */
-  function createRegionDropdown() {
-    if (!regionDropdown) {
+  function createDropdown() {
+    if (!dropdown) {
 
       var textStates = {
         collapsedUnselected: 'Edit Zones',
@@ -118,34 +100,32 @@ createNameSpace('realityEditor.regionEditor');
         selected: 'Selected: '
       };
 
-      regionDropdown = new realityEditor.gui.dropdown.Dropdown('regionDropdown', textStates, {right: '30px', top: '30px'}, document.body, true, onRegionSelectionChanged, onRegionExpandedChanged);
+      dropdown = new realityEditor.gui.dropdown.Dropdown('zoneEditorDropdown', textStates, {right: '30px', top: '30px'}, document.body, true, onZoneSelectionChanged, onZoneExpandedChanged);
     }
   }
 
-  function onRegionSelectionChanged(selected) {
+  function onZoneSelectionChanged(selected) {
     if (selected && selected.element) {
       var selectedId = selected.element.id;
       if (selectedId) {
-        // console.log(selectedId);
-        console.log('selected region: ' + selectedId);
-        selectedRegion = selectedId;
-        renderRegions();
+        console.log('selected zone: ' + selectedId);
+        selectedZoneId = selectedId;
+        renderZones();
       }
     } else {
-      // console.log('no region selected');
-      selectedRegion = null;
-      console.log('stop rendering regions');
-      hideRegions();
+      selectedZoneId = null;
+      console.log('stop rendering zones');
+      hideZones();
     }
   }
 
-  function onRegionExpandedChanged(isExpanded) {
+  function onZoneExpandedChanged(isExpanded) {
     if (isExpanded) {
-      console.log('render regions');
-      renderRegions();
+      console.log('render zones');
+      renderZones();
     } else {
-      // if (!selectedRegion) {
-      //   console.log('stop rendering regions');
+      // if (!selectedZone) {
+      //   console.log('stop rendering zones');
       // }
     }
   }
@@ -185,37 +165,33 @@ createNameSpace('realityEditor.regionEditor');
     return thisButton;
   }
 
-  function renderRegions() {
+  function renderZones() {
     const THREE = realityEditor.gui.threejsScene.THREE;
 
-    for (let regionId in regionInfo) {
-      let thisRegion = regionInfo[regionId];
+    for (let zoneId in zoneInfo) {
+      let thisZone = zoneInfo[zoneId];
 
-      if (!thisRegion.ctx) {
-        thisRegion.ctx = document.createElement('canvas').getContext('2d');
-        thisRegion.ctx.canvas.width = bitmapSize;
-        thisRegion.ctx.canvas.height = bitmapSize;
-        thisRegion.ctx.canvas.style.backgroundColor = 'transparent';
+      if (!thisZone.ctx) {
+        thisZone.ctx = document.createElement('canvas').getContext('2d');
+        thisZone.ctx.canvas.width = bitmapSize;
+        thisZone.ctx.canvas.height = bitmapSize;
+        thisZone.ctx.canvas.style.backgroundColor = 'transparent';
 
         if (LOAD_PREVIOUS_ZONES) {
-          if (thisRegion.loadedImage && thisRegion.loadedImage.complete) {
-            console.log('loadedImage is complete:');
-            console.log(thisRegion.loadedImage);
-            // thisRegion.ctx.drawImage(thisRegion.loadedImage, 0, 0);
-
+          if (thisZone.loadedImage && thisZone.loadedImage.complete) {
             let img = new Image();
 
             img.onload = function() {
-              console.log('img loaded... draw');
+              console.log('img loaded... draw', img);
 
               let width = img.width;
               let height = img.height;
 
-              thisRegion.ctx.drawImage(thisRegion.loadedImage, 0, 0);
+              thisZone.ctx.drawImage(thisZone.loadedImage, 0, 0);
 
               if (DEBUG_SHOW_CANVAS) { // adjust transparency for better visual effect only if it will be seen
-                var image1 = thisRegion.ctx.getImageData(0, 0, width, height);
-                var imageData1 = image1.data;
+                let image1 = thisZone.ctx.getImageData(0, 0, width, height);
+                let imageData1 = image1.data;
 
                 let stride = 4;
                 let tolerance = 20;
@@ -225,96 +201,69 @@ createNameSpace('realityEditor.regionEditor');
                   }
                 }
                 image1.data = imageData1;
-                thisRegion.ctx.putImageData(image1, 0, 0);
+                thisZone.ctx.putImageData(image1, 0, 0);
               }
 
-              renderUpdates(thisRegion);
+              renderUpdates(thisZone);
             }
-            img.src = thisRegion.loadedImage.src;
+            img.src = thisZone.loadedImage.src;
           }
         }
       }
 
-      if (!thisRegion.mesh) {
+      if (!thisZone.mesh) {
         const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
 
-        thisRegion.texture = new THREE.CanvasTexture(thisRegion.ctx.canvas);
+        thisZone.texture = new THREE.CanvasTexture(thisZone.ctx.canvas);
 
         const material = new THREE.MeshBasicMaterial({
-          map: thisRegion.texture,
+          map: thisZone.texture,
           transparent: true
         });
 
-        thisRegion.mesh = new THREE.Mesh(geometry, material);
-        thisRegion.mesh.rotation.x = -Math.PI / 2;
+        thisZone.mesh = new THREE.Mesh(geometry, material);
+        thisZone.mesh.rotation.x = -Math.PI / 2;
 
-        // realityEditor.gui.threejsScene.addToScene(thisRegion.mesh, {occluded: true});
-        realityEditor.gui.threejsScene.addToScene(thisRegion.mesh);
+        // realityEditor.gui.threejsScene.addToScene(thisZone.mesh, {occluded: true});
+        realityEditor.gui.threejsScene.addToScene(thisZone.mesh);
       }
 
-      thisRegion.mesh.position.y = 200;
-      thisRegion.mesh.visible = DEBUG_SHOW_CANVAS; // true
+      thisZone.mesh.position.y = 200;
+      thisZone.mesh.visible = DEBUG_SHOW_CANVAS; // true
     }
 
-    if (selectedRegion && regionInfo[selectedRegion]) {
-      regionInfo[selectedRegion].mesh.position.y = 300;
+    if (selectedZoneId && zoneInfo[selectedZoneId]) {
+      zoneInfo[selectedZoneId].mesh.position.y = 300;
     }
 
-    regionEventCatcher.style.display = '';
-    regionEventCatcher.style.transform = 'translateZ(9999px)'; // buttons are at 10000
+    zoneEventCatcher.style.display = '';
+    zoneEventCatcher.style.transform = 'translateZ(9999px)'; // buttons are at 10000
   }
 
-  // function drawRandomDot() {
-  //   ctx.fillStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
-  //   ctx.beginPath();
-  //
-  //   const x = randInt(bitmapSize);
-  //   const y = randInt(bitmapSize);
-  //   const radius = randInt(10, 64);
-  //   ctx.arc(x, y, radius, 0, Math.PI * 2);
-  //   ctx.fill();
-  // }
-
-  function randInt(min, max) {
-    if (max === undefined) {
-      max = min;
-      min = 0;
-    }
-    return Math.random() * (max - min) + min | 0;
-  }
-
-  function hideRegions() {
-    for (let regionId in regionInfo) {
-      let thisRegion = regionInfo[regionId];
-      if (!thisRegion.mesh) { return; }
-      thisRegion.mesh.visible = false;
+  function hideZones() {
+    for (let zoneId in zoneInfo) {
+      let thisZone = zoneInfo[zoneId];
+      if (!thisZone.mesh) { return; }
+      thisZone.mesh.visible = false;
     }
 
-    regionEventCatcher.style.display = 'none';
+    zoneEventCatcher.style.display = 'none';
   }
 
   function onObjectDiscovered(object, objectKey) {
     console.log('object discovered: ' + objectKey + ' (desktop)');
 
     if (object.type === 'region') {
-      var alreadyContained = regionDropdown.selectables.map(function(selectableObj) {
+      var alreadyContained = dropdown.selectables.map(function(selectableObj) {
         return selectableObj.id;
       }).indexOf(objectKey) > -1;
 
       if (!alreadyContained) {
-        regionDropdown.addSelectable(objectKey, object.name);
-        // regionInfo[objectKey] = { name: object.name, color: `#${randInt(0x1000000).toString(16).padStart(6, '0')}` };
-        regionInfo[objectKey] = { name: object.name, color: COLORS.Pencil }; // pencil color is interpreted as the region when forming convex hull
+        dropdown.addSelectable(objectKey, object.name);
+        zoneInfo[objectKey] = { name: object.name, color: COLORS.Pencil }; // pencil color is interpreted as the zone when forming convex hull
 
-        // try to load bitmap for region boundary
-        // http://localhost:8080/mediaFile/regionLAB_Zdzx9v4fqml/region.jpg
-        // let bitmapUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/mediaFile/' + objectKey + '/region.jpg';
+        // try to load bitmap for zone territory map - it is stored in the target.jpg for this object
         let bitmapUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.jpg';
-        // image.addEventListener('load', e => {
-        //   if (regionInfo[objectKey].ctx) {
-        //     regionInfo[objectKey].ctx.drawImage(image, 0, 0);
-        //   }
-        // });
 
         var xhr = new XMLHttpRequest();
         xhr.open("GET", bitmapUrl);
@@ -322,11 +271,9 @@ createNameSpace('realityEditor.regionEditor');
         xhr.onload = function() {
           var urlCreator = window.URL || window.webkitURL;
           var imageUrl = urlCreator.createObjectURL(this.response);
-          // document.querySelector("#image").src = imageUrl;
           let image = document.createElement('img');
-          // image.src = bitmapUrl;
           image.src = imageUrl;
-          regionInfo[objectKey].loadedImage = image;
+          zoneInfo[objectKey].loadedImage = image;
           console.log('created image from loaded target');
           console.log(imageUrl);
         };
@@ -345,12 +292,10 @@ createNameSpace('realityEditor.regionEditor');
     if (!isPointerDown) { return }
     if (event.button === 2) { return; }
 
+    let thisZone = zoneInfo[selectedZoneId];
 
-
-    let thisRegion = regionInfo[selectedRegion];
-
-    let ctx = thisRegion.ctx;
-    let texture = thisRegion.texture;
+    let ctx = thisZone.ctx;
+    let texture = thisZone.texture;
 
     // calculate objects intersecting the picking ray
     const intersects = realityEditor.gui.threejsScene.getRaycastIntersects(event.clientX, event.clientY);
@@ -366,7 +311,7 @@ createNameSpace('realityEditor.regionEditor');
     });
 
     if (planeIntersect) {
-      // ctx.fillStyle = thisRegion.color;
+      // ctx.fillStyle = thisZone.color;
       ctx.fillStyle = currentColor;
       ctx.beginPath();
       const x = bitmapSize * planeIntersect.uv.x; //randInt(256);
@@ -375,36 +320,36 @@ createNameSpace('realityEditor.regionEditor');
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       texture.needsUpdate = true;
-      renderUpdates(thisRegion);
+      renderUpdates(thisZone);
     }
   }
 
-  function renderUpdates(thisRegion) {
+  function renderUpdates(thisZone) {
     const THREE = realityEditor.gui.threejsScene.THREE;
-    let ctx = thisRegion.ctx;
+    let ctx = thisZone.ctx;
 
     let imageData = ctx.getImageData(0, 0, bitmapSize, bitmapSize).data;
-    let hull = realityEditor.regionRenderer.calculateConvexHull(imageData, bitmapSize, thisRegion.color, 20);
+    let hull = realityEditor.zoneHulls.calculateConvexHull(imageData, bitmapSize, thisZone.color, 20);
 
-    realityEditor.regionRenderer.drawHull(hull, bitmapSize);
+    realityEditor.zoneHulls.drawHull(hull, bitmapSize);
 
-    thisRegion.hull = hull;
+    thisZone.hull = hull;
 
     let worldCoordinates = hullToWorldCoordinates(hull, bitmapSize, planeWidth);
     console.log(worldCoordinates);
 
-    if (!thisRegion.hullGroup) {
-      thisRegion.hullGroup = new THREE.Group();
-      realityEditor.gui.threejsScene.addToScene(thisRegion.hullGroup);
+    if (!thisZone.hullGroup) {
+      thisZone.hullGroup = new THREE.Group();
+      realityEditor.gui.threejsScene.addToScene(thisZone.hullGroup);
     }
 
     // clear the group
-    while (thisRegion.hullGroup.children.length) {
-      thisRegion.hullGroup.remove(thisRegion.hullGroup.children[0]);
+    while (thisZone.hullGroup.children.length) {
+      thisZone.hullGroup.remove(thisZone.hullGroup.children[0]);
     }
 
-    let mesh = realityEditor.regionRenderer.pathToMesh(worldCoordinates);
-    thisRegion.hullGroup.add(mesh);
+    let mesh = realityEditor.zoneHulls.pathToMesh(worldCoordinates);
+    thisZone.hullGroup.add(mesh);
   }
 
   function hullToWorldCoordinates(hull, bitmapSize, planeSize) {
@@ -424,14 +369,14 @@ createNameSpace('realityEditor.regionEditor');
 
   function onPointerUp(event) {
     isPointerDown = false;
+    if (event.button === 2) { return; }
 
-    // TODO: write the bitmap data to disk... store as an image on the server? or an array of values
+    // write the bitmap data to disk... store as the target image on the server
 
-    let object = realityEditor.getObject(selectedRegion);
+    let object = realityEditor.getObject(selectedZoneId);
     if (!object) { return; }
 
-    let ctx = regionInfo[selectedRegion].ctx;
-
+    let ctx = zoneInfo[selectedZoneId].ctx;
     var b64Image = ctx.canvas.toDataURL('image/jpeg');
     var u8Image  = b64ToUint8Array(b64Image);
 
@@ -440,40 +385,9 @@ createNameSpace('realityEditor.regionEditor');
     }, function() {
       console.log('target upload error');
     });
-
-    // var formData = new FormData();
-    // // formData.append("region", new Blob([ u8Image ], {type: "image/jpg"}));
-    // // formData.append('filename', 'regionMap');
-    // formData.append('regionMap', new Blob([ u8Image ], {type: "image/jpg"}), 'region.jpg');
-    //
-    // var xhr = new XMLHttpRequest();
-    //
-    // // let url = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '';
-    // let postUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/object/' + selectedRegion + '/uploadMediaFile';
-    // xhr.open('POST', postUrl, true);
-    //
-    // // Set up a handler for when the request finishes.
-    // xhr.onload = function () {
-    //   if (xhr.status === 200) {
-    //     // File(s) uploaded.
-    //     console.log('successful upload');
-    //
-    //     let mediaUuid = JSON.parse(xhr.responseText).mediaUuid;
-    //
-    //     // let extension = isVideo ? '.mov' : '.jpg';
-    //     // let filepath = 'http://' + spatialObject.serverIp + ':' + spatialObject.serverPort + '/mediaFile/' + spatialObject.object + '/' + mediaUuid + extension;
-    //     console.log('uploaded mediaUuid = ' + mediaUuid);
-    //
-    //     // }, 1000);
-    //
-    //   } else {
-    //     console.log('error uploading');
-    //   }
-    // };
-    //
-    // xhr.send(formData);
   }
 
+  // helper function used to convert canvas image data into a Blob part
   function b64ToUint8Array(b64Image) {
     var img = atob(b64Image.split(',')[1]);
     var img_buffer = [];
@@ -520,4 +434,4 @@ createNameSpace('realityEditor.regionEditor');
 
   realityEditor.addons.addCallback('init', initService);
   realityEditor.addons.addCallback('resourcesLoaded', onResourcesLoaded);
-})(realityEditor.regionEditor);
+})(realityEditor.zoneEditor);

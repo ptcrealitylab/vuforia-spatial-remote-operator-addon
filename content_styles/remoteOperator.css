@@ -13,13 +13,12 @@ body > * {
     pointer-events: none;
 }
 
-#regionEventCatcher {
+#zoneEventCatcher {
     position: absolute;
     left: 0;
     top: 0;
     width: 100vw;
     height: 100vh;
-    /*background-color: rgba(255, 0, 0, 0.1);*/
 }
 
 .remoteOperatorButton {
