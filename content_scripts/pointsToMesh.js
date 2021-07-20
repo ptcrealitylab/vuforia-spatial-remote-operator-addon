@@ -17,34 +17,25 @@ createNameSpace('realityEditor.regionRenderer');
     }
 
     // Allows us to reuse materials and geometries
-    const getPathMeshResources = (THREE, lightWidth, lightLength) => {
-        if (!pathMeshResources) {
+    const getPathMeshResources = (THREE, lightWidth, lightLength, reuseMaterials) => {
+        if (reuseMaterials) {
+            if (!pathMeshResources) {
+                const lightGeometry = new THREE.BoxGeometry(lightWidth,2,lightLength);
+                const lightMaterial = new THREE.MeshBasicMaterial({color:0xFFFFCC, transparent:true});
+                const topMaterial = new THREE.MeshBasicMaterial({color:0x000000, transparent:true});
+                const wallMaterial = new THREE.MeshBasicMaterial({color:0x01fffc, transparent:true, opacity:0.8});
+                pathMeshResources = {lightGeometry, lightMaterial, topMaterial, wallMaterial};
+            }
+            return pathMeshResources;
+        } else {
             const lightGeometry = new THREE.BoxGeometry(lightWidth,2,lightLength);
             const lightMaterial = new THREE.MeshBasicMaterial({color:0xFFFFCC, transparent:true});
             const topMaterial = new THREE.MeshBasicMaterial({color:0x000000, transparent:true});
             const wallMaterial = new THREE.MeshBasicMaterial({color:0x01fffc, transparent:true, opacity:0.8});
 
-            // // Fade effect
-            // const startFadeInDist = 600; // 0.6m
-            // const endFadeInDist = 750; // 0.75m
-            // const startFadeOutDist = 2000; // 2m
-            // const endFadeOutDist = 3000; // 3m
-            // [lightMaterial, topMaterial, wallMaterial].forEach(material => {
-            //     material.onBeforeCompile = (shader) => {
-            //         shader.fragmentShader = shader.fragmentShader.replace(
-            //             'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-            //             [
-            //                 'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-            //                 'float z = gl_FragCoord.z / gl_FragCoord.w;',
-            //                 `float s = z < float(${startFadeOutDist}) ? (z - float(${startFadeInDist})) / (float(${endFadeInDist - startFadeInDist})) : (float(${endFadeOutDist})-z) / float(${endFadeOutDist-startFadeOutDist});`,
-            //                 'gl_FragColor.a *= clamp(s, 0.0, 1.0);',
-            //             ].join( '\n' )
-            //         )
-            //     }
-            // });
-            pathMeshResources = {lightGeometry, lightMaterial, topMaterial, wallMaterial};
+            return {lightGeometry, lightMaterial, topMaterial, wallMaterial};
         }
-        return pathMeshResources;
+
     }
 
     // Converts a path in 3D space to a three.js mesh
@@ -76,7 +67,7 @@ createNameSpace('realityEditor.regionRenderer');
         const lightLength = 64; // mm length of light source
         // const lightGroup = new THREE.Group();
 
-        const resources = getPathMeshResources(THREE, lightWidth, lightLength);
+        const resources = getPathMeshResources(THREE, lightWidth, lightLength, false);
         // const lightGeometry = resources.lightGeometry;
         // const lightMaterial = resources.lightMaterial;
         const topMaterial = resources.topMaterial;

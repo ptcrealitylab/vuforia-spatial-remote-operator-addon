@@ -87,6 +87,14 @@ createNameSpace('realityEditor.regionEditor');
         let isInsideRegion = realityEditor.regionRenderer.checkPointConcave(camCoords.x, camCoords.y, thisRegion.hull);
         if (isInsideRegion) {
           console.log('INSIDE REGION: ' + thisRegion.name);
+          if (thisRegion.hullGroup) {
+            // cube.material.color.setHex( 0xffffff );
+            thisRegion.hullGroup.children[0].children[1].material.color.setHex(0xffffff);
+          }
+        } else {
+          if (thisRegion.hullGroup) {
+            thisRegion.hullGroup.children[0].children[1].material.color.setHex(0x01fffc);
+          }
         }
       }
     } catch (e) {
