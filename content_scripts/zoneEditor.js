@@ -253,7 +253,7 @@ createNameSpace('realityEditor.zoneEditor');
   function onObjectDiscovered(object, objectKey) {
     console.log('object discovered: ' + objectKey + ' (desktop)');
 
-    if (object.type === 'region') {
+    if (object.type === 'zone') {
       var alreadyContained = dropdown.selectables.map(function(selectableObj) {
         return selectableObj.id;
       }).indexOf(objectKey) > -1;
@@ -329,7 +329,7 @@ createNameSpace('realityEditor.zoneEditor');
     let ctx = thisZone.ctx;
 
     let imageData = ctx.getImageData(0, 0, bitmapSize, bitmapSize).data;
-    let hull = realityEditor.zoneHulls.calculateConvexHull(imageData, bitmapSize, thisZone.color, 20);
+    let hull = realityEditor.zoneHulls.calculateConvexHull(imageData, bitmapSize, thisZone.color, 10);
 
     realityEditor.zoneHulls.drawHull(hull, bitmapSize);
 
