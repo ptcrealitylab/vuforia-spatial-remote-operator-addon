@@ -39,7 +39,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     var ONLY_REQUIRE_PRIMARY = true;
 
-    let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
+    // let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
     let isGlbLoaded = false;
 
     /**
@@ -51,20 +51,23 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // when a new object is detected, check if we need to create a socket connection with its server
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
           if (isGlbLoaded) { return; } // only do this for the first world object detected
-          // addServerForObjectIfNeeded(object, objectKey);
+
+          let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId()
+          let criteriaMet = primaryWorldId ? (objectKey === primaryWorldId) : (object.isWorldObject || object.type === 'world' );
+
           // try loading area target GLB file into the threejs scene
-          if (object.isWorldObject || object.type === 'world') { // backwards compatible with isWorldObject
-            if (!gltfPath) {
-              gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
-            }
+          if (criteriaMet) {
+            isGlbLoaded = true;
+            let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
 
             let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
             let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
             let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
 
             let floorOffset = 0;
+            let ceilingHeight = 2.3; // TODO: don't hard-code this
             // let floorOffset = -1.55 * 1000;
-            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, 2.3);
+            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight);
 
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: -floorOffset, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
