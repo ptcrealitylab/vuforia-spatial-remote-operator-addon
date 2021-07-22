@@ -399,11 +399,51 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             });
         });
 
+        function httpGet (url) {
+            return new Promise((resolve, reject) => {
+                let req = new XMLHttpRequest();
+                req.open('GET', url, true);
+                req.onreadystatechange = function () {
+                    if (req.readyState === 4) {
+                        if (req.status !== 200) {
+                            reject('Invalid status code <' + req.status + '>');
+                        }
+                        resolve(JSON.parse(req.responseText));
+                    }
+                }
+                req.send();
+            });
+        }
+
+        async function getUndownloadedObjectWorldId(beat) {
+            // download the object data from its server
+            let url = 'http://' + beat.ip + ':' + realityEditor.network.getPort(beat) + '/object/' + beat.id;
+            let response = null;
+            try {
+                response = await httpGet(url);
+                return response.worldId;
+            } catch (_e) {
+                return null;
+            }
+        }
+
         realityEditor.network.realtime.addDesktopSocketMessageListener('udpMessage', function(msgContent) {
 
             if (typeof msgContent.id !== 'undefined' &&
                 typeof msgContent.ip !== 'undefined') {
-                realityEditor.network.addHeartbeatObject(msgContent);
+
+                let primaryWorldId = getPrimaryWorldId();
+                if (!primaryWorldId) {
+                    realityEditor.network.addHeartbeatObject(msgContent);
+                } else {
+                    getUndownloadedObjectWorldId(msgContent).then(worldId => {
+                        if (worldId === primaryWorldId) {
+                            realityEditor.network.addHeartbeatObject(msgContent);
+                        } else {
+                            console.log('ignored object because of mismatching worldId');
+                        }
+                    });
+                }
             }
 
             // TODO: I believe this can be removed because it was an old method for synchronizing the desktop camera with an AR client's camera
@@ -771,12 +811,18 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         window.location.reload();
     }
 
+    function getPrimaryWorldId() {
+        return (new URLSearchParams(window.location.search)).get('world');
+    }
+
     // Currently unused
     exports.registerCallback = registerCallback;
 
     exports.resetIdleTimeout = resetIdleTimeout;
 
     exports.isDesktop = isDesktop;
+
+    exports.getPrimaryWorldId = getPrimaryWorldId;
 
     // this happens only for desktop editors
     realityEditor.addons.addCallback('init', initService);
