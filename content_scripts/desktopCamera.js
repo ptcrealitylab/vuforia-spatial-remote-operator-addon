@@ -44,7 +44,6 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     /** @type {Dropdown} - DOM element to choose which object to target for the camera */
     var objectDropdown;
-    var selectedObjectKey = null;
 
     // polyfill for requestAnimationFrame to provide a smooth update loop
     let requestAnimationFrame = window.requestAnimationFrame ||
@@ -79,7 +78,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         createObjectSelectionDropdown();
-        // addCameraManipulationListeners();
 
         keyboard = new realityEditor.device.KeyboardListener();
 
@@ -130,18 +128,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         });
     }
 
-    function getCameraZoomSensitivity() {
-        return Math.max(0.01, realityEditor.gui.settings.toggleStates.cameraZoomSensitivity || 0.5);
-    }
-
-    function getCameraPanSensitivity() {
-        return Math.max(0.01, realityEditor.gui.settings.toggleStates.cameraPanSensitivity || 0.5);
-    }
-
-    function getCameraRotateSensitivity() {
-        return Math.max(0.01, realityEditor.gui.settings.toggleStates.cameraRotateSensitivity || 0.5);
-    }
-
     function createObjectSelectionDropdown() {
         if (!objectDropdown) {
 
@@ -155,11 +141,6 @@ createNameSpace('realityEditor.device.desktopCamera');
             objectDropdown = new realityEditor.gui.dropdown.Dropdown('objectDropdown', textStates, {width: '400px', left: '310px', top: '30px'}, document.body, true, onObjectSelectionChanged, onObjectExpandedChanged);
 
             objectDropdown.addSelectable('origin', 'World Origin');
-
-            // objectDropdown.addSelectable('floatingPoint2000', 'Floating Point (2m)');
-            // objectDropdown.addSelectable('floatingPoint5000', 'Floating Point (5m)');
-            // objectDropdown.addSelectable('floatingPoint10000', 'Floating Point (10m)');
-            // objectDropdown.addSelectable('floatingPoint20000', 'Floating Point (20m)');
 
             Object.keys(objects).forEach(function(objectKey) {
                 tryAddingObjectToDropdown(objectKey);
@@ -228,21 +209,15 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     function onObjectSelectionChanged(selected) {
         if (selected && selected.element) {
-            selectedObjectKey = selected.element.id;
-            selectObject(selected.element.id);
+            virtualCamera.selectObject(selected.element.id);
         } else {
-            selectedObjectKey = null;
+            virtualCamera.deselectTarget();
         }
     }
 
     function selectObject(objectKey) { // todo use this in objectselectionchanged and element clicked
-
         objectDropdown.setText('Selected: ' + objectKey, true);
-
-        selectedObjectKey = objectKey;
-        setTargetPositionToObject(objectKey);
-        previousTargetPosition = [cameraTargetPosition[0], cameraTargetPosition[1], cameraTargetPosition[2]];
-
+        virtualCamera.selectObject(objectKey);
         window.localStorage.setItem('selectedObjectKey', objectKey);
     }
 

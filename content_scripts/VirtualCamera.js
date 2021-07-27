@@ -133,19 +133,20 @@ createNameSpace('realityEditor.device');
             }
         }
         selectObject(key) {
-            // console.log('TODO: implement virtualCamera.selectObject()', key);
-            this.followingState.active = true;
-            this.followingState.selectedId = key;
+            if (key && realityEditor.sceneGraph.getSceneNodeById(key)) {
+                this.followingState.active = true;
+                this.followingState.selectedId = key;
+            } else {
+                this.deselectTarget();
+            }
         }
         deselectTarget() {
             this.followingState.active = false;
             this.followingState.selectedId = null;
-            // this.stopFollowing();
             // if (isFollowingObjectTarget) {
             //     // objectDropdown.setText('Select Camera Target', true);
             //     objectDropdown.resetSelection();
             // }
-            // isFollowingObjectTarget = false;
         }
         adjustEnvVars(distanceToTarget) {
             if (distanceToTarget < 3000) {
@@ -183,9 +184,6 @@ createNameSpace('realityEditor.device');
             }
         }
         stopFollowing() {
-            // TODO: stop following
-            // this.followingState.active = false;
-            // this.followingState.selectedId = null;
             if (this.followingState.followerElementId) {
                 realityEditor.sceneGraph.removeElementAndChildren(this.followingState.followerElementId);
                 this.followingState.followerElementId = null;
