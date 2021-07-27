@@ -49,6 +49,8 @@ const DEBUG_DISABLE_DROPDOWNS = false;
     let idleTimeout = null;
     let savedZoneSocketIPs = [];
 
+    let unityProjectionMatrix;
+
     /**
      * @type {CallbackHandler}
      */
@@ -127,6 +129,8 @@ const DEBUG_DISABLE_DROPDOWNS = false;
 
         var desktopProjectionMatrix = projectionMatrixFrom(25, window.innerWidth / window.innerHeight, 0.1, 300000);
         console.log('calculated desktop projection matrix:', desktopProjectionMatrix);
+
+        unityProjectionMatrix = projectionMatrixFrom(25, -window.innerWidth / window.innerHeight, 0.1, 300000);
 
         // noinspection JSSuspiciousNameCombination
         globalStates.height = window.innerWidth;
@@ -741,7 +745,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
 
         var messageBody = {
             cameraPoseMatrix: currentCameraMatrix,
-            projectionMatrix: globalStates.realProjectionMatrix,
+            projectionMatrix: unityProjectionMatrix,
             resolution: {
                 width: window.innerWidth,
                 height: window.innerHeight
