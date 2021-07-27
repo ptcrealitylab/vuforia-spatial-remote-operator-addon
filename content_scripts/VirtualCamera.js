@@ -10,11 +10,15 @@ createNameSpace('realityEditor.device');
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition) {
             this.cameraNode = cameraNode;
             this.projectionMatrix = [];
-            this.position = [0,0,0];
+            this.initialPosition = [0,0,0];
+            this.position = [1,1,1];
             if (typeof initialPosition !== 'undefined') {
+                this.initialPosition = [initialPosition[0], initialPosition[1], initialPosition[2]];
                 this.position = [initialPosition[0], initialPosition[1], initialPosition[2]];
             }
-            this.targetPosition = [1,0,0];
+            this.targetPosition = [0,0,0];
+            this.velocity = [0,0,0];
+            this.targetVelocity = [0,0,0];
             this.distanceToTarget = 1;
             this.speedFactors = {
                 translation: kTranslation || 1,
@@ -31,7 +35,11 @@ createNameSpace('realityEditor.device');
                 last: { x: 0, y: 0 }
             }
             this.keyboard = new realityEditor.device.KeyboardListener();
-            this.followingState = false;
+            this.followingState = {
+                active: false,
+                selectedId: null,
+                followerElementId: null
+            };
             this.addEventListeners();
         }
         addEventListeners() {
@@ -50,9 +58,10 @@ createNameSpace('realityEditor.device');
                     this.mouseInput.last.y = event.pageY;
                 }
 
-                if (this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] !== 'down') { return; }
-
-                this.attemptToFollowClickedElement(event.pageX, event.pageY);
+                // follow a tool if you click it with shift held down
+                if (this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down') {
+                    this.attemptToFollowClickedElement(event.pageX, event.pageY);
+                }
             }.bind(this));
 
             // TODO: do this for pointercancel, too
@@ -85,7 +94,23 @@ createNameSpace('realityEditor.device');
             }.bind(this));
         }
         reset() {
-            console.log('TODO: implement reset');
+            this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
+            this.targetPosition = [0,0,0];
+
+            // TODO: reset selection / de-select target
+            // // deselectTarget();
+            // if (isFollowingObjectTarget) {
+            //     // objectDropdown.setText('Select Camera Target', true);
+            //     objectDropdown.resetSelection();
+            // }
+            // isFollowingObjectTarget = false;
+
+            // TODO: reset follower element
+            // // reset target follower
+            // if (cameraFollowerElementId) {
+            //     realityEditor.sceneGraph.removeElementAndChildren(cameraFollowerElementId);
+            //     cameraFollowerElementId = null;
+            // }
         }
         attemptToFollowClickedElement(mouseX, mouseY) {
             let overlappingDivs = realityEditor.device.utilities.getAllDivsUnderCoordinate(mouseX, mouseY);
@@ -108,9 +133,14 @@ createNameSpace('realityEditor.device');
             }
         }
         selectObject(key) {
-            console.log('TODO: implement virtualCamera.selectObject()', key);
+            // console.log('TODO: implement virtualCamera.selectObject()', key);
+            this.followingState.active = true;
+            this.followingState.selectedId = key;
         }
         deselectTarget() {
+            this.followingState.active = false;
+            this.followingState.selectedId = null;
+            // this.stopFollowing();
             // if (isFollowingObjectTarget) {
             //     // objectDropdown.setText('Select Camera Target', true);
             //     objectDropdown.resetSelection();
@@ -127,18 +157,47 @@ createNameSpace('realityEditor.device');
             }
         }
         updateFollowing() {
-            // TODO: reimplement following
+            let targetPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.selectedId);
+            if (!targetPosition) { this.stopFollowing(); return; }
+
+            this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
+
+            // let relativeMatrix = [
+            //     1, 0, 0, 0,
+            //     0, 1, 0, 0,
+            //     0, 0, 1, 0,
+            //     this.position[0] - this.targetPosition[0], this.position[1] - this.targetPosition[1], this.position[2] - this.targetPosition[2], 1
+            // ];
+
+            if (!realityEditor.sceneGraph.getVisualElement('cameraFollower')) {
+                let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
+                let relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
+                this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement('cameraFollower', selectedNode, null, relativeToTarget);
+            } else {
+                let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
+                let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
+                let movement = add(newPosVec, negate(this.position));
+                if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+                    this.velocity = add(this.velocity, movement);
+                }
+            }
         }
         stopFollowing() {
             // TODO: stop following
+            // this.followingState.active = false;
+            // this.followingState.selectedId = null;
+            if (this.followingState.followerElementId) {
+                realityEditor.sceneGraph.removeElementAndChildren(this.followingState.followerElementId);
+                this.followingState.followerElementId = null;
+            }
         }
 
         // this needs to be called externally each frame that you want it to update
         update() {
-            let cameraVelocity = [0, 0, 0];
-            let cameraTargetVelocity = [0, 0, 0];
+            this.velocity = [0, 0, 0];
+            this.targetVelocity = [0, 0, 0];
 
-            if (this.followingState) {
+            if (this.followingState.active) {
                 this.updateFollowing();
             } else {
                 this.stopFollowing();
@@ -179,7 +238,7 @@ createNameSpace('realityEditor.device');
                     vector = scalarMultiply(vector, percentToClipBy);
                 }
 
-                cameraVelocity = add(cameraVelocity, vector);
+                this.velocity = add(this.velocity, vector);
                 this.deselectTarget();
 
                 this.mouseInput.unprocessedScroll = 0; // reset now that data is processed
@@ -191,12 +250,12 @@ createNameSpace('realityEditor.device');
             if (this.mouseInput.unprocessedDX !== 0) {
                 if (isShiftDown) { // stafe left-right
                     let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDX * getCameraPanSensitivity());
-                    cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                    cameraVelocity = add(cameraVelocity, vector);
+                    this.targetVelocity = add(this.targetVelocity, vector);
+                    this.velocity = add(this.velocity, vector);
                     this.deselectTarget();
                 } else { // rotate
                     let vector = scalarMultiply(negate(vCamX), this.speedFactors.rotation * getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDX);
-                    cameraVelocity = add(cameraVelocity, vector);
+                    this.velocity = add(this.velocity, vector);
                     this.deselectTarget();
                 }
 
@@ -206,12 +265,12 @@ createNameSpace('realityEditor.device');
             if (this.mouseInput.unprocessedDY !== 0) {
                 if (isShiftDown) { // stafe up-down
                     let vector = scalarMultiply(verticalVector, distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDY * getCameraPanSensitivity());
-                    cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                    cameraVelocity = add(cameraVelocity, vector);
+                    this.targetVelocity = add(this.targetVelocity, vector);
+                    this.velocity = add(this.velocity, vector);
                     this.deselectTarget();
                 } else { // rotate
                     let vector = scalarMultiply(vCamY, this.speedFactors.rotation * getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDY);
-                    cameraVelocity = add(cameraVelocity, vector);
+                    this.velocity = add(this.velocity, vector);
                     this.deselectTarget();
                 }
 
@@ -221,10 +280,10 @@ createNameSpace('realityEditor.device');
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            // TODO: debug/prevent camera singularities
+            // TODO: debug/prevent camera singularities (search for old implementation of wouldCameraFlip(currentVerticalVector, velocity, targetVelocity)
 
-            this.position = add(this.position, cameraVelocity);
-            this.targetPosition = add(this.targetPosition, cameraTargetVelocity);
+            this.position = add(this.position, this.velocity);
+            this.targetPosition = add(this.targetPosition, this.targetVelocity);
 
             // tween the matrix every frame to animate it to the new position
             // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
