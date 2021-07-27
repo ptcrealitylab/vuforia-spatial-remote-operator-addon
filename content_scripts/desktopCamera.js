@@ -37,7 +37,7 @@ createNameSpace('realityEditor.device.desktopCamera');
     var previousTargetPosition = [0, 0, 0];
     var isFollowingObjectTarget = false;
 
-    var targetOnLoad = window.localStorage.getItem('selectedObjectKey');
+    var targetOnLoad = 'origin'; // window.localStorage.getItem('selectedObjectKey');
 
     var DEBUG_SHOW_LOGGER = false;
     var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field

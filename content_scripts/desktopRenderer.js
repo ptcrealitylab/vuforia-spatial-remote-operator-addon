@@ -42,6 +42,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     // let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
     let isGlbLoaded = false;
 
+    let gltf = null;
+    let staticModelMode = true;
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -67,7 +70,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             let floorOffset = 0;
             let ceilingHeight = 2.3; // TODO: don't hard-code this
             // let floorOffset = -1.55 * 1000;
-            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight);
+            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
+                gltf = createdMesh;
+            });
 
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: -floorOffset, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
@@ -104,7 +109,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         backgroundCanvas = document.createElement('canvas');
         backgroundCanvas.id = 'desktopBackgroundRenderer';
         backgroundCanvas.classList.add('desktopBackgroundRenderer');
-        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)';
+        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)'; // render behind three.js
         backgroundCanvas.style.transformOrigin = 'top left';
         backgroundCanvas.style.position = 'absolute';
         primaryBackgroundCanvas = document.createElement('canvas');
@@ -118,29 +123,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        // if (typeof msgContent.sendToBackground !== "undefined") {
-        //
-        //     var iframe = globalDOMCache['iframe' + tempThisObject.uuid];
-        //     var src = iframe.src;
-        //
-        //     var desktopBackgroundRenderer = document.getElementById('desktopBackgroundRenderer');
-        //     if (desktopBackgroundRenderer) {
-        //         if (desktopBackgroundRenderer.src !== src) {
-        //             desktopBackgroundRenderer.src = src;
-        //         }
-        //     }
-        //
-        //     if (iframe) {
-        //         iframe.style.display = 'none';
-        //     }
-        //
-        //     var div = globalDOMCache[tempThisObject.uuid]; //globalDOMCache['object' + tempThisObject.uuid];
-        //     if (div) {
-        //         // div.style.pointerEvents = 'none';
-        //         globalDOMCache[tempThisObject.uuid].style.display = 'none';
-        //     }
-        //
-        // }
+        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+            if (params.event.code === 'KeyT' && gltf) {
+                staticModelMode = !staticModelMode;
+                if (staticModelMode) {
+                    gltf.visible = true;
+                    console.log('show gtlf');
+                } else {
+                    gltf.visible = false;
+                    console.log('hide gltf');
+                }
+            }
+        });
     }
 
     /**
@@ -194,7 +188,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         prom.then(function() {
             if (primaryDrawn && (secondaryDrawn || ONLY_REQUIRE_PRIMARY)) {
                 renderBackground();
-                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)';
+                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)';
             }
         });
     }
