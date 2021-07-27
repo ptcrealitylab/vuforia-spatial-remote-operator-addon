@@ -740,8 +740,12 @@ const DEBUG_DISABLE_DROPDOWNS = false;
      */
     function sendMatricesToRealityZones() {
 
-        let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
+        // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+        // let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
+
+        let unityCameraNode = realityEditor.sceneGraph.getSceneNodeById('UNITY_CAMERA_VISUAL_ELEMENT');
+        if (!unityCameraNode) { return; }
+        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(unityCameraNode.worldMatrix);
 
         var messageBody = {
             cameraPoseMatrix: currentCameraMatrix,

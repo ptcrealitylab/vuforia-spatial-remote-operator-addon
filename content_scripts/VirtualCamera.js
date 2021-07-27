@@ -15,6 +15,8 @@ createNameSpace('realityEditor.device');
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
+            if (!cameraNode) { console.warn('cameraNode is undefined!'); }
+
             this.cameraNode = cameraNode;
             this.projectionMatrix = [];
             this.initialPosition = [0,0,0];

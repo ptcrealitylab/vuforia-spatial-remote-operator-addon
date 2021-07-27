@@ -51,6 +51,28 @@ createNameSpace('realityEditor.device.desktopCamera');
     let virtualCamera;
     let keyboard;
 
+    let unityCamera;
+
+    function makeGroundPlaneRotationY(theta) {
+        var c = Math.cos(theta), s = Math.sin(theta);
+        return [
+            c, 0, s, 0,
+            0, 1, 0, 0,
+            -s, 0, c, 0,
+            0, 0, 0, 1
+        ];
+    }
+
+    function makeGroundPlaneRotationZ(theta) {
+        var c = Math.cos(theta), s = Math.sin(theta);
+        return [
+            c, -s, 0, 0,
+            s, c, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ];
+    }
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -66,6 +88,20 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
+
+        let invertedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('INVERTED_COORDINATES', undefined, undefined, [-1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+        let invertedCoordinatesNode = realityEditor.sceneGraph.getSceneNodeById(invertedCoordinatesNodeId);
+
+        let rotatedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('ROTATED_COORDINATES', invertedCoordinatesNode, undefined, makeGroundPlaneRotationY(Math.PI * 1.1));
+        let rotatedCoordinatesNode = realityEditor.sceneGraph.getSceneNodeById(rotatedCoordinatesNodeId);
+
+        // sceneNodeRotateX.setLocalMatrix(makeGroundPlaneRotationX(-(Math.PI/2)));
+
+        // let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', invertedCoordinatesNode);
+        let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', rotatedCoordinatesNode);
+        let unityCameraNode = realityEditor.sceneGraph.getSceneNodeById(unityCameraNodeId);
+        unityCamera = new realityEditor.device.VirtualCamera(unityCameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
+
         update();
 
         // disable right-click context menu so we can use right-click to rotate camera
@@ -239,6 +275,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (virtualCamera) {
             try {
                 virtualCamera.update();
+                unityCamera.update();
             } catch (e) {
                 console.warn('error updating Virtual Camera', e);
             }
