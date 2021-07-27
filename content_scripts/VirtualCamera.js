@@ -6,8 +6,15 @@ createNameSpace('realityEditor.device');
 
 (function(exports) {
 
+    const FOLLOWING_RELATIVE_POSITION = [
+        -1.991735742789964,-0.0019402862384033104,0.1816275024820606,0,
+        -0.12091535927151742,-1.4781942937095942,-1.3417622677709533,0,
+        0.1355399071070364,-1.3471959077679534,1.4719672222377786,0,
+        1033.3310890578132,-10300.982745528603,12136.112553930248,0.9999999999999998
+    ];
+
     class VirtualCamera {
-        constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition) {
+        constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
             this.cameraNode = cameraNode;
             this.projectionMatrix = [];
             this.initialPosition = [0,0,0];
@@ -40,6 +47,9 @@ createNameSpace('realityEditor.device');
                 selectedId: null,
                 followerElementId: null
             };
+            if (typeof isDemoVersion !== 'undefined') {
+                this.isDemoVersion = isDemoVersion;
+            }
             this.addEventListeners();
         }
         addEventListeners() {
@@ -163,16 +173,27 @@ createNameSpace('realityEditor.device');
 
             this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
 
-            // let relativeMatrix = [
-            //     1, 0, 0, 0,
-            //     0, 1, 0, 0,
-            //     0, 0, 1, 0,
-            //     this.position[0] - this.targetPosition[0], this.position[1] - this.targetPosition[1], this.position[2] - this.targetPosition[2], 1
-            // ];
-
             if (!realityEditor.sceneGraph.getVisualElement('cameraFollower')) {
                 let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
                 let relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
+
+                if (this.isDemoVersion) {
+                    relativeToTarget = FOLLOWING_RELATIVE_POSITION;
+                    if (selectedNode.linkedVehicle) {
+                        let thisObject = realityEditor.getObject(selectedNode.linkedVehicle.objectId);
+                        if (thisObject) {
+                            let body = {};
+                            body[selectedNode.linkedVehicle.objectId] = {
+                                objectID: selectedNode.linkedVehicle.objectID,
+                                toolID: '',
+                                nodeID: ''
+                            };
+                            globalStates.spatial.whereWas[thisObject.ip] = JSON.parse(JSON.stringify(body));
+                            realityEditor.gui.spatial.checkState();
+                        }
+                    }
+                }
+
                 this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement('cameraFollower', selectedNode, null, relativeToTarget);
             } else {
                 let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
