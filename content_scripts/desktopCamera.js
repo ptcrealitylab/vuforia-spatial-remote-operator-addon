@@ -65,7 +65,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB);
+        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
         update();
 
         // disable right-click context menu so we can use right-click to rotate camera
