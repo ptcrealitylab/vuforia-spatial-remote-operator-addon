@@ -26,6 +26,7 @@ createNameSpace('realityEditor.device');
                 D: 68,
                 Q: 81,
                 E: 69,
+                V: 86,
                 SHIFT: 16
             });
             this.keyStates = {};

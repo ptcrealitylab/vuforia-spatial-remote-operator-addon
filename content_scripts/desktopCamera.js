@@ -39,7 +39,6 @@ createNameSpace('realityEditor.device.desktopCamera');
     var cameraTargetPosition = [0, 0, 0];
 
     var previousTargetPosition = [0, 0, 0];
-    var currentDistanceToTarget = 500;
     var isFollowingObjectTarget = false;
 
     // this is the final camera matrix that will be computed from lookAt(cameraPosition, cameraTargetPosition)
@@ -48,8 +47,6 @@ createNameSpace('realityEditor.device.desktopCamera');
     var targetOnLoad = window.localStorage.getItem('selectedObjectKey');
 
     var DEBUG_SHOW_LOGGER = false;
-    var DEBUG_REMOVE_KEYBOARD_CONTROLS = true;
-    var DEBUG_PREVENT_CAMERA_SINGULARITIES = false;
     var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
 
     /**
@@ -62,24 +59,6 @@ createNameSpace('realityEditor.device.desktopCamera');
     var requestAnimationFrame = window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
 
-    /* ---------- how fast the camera will pan and rotate each frame --------- */
-    // affects keyboard and mouse controls
-    var cameraSpeed = 0.0001;
-
-    // affects keyboard controls
-    var keyboardSpeedMultiplier = {
-        translation: 50000,
-        rotation: 10,
-        scale: 250000
-    };
-
-    // affects mouse controls
-    let scrollWheelMultiplier = 10000;
-    var mouseSpeedMultiplier = {
-        translation: 250,
-        rotation: .0015,
-        scale: 350
-    };
     /* ----------------------------------------------------------------------- */
 
     /* ------------- keep track of mouse and scroll wheel movement ----------- */
@@ -97,32 +76,8 @@ createNameSpace('realityEditor.device.desktopCamera');
     var mouseMovement = {};
     /* ----------------------------------------------------------------------- */
 
-    /**
-     * Enum mapping readable keyboard names to their keyCode
-     * @type {Readonly<{LEFT: number, UP: number, RIGHT: number, DOWN: number, ONE: number, TWO: number, ESCAPE: number, W: number, A: number, S: number, D: number}>}
-     */
-    var keyCodes = Object.freeze({
-        LEFT: 37,
-        UP: 38,
-        RIGHT: 39,
-        DOWN: 40,
-        ONE: 49,
-        TWO: 50,
-        ESCAPE: 27,
-        W: 87,
-        A: 65,
-        S: 83,
-        D: 68,
-        Q: 81,
-        E: 69,
-        SHIFT: 16
-    });
-
-    /**
-     * For each key included in keyCodes, tracks whether the key is "up" or "down"
-     * @type {Object.<string, string>}
-     */
-    var keyStates = {};
+    let virtualCamera;
+    let keyboard;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -130,12 +85,19 @@ createNameSpace('realityEditor.device.desktopCamera');
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
+        if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
+            setTimeout(function() {
+                initService();
+            }, 100);
+            return;
+        }
+
+        let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, cameraPosition);
+        update();
+
         // disable right-click context menu so we can use right-click to rotate camera
         document.addEventListener('contextmenu', event => event.preventDefault());
-
-        // setTimeout(function() {
-        //     realityEditor.gui.ar.draw.correctedCameraMatrix = JSON.parse("[0.9970872369217663,-0.0195192707153495,-0.0737295058877905,0,0,0.9666966751096482,-0.2559248685297132,0,0.076269534990826,0.2551794200218579,0.9638809167265376,0,9.292587708200172e-166,2.2737367544323196e-13,-4789.705780105794,1]")
-        // }, 100);
 
         try {
             addSensitivitySlidersToMenu();
@@ -144,32 +106,29 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         createObjectSelectionDropdown();
-        addCameraManipulationListeners();
-        update();
+        // addCameraManipulationListeners();
 
-        realityEditor.device.callbackHandler.registerCallback('objectMatrixDiscovered', function(params) {
-            tryAddingObjectToDropdown(params.objectKey);
-        });
+        keyboard = new realityEditor.device.KeyboardListener();
 
-        if (!DEBUG_DISABLE_DROPDOWNS) {
-          // add a spacebar keyboard listener to toggle visibility of the zone/phone discovery buttons
-          realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function (params) {
-            if (params.event.code === 'KeyV') {
-              if (objectDropdown) {
+        if (DEBUG_DISABLE_DROPDOWNS) {
+            if (objectDropdown) {
                 if (objectDropdown.dom.style.display !== 'none') {
-                  objectDropdown.dom.style.display = 'none';
-                } else {
-                  objectDropdown.dom.style.display = '';
+                    objectDropdown.dom.style.display = 'none';
                 }
-              }
             }
-          });
         } else {
-          if (objectDropdown) {
-            if (objectDropdown.dom.style.display !== 'none') {
-              objectDropdown.dom.style.display = 'none';
-            }
-          }
+            keyboard.onKeyUp(function (code) {
+                // reset when escape pressed
+                if (code === keyboard.keyCodes.V) {
+                    if (objectDropdown) {
+                        if (objectDropdown.dom.style.display !== 'none') {
+                            objectDropdown.dom.style.display = 'none';
+                        } else {
+                            objectDropdown.dom.style.display = '';
+                        }
+                    }
+                }
+            }.bind(this));
         }
 
         if (DEBUG_SHOW_LOGGER) {
@@ -344,368 +303,20 @@ createNameSpace('realityEditor.device.desktopCamera');
      */
     function update() {
 
-        try {
-            updateMode_Target();
-        } catch (e) {
-            console.warn('ERROR updating');
+        // try {
+        //     updateMode_Target();
+        // } catch (e) {
+        //     console.warn('ERROR updating');
+        // }
+
+        if (virtualCamera) {
+            virtualCamera.update();
         }
 
         requestAnimationFrame(update);
     }
 
     let cameraFollowerElementId = null;
-
-    function updateMode_Target() {
-
-        var cameraVelocity = [0, 0, 0];
-        var cameraTargetVelocity = [0, 0, 0];
-
-        if (isFollowingObjectTarget) {
-            setTargetPositionToObject(selectedObjectKey);
-
-            // TODO preserve relative transform between camera and target
-            // let positionRelativeToTarget = [];
-
-            let relativeMatrix = [
-              1, 0, 0, 0,
-              0, 1, 0, 0,
-              0, 0, 1, 0,
-              cameraPosition[0] - cameraTargetPosition[0], cameraPosition[1] - cameraTargetPosition[1], cameraPosition[2] - cameraTargetPosition[2], 1
-            ];
-
-            if (!realityEditor.sceneGraph.getVisualElement('cameraFollower')) {
-              let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-              let thisNodeKey = selectedObjectKey;
-              if (thisNodeKey === 'origin') {
-                thisNodeKey = realityEditor.worldObjects.getBestWorldObject().objectId;
-              }
-              let selectedNode = realityEditor.sceneGraph.getSceneNodeById(thisNodeKey);
-              // let cameraWorldMatrix = realityEditor.sceneGraph.getSceneNodeById('CAMERA').worldMatrix;
-              let relativeToTarget = cameraNode.getMatrixRelativeTo(selectedNode);
-              // let parentSceneNode = realityEditor.sceneGraph.getSceneNodeById(selectedObjectKey);
-              // elementName, optionalParent, linkedDataObject (includes x,y,scale), initialLocalMatrix
-              cameraFollowerElementId = realityEditor.sceneGraph.addVisualElement('cameraFollower', selectedNode, null, relativeToTarget);
-
-
-              // // immediately position it correctly so it doesn't go too crazy
-              // let followerSceneNode = realityEditor.sceneGraph.getVisualElement('cameraFollower');
-              // let followerPosition = realityEditor.sceneGraph.getWorldPosition(cameraFollowerElementId);
-              // // let targetWorldMatrix =
-              // console.log(followerPosition);
-              // let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
-              // let movement = add(newPosVec, negate(cameraPosition));
-              // if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-              //   // console.log(movement);
-              //   cameraVelocity = add(cameraVelocity, movement);
-              // }
-            } else {
-              // let followerSceneNode = realityEditor.sceneGraph.getVisualElement('cameraFollower');
-
-              // ghostSceneNode.linkedVehicle = ghostVehicle; // make sure this points to up-to-date vehicle for x,y,scale
-              // ghostSceneNode.setLocalMatrix(ghostPosition.matrix);
-              // ghostElementId = ghostSceneNode.id;
-              // let followerWorldMatrix = followerSceneNode.worldMatrix;
-              let followerPosition = realityEditor.sceneGraph.getWorldPosition(cameraFollowerElementId);
-              // let targetWorldMatrix =
-              // console.log(followerPosition);
-              let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
-              let movement = add(newPosVec, negate(cameraPosition));
-              if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-                // console.log(movement);
-                cameraVelocity = add(cameraVelocity, movement);
-              }
-            }
-
-            // move camera to preserve relative position to target
-            // var movement = add(cameraTargetPosition, negate(previousTargetPosition));
-            // if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-            //     // console.log(movement);
-            //     cameraVelocity = add(cameraVelocity, movement);
-            // }
-        } else {
-          // reset target follower
-          if (cameraFollowerElementId) {
-            realityEditor.sceneGraph.removeElementAndChildren(cameraFollowerElementId);
-            cameraFollowerElementId = null;
-          }
-        }
-
-        previousTargetPosition = [cameraTargetPosition[0], cameraTargetPosition[1], cameraTargetPosition[2]];
-
-        // move camera to cameraPosition
-        // look at cameraTargetPosition
-        destinationCameraMatrix = lookAt(cameraPosition[0], cameraPosition[1], cameraPosition[2], cameraTargetPosition[0], cameraTargetPosition[1], cameraTargetPosition[2], 0, 1, 0);
-
-        // move the cameraTargetPosition if you strafe
-
-        // move the cameraPosition if you orbit
-
-        var ev = cameraPosition; //[cameraX, cameraY, cameraZ];
-        var cv = cameraTargetPosition; //[objX, objY, objZ];
-        var uv = [0, 1, 0];
-
-        currentDistanceToTarget = magnitude(add(ev, negate(cv)));
-
-        if (currentDistanceToTarget < 3000) {
-          realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6;
-        } else if (currentDistanceToTarget < 12000) {
-          realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (currentDistanceToTarget / 3000);
-        } else {
-          realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (4);
-        }
-
-        // map(currentDistanceToTarget, 0, 10000, 1, 10);
-
-        // console.log(distanceToCenter);
-        // var upRotationVelocity = 0;
-
-        var mCamera = destinationCameraMatrix; // translation is based on what direction you're facing,
-        var vCamX = normalize([mCamera[0], mCamera[4], mCamera[8]]);
-        var vCamY = normalize([mCamera[1], mCamera[5], mCamera[9]]);
-        var _vCamZ = normalize([mCamera[2], mCamera[6], mCamera[10]]);
-
-        cameraSpeed = 0.001; // 0.01;
-
-        var forwardVector = normalize(add(ev, negate(cv))); // vector from the camera to the center point
-        var horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
-        var verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
-
-        // stop following if you strafe away
-        function deselectTarget() {
-            if (isFollowingObjectTarget) {
-                // objectDropdown.setText('Select Camera Target', true);
-                objectDropdown.resetSelection();
-            }
-            isFollowingObjectTarget = false;
-        }
-
-        // update with keyboard
-        if (!DEBUG_REMOVE_KEYBOARD_CONTROLS) {
-
-            // move the cameraTargetPosition and the cameraPosition equally if you strafe
-            if (keyStates[keyCodes.LEFT] === 'down') {
-                let vector = scalarMultiply(negate(horizontalVector), cameraSpeed * keyboardSpeedMultiplier.translation);
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-            if (keyStates[keyCodes.RIGHT] === 'down') {
-                let vector = scalarMultiply(horizontalVector, cameraSpeed * keyboardSpeedMultiplier.translation);
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-            if (keyStates[keyCodes.UP] === 'down') {
-                let vector = scalarMultiply(verticalVector, cameraSpeed * keyboardSpeedMultiplier.translation);
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-            if (keyStates[keyCodes.DOWN] === 'down') {
-                let vector = scalarMultiply(negate(verticalVector), cameraSpeed * keyboardSpeedMultiplier.translation);
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-
-            // move the cameraPosition if you orbit or move in/out
-            if (keyStates[keyCodes.ONE] === 'down') { // zoom out
-                let vector = scalarMultiply(forwardVector, cameraSpeed * keyboardSpeedMultiplier.scale);
-                cameraVelocity = add(cameraVelocity, vector);
-            }
-            if (keyStates[keyCodes.TWO] === 'down') { // zoom in (only if you are far enough away)
-                let vector = scalarMultiply(negate(forwardVector), cameraSpeed * keyboardSpeedMultiplier.scale);
-                console.log(magnitude(vector), currentDistanceToTarget);
-                if (magnitude(vector) < currentDistanceToTarget / 3) { // prevent you from zooming beyond it
-                    cameraVelocity = add(cameraVelocity, vector);
-                }
-            }
-            if (keyStates[keyCodes.W] === 'down') {
-                let vector = scalarMultiply(vCamY, cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-                cameraVelocity = add(cameraVelocity, vector);
-            }
-            if (keyStates[keyCodes.S] === 'down') {
-                let vector = scalarMultiply(negate(vCamY), cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-                cameraVelocity = add(cameraVelocity, vector);
-            }
-            if (keyStates[keyCodes.A] === 'down') {
-                let vector = scalarMultiply(negate(vCamX), cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-                cameraVelocity = add(cameraVelocity, vector);
-            }
-            if (keyStates[keyCodes.D] === 'down') {
-                let vector = scalarMultiply(vCamX, cameraSpeed * keyboardSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-                cameraVelocity = add(cameraVelocity, vector);
-            }
-        }
-
-        if (unprocessedScrollDY !== 0) {
-
-            // increase speed as distance increases
-            let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
-            let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, currentDistanceToTarget) / 100);
-
-            let vector = scalarMultiply(forwardVector, cameraSpeed * distanceMultiplier * scrollWheelMultiplier * getCameraZoomSensitivity() * unprocessedScrollDY);
-
-            // prevent you from zooming beyond it
-            let isZoomingIn = unprocessedScrollDY < 0;
-            if (isZoomingIn && currentDistanceToTarget <= magnitude(vector)) {
-                // zoom in at most halfway to the origin if you're going to overshoot it
-                let percentToClipBy = 0.5 * currentDistanceToTarget / magnitude(vector);
-                vector = scalarMultiply(vector, percentToClipBy);
-            }
-
-            cameraVelocity = add(cameraVelocity, vector);
-            deselectTarget();
-
-            unprocessedScrollDY = 0;
-        }
-
-        let distancePanFactor = Math.max(1, currentDistanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
-
-        if (unprocessedMouseDX !== 0) {
-            // pan if shift held down
-            if (keyStates[keyCodes.SHIFT] === 'down') {
-                // STRAFE LEFT-RIGHT
-                let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * unprocessedMouseDX * getCameraPanSensitivity());
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            } else {
-                // rotate otherwise
-                let vector = scalarMultiply(negate(vCamX), cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDX);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-
-            unprocessedMouseDX = 0;
-        }
-
-        if (unprocessedMouseDY !== 0) {
-            // pan if shift held down
-            if (keyStates[keyCodes.SHIFT] === 'down') {
-                // STRAFE UP-DOWN
-                let vector = scalarMultiply(verticalVector, distancePanFactor * unprocessedMouseDY * getCameraPanSensitivity());
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            } else {
-                // rotate otherwise
-                let vector = scalarMultiply(vCamY, cameraSpeed * getCameraRotateSensitivity() * (2 * Math.PI * currentDistanceToTarget) * unprocessedMouseDY);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-
-            unprocessedMouseDY = 0;
-        }
-
-        var threshold = 0.1;
-
-        // GO FORWARD-BACKWARD
-        if (typeof mouseMovement.translation !== 'undefined') {
-            // zoom in-out
-            if (Math.abs(mouseMovement.translation.y) >= threshold) {
-                var forwardSpeed = -mouseMovement.translation.y;
-                let vector = scalarMultiply(forwardVector, forwardSpeed * mouseSpeedMultiplier.scale);
-                if (forwardSpeed > 0 || currentDistanceToTarget > 500) { // prevent you from zooming too close to it
-                    cameraVelocity = add(cameraVelocity, vector);
-                }
-            }
-
-            // STRAFE LEFT-RIGHT
-            if (Math.abs(mouseMovement.translation.x) >= threshold) {
-                var sideSpeed = -mouseMovement.translation.x;
-                let vector = scalarMultiply(horizontalVector, sideSpeed * mouseSpeedMultiplier.translation);
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-
-            // STRAFE UP-DOWN
-            if (Math.abs(mouseMovement.translation.z) >= threshold) {
-                var upSpeed = -mouseMovement.translation.z;
-                let vector = scalarMultiply(verticalVector, upSpeed * mouseSpeedMultiplier.translation);
-                cameraTargetVelocity = add(cameraTargetVelocity, vector);
-                cameraVelocity = add(cameraVelocity, vector);
-                deselectTarget();
-            }
-        }
-
-        if (typeof mouseMovement.rotation !== 'undefined') {
-
-            // rotate left-right
-            if (Math.abs(mouseMovement.rotation.z) >= threshold) {
-                let rotationSpeed = mouseMovement.rotation.z;
-                let vector = scalarMultiply(vCamX, rotationSpeed * mouseSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-                cameraVelocity = add(cameraVelocity, vector);
-            }
-
-            // rotate up-down
-            if (Math.abs(mouseMovement.rotation.x) >= threshold) {
-                let rotationSpeed = mouseMovement.rotation.x;
-                let vector = scalarMultiply(negate(vCamY), rotationSpeed * mouseSpeedMultiplier.rotation * (2 * Math.PI * currentDistanceToTarget));
-                cameraVelocity = add(cameraVelocity, vector);
-            }
-
-        }
-
-        var shouldMoveCamera = true;
-
-        if (DEBUG_PREVENT_CAMERA_SINGULARITIES) {
-            var isAboutToFlip = wouldCameraFlip(verticalVector, cameraVelocity, cameraTargetVelocity) || !DEBUG_PREVENT_CAMERA_SINGULARITIES;
-            shouldMoveCamera = !isAboutToFlip; // prevent the camera from flipping when it's about to cross a singularity
-        }
-
-        if (shouldMoveCamera) {
-            // TODO: limit velocity to at most bring you to +epsilon distance to target, instead of flipping world
-            //  when you go through it / beyond it
-            cameraPosition = add(cameraPosition, cameraVelocity);
-            cameraTargetPosition = add(cameraTargetPosition, cameraTargetVelocity);
-        }
-
-        logMessage(prettyPrint(cameraPosition, 0) + ' -> ' + prettyPrint(cameraTargetPosition, 0) + ' (' +
-        currentDistanceToTarget.toFixed(0) + ') ' + (isFollowingObjectTarget ? '(Following)' : '()'));
-
-        // tween the matrix every frame to animate it to the new position
-        let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
-        let newCameraMatrix = tweenMatrix(currentCameraMatrix, realityEditor.gui.ar.utilities.invertMatrix(destinationCameraMatrix), 0.3);
-        realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
-
-        // TODO ben: make sure groundplane matrix works on desktop
-    }
-
-    function getBaseLog(x, y) {
-        return Math.log(y) / Math.log(x);
-    }
-
-    function prettyPrint(matrix, precision) {
-        return '[ ' + matrix[0].toFixed(precision) + ', ' + matrix[1].toFixed(precision) + ', ' + matrix[2].toFixed(precision) + ']';
-    }
-
-    function tweenMatrix(currentMatrix, destination, tweenSpeed) {
-        if (typeof tweenSpeed === 'undefined') { tweenSpeed = 0.5; } // default value
-
-        if (currentMatrix.length !== destination.length) {
-            console.warn('matrices are inequal lengths. cannot be tweened so just assigning current=destination');
-            return realityEditor.gui.ar.utilities.copyMatrix(destination);
-        }
-        if (tweenSpeed <= 0 || tweenSpeed >= 1) {
-            console.warn('tween speed should be between 0 and 1. cannot be tweened so just assigning current=destination');
-            return realityEditor.gui.ar.utilities.copyMatrix(destination);
-        }
-
-        var m = [];
-        for (var i = 0; i < currentMatrix.length; i++) {
-            m[i] = destination[i] * tweenSpeed + currentMatrix[i] * (1.0 - tweenSpeed);
-        }
-        return m;
-    }
-
-    function multiplyMatrixVector(M, v) {
-        return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
-            M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
-            M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
-    }
 
     /**
      * Adds keyboard listeners and initializes the camera matrix

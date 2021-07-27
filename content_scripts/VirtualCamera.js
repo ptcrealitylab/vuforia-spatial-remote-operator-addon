@@ -7,15 +7,19 @@ createNameSpace('realityEditor.device');
 (function(exports) {
 
     class VirtualCamera {
-        constructor() {
+        constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition) {
+            this.cameraNode = cameraNode;
             this.projectionMatrix = [];
             this.position = [0,0,0];
+            if (typeof initialPosition !== 'undefined') {
+                this.position = [initialPosition[0], initialPosition[1], initialPosition[2]];
+            }
             this.targetPosition = [1,0,0];
             this.distanceToTarget = 1;
             this.speedFactors = {
-                translation: 1,
-                rotation: 1,
-                scale: 1
+                translation: kTranslation || 1,
+                rotation: kRotation || 1,
+                scale: kScale || 1
             }
             this.mouseInput = {
                 unprocessedDX: 0,
@@ -28,6 +32,7 @@ createNameSpace('realityEditor.device');
             }
             this.keyboard = new realityEditor.device.KeyboardListener();
             this.followingState = false;
+            this.addEventListeners();
         }
         addEventListeners() {
             window.addEventListener("wheel", function(event) {
@@ -43,10 +48,6 @@ createNameSpace('realityEditor.device');
                     this.mouseInput.first.y = event.pageY;
                     this.mouseInput.last.x = event.pageX;
                     this.mouseInput.last.y = event.pageY;
-                    // unprocessedMouseMovements.push({
-                    //     x: event.pageX - firstX,
-                    //     y: event.pageY - firstY
-                    // });
                 }
 
                 if (this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] !== 'down') { return; }
@@ -58,7 +59,6 @@ createNameSpace('realityEditor.device');
             document.addEventListener('pointerup', function(event) {
                 this.mouseInput.isPointerDown = false;
                 this.mouseInput.isRightClick = false;
-                // unprocessedMouseMovements = [];
                 this.mouseInput.last.x = 0;
                 this.mouseInput.last.y = 0;
             }.bind(this));
@@ -74,11 +74,13 @@ createNameSpace('realityEditor.device');
 
                     this.mouseInput.last.x = event.pageX;
                     this.mouseInput.last.y = event.pageY;
+                }
+            }.bind(this));
 
-                    // unprocessedMouseMovements.push({
-                    //     x: event.pageX - firstX,
-                    //     y: event.pageY - firstY
-                    // });
+            this.keyboard.onKeyUp(function(code) {
+                // reset when escape pressed
+                if (code === this.keyboard.keyCodes.ESCAPE) {
+                    this.reset();
                 }
             }.bind(this));
         }
@@ -188,12 +190,12 @@ createNameSpace('realityEditor.device');
 
             if (this.mouseInput.unprocessedDX !== 0) {
                 if (isShiftDown) { // stafe left-right
-                    let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * this.mouseInput.unprocessedDX * getCameraPanSensitivity());
+                    let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDX * getCameraPanSensitivity());
                     cameraTargetVelocity = add(cameraTargetVelocity, vector);
                     cameraVelocity = add(cameraVelocity, vector);
                     this.deselectTarget();
                 } else { // rotate
-                    let vector = scalarMultiply(negate(vCamX), getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDX);
+                    let vector = scalarMultiply(negate(vCamX), this.speedFactors.rotation * getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDX);
                     cameraVelocity = add(cameraVelocity, vector);
                     this.deselectTarget();
                 }
@@ -203,12 +205,12 @@ createNameSpace('realityEditor.device');
 
             if (this.mouseInput.unprocessedDY !== 0) {
                 if (isShiftDown) { // stafe up-down
-                    let vector = scalarMultiply(verticalVector, distancePanFactor * this.mouseInput.unprocessedDY * getCameraPanSensitivity());
+                    let vector = scalarMultiply(verticalVector, distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDY * getCameraPanSensitivity());
                     cameraTargetVelocity = add(cameraTargetVelocity, vector);
                     cameraVelocity = add(cameraVelocity, vector);
                     this.deselectTarget();
                 } else { // rotate
-                    let vector = scalarMultiply(vCamY, getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDY);
+                    let vector = scalarMultiply(vCamY, this.speedFactors.rotation * getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDY);
                     cameraVelocity = add(cameraVelocity, vector);
                     this.deselectTarget();
                 }
@@ -225,10 +227,11 @@ createNameSpace('realityEditor.device');
             this.targetPosition = add(this.targetPosition, cameraTargetVelocity);
 
             // tween the matrix every frame to animate it to the new position
-            let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-            let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
+            // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+            let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(this.cameraNode.localMatrix);
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, realityEditor.gui.ar.utilities.invertMatrix(destinationCameraMatrix), 0.3);
-            realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+            // realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+            this.cameraNode.setLocalMatrix(newCameraMatrix);
         }
     }
 
