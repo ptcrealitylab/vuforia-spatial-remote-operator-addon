@@ -199,6 +199,13 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         gfx.drawImage(primaryBackgroundCanvas, 0, 0);
         gfx.drawImage(secondaryBackgroundCanvas, 0, 0);
         realityEditor.device.desktopStats.imageRendered();
+
+        if (staticModelMode) {
+            // desktopBackgroundRenderer
+            backgroundCanvas.style.visibility = 'hidden';
+        } else {
+            backgroundCanvas.style.visibility = '';
+        }
     }
 
     function loadImage(width, height, imageStr) {
