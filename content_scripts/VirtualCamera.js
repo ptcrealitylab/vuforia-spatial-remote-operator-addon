@@ -44,6 +44,7 @@ createNameSpace('realityEditor.device');
                 last: { x: 0, y: 0 }
             }
             this.keyboard = new realityEditor.device.KeyboardListener();
+            this.followerName = 'cameraFollower' + cameraNode.id;
             this.followingState = {
                 active: false,
                 selectedId: null,
@@ -175,7 +176,7 @@ createNameSpace('realityEditor.device');
 
             this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
 
-            if (!realityEditor.sceneGraph.getVisualElement('cameraFollower')) {
+            if (!realityEditor.sceneGraph.getVisualElement(this.followerName)) {
                 let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
                 let relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
 
@@ -196,7 +197,7 @@ createNameSpace('realityEditor.device');
                     }
                 }
 
-                this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement('cameraFollower', selectedNode, null, relativeToTarget);
+                this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement(this.followerName, selectedNode, null, relativeToTarget);
             } else {
                 let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
                 let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
