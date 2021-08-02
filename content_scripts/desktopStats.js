@@ -42,6 +42,10 @@ createNameSpace('realityEditor.device.desktopStats');
     	isVisible = true;
 
 	    update(); // start update loop
+
+        setTimeout(function () {
+            hide();
+        }, 1000);
     }
 
     function update() {
@@ -96,8 +100,12 @@ createNameSpace('realityEditor.device.desktopStats');
     }
 
     function hide() {
-    	stats.dom.style.visibility = 'hidden';
-    	imagesPerSecondElement.style.visibility = 'hidden';
+      if (stats && stats.dom) {
+        stats.dom.style.visibility = 'hidden';
+      }
+      if (imagesPerSecond) {
+        imagesPerSecondElement.style.visibility = 'hidden';
+      }
     	isVisible = false;
     }
 
