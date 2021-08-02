@@ -13,6 +13,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
  * If the editor frontend is loaded on a desktop browser, re-maps some native functions, adjusts some CSS, and
  * waits for a connection from a mobile editor that will stream matrices here
  */
+const DEBUG_DISABLE_DROPDOWNS = false;
 
 (function(exports) {
     // Automatically connect to all discovered reality zones
@@ -48,6 +49,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
     let idleTimeout = null;
     let savedZoneSocketIPs = [];
 
+    let unityProjectionMatrix;
+
     /**
      * @type {CallbackHandler}
      */
@@ -68,7 +71,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
     function isDesktop() {
         return window.navigator.userAgent.indexOf('Mobile') === -1 || window.navigator.userAgent.indexOf('Macintosh') > -1;
     }
-    
+
     let env = realityEditor.device.environment.variables;
 
     /**
@@ -85,15 +88,18 @@ createNameSpace('realityEditor.device.desktopAdapter');
         env.ignoresFreezeButton = true; // no need to "freeze the camera" on desktop
         env.shouldDisplayLogicMenuModally = true; // affects appearance of crafting board
         env.lineWidthMultiplier = 5; // makes links thicker (more visible)
-        env.distanceScaleFactor = 10; // makes distance-based interactions work at further distances than mobile
+        env.distanceScaleFactor = 30; // makes distance-based interactions work at further distances than mobile
+        env.newFrameDistanceMultiplier = 6; // makes new tools spawn further away from camera position
+        // globalStates.defaultScale *= 3; // make new tools bigger
         env.localServerPort = 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
         env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
         env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
         env.waitForARTracking = false; // don't show loading UI waiting for vuforia to give us camera matrices
 
+        globalStates.groundPlaneOffset = 0.77;
         // default values that I may or may not need to invert:
         // shouldBroadcastUpdateObjectMatrix: false,
-        
+
         restyleForDesktop();
         modifyGlobalNamespace();
 
@@ -101,7 +107,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
         setTimeout(function() {
             addSocketListeners(); // HACK. this needs to happen after realtime module finishes loading
         }, 100);
-        
+
         addZoneDiscoveredListener();
         addZoneControlListener();
 
@@ -121,8 +127,10 @@ createNameSpace('realityEditor.device.desktopAdapter');
             }, 1000);
         }
 
-        var desktopProjectionMatrix = projectionMatrixFrom(25, -window.innerWidth / window.innerHeight, 0.1, 300000);
+        var desktopProjectionMatrix = projectionMatrixFrom(25, window.innerWidth / window.innerHeight, 0.1, 300000);
         console.log('calculated desktop projection matrix:', desktopProjectionMatrix);
+
+        unityProjectionMatrix = projectionMatrixFrom(25, -window.innerWidth / window.innerHeight, 0.1, 300000);
 
         // noinspection JSSuspiciousNameCombination
         globalStates.height = window.innerWidth;
@@ -132,28 +140,40 @@ createNameSpace('realityEditor.device.desktopAdapter');
         realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
 
         // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
-        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+
+        if (!DEBUG_DISABLE_DROPDOWNS) {
+          realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
             if (params.event.code === 'KeyV') {
 
-                if (zoneDropdown) {
-                    if (zoneDropdown.dom.style.display !== 'none') {
-                        zoneDropdown.dom.style.display = 'none';
-                        realityEditor.device.desktopStats.hide(); // also toggle stats
-                    } else {
-                        zoneDropdown.dom.style.display = '';
-                        realityEditor.device.desktopStats.show();
-                    }
+              if (zoneDropdown) {
+                if (zoneDropdown.dom.style.display !== 'none') {
+                  zoneDropdown.dom.style.display = 'none';
+                  realityEditor.device.desktopStats.hide(); // also toggle stats
+                } else {
+                  zoneDropdown.dom.style.display = '';
+                  realityEditor.device.desktopStats.show();
                 }
+              }
 
-                if (deviceDropdown) {
-                    if (deviceDropdown.dom.style.display !== 'none') {
-                        deviceDropdown.dom.style.display = 'none';
-                    } else {
-                        deviceDropdown.dom.style.display = '';
-                    }
+              if (deviceDropdown) {
+                if (deviceDropdown.dom.style.display !== 'none') {
+                  deviceDropdown.dom.style.display = 'none';
+                } else {
+                  deviceDropdown.dom.style.display = '';
                 }
+              }
             }
-        });
+          });
+        } else {
+          if (zoneDropdown) {
+            zoneDropdown.dom.style.display = 'none';
+            realityEditor.device.desktopStats.hide();
+          }
+          if (deviceDropdown) {
+            deviceDropdown.dom.style.display = 'none';
+          }
+        }
+
 
         update();
     }
@@ -227,10 +247,14 @@ createNameSpace('realityEditor.device.desktopAdapter');
      * Adjust visuals for desktop rendering -> set background color and add "Waiting for Connection..." indicator
      */
     function restyleForDesktop() {
-        document.body.style.backgroundColor = 'rgb(50,50,50)';
-        document.getElementById('canvas').style.backgroundColor = 'transparent';
-        document.getElementById('canvas').style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)'; // set Z to 1 to render in front
-        document.getElementById('canvas').style.pointerEvents = 'none';
+        // document.body.style.backgroundColor = 'rgb(50,50,50)';
+        // document.getElementById('canvas').style.backgroundColor = 'transparent';
+        // document.getElementById('canvas').style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)'; // set Z to 1 to render in front
+        // document.getElementById('canvas').style.pointerEvents = 'none';
+
+        // document.body.style.pointerEvents = 'none'; // on chrome desktop, body captures pointer some events too early
+        // // but children of body need to use pointerEvents
+        // document.getElementById('UIButtons').style.pointerEvents = 'auto';
 
         var DISABLE_SAFE_MODE = true;
         if (!DISABLE_SAFE_MODE) {
@@ -240,9 +264,9 @@ createNameSpace('realityEditor.device.desktopAdapter');
         }
 
         // TODO: remove memory bar from pocket... instead maybe be able to save camera positions?
-        
+
         createZoneConnectionDropdown();
-        
+
         // add setting to type in IP address of primary zone
         realityEditor.gui.settings.addToggleWithText('Primary Virtualizer URL', 'IP address of first virtualizer (e.g. 10.10.10.105)', 'primaryZoneIP' ,'../../../svg/download.svg', false, '10.10.10.105',
             function(_toggleValue, _textValue) {
@@ -317,6 +341,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
         //     0, 0, 0, 1
         // ];
         // realityEditor.gui.ar.draw.rotateX = rotateX;
+
+        DEBUG_CLIENT_NAME = 'Remote Operator';
     }
 
     /**
@@ -325,6 +351,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
      */
     function addSocketListeners() {
 
+        // @deprecated
+        // todo: remove
         realityEditor.network.realtime.addDesktopSocketMessageListener('/matrix/visibleObjects', function(msgContent) {
             console.log('received matrix message: ' + msgContent);
             // serverSocket.on('/matrix/visibleObjects', function(msgContent) {
@@ -364,22 +392,62 @@ createNameSpace('realityEditor.device.desktopAdapter');
                         console.log('discovered a matrix for an object that didn\'t have one before');
                         callbackHandler.triggerCallbacks('objectMatrixDiscovered', {objectKey: msgData.objectKey});
                     }
-                    
+
                     // TODO: set sceneGraph localMatrix to msgData.newValue?
                     // var rotatedObjectMatrix = realityEditor.gui.ar.utilities.copyMatrix(msgData.newValue);
                     // object.matrix = rotatedObjectMatrix;
                     // visibleObjects[msgData.objectKey] = rotatedObjectMatrix;
-                    
+
                     visibleObjects[msgData.objectKey] = realityEditor.gui.ar.utilities.newIdentityMatrix();
                 }
             });
         });
 
+        function httpGet (url) {
+            return new Promise((resolve, reject) => {
+                let req = new XMLHttpRequest();
+                req.open('GET', url, true);
+                req.onreadystatechange = function () {
+                    if (req.readyState === 4) {
+                        if (req.status !== 200) {
+                            reject('Invalid status code <' + req.status + '>');
+                        }
+                        resolve(JSON.parse(req.responseText));
+                    }
+                }
+                req.send();
+            });
+        }
+
+        async function getUndownloadedObjectWorldId(beat) {
+            // download the object data from its server
+            let url = 'http://' + beat.ip + ':' + realityEditor.network.getPort(beat) + '/object/' + beat.id;
+            let response = null;
+            try {
+                response = await httpGet(url);
+                return response.worldId;
+            } catch (_e) {
+                return null;
+            }
+        }
+
         realityEditor.network.realtime.addDesktopSocketMessageListener('udpMessage', function(msgContent) {
 
             if (typeof msgContent.id !== 'undefined' &&
                 typeof msgContent.ip !== 'undefined') {
-                realityEditor.network.addHeartbeatObject(msgContent);
+
+                let primaryWorldId = getPrimaryWorldId();
+                if (!primaryWorldId) {
+                    realityEditor.network.addHeartbeatObject(msgContent);
+                } else {
+                    getUndownloadedObjectWorldId(msgContent).then(worldId => {
+                        if (worldId === primaryWorldId) {
+                            realityEditor.network.addHeartbeatObject(msgContent);
+                        } else {
+                            console.log('ignored object because of mismatching worldId');
+                        }
+                    });
+                }
             }
 
             // TODO: I believe this can be removed because it was an old method for synchronizing the desktop camera with an AR client's camera
@@ -456,7 +524,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
         return false;
     }
-    
+
     /**
      * The 60 FPS render loop. Smoothly calls realityEditor.gui.ar.draw.update to render the most recent visibleObjects
      * Also smoothly updates camera postion when paused
@@ -467,7 +535,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
         if (realityEditor.network.realtime.getSocketIPsForSet('realityZones').length > 0) {
             sendMatricesToRealityZones();
         }
-        
+
         // TODO: ensure that visibleObjects that aren't known objects get filtered out
 
         // trigger main update function after a 100ms delay, to synchronize with the approximate lag of the realityZone image processing
@@ -477,17 +545,17 @@ createNameSpace('realityEditor.device.desktopAdapter');
         // repeat loop on next render
         requestAnimationFrame(update);
     }
-    
+
     function getVisibleObjects() {
         // render everything that has been localized
         let tempVisibleObjects = {};
-        
+
         Object.keys(objects).forEach(function(objectKey) {
             // todo: check if object.worldId matches a world that is currently loaded
 
             tempVisibleObjects[objectKey] = objects[objectKey].matrix; // right side here doesn't matter
         });
-        
+
         return tempVisibleObjects;
     }
 
@@ -496,7 +564,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
             realityEditor.gui.ar.draw.update(matrices);
         }, delayInMs);
     }
-    
+
     /**
      * Creates a switch that, when activated, begins broadcasting UDP messages
      * to discover any Reality Zones in the network for volumetric rendering
@@ -672,12 +740,16 @@ createNameSpace('realityEditor.device.desktopAdapter');
      */
     function sendMatricesToRealityZones() {
 
-        let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
-        
+        // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+        // let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(cameraNode.localMatrix);
+
+        let unityCameraNode = realityEditor.sceneGraph.getSceneNodeById('UNITY_CAMERA_VISUAL_ELEMENT');
+        if (!unityCameraNode) { return; }
+        let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(unityCameraNode.worldMatrix);
+
         var messageBody = {
             cameraPoseMatrix: currentCameraMatrix,
-            projectionMatrix: globalStates.realProjectionMatrix,
+            projectionMatrix: unityProjectionMatrix,
             resolution: {
                 width: window.innerWidth,
                 height: window.innerHeight
@@ -747,12 +819,18 @@ createNameSpace('realityEditor.device.desktopAdapter');
         window.location.reload();
     }
 
+    function getPrimaryWorldId() {
+        return (new URLSearchParams(window.location.search)).get('world');
+    }
+
     // Currently unused
     exports.registerCallback = registerCallback;
 
     exports.resetIdleTimeout = resetIdleTimeout;
-    
+
     exports.isDesktop = isDesktop;
+
+    exports.getPrimaryWorldId = getPrimaryWorldId;
 
     // this happens only for desktop editors
     realityEditor.addons.addCallback('init', initService);

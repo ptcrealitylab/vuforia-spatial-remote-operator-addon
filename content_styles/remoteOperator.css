@@ -1,0 +1,14 @@
+body {
+    background-color: rgb(50,50,50);
+    pointer-events: none;
+}
+
+body > * {
+    pointer-events: auto;
+}
+
+#canvas {
+    background-color: transparent;
+    transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1);
+    pointer-events: none;
+}

@@ -39,18 +39,77 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     var ONLY_REQUIRE_PRIMARY = true;
 
+    // let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
+    let isGlbLoaded = false;
+
+    let gltf = null;
+    let staticModelMode = true;
+
     /**
      * Public init method to enable rendering if isDesktop
      */
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
-        // create background canvas and supporting canvasses
+        // when a new object is detected, check if we need to create a socket connection with its server
+        realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
+          if (isGlbLoaded) { return; } // only do this for the first world object detected
+
+          let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId()
+          let criteriaMet = primaryWorldId ? (objectKey === primaryWorldId) : (object.isWorldObject || object.type === 'world' );
+
+          // try loading area target GLB file into the threejs scene
+          if (criteriaMet) {
+            isGlbLoaded = true;
+            let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
+
+            let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
+            let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
+            let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
+
+            let floorOffset = 0;
+            let ceilingHeight = 2.3; // TODO: don't hard-code this
+            // let floorOffset = -1.55 * 1000;
+            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
+                gltf = createdMesh;
+            });
+
+            // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
+            // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: -floorOffset, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
+
+            let tableHeight = 0.77;
+            // let floorOffset = -1.4 * 1000; //(-1.5009218056996663 /*+ tableHeight */) * 1000; // meters -> mm //
+            // -1.5009218056996663
+            let buffer = 100;
+            floorOffset += buffer;
+            let groundPlaneMatrix = [
+              1, 0, 0, 0,
+              0, 1, 0, 0,
+              0, 0, 1, 0,
+              0, floorOffset, 0, 1
+            ];
+            realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+          }
+        });
+
+        // add sliders to calibrate rotation and translation of model
+      realityEditor.gui.settings.addSlider('Calibrate Rotation', '', 'rotationCalibration',  '../../../svg/cameraRotate.svg', 0, function(newValue) {
+        console.log('rotation value = ' + newValue);
+      });
+      realityEditor.gui.settings.addSlider('Calibrate X', '', 'xCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
+        console.log('x value = ' + newValue);
+      });
+      realityEditor.gui.settings.addSlider('Calibrate Z', '', 'zCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
+        console.log('z value = ' + newValue);
+      });
+
+
+      // create background canvas and supporting canvasses
 
         backgroundCanvas = document.createElement('canvas');
         backgroundCanvas.id = 'desktopBackgroundRenderer';
         backgroundCanvas.classList.add('desktopBackgroundRenderer');
-        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)';
+        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)'; // render behind three.js
         backgroundCanvas.style.transformOrigin = 'top left';
         backgroundCanvas.style.position = 'absolute';
         primaryBackgroundCanvas = document.createElement('canvas');
@@ -64,29 +123,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        // if (typeof msgContent.sendToBackground !== "undefined") {
-        //
-        //     var iframe = globalDOMCache['iframe' + tempThisObject.uuid];
-        //     var src = iframe.src;
-        //
-        //     var desktopBackgroundRenderer = document.getElementById('desktopBackgroundRenderer');
-        //     if (desktopBackgroundRenderer) {
-        //         if (desktopBackgroundRenderer.src !== src) {
-        //             desktopBackgroundRenderer.src = src;
-        //         }
-        //     }
-        //
-        //     if (iframe) {
-        //         iframe.style.display = 'none';
-        //     }
-        //
-        //     var div = globalDOMCache[tempThisObject.uuid]; //globalDOMCache['object' + tempThisObject.uuid];
-        //     if (div) {
-        //         // div.style.pointerEvents = 'none';
-        //         globalDOMCache[tempThisObject.uuid].style.display = 'none';
-        //     }
-        //
-        // }
+        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+            if (params.event.code === 'KeyT' && gltf) {
+                staticModelMode = !staticModelMode;
+                if (staticModelMode) {
+                    gltf.visible = true;
+                    console.log('show gtlf');
+                } else {
+                    gltf.visible = false;
+                    console.log('hide gltf');
+                }
+            }
+        });
     }
 
     /**
@@ -140,7 +188,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         prom.then(function() {
             if (primaryDrawn && (secondaryDrawn || ONLY_REQUIRE_PRIMARY)) {
                 renderBackground();
-                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)';
+                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)';
             }
         });
     }
@@ -151,6 +199,13 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         gfx.drawImage(primaryBackgroundCanvas, 0, 0);
         gfx.drawImage(secondaryBackgroundCanvas, 0, 0);
         realityEditor.device.desktopStats.imageRendered();
+
+        if (staticModelMode) {
+            // desktopBackgroundRenderer
+            backgroundCanvas.style.visibility = 'hidden';
+        } else {
+            backgroundCanvas.style.visibility = '';
+        }
     }
 
     function loadImage(width, height, imageStr) {
