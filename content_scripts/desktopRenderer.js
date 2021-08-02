@@ -39,7 +39,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     var ONLY_REQUIRE_PRIMARY = true;
 
-    let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
+    // let gltfPath = null; //'./svg/office.glb'; //null; // './svg/BenApt1_authoring.glb';
     let isGlbLoaded = false;
 
     let gltf = null;
@@ -54,21 +54,24 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // when a new object is detected, check if we need to create a socket connection with its server
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
           if (isGlbLoaded) { return; } // only do this for the first world object detected
-          // addServerForObjectIfNeeded(object, objectKey);
+
+          let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId()
+          let criteriaMet = primaryWorldId ? (objectKey === primaryWorldId) : (object.isWorldObject || object.type === 'world' );
+
           // try loading area target GLB file into the threejs scene
-          if (object.isWorldObject || object.type === 'world') { // backwards compatible with isWorldObject
-            if (!gltfPath) {
-              gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
-            }
+          if (criteriaMet) {
+            isGlbLoaded = true;
+            let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
 
             let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
             let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
             let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
 
             let floorOffset = 0;
+            let ceilingHeight = 2.3; // TODO: don't hard-code this
             // let floorOffset = -1.55 * 1000;
-            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, 2.3, function (createdMesh) {
-              gltf = createdMesh;
+            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
+                gltf = createdMesh;
             });
 
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
@@ -106,7 +109,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         backgroundCanvas = document.createElement('canvas');
         backgroundCanvas.id = 'desktopBackgroundRenderer';
         backgroundCanvas.classList.add('desktopBackgroundRenderer');
-        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)';
+        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)'; // render behind three.js
         backgroundCanvas.style.transformOrigin = 'top left';
         backgroundCanvas.style.position = 'absolute';
         primaryBackgroundCanvas = document.createElement('canvas');
@@ -120,39 +123,17 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        // if (typeof msgContent.sendToBackground !== "undefined") {
-        //
-        //     var iframe = globalDOMCache['iframe' + tempThisObject.uuid];
-        //     var src = iframe.src;
-        //
-        //     var desktopBackgroundRenderer = document.getElementById('desktopBackgroundRenderer');
-        //     if (desktopBackgroundRenderer) {
-        //         if (desktopBackgroundRenderer.src !== src) {
-        //             desktopBackgroundRenderer.src = src;
-        //         }
-        //     }
-        //
-        //     if (iframe) {
-        //         iframe.style.display = 'none';
-        //     }
-        //
-        //     var div = globalDOMCache[tempThisObject.uuid]; //globalDOMCache['object' + tempThisObject.uuid];
-        //     if (div) {
-        //         // div.style.pointerEvents = 'none';
-        //         globalDOMCache[tempThisObject.uuid].style.display = 'none';
-        //     }
-        //
-        // }
-
         realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
-          if (params.event.code === 'KeyT' && gltf) {
-            staticModelMode = !staticModelMode;
-            if (staticModelMode) {
-              gltf.visible = true;
-            } else {
-              gltf.visible = false;
+            if (params.event.code === 'KeyT' && gltf) {
+                staticModelMode = !staticModelMode;
+                if (staticModelMode) {
+                    gltf.visible = true;
+                    console.log('show gtlf');
+                } else {
+                    gltf.visible = false;
+                    console.log('hide gltf');
+                }
             }
-          }
         });
     }
 
@@ -207,7 +188,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         prom.then(function() {
             if (primaryDrawn && (secondaryDrawn || ONLY_REQUIRE_PRIMARY)) {
                 renderBackground();
-                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, -1, 1)';
+                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)';
             }
         });
     }
@@ -218,6 +199,13 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         gfx.drawImage(primaryBackgroundCanvas, 0, 0);
         gfx.drawImage(secondaryBackgroundCanvas, 0, 0);
         realityEditor.device.desktopStats.imageRendered();
+
+        if (staticModelMode) {
+            // TODO: actually stop receiving images instead of just hiding
+            backgroundCanvas.style.visibility = 'hidden';
+        } else {
+            backgroundCanvas.style.visibility = '';
+        }
     }
 
     function loadImage(width, height, imageStr) {
