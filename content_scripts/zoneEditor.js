@@ -12,6 +12,7 @@ createNameSpace('realityEditor.zoneEditor');
 
   const LOAD_PREVIOUS_ZONES = true;
   const DEBUG_SHOW_CANVAS = false;
+  const DEBUG_DRAW_SVG_HULLS = false;
   let dropdown = null;
   let zoneInfo = {};
   let selectedZoneId = null;
@@ -331,7 +332,9 @@ createNameSpace('realityEditor.zoneEditor');
     let imageData = ctx.getImageData(0, 0, bitmapSize, bitmapSize).data;
     let hull = realityEditor.zoneHulls.calculateConvexHull(imageData, bitmapSize, thisZone.color, 10);
 
-    realityEditor.zoneHulls.drawHull(hull, bitmapSize);
+    if (DEBUG_DRAW_SVG_HULLS) {
+      realityEditor.zoneHulls.drawHull(hull, bitmapSize);
+    }
 
     thisZone.hull = hull;
 

@@ -441,7 +441,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
                     realityEditor.network.addHeartbeatObject(msgContent);
                 } else {
                     getUndownloadedObjectWorldId(msgContent).then(worldId => {
-                        if (worldId === primaryWorldId) {
+                        if (worldId === primaryWorldId || !worldId) {
                             realityEditor.network.addHeartbeatObject(msgContent);
                         } else {
                             console.log('ignored object because of mismatching worldId');
