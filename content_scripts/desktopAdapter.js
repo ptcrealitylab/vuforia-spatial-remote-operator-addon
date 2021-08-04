@@ -89,6 +89,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         env.shouldDisplayLogicMenuModally = true; // affects appearance of crafting board
         env.lineWidthMultiplier = 5; // makes links thicker (more visible)
         env.distanceScaleFactor = 30; // makes distance-based interactions work at further distances than mobile
+        env.objectInteractionDistance = 6000; // objects are eligible as "visible" for closestObject if closer than this
         env.newFrameDistanceMultiplier = 6; // makes new tools spawn further away from camera position
         // globalStates.defaultScale *= 3; // make new tools bigger
         env.localServerPort = 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
@@ -257,6 +258,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // document.getElementById('UIButtons').style.pointerEvents = 'auto';
 
         document.getElementById('settingsIframe').style.transform = 'translateZ(9990px)';
+        document.querySelector('.pocket').style.transform = 'translateZ(9985px)';
 
         var DISABLE_SAFE_MODE = true;
         if (!DISABLE_SAFE_MODE) {
@@ -379,7 +381,9 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             if (object.matrix.length === 0) {
                 console.log('putting object ' + object.name + ' at the origin');
                 object.matrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
-                visibleObjects[objectKey] = realityEditor.gui.ar.utilities.newIdentityMatrix();
+                if (object.type !== 'zone') {
+                    visibleObjects[objectKey] = realityEditor.gui.ar.utilities.newIdentityMatrix();
+                }
             }
 
             // subscribe to new object matrices to update where the object is in the world
@@ -400,7 +404,9 @@ const DEBUG_DISABLE_DROPDOWNS = false;
                     // object.matrix = rotatedObjectMatrix;
                     // visibleObjects[msgData.objectKey] = rotatedObjectMatrix;
 
-                    visibleObjects[msgData.objectKey] = realityEditor.gui.ar.utilities.newIdentityMatrix();
+                    if (object.type !== 'zone') {
+                        visibleObjects[msgData.objectKey] = realityEditor.gui.ar.utilities.newIdentityMatrix();
+                    }
                 }
             });
         });
@@ -555,7 +561,10 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         Object.keys(objects).forEach(function(objectKey) {
             // todo: check if object.worldId matches a world that is currently loaded
 
-            tempVisibleObjects[objectKey] = objects[objectKey].matrix; // right side here doesn't matter
+            let object = realityEditor.getObject(objectKey);
+            if (object && object.type !== 'zone') {
+                tempVisibleObjects[objectKey] = objects[objectKey].matrix; // right side here doesn't matter
+            }
         });
 
         return tempVisibleObjects;

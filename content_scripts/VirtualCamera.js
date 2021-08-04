@@ -132,7 +132,7 @@ createNameSpace('realityEditor.device');
             overlappingDivs.forEach(function(elt) {
                 if (firstVisibleFrame) { return; }
 
-                if (elt.classList.contains('visibleFrame')) {
+                if (elt.classList.contains('visibleFrame') && !elt.classList.contains('webGlFrame')) {
                     firstVisibleFrame = elt;
                 }
             });
