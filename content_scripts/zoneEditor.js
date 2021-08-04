@@ -10,11 +10,8 @@ createNameSpace('realityEditor.zoneEditor');
 
 (function(_exports) {
 
-  const LOAD_PREVIOUS_ZONES = true;
-  const DEBUG_SHOW_CANVAS = false;
   const DEBUG_DRAW_SVG_HULLS = false;
   let dropdown = null;
-  let zoneInfo = {};
   let selectedZoneId = null;
   let zoneEventCatcher = null;
   let isPointerDown = false;
@@ -41,9 +38,16 @@ createNameSpace('realityEditor.zoneEditor');
     zoneEventCatcher.addEventListener('pointermove', onPointerMove);
     zoneEventCatcher.addEventListener('pointerup', onPointerUp);
 
-    update(); // start update loop
-
     realityEditor.network.addObjectDiscoveredCallback(onObjectDiscovered);
+
+    realityEditor.gui.zones.onZoneVisibilityToggled(function(areZonesVisible) {
+      if (areZonesVisible) {
+        showZones(true);
+      } else {
+        hideZones(true);
+        dropdown.resetSelection();
+      }
+    });
   }
 
   function onResourcesLoaded(_resourceList) {
@@ -57,34 +61,6 @@ createNameSpace('realityEditor.zoneEditor');
     eraserButton.addEventListener('pointerup', function() {
       currentColor = COLORS.Eraser;
     });
-  }
-
-  function update() {
-    try {
-      let cameraPosition = realityEditor.sceneGraph.getWorldPosition('CAMERA');
-
-      for (let zoneId in zoneInfo) {
-        let thisZone = zoneInfo[zoneId];
-        if (!thisZone.hull) { continue; }
-        let camCoords = worldToHullCoordinates(cameraPosition.x, cameraPosition.z, bitmapSize, planeWidth);
-        let isInsideZone = realityEditor.zoneHulls.checkPointConcave(camCoords.x, camCoords.y, thisZone.hull);
-        if (isInsideZone) {
-          console.log('INSIDE ZONE: ' + thisZone.name);
-          if (thisZone.hullGroup) {
-            // cube.material.color.setHex( 0xffffff );
-            thisZone.hullGroup.children[0].children[1].material.color.setHex(0xffffff);
-          }
-        } else {
-          if (thisZone.hullGroup) {
-            thisZone.hullGroup.children[0].children[1].material.color.setHex(0x01fffc);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn(e);
-    }
-
-    requestAnimationFrame(update);
   }
 
   /**
@@ -111,7 +87,7 @@ createNameSpace('realityEditor.zoneEditor');
       if (selectedId) {
         console.log('selected zone: ' + selectedId);
         selectedZoneId = selectedId;
-        renderZones();
+        showZones();
       }
     } else {
       selectedZoneId = null;
@@ -123,7 +99,7 @@ createNameSpace('realityEditor.zoneEditor');
   function onZoneExpandedChanged(isExpanded) {
     if (isExpanded) {
       console.log('render zones');
-      renderZones();
+      showZones();
     } else {
       // if (!selectedZone) {
       //   console.log('stop rendering zones');
@@ -166,94 +142,29 @@ createNameSpace('realityEditor.zoneEditor');
     return thisButton;
   }
 
-  function renderZones() {
-    const THREE = realityEditor.gui.threejsScene.THREE;
-
-    for (let zoneId in zoneInfo) {
-      let thisZone = zoneInfo[zoneId];
-
-      if (!thisZone.ctx) {
-        thisZone.ctx = document.createElement('canvas').getContext('2d');
-        thisZone.ctx.canvas.width = bitmapSize;
-        thisZone.ctx.canvas.height = bitmapSize;
-        thisZone.ctx.canvas.style.backgroundColor = 'transparent';
-
-        if (LOAD_PREVIOUS_ZONES) {
-          if (thisZone.loadedImage && thisZone.loadedImage.complete) {
-            let img = new Image();
-
-            img.onload = function() {
-              console.log('img loaded... draw', img);
-
-              let width = img.width;
-              let height = img.height;
-
-              thisZone.ctx.drawImage(thisZone.loadedImage, 0, 0);
-
-              if (DEBUG_SHOW_CANVAS) { // adjust transparency for better visual effect only if it will be seen
-                let image1 = thisZone.ctx.getImageData(0, 0, width, height);
-                let imageData1 = image1.data;
-
-                let stride = 4;
-                let tolerance = 20;
-                for (let i = 0; i < imageData1.length; i += stride) {
-                  if (imageData1[i] < tolerance && imageData1[i + 1] < tolerance && imageData1[i + 2] < tolerance) {
-                    imageData1[i + 3] = 0; // set black to transparent
-                  }
-                }
-                image1.data = imageData1;
-                thisZone.ctx.putImageData(image1, 0, 0);
-              }
-
-              renderUpdates(thisZone);
-            }
-            img.src = thisZone.loadedImage.src;
-          }
-        }
-      }
-
-      if (!thisZone.mesh) {
-        const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-
-        thisZone.texture = new THREE.CanvasTexture(thisZone.ctx.canvas);
-
-        const material = new THREE.MeshBasicMaterial({
-          map: thisZone.texture,
-          transparent: true
-        });
-
-        thisZone.mesh = new THREE.Mesh(geometry, material);
-        thisZone.mesh.rotation.x = -Math.PI / 2;
-
-        // realityEditor.gui.threejsScene.addToScene(thisZone.mesh, {occluded: true});
-        realityEditor.gui.threejsScene.addToScene(thisZone.mesh);
-      }
-
-      thisZone.mesh.position.y = 200;
-      thisZone.mesh.visible = DEBUG_SHOW_CANVAS; // true
-    }
-
-    if (selectedZoneId && zoneInfo[selectedZoneId]) {
-      zoneInfo[selectedZoneId].mesh.position.y = 300;
-    }
+  function showZones(triggeredFromCallback) {
+    // TODO: highlight selected zone
+    // if (selectedZoneId && zoneInfo[selectedZoneId]) {
+    //   zoneInfo[selectedZoneId].mesh.position.y = 300;
+    // }
 
     zoneEventCatcher.style.display = '';
-    zoneEventCatcher.style.transform = 'translateZ(9999px)'; // buttons are at 10000
+    zoneEventCatcher.style.transform = 'translateZ(9980px)'; // buttons are at 10000, settings at 9990
+
+    if (!triggeredFromCallback) {
+      realityEditor.gui.zones.showZones();
+    }
   }
 
-  function hideZones() {
-    for (let zoneId in zoneInfo) {
-      let thisZone = zoneInfo[zoneId];
-      if (!thisZone.mesh) { return; }
-      thisZone.mesh.visible = false;
-    }
-
+  function hideZones(triggeredFromCallback) {
     zoneEventCatcher.style.display = 'none';
+
+    if (!triggeredFromCallback) {
+      realityEditor.gui.zones.hideZones();
+    }
   }
 
   function onObjectDiscovered(object, objectKey) {
-    console.log('object discovered: ' + objectKey + ' (desktop)');
-
     if (object.type === 'zone') {
       var alreadyContained = dropdown.selectables.map(function(selectableObj) {
         return selectableObj.id;
@@ -261,25 +172,6 @@ createNameSpace('realityEditor.zoneEditor');
 
       if (!alreadyContained) {
         dropdown.addSelectable(objectKey, object.name);
-        zoneInfo[objectKey] = { name: object.name, color: COLORS.Pencil }; // pencil color is interpreted as the zone when forming convex hull
-
-        // try to load bitmap for zone territory map - it is stored in the target.jpg for this object
-        let bitmapUrl = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.jpg';
-
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", bitmapUrl);
-        xhr.responseType = "blob";
-        xhr.onload = function() {
-          var urlCreator = window.URL || window.webkitURL;
-          var imageUrl = urlCreator.createObjectURL(this.response);
-          let image = document.createElement('img');
-          image.src = imageUrl;
-          zoneInfo[objectKey].loadedImage = image;
-          console.log('created image from loaded target');
-          console.log(imageUrl);
-        };
-        xhr.send();
-
       }
     }
   }
@@ -293,6 +185,7 @@ createNameSpace('realityEditor.zoneEditor');
     if (!isPointerDown) { return }
     if (event.button === 2) { return; }
 
+    let zoneInfo = realityEditor.gui.zones.getZoneInfo();
     let thisZone = zoneInfo[selectedZoneId];
 
     let ctx = thisZone.ctx;
@@ -321,53 +214,8 @@ createNameSpace('realityEditor.zoneEditor');
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       texture.needsUpdate = true;
-      renderUpdates(thisZone);
+      realityEditor.gui.zones.renderUpdates(thisZone);
     }
-  }
-
-  function renderUpdates(thisZone) {
-    const THREE = realityEditor.gui.threejsScene.THREE;
-    let ctx = thisZone.ctx;
-
-    let imageData = ctx.getImageData(0, 0, bitmapSize, bitmapSize).data;
-    let hull = realityEditor.zoneHulls.calculateConvexHull(imageData, bitmapSize, thisZone.color, 10);
-
-    if (DEBUG_DRAW_SVG_HULLS) {
-      realityEditor.zoneHulls.drawHull(hull, bitmapSize);
-    }
-
-    thisZone.hull = hull;
-
-    let worldCoordinates = hullToWorldCoordinates(hull, bitmapSize, planeWidth);
-    console.log(worldCoordinates);
-
-    if (!thisZone.hullGroup) {
-      thisZone.hullGroup = new THREE.Group();
-      realityEditor.gui.threejsScene.addToScene(thisZone.hullGroup);
-    }
-
-    // clear the group
-    while (thisZone.hullGroup.children.length) {
-      thisZone.hullGroup.remove(thisZone.hullGroup.children[0]);
-    }
-
-    let mesh = realityEditor.zoneHulls.pathToMesh(worldCoordinates);
-    thisZone.hullGroup.add(mesh);
-  }
-
-  function hullToWorldCoordinates(hull, bitmapSize, planeSize) {
-    const THREE = realityEditor.gui.threejsScene.THREE;
-
-    return hull.map(function(pt) {
-      return new THREE.Vector3((pt[0] / bitmapSize - 0.5) * planeSize, 0, (pt[1] / bitmapSize - 0.5) * planeSize);
-    });
-  }
-
-  function worldToHullCoordinates(x, y, bitmapSize, planeSize) {
-    return {
-      x: (x / planeSize + 0.5) * bitmapSize,
-      y: (y / planeSize + 0.5) * bitmapSize
-    };
   }
 
   function onPointerUp(event) {
@@ -379,6 +227,7 @@ createNameSpace('realityEditor.zoneEditor');
     let object = realityEditor.getObject(selectedZoneId);
     if (!object) { return; }
 
+    let zoneInfo = realityEditor.gui.zones.getZoneInfo();
     let ctx = zoneInfo[selectedZoneId].ctx;
     var b64Image = ctx.canvas.toDataURL('image/jpeg');
     var u8Image  = b64ToUint8Array(b64Image);
