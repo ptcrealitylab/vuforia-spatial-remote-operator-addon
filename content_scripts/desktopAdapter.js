@@ -256,6 +256,8 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // // but children of body need to use pointerEvents
         // document.getElementById('UIButtons').style.pointerEvents = 'auto';
 
+        document.getElementById('settingsIframe').style.transform = 'translateZ(9990px)';
+
         var DISABLE_SAFE_MODE = true;
         if (!DISABLE_SAFE_MODE) {
             if (window.outerWidth !== document.body.offsetWidth) {
