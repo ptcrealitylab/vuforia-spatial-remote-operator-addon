@@ -6,12 +6,18 @@ createNameSpace('realityEditor.device');
 
 (function(exports) {
 
-    const FOLLOWING_RELATIVE_POSITION = [
+    const FOLLOWING_RELATIVE_POSITION_UP = [
         -1.991735742789964,-0.0019402862384033104,0.1816275024820606,0,
         -0.12091535927151742,-1.4781942937095942,-1.3417622677709533,0,
         0.1355399071070364,-1.3471959077679534,1.4719672222377786,0,
         1033.3310890578132,-10300.982745528603,12136.112553930248,0.9999999999999998
     ];
+
+    const FOLLOWING_RELATIVE_POSITION = [
+      -1.998400994046429, 0.07567637731796845, -0.025797481749563977, 0,
+      -0.0652178118424242, -1.9162143322996383, -0.5690926723715365, 0,
+      -0.04624944873851122, -0.5677958934495517, 1.917150694775191, 0,
+      -370.0228000453727, -4542.701201398778, 15338.333483723145, 0.9999999999999996];
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
@@ -44,6 +50,7 @@ createNameSpace('realityEditor.device');
                 last: { x: 0, y: 0 }
             }
             this.keyboard = new realityEditor.device.KeyboardListener();
+            this.followerName = 'cameraFollower' + cameraNode.id;
             this.followingState = {
                 active: false,
                 selectedId: null,
@@ -175,7 +182,7 @@ createNameSpace('realityEditor.device');
 
             this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
 
-            if (!realityEditor.sceneGraph.getVisualElement('cameraFollower')) {
+            if (!realityEditor.sceneGraph.getVisualElement(this.followerName)) {
                 let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
                 let relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
 
@@ -196,7 +203,7 @@ createNameSpace('realityEditor.device');
                     }
                 }
 
-                this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement('cameraFollower', selectedNode, null, relativeToTarget);
+                this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement(this.followerName, selectedNode, null, relativeToTarget);
             } else {
                 let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
                 let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
