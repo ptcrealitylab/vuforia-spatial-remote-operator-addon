@@ -71,12 +71,11 @@ createNameSpace('realityEditor.device');
                     this.mouseInput.first.y = event.pageY;
                     this.mouseInput.last.x = event.pageX;
                     this.mouseInput.last.y = event.pageY;
+                    // follow a tool if you click it with shift held down
+                // } else if (this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down') {
+                //    this.attemptToFollowClickedElement(event.pageX, event.pageY);
                 }
 
-                // follow a tool if you click it with shift held down
-                if (this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down') {
-                    this.attemptToFollowClickedElement(event.pageX, event.pageY);
-                }
             }.bind(this));
 
             // TODO: do this for pointercancel, too
