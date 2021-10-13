@@ -68,9 +68,11 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
 
             let ceilingHeight = 2.3; // TODO: don't hard-code this
-            let floorOffset = -1.7 * 1000;
+            let floorOffset = 0; //-1.7 * 1000; // 0;
 
-            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
+            let modelOffset = 0; //1.7 * 1000;
+
+            realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: modelOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
                 gltf = createdMesh;
             });
 

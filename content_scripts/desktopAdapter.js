@@ -14,6 +14,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
  * waits for a connection from a mobile editor that will stream matrices here
  */
 const DEBUG_DISABLE_DROPDOWNS = false;
+const DONT_IGNORE_MISMATCHING_WORLDS = false;
 
 (function(exports) {
     // Automatically connect to all discovered reality zones
@@ -449,7 +450,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
                     realityEditor.network.addHeartbeatObject(msgContent);
                 } else {
                     getUndownloadedObjectWorldId(msgContent).then(worldId => {
-                        if (worldId === primaryWorldId || !worldId) {
+                        if (DONT_IGNORE_MISMATCHING_WORLDS || worldId === primaryWorldId || !worldId) {
                             realityEditor.network.addHeartbeatObject(msgContent);
                         } else {
                             console.log('ignored object because of mismatching worldId');
