@@ -210,7 +210,7 @@ createNameSpace('realityEditor.zoneEditor');
       ctx.beginPath();
       const x = bitmapSize * planeIntersect.uv.x; //randInt(256);
       const y = bitmapSize * (1.0 - planeIntersect.uv.y); //randInt(256);
-      const radius = Math.floor(bitmapSize/32); //randInt(10, 64);
+      const radius = Math.floor(bitmapSize/64); //randInt(10, 64);
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       texture.needsUpdate = true;
