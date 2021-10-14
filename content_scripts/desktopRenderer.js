@@ -45,6 +45,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let gltf = null;
     let staticModelMode = true;
 
+    function createNavmeshCallback(navmesh) {
+        function setFloorOffsetOrWait() {
+            if (gltf) {
+                gltf.children[0].position.y = -navmesh.floorOffset;
+                window.gltf = gltf;
+                return;
+            }
+            setTimeout(setFloorOffsetOrWait, 100);
+        }
+        setFloorOffsetOrWait();
+    }
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -62,6 +74,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
           if (criteriaMet) {
             isGlbLoaded = true;
             let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
+            realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
 
             let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
             let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
