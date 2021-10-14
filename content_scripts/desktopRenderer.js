@@ -76,12 +76,12 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
             realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
 
-            let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
-            let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
-            let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
+            // let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
+            // let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
+            // let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
 
             let floorOffset = 0;
-            let ceilingHeight = 2.3; // TODO: don't hard-code this
+            let ceilingHeight = undefined; // TODO: don't hard-code this
             // let floorOffset = -1.55 * 1000;
             realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
                 gltf = createdMesh;
@@ -93,7 +93,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: -floorOffset, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
 
-            let tableHeight = 0.77;
+            // let tableHeight = 0.77;
             // let floorOffset = -1.4 * 1000; //(-1.5009218056996663 /*+ tableHeight */) * 1000; // meters -> mm //
             // -1.5009218056996663
             let buffer = 100;
