@@ -66,7 +66,8 @@ void main() {
 
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
-            this.container.rotation.y = Math.PI;
+            // this.container.rotation.y = Math.PI;
+            this.container.rotation.x = Math.PI / 2;
             this.phone = new THREE.Group();
             this.phone.matrixAutoUpdate = false;
             this.phone.frustumCulled = false;
