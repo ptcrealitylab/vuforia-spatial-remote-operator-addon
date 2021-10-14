@@ -72,6 +72,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             // let floorOffset = -1.55 * 1000;
             realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
                 gltf = createdMesh;
+
+                let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator();
+                cameraVisCoordinator.connect();
             });
 
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
