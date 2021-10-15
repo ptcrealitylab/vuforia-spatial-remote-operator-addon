@@ -142,36 +142,36 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
 
         if (!DEBUG_DISABLE_DROPDOWNS) {
-          realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
-            if (params.event.code === 'KeyV') {
+            realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+                if (params.event.code === 'KeyV') {
 
-              if (zoneDropdown) {
-                if (zoneDropdown.dom.style.display !== 'none') {
-                  zoneDropdown.dom.style.display = 'none';
-                  realityEditor.device.desktopStats.hide(); // also toggle stats
-                } else {
-                  zoneDropdown.dom.style.display = '';
-                  realityEditor.device.desktopStats.show();
-                }
-              }
+                    if (zoneDropdown) {
+                        if (zoneDropdown.dom.style.display !== 'none') {
+                            zoneDropdown.dom.style.display = 'none';
+                            realityEditor.device.desktopStats.hide(); // also toggle stats
+                        } else {
+                            zoneDropdown.dom.style.display = '';
+                            realityEditor.device.desktopStats.show();
+                        }
+                    }
 
-              if (deviceDropdown) {
-                if (deviceDropdown.dom.style.display !== 'none') {
-                  deviceDropdown.dom.style.display = 'none';
-                } else {
-                  deviceDropdown.dom.style.display = '';
+                    if (deviceDropdown) {
+                        if (deviceDropdown.dom.style.display !== 'none') {
+                            deviceDropdown.dom.style.display = 'none';
+                        } else {
+                            deviceDropdown.dom.style.display = '';
+                        }
+                    }
                 }
-              }
-            }
-          });
+            });
         } else {
-          if (zoneDropdown) {
-            zoneDropdown.dom.style.display = 'none';
-            realityEditor.device.desktopStats.hide();
-          }
-          if (deviceDropdown) {
-            deviceDropdown.dom.style.display = 'none';
-          }
+            if (zoneDropdown) {
+                zoneDropdown.dom.style.display = 'none';
+                realityEditor.device.desktopStats.hide();
+            }
+            if (deviceDropdown) {
+                deviceDropdown.dom.style.display = 'none';
+            }
         }
 
 
@@ -268,7 +268,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         createZoneConnectionDropdown();
 
         // add setting to type in IP address of primary zone
-        realityEditor.gui.settings.addToggleWithText('Primary Virtualizer URL', 'IP address of first virtualizer (e.g. 10.10.10.105)', 'primaryZoneIP' ,'../../../svg/download.svg', false, '10.10.10.105',
+        realityEditor.gui.settings.addToggleWithText('Primary Virtualizer URL', 'IP address of first virtualizer (e.g. 10.10.10.105)', 'primaryZoneIP', '../../../svg/download.svg', false, '10.10.10.105',
             function(_toggleValue, _textValue) {
                 // isUsingCustomPrimaryIP = toggleValue;
             },
@@ -414,7 +414,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
                         }
                         resolve(JSON.parse(req.responseText));
                     }
-                }
+                };
                 req.send();
             });
         }

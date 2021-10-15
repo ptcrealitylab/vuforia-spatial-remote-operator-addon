@@ -7,10 +7,10 @@ createNameSpace('realityEditor.device');
 (function(exports) {
 
     const FOLLOWING_RELATIVE_POSITION = [
-        -1.991735742789964,-0.0019402862384033104,0.1816275024820606,0,
-        -0.12091535927151742,-1.4781942937095942,-1.3417622677709533,0,
-        0.1355399071070364,-1.3471959077679534,1.4719672222377786,0,
-        1033.3310890578132,-10300.982745528603,12136.112553930248,0.9999999999999998
+        -1.991735742789964, -0.0019402862384033104, 0.1816275024820606, 0,
+        -0.12091535927151742, -1.4781942937095942, -1.3417622677709533, 0,
+        0.1355399071070364, -1.3471959077679534, 1.4719672222377786, 0,
+        1033.3310890578132, -10300.982745528603, 12136.112553930248, 0.9999999999999998
     ];
 
     class VirtualCamera {
@@ -19,21 +19,21 @@ createNameSpace('realityEditor.device');
 
             this.cameraNode = cameraNode;
             this.projectionMatrix = [];
-            this.initialPosition = [0,0,0];
-            this.position = [1,1,1];
+            this.initialPosition = [0, 0, 0];
+            this.position = [1, 1, 1];
             if (typeof initialPosition !== 'undefined') {
                 this.initialPosition = [initialPosition[0], initialPosition[1], initialPosition[2]];
                 this.position = [initialPosition[0], initialPosition[1], initialPosition[2]];
             }
-            this.targetPosition = [0,0,0];
-            this.velocity = [0,0,0];
-            this.targetVelocity = [0,0,0];
+            this.targetPosition = [0, 0, 0];
+            this.velocity = [0, 0, 0];
+            this.targetVelocity = [0, 0, 0];
             this.distanceToTarget = 1;
             this.speedFactors = {
                 translation: kTranslation || 1,
                 rotation: kRotation || 1,
                 scale: kScale || 1
-            }
+            };
             this.mouseInput = {
                 unprocessedDX: 0,
                 unprocessedDY: 0,
@@ -42,7 +42,7 @@ createNameSpace('realityEditor.device');
                 isRightClick: false,
                 first: { x: 0, y: 0 },
                 last: { x: 0, y: 0 }
-            }
+            };
             this.keyboard = new realityEditor.device.KeyboardListener();
             this.followerName = 'cameraFollower' + cameraNode.id;
             this.followingState = {
@@ -56,7 +56,7 @@ createNameSpace('realityEditor.device');
             this.addEventListeners();
         }
         addEventListeners() {
-            window.addEventListener("wheel", function(event) {
+            window.addEventListener('wheel', function(event) {
                 this.mouseInput.unprocessedScroll += event.deltaY;
                 event.preventDefault();
             }.bind(this), {passive: false}); // in order to call preventDefault, wheel needs to be active not passive
@@ -108,7 +108,7 @@ createNameSpace('realityEditor.device');
         }
         reset() {
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
-            this.targetPosition = [0,0,0];
+            this.targetPosition = [0, 0, 0];
 
             // TODO: reset selection / de-select target
             // // deselectTarget();
