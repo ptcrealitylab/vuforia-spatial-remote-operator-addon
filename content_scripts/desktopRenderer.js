@@ -124,15 +124,17 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             // let tableHeight = 0.77;
             // let floorOffset = -1.4 * 1000; //(-1.5009218056996663 /*+ tableHeight */) * 1000; // meters -> mm //
             // -1.5009218056996663
-            let buffer = 100;
-            floorOffset += buffer;
-            let groundPlaneMatrix = [
-              1, 0, 0, 0,
-              0, 1, 0, 0,
-              0, 0, 1, 0,
-              0, floorOffset, 0, 1
-            ];
-            realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+            if (floorOffset > 1) {
+                let buffer = 100;
+                floorOffset += buffer;
+                let groundPlaneMatrix = [
+                  1, 0, 0, 0,
+                  0, 1, 0, 0,
+                  0, 0, 1, 0,
+                  0, floorOffset, 0, 1
+                ];
+                realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+            }
           }
         });
 
