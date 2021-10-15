@@ -85,13 +85,27 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
           if (criteriaMet) {
             isGlbLoaded = true;
             let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
+            let floorOffset = 0;
+
+            function checkExist() {
+                fetch(gltfPath).then(res => {
+                    if (!res.ok) {
+                        setTimeout(checkExist, 500);
+                    } else {
+                        downloadGlb();
+                    }
+                }).catch(_ => {
+                    setTimeout(checkExist, 500);
+                });
+            }
+
+            function downloadGlb() {
             realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
 
             // let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
             // let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
             // let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
 
-            let floorOffset = 0;
             let ceilingHeight = undefined; // TODO: don't hard-code this
             // let floorOffset = -1.55 * 1000;
             realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
@@ -100,6 +114,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator();
                 cameraVisCoordinator.connect();
             });
+            }
+
+            checkExist();
 
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
             // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: -floorOffset, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
