@@ -61,6 +61,13 @@ if (exports.enabled) {
         console.warn('CANNOT START REMOTE OPERATOR ON PORT 8081: ', e);
     }
 
+    try {
+        const rzvServer = require('./server.js');
+        rzvServer.start();
+        console.log('successfully created reality-zone-viewer skeleton');
+    } catch (e) {
+        console.warn('unable to start rzv skeleton', e);
+    }
 }
 
 function startHTTPServer(localUIApp, port) {
