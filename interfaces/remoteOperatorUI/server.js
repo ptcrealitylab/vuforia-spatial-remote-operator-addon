@@ -43,6 +43,7 @@ module.exports.start = function start() {
         let cleared = false;
         let msgId = 0;
         function doUpdateHumanPoses(msg) {
+            console.log('dup', msg);
             if (playback && !playback.running) {
                 playback = null;
             }

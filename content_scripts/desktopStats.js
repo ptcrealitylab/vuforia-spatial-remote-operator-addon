@@ -16,15 +16,15 @@ createNameSpace('realityEditor.device.desktopStats');
 
 (function(exports) {
 
-	let stats = new Stats();
+    let stats = new Stats();
 
-	let imagesPerSecond = 0;
-	let numImages = 0;
-	let imageStartTime = null;
-	let currentImageTime = null;
-	let imagesPerSecondElement = null;
+    let imagesPerSecond = 0;
+    let numImages = 0;
+    let imageStartTime = null;
+    let currentImageTime = null;
+    let imagesPerSecondElement = null;
 
-	let isVisible = false;
+    let isVisible = false;
 
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
@@ -100,12 +100,12 @@ createNameSpace('realityEditor.device.desktopStats');
     }
 
     function hide() {
-      if (stats && stats.dom) {
-        stats.dom.style.visibility = 'hidden';
-      }
-      if (imagesPerSecond) {
-        imagesPerSecondElement.style.visibility = 'hidden';
-      }
+        if (stats && stats.dom) {
+            stats.dom.style.visibility = 'hidden';
+        }
+        if (imagesPerSecond) {
+            imagesPerSecondElement.style.visibility = 'hidden';
+        }
     	isVisible = false;
     }
 

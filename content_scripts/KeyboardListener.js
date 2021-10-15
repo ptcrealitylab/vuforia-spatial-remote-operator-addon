@@ -63,7 +63,7 @@ createNameSpace('realityEditor.device');
                     this.keyStates[code] = 'up';
                     this.callbacks.onKeyUp.forEach(function(cb) {
                         cb(code);
-                    })
+                    });
                 }
             }.bind(this));
         }

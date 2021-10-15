@@ -89,7 +89,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
 
-        let invertedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('INVERTED_COORDINATES', undefined, undefined, [-1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+        let invertedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('INVERTED_COORDINATES', undefined, undefined, [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
         let invertedCoordinatesNode = realityEditor.sceneGraph.getSceneNodeById(invertedCoordinatesNodeId);
 
         // the 1.1 should be a 1, but it's a bit off because the area target scan wasn't perfectly scanned with the same axes as the original calibrated model
@@ -209,9 +209,9 @@ createNameSpace('realityEditor.device.desktopCamera');
 
             let INCLUDE_TOOLS_IN_DROPDOWN = false;
             if (INCLUDE_TOOLS_IN_DROPDOWN) {
-              for (let frameKey in object.frames) {
-                tryAddingFrameToDropdown(objectKey, frameKey);
-              }
+                for (let frameKey in object.frames) {
+                    tryAddingFrameToDropdown(objectKey, frameKey);
+                }
             }
         }
     }
