@@ -46,15 +46,26 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let staticModelMode = true;
 
     function createNavmeshCallback(navmesh) {
-        function setFloorOffsetOrWait() {
-            if (gltf) {
-                gltf.children[0].position.y = -navmesh.floorOffset;
-                window.gltf = gltf;
-                return;
-            }
-            setTimeout(setFloorOffsetOrWait, 100);
+        function _setFloorOffsetOrWait() {
+            let floorOffset = navmesh.floorOffset;
+            let buffer = 100;
+            floorOffset += buffer;
+            let groundPlaneMatrix = [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, floorOffset, 0, 1
+            ];
+            realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+
+            // if (gltf) {
+            //     gltf.children[0].position.y = -navmesh.floorOffset;
+            //     window.gltf = gltf;
+            //     return;
+            // }
+            // setTimeout(setFloorOffsetOrWait, 100);
         }
-        setFloorOffsetOrWait();
+        // setFloorOffsetOrWait();
     }
 
     /**
