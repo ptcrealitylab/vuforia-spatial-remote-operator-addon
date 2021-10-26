@@ -59,7 +59,7 @@ void main() {
     }
 
     class CameraVis {
-        constructor() {
+        constructor(id) {
             const THREE = realityEditor.gui.threejsScene.THREE;
 
             this.container = new THREE.Group();
@@ -72,7 +72,8 @@ void main() {
             this.container.add(this.phone);
 
             const geo = new THREE.BoxGeometry(150, 150, 150);
-            const mat = new THREE.MeshBasicMaterial({color: 0xaaaaaa});
+            const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+            const mat = new THREE.MeshBasicMaterial({color: color});
             this.box = new THREE.Mesh(geo, mat);
             this.box.visible = true;
             this.phone.add(this.box);
@@ -217,11 +218,17 @@ void main() {
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = new WebSocket(url);
-                const image = new Image();
 
                 ws.addEventListener('message', async (msg) => {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
+                    if (!this.cameras[id]) {
+                        this.createCameraVis(id);
+                    }
+                    if (this.cameras[id].loading[textureKey]) {
+                        return;
+                    }
+                    this.cameras[id].loading[textureKey] = true;
                     // const pktType = bytes[1];
                     // if (pktType === PKT_MATRIX) {
                     //   const text = await msg.data.slice(2, msg.data.length).text();
@@ -229,12 +236,10 @@ void main() {
                     // }
                     const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
                     const url = URL.createObjectURL(imageBlob);
+                    const image = new Image();
 
                     let start = window.performance.now();
                     image.onload = () => {
-                        if (!this.cameras[id]) {
-                            this.createCameraVis(id);
-                        }
                         const tex = this.cameras[id][textureKey];
                         tex.dispose();
                         tex.image = image;
@@ -245,6 +250,7 @@ void main() {
                             // Transmission takes ??s
                             this.cameras[id].setTime(start + 40);
                         }
+                        this.cameras[id].loading[textureKey] = false;
                         // window.latencies[textureKey].push(end - start);
                         URL.revokeObjectURL(url);
                     };
@@ -265,7 +271,10 @@ void main() {
         }
 
         createCameraVis(id) {
-            this.cameras[id] = new CameraVis();
+            if (debug) {
+                console.log('new camera', id);
+            }
+            this.cameras[id] = new CameraVis(id);
             this.cameras[id].add();
         }
     };
