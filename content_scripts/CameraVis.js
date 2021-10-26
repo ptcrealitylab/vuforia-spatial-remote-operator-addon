@@ -10,6 +10,7 @@ uniform sampler2D mapDepth;
 
 uniform float width;
 uniform float height;
+uniform float depthScale;
 
 uniform float pointSize;
 
@@ -34,7 +35,7 @@ void main() {
     -z,
     1.0);
 
-  gl_PointSize = pointSize;
+  gl_PointSize = pointSize * depth * depthScale;
   gl_Position = projectionMatrix * modelViewMatrix * pos;
 }`;
 
@@ -133,6 +134,7 @@ void main() {
                     mapDepth: {value: this.textureDepth},
                     width: {value: width},
                     height: {value: height},
+                    depthScale: {value: 0.15}, // roughly 256 / 1920
                     pointSize: { value: 2 },
                 },
                 vertexShader,
