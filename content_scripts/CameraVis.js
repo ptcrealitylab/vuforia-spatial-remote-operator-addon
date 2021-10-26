@@ -1,10 +1,7 @@
-console.log('THIS WORKS');
 createNameSpace('realityEditor.device.cameraVis');
-console.log('THIS REALLY WORKS', realityEditor.device);
-
 
 (function(exports) {
-    const debug = true;
+    const debug = false;
 
     const urlBase = 'ws://localhost:31337/'; // window.location.toString().replace(/^http/, 'ws')
     const vertexShader = `
@@ -93,10 +90,7 @@ void main() {
 
             this.time = performance.now();
             this.matrices = [];
-
-            this.connect();
-
-            window.cameraVis = this;
+            this.loading = {};
         }
 
         setupDebugCubes() {
@@ -151,30 +145,6 @@ void main() {
             this.mesh = new THREE.Points(this.geometry, this.material);
             this.mesh.scale.set(-1, 1, -1);
             this.phone.add(this.mesh);
-        }
-
-        connect() {
-            function connectWsToTexture(url, texture, mimetype) {
-                const ws = new WebSocket(url);
-
-                ws.addEventListener('message', function(msg) {
-                    const imageBlob = new Blob([msg.data], {type: mimetype});
-                    const url = URL.createObjectURL(imageBlob);
-
-                    const image = new Image();
-                    image.src = url;
-                    image.onload = function() {
-                        texture.image = image;
-                        texture.needsUpdate = true;
-                    };
-                });
-            }
-
-            const urlColor = urlBase + 'color';
-            const urlDepth = urlBase + 'depth';
-
-            connectWsToTexture(urlColor, this.texture, 'image/jpeg');
-            connectWsToTexture(urlDepth, this.textureDepth, 'image/png');
         }
 
         update(mat) {
@@ -295,14 +265,6 @@ void main() {
         createCameraVis(id) {
             this.cameras[id] = new CameraVis();
             this.cameras[id].add();
-        }
-
-        update(id, mat) {
-            if (!this.cameras[id]) {
-                this.createCameraVis(id);
-            }
-            let camera = this.cameras[id];
-            camera.update(mat);
         }
     };
 
