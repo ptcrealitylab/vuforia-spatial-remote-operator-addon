@@ -95,6 +95,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
         env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
         env.waitForARTracking = false; // don't show loading UI waiting for vuforia to give us camera matrices
+        env.supportsAreaTargetCapture = false; // don't show Create Area Target UI when app loads
 
         globalStates.groundPlaneOffset = 0.77;
         // default values that I may or may not need to invert:
