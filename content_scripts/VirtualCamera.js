@@ -19,6 +19,8 @@ createNameSpace('realityEditor.device');
 
             this.cameraNode = cameraNode;
             this.projectionMatrix = [];
+            this.idleOrbitting = false;
+
             this.initialPosition = [0, 0, 0];
             this.position = [1, 1, 1];
             if (typeof initialPosition !== 'undefined') {
@@ -268,6 +270,11 @@ createNameSpace('realityEditor.device');
 
             let distancePanFactor = Math.max(1, this.distanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
             let isShiftDown = this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down';
+
+            if (this.idleOrbitting) {
+                this.mouseInput.unprocessedDX = 0.3;
+                isShiftDown = false;
+            }
 
             if (this.mouseInput.unprocessedDX !== 0) {
                 if (isShiftDown) { // stafe left-right

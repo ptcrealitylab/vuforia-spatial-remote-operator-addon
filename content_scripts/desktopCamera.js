@@ -136,6 +136,11 @@ createNameSpace('realityEditor.device.desktopCamera');
                         }
                     }
                 }
+
+                if (code === keyboard.keyCodes.O) {
+                    virtualCamera.idleOrbitting = !virtualCamera.idleOrbitting;
+                    unityCamera.idleOrbitting = virtualCamera.idleOrbitting;
+                }
             }.bind(this));
         }
 
