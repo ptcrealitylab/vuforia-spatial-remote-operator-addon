@@ -14,7 +14,6 @@ createNameSpace('realityEditor.device.desktopCamera');
  */
 
 (function() {
-
     let INITIAL_CAMERA_POSITIONS = Object.freeze({
         DESK: [757, 1410, -956], // [330, 3751, -1575]; //[735, -1575, -162]; //[1000, -500, 500];
         LAB_TABLE: [-1499.9648912671637, 8275.552791086136, 5140.3791620707225],
