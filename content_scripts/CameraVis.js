@@ -13,6 +13,7 @@ uniform float height;
 uniform float depthScale;
 
 uniform float pointSize;
+const float pointSizeBase = 3;
 
 varying vec2 vUv;
 
@@ -35,7 +36,7 @@ void main() {
     -z,
     1.0);
 
-  gl_PointSize = pointSize * depth * depthScale;
+  gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
   gl_Position = projectionMatrix * modelViewMatrix * pos;
 }`;
 
@@ -136,7 +137,7 @@ void main() {
                     width: {value: width},
                     height: {value: height},
                     depthScale: {value: 0.15}, // roughly 256 / 1920
-                    pointSize: { value: 2 },
+                    pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
                 fragmentShader,
