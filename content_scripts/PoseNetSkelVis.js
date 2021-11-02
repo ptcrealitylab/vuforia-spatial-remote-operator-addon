@@ -20,6 +20,13 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         RIGHT_KNEE: 'right knee',
         LEFT_ANKLE: 'left ankle',
         RIGHT_ANKLE: 'right ankle',
+        HEAD: 'head synthetic',
+        NECK: 'neck synthetic',
+        CHEST: 'chest synthetic',
+        NAVEL: 'navel synthetic',
+        PELVIS: 'pelvis synthetic',
+        // LEFT_HAND: 'left hand synthetic',
+        // RIGHT_HAND: 'right hand synthetic',
     };
 
     Object.keys(POSE_JOINTS).forEach((key, i) => {
@@ -33,18 +40,22 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     const POSE_JOINTS_COOL_INDEX = Object.values(POSE_JOINTS_COOL);
 
     const JOINT_CONNECTIONS = [
-        [POSE_JOINTS.LEFT_WRIST, POSE_JOINTS.LEFT_ELBOW],
+        [POSE_JOINTS.LEFT_WRIST, POSE_JOINTS.LEFT_ELBOW], // 0
         [POSE_JOINTS.LEFT_ELBOW, POSE_JOINTS.LEFT_SHOULDER],
         [POSE_JOINTS.LEFT_SHOULDER, POSE_JOINTS.RIGHT_SHOULDER],
         [POSE_JOINTS.RIGHT_SHOULDER, POSE_JOINTS.RIGHT_ELBOW],
         [POSE_JOINTS.RIGHT_ELBOW, POSE_JOINTS.RIGHT_WRIST],
-        [POSE_JOINTS.LEFT_SHOULDER, POSE_JOINTS.LEFT_HIP],
+        [POSE_JOINTS.LEFT_SHOULDER, POSE_JOINTS.LEFT_HIP], // 5
         [POSE_JOINTS.LEFT_HIP, POSE_JOINTS.RIGHT_HIP],
         [POSE_JOINTS.RIGHT_HIP, POSE_JOINTS.RIGHT_SHOULDER],
         [POSE_JOINTS.LEFT_HIP, POSE_JOINTS.LEFT_KNEE],
         [POSE_JOINTS.LEFT_KNEE, POSE_JOINTS.LEFT_ANKLE],
-        [POSE_JOINTS.RIGHT_HIP, POSE_JOINTS.RIGHT_KNEE],
-        [POSE_JOINTS.RIGHT_KNEE, POSE_JOINTS.RIGHT_ANKLE],
+        [POSE_JOINTS.RIGHT_HIP, POSE_JOINTS.RIGHT_KNEE], // 10
+        [POSE_JOINTS.RIGHT_KNEE, POSE_JOINTS.RIGHT_ANKLE], // 11
+        [POSE_JOINTS.HEAD, POSE_JOINTS.NECK],
+        [POSE_JOINTS.NECK, POSE_JOINTS.CHEST],
+        [POSE_JOINTS.CHEST, POSE_JOINTS.NAVEL],
+        [POSE_JOINTS.NAVEL, POSE_JOINTS.PELVIS],
     ];
 
     class PoseNetSkelVis {
@@ -77,6 +88,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 this.bones.push(bone);
                 this.container.add(bone);
             }
+
+            this.redMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0xFF0000});
+            this.yellowMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0xFFFF00});
+            this.greenMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0x00ff00});
         }
 
         update(skel) {
@@ -103,14 +118,31 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 bone.position.x = (jointA.x + jointB.x) / 2;
                 bone.position.y = (jointA.y + jointB.y) / 2;
                 bone.position.z = (jointA.z + jointB.z) / 2;
+                bone.rotation.set(0, 0, 0);
 
                 let diff = new THREE.Vector3(jointB.x - jointA.x, jointB.y - jointA.y,
                     jointB.z - jointA.z);
 
                 bone.scale.y = 1;
-                bone.lookAt(jointB.x, jointB.y, jointB.z);
+                let localTarget = new THREE.Vector3(
+                    jointB.x, jointB.y, jointB.z);
+                bone.lookAt(this.container.localToWorld(localTarget));
                 bone.rotateX(Math.PI / 2);
                 bone.scale.y = diff.length();
+            }
+
+            const angles = Object.entries(skel.angles);
+            for (let item of angles) {
+                let boneNum = item[1][3];
+                let boneColor = item[1][5];
+                if (boneColor == 0) {
+                    this.bones[boneNum].material = this.greenMaterial;
+                }
+                if (boneColor == 1) {
+                    this.bones[boneNum].material = this.yellowMaterial;
+                } else if (boneColor == 2) {
+                    this.bones[boneNum].material = this.redMaterial;
+                }
             }
 
         }
