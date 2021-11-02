@@ -2,8 +2,6 @@ const sceneGraph = require('./sceneGraph/index.js');
 const SceneNode = require('./sceneGraph/SceneNode.js');
 sceneGraph.initService();
 
-const TEST_MULTI_COUNT = 1;
-
 function requestId(req) {
     return parseInt(req.ip.split(/\./g)[3]);
 }
@@ -22,14 +20,12 @@ module.exports = function makeStreamRouter(app) {
         console.log('new colorPro ws');
         const id = requestId(req);
         ws.on('message', function(msg, _isBinary) {
-            for (let i = 0; i < TEST_MULTI_COUNT; i++) {
-                const msgWithId = messageWithId(msg, id + i);
-                for (let ws of colorPool) {
-                    if (ws.bufferedAmount > 10 * 1024) {
-                        continue;
-                    }
-                    ws.send(msgWithId);
+            const msgWithId = messageWithId(msg, id);
+            for (let ws of colorPool) {
+                if (ws.bufferedAmount > 10 * 1024) {
+                    continue;
                 }
+                ws.send(msgWithId);
             }
         });
     });
@@ -38,14 +34,12 @@ module.exports = function makeStreamRouter(app) {
         console.log('new depthPro ws');
         const id = requestId(req);
         ws.on('message', function(msg, _isBinary) {
-            for (let i = 0; i < TEST_MULTI_COUNT; i++) {
-                const msgWithId = messageWithId(msg, id + i);
-                for (let ws of depthPool) {
-                    if (ws.bufferedAmount > 10 * 1024) {
-                        continue;
-                    }
-                    ws.send(msgWithId);
+            const msgWithId = messageWithId(msg, id);
+            for (let ws of depthPool) {
+                if (ws.bufferedAmount > 10 * 1024) {
+                    continue;
                 }
+                ws.send(msgWithId);
             }
         });
     });
@@ -65,28 +59,25 @@ module.exports = function makeStreamRouter(app) {
             sceneGraph.getSceneNodeById(sceneGraph.NAMES.GROUNDPLANE).setLocalMatrix(matrices.groundplane);
             sceneGraph.getSceneNodeById(sceneGraph.NAMES.GROUNDPLANE).updateWorldMatrix();
 
-            for (let i = 0; i < TEST_MULTI_COUNT; i++) {
-                let sceneNode = new SceneNode('posePixel');
-                sceneNode.setParent(sceneGraph.getSceneNodeById('ROOT'));
+            let sceneNode = new SceneNode('posePixel');
+            sceneNode.setParent(sceneGraph.getSceneNodeById('ROOT'));
 
-                let initialVehicleMatrix = [
-                    -1, 0, 0, 0,
-                    0, 1, 0, 0,
-                    0, 0, -1, 0,
-                    0, 0, 0, 1,
-                ];
+            let initialVehicleMatrix = [
+                -1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, -1, 0,
+                0, 0, 0, 1,
+            ];
 
-                sceneNode.setPositionRelativeTo(cameraNode, initialVehicleMatrix);
-                sceneNode.updateWorldMatrix();
+            sceneNode.setPositionRelativeTo(cameraNode, initialVehicleMatrix);
+            sceneNode.updateWorldMatrix();
 
-                let cameraMat = sceneNode.getMatrixRelativeTo(gpNode);
-                cameraMat[12] += i * 1000;
+            let cameraMat = sceneNode.getMatrixRelativeTo(gpNode);
 
-                const msg = Buffer.from(new Float32Array(cameraMat).buffer);
-                const msgWithId = messageWithId(msg, id + i);
-                for (const ws of matrixPool) {
-                    ws.send(msgWithId);
-                }
+            const msg = Buffer.from(new Float32Array(cameraMat).buffer);
+            const msgWithId = messageWithId(msg, id);
+            for (const ws of matrixPool) {
+                ws.send(msgWithId);
             }
         });
     });
