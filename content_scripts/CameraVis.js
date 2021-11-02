@@ -13,7 +13,7 @@ uniform float height;
 uniform float depthScale;
 
 uniform float pointSize;
-const float pointSizeBase = 3;
+const float pointSizeBase = 3.0;
 
 varying vec2 vUv;
 
