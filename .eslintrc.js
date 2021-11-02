@@ -1,32 +1,32 @@
 module.exports = {
-    "env": {
-        "browser": true,
-        "es6": true
+    'env': {
+        'browser': true,
+        'es6': true
     },
-    "extends": "eslint:recommended",
-    "globals": {
-        "Stats": "readonly",
+    'extends': 'eslint:recommended',
+    'globals': {
+        'Stats': 'readonly',
 
-        "realityEditor": "writable",
-        "createNameSpace": "writable",
-        "globalStates": "writable",
-        "objects": "writable"
+        'realityEditor': 'writable',
+        'createNameSpace': 'writable',
+        'globalStates': 'writable',
+        'objects': 'writable'
     },
-    "parserOptions": {
-        "ecmaVersion": 2018
+    'parserOptions': {
+        'ecmaVersion': 2018
     },
-    "rules": {
-        "no-prototype-builtins": "off",
-        "no-redeclare": [
-          "error",
-          {"builtinGlobals": false}
+    'rules': {
+        'no-prototype-builtins': 'off',
+        'no-redeclare': [
+            'error',
+            {'builtinGlobals': false}
         ],
-        "no-unused-vars": [
-          "error",
-          {
-            "varsIgnorePattern": "^_",
-            "argsIgnorePattern": "^_",
-          },
+        'no-unused-vars': [
+            'error',
+            {
+                'varsIgnorePattern': '^_',
+                'argsIgnorePattern': '^_',
+            },
         ],
     }
 };
