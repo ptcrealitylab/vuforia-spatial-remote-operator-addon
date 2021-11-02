@@ -24,6 +24,13 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             }
 
             for (let skel of skels) {
+                if (!skel.angles && skel.joints.length > 0) {
+                    realityEditor.gui.ar.desktopRenderer.rebaScore.augmentSkel(skel);
+                    skel.angles = realityEditor.gui.ar.desktopRenderer.rebaScore.getAngles(skel);
+                    realityEditor.gui.ar.desktopRenderer.rebaScore.calculateReba(skel);
+                    skel.rebaScore = realityEditor.gui.ar.desktopRenderer.rebaScore.overallRebaCalculation(skel);
+                }
+
                 if (this.skelVisses.hasOwnProperty(skel.id)) {
                     // Length 0 is a tombstone object
                     if (skel.joints.length === 0) {
@@ -36,6 +43,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 } else {
                     if (skel.joints.length === realityEditor.gui.ar.desktopRenderer.POSE_NET_JOINTS_LEN) {
                         this.skelVisses[skel.id] = new realityEditor.gui.ar.desktopRenderer.PoseNetSkelVis(skel);
+                    } else {
+                        console.warn('what are you giving the poor skel vis', skel);
                     }
                     this.skelVisses[skel.id].addToScene();
                     this.skelVisses[skel.id].updated = true;
