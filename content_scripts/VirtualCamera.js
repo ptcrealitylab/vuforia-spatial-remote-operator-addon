@@ -42,6 +42,7 @@ createNameSpace('realityEditor.device');
                 unprocessedScroll: 0,
                 isPointerDown: false,
                 isRightClick: false,
+                isStrafeRequested: false,
                 first: { x: 0, y: 0 },
                 last: { x: 0, y: 0 }
             };
@@ -63,28 +64,37 @@ createNameSpace('realityEditor.device');
                 event.preventDefault();
             }.bind(this), {passive: false}); // in order to call preventDefault, wheel needs to be active not passive
 
-            document.addEventListener('pointerdown', function(event) {
-                if (event.button === 2) { // 2 is right click, 0 is left, 1 is middle button
+            document.addEventListener('pointerdown', function (event) {
+                if (event.button === 2 || event.button === 1) { // 2 is right click, 0 is left, 1 is middle button
                     this.mouseInput.isPointerDown = true;
-                    this.mouseInput.isRightClick = true;
+                    this.mouseInput.isRightClick = false;
+                    this.mouseInput.isStrafeRequested = false;
+                    if (event.button === 2) {
+                        this.mouseInput.isRightClick = true;
+                    } else if (event.button === 1) {
+                        this.mouseInput.isStrafeRequested = true;
+                    }
                     this.mouseInput.first.x = event.pageX;
                     this.mouseInput.first.y = event.pageY;
                     this.mouseInput.last.x = event.pageX;
                     this.mouseInput.last.y = event.pageY;
                     // follow a tool if you click it with shift held down
-                // } else if (this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down') {
-                //    this.attemptToFollowClickedElement(event.pageX, event.pageY);
+                } else if (this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down') {
+                    this.attemptToFollowClickedElement(event.pageX, event.pageY);
                 }
 
             }.bind(this));
 
-            // TODO: do this for pointercancel, too
-            document.addEventListener('pointerup', function(event) {
+            const pointerReset = () => {
                 this.mouseInput.isPointerDown = false;
                 this.mouseInput.isRightClick = false;
+                this.mouseInput.isStrafeRequested = false;
                 this.mouseInput.last.x = 0;
                 this.mouseInput.last.y = 0;
-            }.bind(this));
+            };
+
+            document.addEventListener('pointerup', pointerReset);
+            document.addEventListener('pointercancel', pointerReset);
 
             document.addEventListener('pointermove', function(event) {
                 if (this.mouseInput.isPointerDown) {
@@ -268,15 +278,14 @@ createNameSpace('realityEditor.device');
             }
 
             let distancePanFactor = Math.max(1, this.distanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
-            let isShiftDown = this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down';
 
             if (this.idleOrbitting) {
                 this.mouseInput.unprocessedDX = 0.3;
-                isShiftDown = false;
+                this.mouseInput.isStrafeRequested = false;
             }
 
             if (this.mouseInput.unprocessedDX !== 0) {
-                if (isShiftDown) { // stafe left-right
+                if (this.mouseInput.isStrafeRequested) { // strafe left-right
                     let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDX * getCameraPanSensitivity());
                     this.targetVelocity = add(this.targetVelocity, vector);
                     this.velocity = add(this.velocity, vector);
@@ -291,7 +300,7 @@ createNameSpace('realityEditor.device');
             }
 
             if (this.mouseInput.unprocessedDY !== 0) {
-                if (isShiftDown) { // stafe up-down
+                if (this.mouseInput.isStrafeRequested) { // stafe up-down
                     let vector = scalarMultiply(verticalVector, distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDY * getCameraPanSensitivity());
                     this.targetVelocity = add(this.targetVelocity, vector);
                     this.velocity = add(this.velocity, vector);
