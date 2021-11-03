@@ -20,13 +20,14 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 return;
             }
             this.lastDataTime = msg.time;
-            for (let skel of msg.pose) {
-                if (skel.joints.length !== realityEditor.gui.ar.desktopRenderer.POSE_NET_JOINTS_LEN) {
-                    for (let joint of skel.joints) {
-                        joint.x = -joint.x;
-                    }
-                }
-            }
+            // TODO add support for kinect poses
+            // for (let skel of msg.pose) {
+            //     if (skel.joints.length !== realityEditor.gui.ar.desktopRenderer.POSE_NET_JOINTS_LEN) {
+            //         for (let joint of skel.joints) {
+            //             joint.x = -joint.x;
+            //         }
+            //     }
+            // }
 
             this.handlePoint(msg);
         }
