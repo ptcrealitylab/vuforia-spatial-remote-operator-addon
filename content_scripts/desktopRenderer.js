@@ -43,7 +43,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let isGlbLoaded = false;
 
     let gltf = null;
-    let staticModelMode = true;
+    let staticModelMode = false;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -121,7 +121,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         backgroundCanvas = document.createElement('canvas');
         backgroundCanvas.id = 'desktopBackgroundRenderer';
         backgroundCanvas.classList.add('desktopBackgroundRenderer');
-        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)'; // render behind three.js
+        backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)'; // render behind three.js
         backgroundCanvas.style.transformOrigin = 'top left';
         backgroundCanvas.style.position = 'absolute';
         primaryBackgroundCanvas = document.createElement('canvas');
@@ -200,7 +200,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         prom.then(function() {
             if (primaryDrawn && (secondaryDrawn || ONLY_REQUIRE_PRIMARY)) {
                 renderBackground();
-                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, -31, 1)';
+                backgroundCanvas.style.transform = 'matrix3d(' + rescaleFactor + ', 0, 0, 0, 0, ' + rescaleFactor + ', 0, 0, 0, 0, 1, 0, 0, 0, 1, 1)';
             }
         });
     }
