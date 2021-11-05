@@ -91,10 +91,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
                         gltf = createdMesh;
 
-                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator();
+                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
                         cameraVisCoordinator.connect();
 
-                        let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer();
+                        let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
                     });
                 }

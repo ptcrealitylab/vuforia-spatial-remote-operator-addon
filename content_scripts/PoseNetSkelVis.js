@@ -59,11 +59,12 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     ];
 
     class PoseNetSkelVis {
-        constructor(skel) {
+        constructor(skel, floorOffset) {
             const THREE = realityEditor.gui.threejsScene.THREE;
 
             this.spheres = [];
             this.container = new THREE.Group();
+            this.container.position.y = -floorOffset;
             this.container.scale.set(1000, 1000, 1000);
             // this.container.rotation.y = Math.PI;
             this.bones = [];

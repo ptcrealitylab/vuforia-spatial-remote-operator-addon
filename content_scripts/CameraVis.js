@@ -60,12 +60,13 @@ void main() {
     }
 
     class CameraVis {
-        constructor(id) {
+        constructor(id, floorOffset) {
             const THREE = realityEditor.gui.threejsScene.THREE;
 
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
             // this.container.rotation.y = Math.PI;
+            this.container.position.y = -floorOffset;
             this.container.rotation.x = Math.PI / 2;
             this.phone = new THREE.Group();
             this.phone.matrixAutoUpdate = false;
@@ -195,8 +196,20 @@ void main() {
     }
 
     exports.CameraVisCoordinator = class CameraVisCoordinator {
-        constructor() {
+        constructor(floorOffset) {
             this.cameras = {};
+            this.visible = true;
+            this.floorOffset = floorOffset;
+            this.keyboard = new realityEditor.device.KeyboardListener();
+
+            this.keyboard.onKeyUp((code) => {
+                if (code === this.keyboard.keyCodes.M) {
+                    this.visible = !this.visible;
+                    for (let camera of Object.values(this.cameras)) {
+                        camera.mesh.visible = this.visible;
+                    }
+                }
+            });
         }
 
         connectWsToMatrix(url) {
@@ -275,7 +288,7 @@ void main() {
             if (debug) {
                 console.log('new camera', id);
             }
-            this.cameras[id] = new CameraVis(id);
+            this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
         }
     };
