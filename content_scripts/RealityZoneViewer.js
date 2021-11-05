@@ -3,7 +3,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 (function(exports) {
 
     exports.RealityZoneViewer = class RealityZoneViewer {
-        constructor() {
+        constructor(floorOffset) {
+            this.floorOffset = floorOffset;
             this.skelVisses = {};
             this.dataSource = new realityEditor.gui.ar.desktopRenderer.SocketDataSource();
 
@@ -42,7 +43,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     continue;
                 } else {
                     if (skel.joints.length === realityEditor.gui.ar.desktopRenderer.POSE_NET_JOINTS_LEN) {
-                        this.skelVisses[skel.id] = new realityEditor.gui.ar.desktopRenderer.PoseNetSkelVis(skel);
+                        this.skelVisses[skel.id] = new realityEditor.gui.ar.desktopRenderer.PoseNetSkelVis(skel, this.floorOffset);
                     } else {
                         console.warn('what are you giving the poor skel vis', skel);
                     }
