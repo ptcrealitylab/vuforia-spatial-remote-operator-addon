@@ -281,6 +281,11 @@ createNameSpace('realityEditor.device.desktopCamera');
             try {
                 virtualCamera.update();
                 unityCamera.update();
+
+                let worldId = realityEditor.worldObjects.getBestWorldObject().objectId;
+                let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+                realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.worldMatrix);
+
             } catch (e) {
                 console.warn('error updating Virtual Camera', e);
             }
