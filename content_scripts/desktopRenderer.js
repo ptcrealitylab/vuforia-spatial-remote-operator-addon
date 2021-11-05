@@ -45,29 +45,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let gltf = null;
     let staticModelMode = true;
 
-    function createNavmeshCallback(navmesh) {
-        function _setFloorOffsetOrWait() {
-            let floorOffset = navmesh.floorOffset;
-            let buffer = 100;
-            floorOffset += buffer;
-            let groundPlaneMatrix = [
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, floorOffset, 0, 1
-            ];
-            realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
-
-            // if (gltf) {
-            //     gltf.children[0].position.y = -navmesh.floorOffset;
-            //     window.gltf = gltf;
-            //     return;
-            // }
-            // setTimeout(setFloorOffsetOrWait, 100);
-        }
-        // setFloorOffsetOrWait();
-    }
-
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -85,30 +62,33 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             if (criteriaMet) {
                 isGlbLoaded = true;
                 let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
-                let floorOffset = 0;
 
                 function checkExist() {
                     fetch(gltfPath).then(res => {
                         if (!res.ok) {
                             setTimeout(checkExist, 500);
                         } else {
-                            downloadGlb();
+                            realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
                         }
                     }).catch(_ => {
                         setTimeout(checkExist, 500);
                     });
                 }
 
-                function downloadGlb() {
-                    realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
-
-                    // let rotationCalibration = realityEditor.gui.settings.toggleStates.rotationCalibration * Math.PI * 2;
-                    // let xCalibration = realityEditor.gui.settings.toggleStates.xCalibration * 10000 - 5000;
-                    // let zCalibration = realityEditor.gui.settings.toggleStates.zCalibration * 10000 - 5000;
+                function createNavmeshCallback(navmesh) {
+                    let floorOffset = navmesh.floorOffset * 1000;
+                    let buffer = 50;
+                    floorOffset += buffer;
+                    let groundPlaneMatrix = [
+                        1, 0, 0, 0,
+                        0, 1, 0, 0,
+                        0, 0, 1, 0,
+                        0, floorOffset, 0, 1
+                    ];
+                    realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
 
                     let ceilingHeight = undefined; // TODO: don't hard-code this
-                    // let floorOffset = -1.55 * 1000;
-                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: 0, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
+                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
                         gltf = createdMesh;
 
                         let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator();
@@ -120,24 +100,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 }
 
                 checkExist();
-
-                // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: xCalibration, y: 0, z: zCalibration}, {x: 0, y: rotationCalibration, z: 0});
-                // realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: -600, y: -floorOffset, z: -3300}, {x: 0, y: 2.661627109291353, z: 0});
-
-                // let tableHeight = 0.77;
-                // let floorOffset = -1.4 * 1000; //(-1.5009218056996663 /*+ tableHeight */) * 1000; // meters -> mm //
-                // -1.5009218056996663
-                if (floorOffset > 1) {
-                    let buffer = 100;
-                    floorOffset += buffer;
-                    let groundPlaneMatrix = [
-                        1, 0, 0, 0,
-                        0, 1, 0, 0,
-                        0, 0, 1, 0,
-                        0, floorOffset, 0, 1
-                    ];
-                    realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
-                }
             }
         });
 
