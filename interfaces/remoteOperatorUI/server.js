@@ -11,6 +11,7 @@ module.exports.start = function start() {
     const _streamRouter = makeStreamRouter(app);
 
     let allWebsockets = [];
+    let sensorDescriptions = {};
 
     function broadcast(broadcaster, msgStr) {
         for (let ws of allWebsockets) {
@@ -35,6 +36,9 @@ module.exports.start = function start() {
             switch (msg.command) {
             case '/update/humanPoses':
                 doUpdateHumanPoses(msg);
+                break;
+            case '/update/sensorDescription':
+                doUpdateSensorDescription(msg);
                 break;
             }
         });
@@ -77,7 +81,71 @@ module.exports.start = function start() {
             if (!playback) {
                 broadcast(ws, JSON.stringify(msg));
             }
+
+            processSensorActivations(ws, poses);
         }
+
+        function doUpdateSensorDescription(desc) {
+            sensorDescriptions[desc.id] = JSON.parse(JSON.stringify(desc)); // desc;
+            // const t = desc.x;
+            // desc.x = -desc.x;
+            // desc.z = -desc.z;
+            console.log('sensorDesc', desc);
+            // sock.broadcast.emit('/update/sensorDescription', JSON.stringify(desc));
+            broadcast(ws, JSON.stringify(desc));
+        }
+
+        function processSensorActivations(ws, poses) {
+            // for (let pose of poses) {
+            //     for (let joint of pose.joints) {
+            //         joint.z = -joint.z;
+            //     }
+            // }
+
+            for (let id in sensorDescriptions) {
+                let sensorDesc = sensorDescriptions[id];
+                sensorDesc.count = 0;
+
+                for (let pose of poses) {
+                    for (let joint of pose.joints) {
+                        if (joint.x < sensorDesc.x - sensorDesc.width / 2) {
+                            continue;
+                        }
+                        if (joint.x > sensorDesc.x + sensorDesc.width / 2) {
+                            continue;
+                        }
+                        if (joint.y < sensorDesc.y - sensorDesc.height / 2) {
+                            continue;
+                        }
+                        if (joint.y > sensorDesc.y + sensorDesc.height / 2) {
+                            continue;
+                        }
+                        if (joint.z < sensorDesc.z - sensorDesc.depth / 2) {
+                            continue;
+                        }
+                        if (joint.z > sensorDesc.z + sensorDesc.depth / 2) {
+                            continue;
+                        }
+
+                        sensorDesc.count += 1;
+                        break;
+                    }
+                }
+
+                let sendActivation = true;
+
+                if (sendActivation) {
+                    // console.log('yey', sensorDesc);
+                    broadcast(ws, JSON.stringify({
+                        command: '/update/sensorActivation',
+                        id: sensorDesc.id,
+                        count: Math.floor(sensorDesc.count),
+                        active: sensorDesc.count > 0,
+                    }));
+                }
+            }
+        }
+
     });
 
     app.listen(31337);
