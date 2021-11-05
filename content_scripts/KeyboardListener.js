@@ -31,7 +31,8 @@ createNameSpace('realityEditor.device');
                 M: 77,
                 N: 78,
                 O: 79,
-                SHIFT: 16
+                SHIFT: 16,
+                ALT: 18,
             });
             this.keyStates = {};
             this.callbacks = {
