@@ -32,11 +32,7 @@ createNameSpace('realityEditor.device.multiclientUI');
         if (isCameraSubscriptionActive) { return; }
 
         // subscribe to remote operator camera positions
-        // let world = realityEditor.worldObjects.getBestWorldObject();
-        // if (!world) { return; }
-
-        // let worldId = world.objectId;
-        // if (objectKey === worldId) {
+        // right now this assumes there will only be one world object in the network
         let object = realityEditor.getObject(objectKey);
         if (object && (object.isWorldObject || object.type === 'world')) {
             realityEditor.network.realtime.subscribeToCameraMatrices(objectKey, onCameraMatrix);
@@ -51,6 +47,11 @@ createNameSpace('realityEditor.device.multiclientUI');
         }
     }
 
+    // helper function to generate an integer hash from a string (https://stackoverflow.com/a/15710692)
+    function hashCode(s) {
+        return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+    }
+
     function update() {
         // this remote operator's camera position already gets sent in desktopCamera.js
         // here we render boxes at the location of each other camera...
@@ -60,7 +61,12 @@ createNameSpace('realityEditor.device.multiclientUI');
                 let cameraMatrix = allConnectedCameras[editorId];
                 let existingMesh = realityEditor.gui.threejsScene.getObjectByName('camera_' + editorId);
                 if (!existingMesh) {
-                    existingMesh = new THREE.Mesh(new THREE.BoxGeometry(100,100,100),new THREE.MeshNormalMaterial());
+                    // each client gets a random but consistent color based on their editorId
+                    let id = Math.abs(hashCode(editorId));
+                    const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+                    const geo = new THREE.BoxGeometry(150, 150, 150);
+                    const mat = new THREE.MeshBasicMaterial({color: color});
+                    existingMesh = new THREE.Mesh(geo, mat);
                     existingMesh.name = 'camera_' + editorId;
                     existingMesh.matrixAutoUpdate = false;
                     realityEditor.gui.threejsScene.addToScene(existingMesh);
