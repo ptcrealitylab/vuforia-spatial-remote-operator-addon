@@ -69,10 +69,10 @@ createNameSpace('realityEditor.device');
                     this.mouseInput.isPointerDown = true;
                     this.mouseInput.isRightClick = false;
                     this.mouseInput.isStrafeRequested = false;
-                    if (event.button === 2) {
-                        this.mouseInput.isRightClick = true;
-                    } else if (event.button === 1) {
+                    if (event.button === 1 || this.keyboard.keyStates[this.keyboard.keyCodes.ALT] === 'down') {
                         this.mouseInput.isStrafeRequested = true;
+                    } else if (event.button === 2) {
+                        this.mouseInput.isRightClick = true;
                     }
                     this.mouseInput.first.x = event.pageX;
                     this.mouseInput.first.y = event.pageY;
