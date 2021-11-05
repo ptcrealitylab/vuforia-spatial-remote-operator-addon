@@ -22,6 +22,7 @@ createNameSpace('realityEditor.device');
                 ESCAPE: 27,
                 W: 87,
                 A: 65,
+                R: 82,
                 S: 83,
                 D: 68,
                 Q: 81,

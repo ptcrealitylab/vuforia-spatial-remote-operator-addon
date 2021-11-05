@@ -95,6 +95,20 @@ void main() {
             this.time = performance.now();
             this.matrices = [];
             this.loading = {};
+
+            this.historyLine = new realityEditor.device.meshLine.MeshLine();
+            const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
+                color: color,
+                opacity: 0.6,
+                lineWidth: 20,
+                depthWrite: false,
+                transparent: true,
+                side: THREE.DoubleSide,
+            });
+            this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);
+            this.historyPoints = [];
+            this.historyLine.setPoints(this.historyPoints);
+            this.container.add(this.historyMesh);
         }
 
         setupDebugCubes() {
@@ -165,6 +179,7 @@ void main() {
         }
 
         setTime(time) {
+            const THREE = realityEditor.gui.threejsScene.THREE;
             this.time = time;
             if (this.matrices.length === 0) {
                 return;
@@ -184,6 +199,12 @@ void main() {
             }
             setMatrixFromArray(this.phone.matrix, latest.matrix);
             this.matrices.splice(0, latestI + 1);
+            this.historyPoints.push(new THREE.Vector3(
+                latest.matrix[12],
+                latest.matrix[13],
+                latest.matrix[14],
+            ));
+            this.historyLine.setPoints(this.historyPoints);
         }
 
         add() {
@@ -207,6 +228,10 @@ void main() {
                     this.visible = !this.visible;
                     for (let camera of Object.values(this.cameras)) {
                         camera.mesh.visible = this.visible;
+                    }
+                } else if (code === this.keyboard.keyCodes.R) {
+                    for (let camera of Object.values(this.cameras)) {
+                        camera.historyPoints = [];
                     }
                 }
             });
