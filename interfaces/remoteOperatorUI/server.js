@@ -104,6 +104,7 @@ module.exports.start = function start() {
 
             for (let id in sensorDescriptions) {
                 let sensorDesc = sensorDescriptions[id];
+                let oldCount = sensorDesc.count;
                 sensorDesc.count = 0;
 
                 for (let pose of poses) {
@@ -132,7 +133,7 @@ module.exports.start = function start() {
                     }
                 }
 
-                let sendActivation = true;
+                let sendActivation = oldCount !== sensorDesc.count || Math.random() < 0.03;
 
                 if (sendActivation) {
                     // console.log('yey', sensorDesc);
