@@ -101,7 +101,7 @@ void main() {
                 color: color,
                 opacity: 0.6,
                 lineWidth: 20,
-                depthWrite: false,
+                // depthWrite: false,
                 transparent: true,
                 side: THREE.DoubleSide,
             });
@@ -157,7 +157,7 @@ void main() {
                 vertexShader,
                 fragmentShader,
                 // blending: THREE.AdditiveBlending,
-                depthTest: false, depthWrite: false,
+                // depthTest: false, depthWrite: false,
                 transparent: true
             });
 
