@@ -163,6 +163,8 @@ const DEBUG_DISABLE_DROPDOWNS = false;
                             deviceDropdown.dom.style.display = '';
                         }
                     }
+                } else if (params.event.code === 'KeyP') {
+                    realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode();
                 }
             });
         } else {
