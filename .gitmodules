@@ -1,0 +1,3 @@
+[submodule "interfaces/remoteOperatorUI/reality-zone-viewer"]
+	path = interfaces/remoteOperatorUI/reality-zone-viewer
+	url = git@github.com:ptcrealitylab/reality-zone-viewer.git

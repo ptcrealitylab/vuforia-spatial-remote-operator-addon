@@ -1,6 +1,8 @@
 const cors = require('cors');
 const express = require('express');
 const expressWs = require('express-ws');
+const path = require('path');
+
 const makeStreamRouter = require('./makeStreamRouter.js');
 
 module.exports.start = function start() {
@@ -9,6 +11,8 @@ module.exports.start = function start() {
     app.use(cors());
     expressWs(app);
     const _streamRouter = makeStreamRouter(app);
+    console.log('wah', __dirname);
+    app.use('/', express.static(path.join(__dirname, 'reality-zone-viewer/static')));
 
     let allWebsockets = [];
     let sensorDescriptions = {};
