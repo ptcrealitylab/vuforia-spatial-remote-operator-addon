@@ -96,7 +96,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer.rebaScore');
         hipKneeLeft: 8,
         hipKneeRight: 10,
         shoulderElbowLeft: 1,
-        shoulderElbowRight: 2,
+        shoulderElbowRight: 3,
         elbowWristLeft: 0,
         elbowWristRight: 4,
         wristHandLeft: 0,
@@ -535,7 +535,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer.rebaScore');
             skel.angles.shoulderElbowLeft[5] = 0;
         } else if (shoulderElbowLeftScore < 3 ) {
             skel.angles.shoulderElbowLeft[5] = 1;
-        } else if (shoulderElbowLeftScore == 4) {
+        } else if (shoulderElbowLeftScore <= 4) {
             skel.angles.shoulderElbowLeft[5] = 2;
         }
         return shoulderElbowLeftScore;
@@ -565,7 +565,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer.rebaScore');
             skel.angles.shoulderElbowRight[5] = 0;
         } else if (shoulderElbowRightScore < 3 ) {
             skel.angles.shoulderElbowRight[5] = 1;
-        } else if (shoulderElbowRightScore == 4) {
+        } else if (shoulderElbowRightScore <= 4) {
             skel.angles.shoulderElbowRight[5] = 2;
         }
         return shoulderElbowRightScore;
