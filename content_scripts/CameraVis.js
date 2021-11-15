@@ -234,6 +234,7 @@ void main() {
                 } else if (code === this.keyboard.keyCodes.R) {
                     for (let camera of Object.values(this.cameras)) {
                         camera.historyPoints = [];
+                        camera.historyLine.setPoints(camera.historyPoints);
                     }
                 }
             });
