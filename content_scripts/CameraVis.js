@@ -67,6 +67,7 @@ void main() {
             // this.container.rotation.y = Math.PI;
             this.container.position.y = -floorOffset;
             this.container.rotation.x = Math.PI / 2;
+            this.lastUpdate = Date.now();
             this.phone = new THREE.Group();
             this.phone.matrixAutoUpdate = false;
             this.phone.frustumCulled = false;
@@ -167,6 +168,7 @@ void main() {
 
         update(mat) {
             let now = performance.now();
+            this.lastUpdate = now;
             if (this.time > now) {
                 setMatrixFromArray(this.phone.matrix, mat);
                 return;
@@ -250,6 +252,13 @@ void main() {
                     this.createCameraVis(id);
                 }
                 this.cameras[id].update(mat);
+
+                let now = performance.now();
+                for (let camera of Object.values(this.cameras)) {
+                    if (now - camera.lastUpdate > 2000) {
+                        camera.mesh.visible = false;
+                    }
+                }
             });
         }
 
