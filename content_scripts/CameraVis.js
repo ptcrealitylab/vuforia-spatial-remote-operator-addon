@@ -2,8 +2,7 @@ createNameSpace('realityEditor.device.cameraVis');
 
 (function(exports) {
     const debug = false;
-
-    const urlBase = 'ws://localhost:31337/'; // window.location.toString().replace(/^http/, 'ws')
+    const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
 uniform sampler2D mapDepth;
