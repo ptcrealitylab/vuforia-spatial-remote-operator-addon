@@ -59,15 +59,16 @@ module.exports.start = function start() {
             let poses = msg.pose;
             msgId += 1;
             for (let skel of poses) {
-                activeSkels[skel.id] = msgId;
+                activeSkels[skel.id] = {
+                    msgId,
+                    skel,
+                };
             }
-            for (let skelId of Object.keys(activeSkels)) {
-                if (activeSkels[skelId] !== msgId) {
-                    poses.push({
-                        id: skelId,
-                        joints: [],
-                    });
-                    delete activeSkels[skelId];
+            for (let activeSkel of Object.values(activeSkels)) {
+                if (activeSkel.msgId !== msgId) {
+                    poses.push(activeSkel.skel);
+                } else if (activeSkel.skel.joints.length === 0) {
+                    delete activeSkels[activeSkel.skel.id];
                 }
             }
             if (poses.length === 0) {
@@ -76,6 +77,8 @@ module.exports.start = function start() {
                 } else {
                     cleared = true;
                 }
+            } else {
+                cleared = false;
             }
 
             if (!playback) {
