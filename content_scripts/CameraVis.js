@@ -163,6 +163,7 @@ void main() {
 
             this.mesh = new THREE.Points(this.geometry, this.material);
             this.mesh.scale.set(-1, 1, -1);
+            this.mesh.frustumCulled = false;
             this.phone.add(this.mesh);
         }
 
