@@ -222,6 +222,7 @@ void main() {
         constructor(floorOffset) {
             this.cameras = {};
             this.visible = true;
+            this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
             this.keyboard = new realityEditor.device.KeyboardListener();
 
@@ -235,6 +236,11 @@ void main() {
                     for (let camera of Object.values(this.cameras)) {
                         camera.historyPoints = [];
                         camera.historyLine.setPoints(camera.historyPoints);
+                    }
+                } else if (code === this.keyboard.keyCodes.N) {
+                    this.spaghettiVisible = !this.spaghettiVisible;
+                    for (let camera of Object.values(this.cameras)) {
+                        camera.historyMesh.visible = this.spaghettiVisible;
                     }
                 }
             });
