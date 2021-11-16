@@ -22,9 +22,12 @@ module.exports.start = function start() {
         }
     }
 
+    let activeSkels = {};
+
     app.ws('/', (ws) => {
         console.log('an attempt /');
         allWebsockets.push(ws);
+	let wsId = '' + (Math.random() * 9999);
 
         ws.addEventListener('close', () => {
             allWebsockets = allWebsockets.filter(a => a !== ws);
@@ -43,9 +46,7 @@ module.exports.start = function start() {
             }
         });
 
-        let activeSkels = {};
         let cleared = false;
-        let msgId = 0;
         function doUpdateHumanPoses(msg) {
             if (playback && !playback.running) {
                 playback = null;
@@ -57,15 +58,14 @@ module.exports.start = function start() {
                 };
             }
             let poses = msg.pose;
-            msgId += 1;
             for (let skel of poses) {
                 activeSkels[skel.id] = {
-                    msgId,
+                    msgId: wsId,
                     skel,
                 };
             }
             for (let activeSkel of Object.values(activeSkels)) {
-                if (activeSkel.msgId !== msgId) {
+                if (activeSkel.msgId !== wsId) {
                     poses.push(activeSkel.skel);
                 } else if (activeSkel.skel.joints.length === 0) {
                     delete activeSkels[activeSkel.skel.id];
