@@ -27,7 +27,7 @@ module.exports.start = function start() {
     app.ws('/', (ws) => {
         console.log('an attempt /');
         allWebsockets.push(ws);
-	let wsId = '' + (Math.random() * 9999);
+        let wsId = '' + (Math.random() * 9999);
 
         ws.addEventListener('close', () => {
             allWebsockets = allWebsockets.filter(a => a !== ws);
