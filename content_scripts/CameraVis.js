@@ -73,12 +73,18 @@ void main() {
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
 
-            const geo = new THREE.BoxGeometry(150, 150, 150);
+            const geo = new THREE.BoxGeometry(100, 100, 80);
             const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             this.box = new THREE.Mesh(geo, mat);
-            this.box.visible = true;
             this.phone.add(this.box);
+
+            const geoCone = new THREE.ConeGeometry(100, 150, 8, 1);
+            const cone = new THREE.Mesh(geoCone, mat);
+            cone.rotation.x = -Math.PI / 2;
+            cone.rotation.y = Math.PI / 8;
+            cone.position.z = 35;
+            this.phone.add(cone);
 
             this.texture = new THREE.Texture();
             this.texture.minFilter = THREE.NearestFilter;
