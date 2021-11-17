@@ -62,13 +62,17 @@ module.exports.start = function start() {
                 activeSkels[skel.id] = {
                     msgId: wsId,
                     skel,
+                    lastUpdate: Date.now(),
                 };
             }
             for (let activeSkel of Object.values(activeSkels)) {
+                if (activeSkel.skel.joints.length === 0 ||
+                    Date.now() - activeSkel.lastUpdate > 1500) {
+                    delete activeSkels[activeSkel.skel.id];
+                    continue;
+                }
                 if (activeSkel.msgId !== wsId) {
                     poses.push(activeSkel.skel);
-                } else if (activeSkel.skel.joints.length === 0) {
-                    delete activeSkels[activeSkel.skel.id];
                 }
             }
             if (poses.length === 0) {
