@@ -111,6 +111,8 @@ createNameSpace('realityEditor.device');
             }.bind(this));
 
             this.keyboard.onKeyUp(function(code) {
+                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
                 // reset when escape pressed
                 if (code === this.keyboard.keyCodes.ESCAPE) {
                     this.reset();
