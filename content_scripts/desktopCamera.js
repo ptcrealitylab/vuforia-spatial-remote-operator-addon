@@ -125,6 +125,8 @@ createNameSpace('realityEditor.device.desktopCamera');
             }
         } else {
             keyboard.onKeyUp(function (code) {
+                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
                 // reset when escape pressed
                 if (code === keyboard.keyCodes.V) {
                     if (objectDropdown) {
