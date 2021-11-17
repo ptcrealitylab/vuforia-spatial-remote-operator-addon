@@ -39,6 +39,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         continue;
                     }
                     this.skelVisses[skel.id].update(skel, this.dataSource.lastDataTime);
+                    this.skelVisses[skel.id].lastUpdate = Date.now();
                 } else if (skel.joints.length === 0) {
                     continue;
                 } else {
@@ -49,10 +50,12 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     }
                     this.skelVisses[skel.id].addToScene();
                     this.skelVisses[skel.id].updated = true;
+                    this.skelVisses[skel.id].lastUpdate = Date.now();
                 }
             }
             for (let id in this.skelVisses) {
-                if (!this.skelVisses[id].updated) {
+                if (!this.skelVisses[id].updated ||
+                    Date.now() - this.skelVisses[id].lastUpdate > 1500) {
                     this.skelVisses[id].removeFromScene();
                     delete this.skelVisses[id];
                 }
