@@ -96,6 +96,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
         env.waitForARTracking = false; // don't show loading UI waiting for vuforia to give us camera matrices
         env.supportsAreaTargetCapture = false; // don't show Create Area Target UI when app loads
+        env.hideOriginCube = true; // don't show a set of cubes at the world origin
 
         globalStates.groundPlaneOffset = 0.77;
         // default values that I may or may not need to invert:
@@ -144,6 +145,8 @@ const DEBUG_DISABLE_DROPDOWNS = false;
 
         if (!DEBUG_DISABLE_DROPDOWNS) {
             realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
                 if (params.event.code === 'KeyV') {
 
                     if (zoneDropdown) {
