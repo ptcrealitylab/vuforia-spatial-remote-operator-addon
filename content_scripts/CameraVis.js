@@ -79,11 +79,11 @@ void main() {
             this.box = new THREE.Mesh(geo, mat);
             this.phone.add(this.box);
 
-            const geoCone = new THREE.ConeGeometry(100, 150, 8, 1);
+            const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
             const cone = new THREE.Mesh(geoCone, mat);
             cone.rotation.x = -Math.PI / 2;
             cone.rotation.y = Math.PI / 8;
-            cone.position.z = 35;
+            cone.position.z = 65;
             this.phone.add(cone);
 
             this.texture = new THREE.Texture();
