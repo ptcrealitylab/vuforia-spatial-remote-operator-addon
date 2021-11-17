@@ -227,6 +227,8 @@ void main() {
             this.keyboard = new realityEditor.device.KeyboardListener();
 
             this.keyboard.onKeyUp((code) => {
+                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
                 if (code === this.keyboard.keyCodes.M) {
                     this.visible = !this.visible;
                     for (let camera of Object.values(this.cameras)) {

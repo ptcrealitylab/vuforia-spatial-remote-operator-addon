@@ -137,6 +137,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
         realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
             if (params.event.code === 'KeyT' && gltf) {
                 staticModelMode = !staticModelMode;
                 if (staticModelMode) {
