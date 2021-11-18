@@ -37,7 +37,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     const POSE_JOINTS_COOL = POSE_JOINTS;
 
-    const POSE_JOINTS_COOL_INDEX = Object.values(POSE_JOINTS_COOL);
+    // const POSE_JOINTS_COOL_INDEX = Object.values(POSE_JOINTS_COOL);
 
     const JOINT_CONNECTIONS = [
         [POSE_JOINTS.LEFT_WRIST, POSE_JOINTS.LEFT_ELBOW], // 0
@@ -80,6 +80,12 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             for (const _joint in POSE_JOINTS_COOL) {
                 // TODO use instanced mesh for better performance
                 let sphere = new THREE.Mesh(geo, mat);
+                sphere.history = [
+                    {x: 0, y: 0, z: 0},
+                    {x: 0, y: 0, z: 0},
+                    {x: 0, y: 0, z: 0},
+                ];
+                sphere.historyIndex = 0;
                 this.spheres.push(sphere);
                 this.container.add(sphere);
             }
@@ -102,19 +108,45 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             }
             const THREE = realityEditor.gui.threejsScene.THREE;
 
+            // Median-based outlier rejection maybe plus smoothing
+            // keep last 3 or 5 points, if latest is outlier then drop? it
+
             for (let i = 0; i < this.spheres.length; i++) {
-                let jointI = POSE_JOINTS_COOL_INDEX[i];
+                let jointI = i;
                 let joint = skel.joints[jointI];
                 let sphere = this.spheres[i];
-                sphere.position.x = joint.x;
-                sphere.position.y = joint.y;
-                sphere.position.z = joint.z;
+                sphere.history[sphere.historyIndex].x = joint.x;
+                sphere.history[sphere.historyIndex].y = joint.y;
+                sphere.history[sphere.historyIndex].z = joint.z;
+
+                let diffMagSq = 0.5 * 0.5;
+
+                let goodCount = 0;
+                for (let j = 0; j < sphere.history.length; j++) {
+                    if (j === sphere.historyIndex) {
+                        continue;
+                    }
+                    let diff =
+                        (sphere.history[j].x - joint.x) * (sphere.history[j].x - joint.x) +
+                        (sphere.history[j].y - joint.y) * (sphere.history[j].y - joint.y) +
+                        (sphere.history[j].z - joint.z) * (sphere.history[j].z - joint.z);
+                    if (diff < diffMagSq) {
+                        goodCount += 1;
+                    }
+                }
+                if (goodCount > 0) {
+                    sphere.position.x = joint.x;
+                    sphere.position.y = joint.y;
+                    sphere.position.z = joint.z;
+                }
+
+                sphere.historyIndex = (sphere.historyIndex + 1) % sphere.history.length;
             }
 
             for (let i = 0; i < this.bones.length; i++) {
                 let bone = this.bones[i];
-                let jointA = skel.joints[JOINT_CONNECTIONS[i][0]];
-                let jointB = skel.joints[JOINT_CONNECTIONS[i][1]];
+                let jointA = this.spheres[JOINT_CONNECTIONS[i][0]].position; // skel.joints[JOINT_CONNECTIONS[i][0]];
+                let jointB = this.spheres[JOINT_CONNECTIONS[i][1]].position; // skel.joints[JOINT_CONNECTIONS[i][1]];
 
                 bone.position.x = (jointA.x + jointB.x) / 2;
                 bone.position.y = (jointA.y + jointB.y) / 2;
