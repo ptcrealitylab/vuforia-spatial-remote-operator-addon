@@ -27,7 +27,7 @@ void main() {
 
   // Projection code by @kcmic
 
-  float z = depth * 256.0; // Not exactly sure why it's this
+  float z = depth * 256.0 - 0.02; // Not exactly sure why it's this
 
   vec4 pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,

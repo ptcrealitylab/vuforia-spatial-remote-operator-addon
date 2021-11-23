@@ -90,11 +90,11 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     let ceilingHeight = undefined; // TODO: don't hard-code this
                     realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
                         gltf = createdMesh;
-                        gltf.traverse((child) => {
-                            if (child.material) {
-                                child.material.depthWrite = false;
-                            }
-                        });
+                        // gltf.traverse((child) => {
+                        //     if (child.material) {
+                        //         child.material.depthWrite = false;
+                        //     }
+                        // });
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
 
