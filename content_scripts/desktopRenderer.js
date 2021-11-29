@@ -87,14 +87,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     ];
                     realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
 
-                    let ceilingHeight = undefined; // TODO: don't hard-code this
-                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, function(createdMesh) {
+                    let ceilingHeight = Math.max(
+                        navmesh.maxY - navmesh.minY,
+                        navmesh.maxX - navmesh.minX,
+                        navmesh.maxZ - navmesh.minZ
+                    );
+                    let center = {
+                        x: (navmesh.maxX + navmesh.minX) / 2,
+                        y: navmesh.minY,
+                        z: (navmesh.maxZ + navmesh.minZ) / 2,
+                    };
+                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh) {
                         gltf = createdMesh;
-                        gltf.traverse((child) => {
-                            if (child.material) {
-                                child.material.depthWrite = false;
-                            }
-                        });
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
 
