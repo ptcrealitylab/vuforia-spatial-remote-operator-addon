@@ -316,6 +316,8 @@ void main() {
                 for (let camera of Object.values(this.cameras)) {
                     if (now - camera.lastUpdate > 2000) {
                         camera.mesh.visible = false;
+                    } else if (!camera.mesh.visible) {
+                        camera.mesh.visible = true;
                     }
                 }
             });
