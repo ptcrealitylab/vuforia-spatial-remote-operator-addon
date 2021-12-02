@@ -62,6 +62,7 @@ void main() {
         constructor(id, floorOffset) {
             const THREE = realityEditor.gui.threejsScene.THREE;
 
+            this.id = id;
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
             // this.container.rotation.y = Math.PI;
@@ -76,14 +77,18 @@ void main() {
             const geo = new THREE.BoxGeometry(100, 100, 80);
             const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
-            this.box = new THREE.Mesh(geo, mat);
-            this.phone.add(this.box);
+            const box = new THREE.Mesh(geo, mat);
+            box.name = 'cameraVisCamera';
+            box.cameraVisId = this.id;
+            this.phone.add(box);
 
             const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
             const cone = new THREE.Mesh(geoCone, mat);
             cone.rotation.x = -Math.PI / 2;
             cone.rotation.y = Math.PI / 8;
             cone.position.z = 65;
+            cone.name = 'cameraVisCamera';
+            cone.cameraVisId = this.id;
             this.phone.add(cone);
 
             this.texture = new THREE.Texture();
@@ -130,9 +135,39 @@ void main() {
             let debugColor = new THREE.MeshBasicMaterial({
                 map: this.texture,
             });
-            let debugColorCube = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), debugColor);
-            this.container.add(debugColorCube);
-            debugColorCube.position.set(-400, 250, -1000);
+            this.debugColorCube = new THREE.Mesh(new THREE.PlaneGeometry(100, 100 * 1080 / 1920), debugColor);
+            // this.container.add(debugColorCube);
+            this.debugColorCube.position.set(-180 * window.innerWidth / window.innerHeight, 140, -1000);
+            this.debugColorCube.rotation.z = Math.PI;
+        }
+
+        toggleColorCube(i) {
+            if (!this.debugColorCube || !this.debugColorCube.parent) {
+                this.addColorCube(i);
+            } else {
+                this.removeColorCube();
+            }
+        }
+
+        addColorCube(i) {
+            const THREE = realityEditor.gui.threejsScene.THREE;
+
+            if (!this.debugColorCube) {
+                let debugColor = new THREE.MeshBasicMaterial({
+                    map: this.texture,
+                });
+                this.debugColorCube = new THREE.Mesh(new THREE.PlaneGeometry(100, 100 * 1080 / 1920), debugColor);
+                // this.container.add(debugColorCube);
+                this.debugColorCube.rotation.z = Math.PI;
+            }
+            let x = -180 * window.innerWidth / window.innerHeight;
+            let y = 140 - i * 100;
+            this.debugColorCube.position.set(x, y, -1000);
+            realityEditor.gui.threejsScene.addToScene(this.debugColorCube, {parentToCamera: true});
+        }
+
+        removeColorCube() {
+            realityEditor.gui.threejsScene.removeFromScene(this.debugColorCube);
         }
 
         setupPointCloud() {
@@ -252,6 +287,14 @@ void main() {
                     }
                 }
             });
+
+            this.onPointerDown = this.onPointerDown.bind(this);
+            this.updatePositioningMode = this.updatePositioningMode.bind(this);
+            this.getTouchEventCatcher();
+
+            realityEditor.gui.buttons.registerCallbackForButton(
+                'setting',
+                this.updatePositioningMode);
         }
 
         connectWsToMatrix(url) {
@@ -340,6 +383,55 @@ void main() {
             this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
         }
+
+        updatePositioningMode() {
+            if (!globalStates.settingsButtonState) {
+                this.getTouchEventCatcher().style.display = '';
+                this.getTouchEventCatcher().style.pointerEvents = 'auto';
+            } else {
+                this.getTouchEventCatcher().style.display = 'none';
+                this.getTouchEventCatcher().style.pointerEvents = 'none';
+            }
+        }
+
+        // ensures there's a div on top of everything that blocks touch events from reaching the tools when we're in this mode
+        getTouchEventCatcher() {
+            if (!this.touchEventCatcher) {
+                this.touchEventCatcher = document.createElement('div');
+                this.touchEventCatcher.style.position = 'absolute';
+                this.touchEventCatcher.style.left = '0';
+                this.touchEventCatcher.style.top = '0';
+                this.touchEventCatcher.style.width = '100vw';
+                this.touchEventCatcher.style.height = '100vh';
+                let zIndex = 2900; // above scene elements, below pocket and menus
+                this.touchEventCatcher.style.zIndex = zIndex;
+                this.touchEventCatcher.style.transform = 'matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,' + zIndex + ',1)';
+                document.body.appendChild(this.touchEventCatcher);
+
+                this.touchEventCatcher.addEventListener('pointerdown', this.onPointerDown);
+            }
+            return this.touchEventCatcher;
+        }
+
+        // hit test threeJsScene to see if we hit any of the anchor threeJsGroups
+        // if we are, keep track of it so we can move it on pointermove. also give visual feedback
+        onPointerDown(e) {
+            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY);
+
+            intersects.forEach((intersect) => {
+                if (intersect.object.name !== 'cameraVisCamera') {
+                    return;
+                }
+
+                let id = intersect.object.cameraVisId;
+                let i = Object.keys(this.cameras).indexOf('' + id);
+                this.cameras[id].toggleColorCube(i);
+
+                // stop propagation if we hit anything, otherwise pass the event on to the rest of the application
+                e.stopPropagation();
+            });
+        }
+
     };
 
 })(realityEditor.device.cameraVis);
