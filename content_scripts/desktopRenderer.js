@@ -61,7 +61,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             // try loading area target GLB file into the threejs scene
             if (criteriaMet) {
                 isGlbLoaded = true;
-                let gltfPath = 'http://' + object.ip + ':' + realityEditor.network.getPort(object) + '/obj/' + object.name + '/target/target.glb';
+                let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb')
 
                 function checkExist() {
                     fetch(gltfPath).then(res => {
