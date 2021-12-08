@@ -91,7 +91,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         env.distanceScaleFactor = 30; // makes distance-based interactions work at further distances than mobile
         env.newFrameDistanceMultiplier = 6; // makes new tools spawn further away from camera position
         // globalStates.defaultScale *= 3; // make new tools bigger
-        env.localServerPort = 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
+        env.localServerPort = 443; // this would let it find world_local if it exists (but it probably doesn't exist)
         env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
         env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
         env.waitForARTracking = false; // don't show loading UI waiting for vuforia to give us camera matrices
@@ -99,6 +99,9 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         env.hideOriginCube = true; // don't show a set of cubes at the world origin
 
         globalStates.groundPlaneOffset = 0.77;
+        acceptUDPBeats = false
+        globalStates.a = 0.77;
+        realityEditor.network.state.isCloudInterface = true;
         // default values that I may or may not need to invert:
         // shouldBroadcastUpdateObjectMatrix: false,
 
@@ -427,7 +430,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
 
         async function getUndownloadedObjectWorldId(beat) {
             // download the object data from its server
-            let url = 'http://' + beat.ip + ':' + realityEditor.network.getPort(beat) + '/object/' + beat.id;
+            let url =  realityEditor.network.getURL(beat.ip, realityEditor.network.getPort(beat), '/object/' + beat.id)
             let response = null;
             try {
                 response = await httpGet(url);
@@ -660,7 +663,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
                 // console.log('zoneDiscoveredListener', message);
 
                 // create a new web socket with the zone at the specified address received over UDP
-                var potentialZoneAddress = 'http://' + message.ip + ':' + message.port;
+                let potentialZoneAddress =  realityEditor.network.getURL(message.ip, realityEditor.network.getPort(message), '')
 
                 var alreadyContainsIP = zoneDropdown.selectables.map(function(selectableObj) {
                     return selectableObj.id;
@@ -785,7 +788,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // lazily instantiate the socket to the server if it doesn't exist yet
         var socketsIps = realityEditor.network.realtime.getSocketIPsForSet('nativeAPI');
         // var hostedServerIP = 'http://127.0.0.1:' + window.location.port;
-        var hostedServerIP = 'http://' + window.location.host; //'http://127.0.0.1:' + window.location.port;
+        var hostedServerIP = window.location.protocol+'//' + window.location.host; //'http://127.0.0.1:' + window.location.port;
 
         if (socketsIps.indexOf(hostedServerIP) < 0) {
             realityEditor.network.realtime.createSocketInSet('nativeAPI', hostedServerIP);
