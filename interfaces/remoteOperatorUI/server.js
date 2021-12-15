@@ -35,17 +35,23 @@ module.exports.start = function start() {
 
         let playback = null;
         ws.on('message', (msgStr, _isBinary) => {
-            const msg = JSON.parse(msgStr);
-            switch (msg.command) {
-            case '/update/humanPoses':
-                doUpdateHumanPoses(msg);
-                break;
-            case '/update/sensorDescription':
-                doUpdateSensorDescription(msg);
-                break;
+            
+            try{
+                const msg = JSON.parse(msgStr);
+                switch (msg.command) {
+                case '/update/humanPoses':
+                    doUpdateHumanPoses(msg);
+                    break;
+                case '/update/sensorDescription':
+                    doUpdateSensorDescription(msg);
+                    break;
+                }
+            } catch (error) {
+                console.warn('Could not parse message: ' , error);
             }
+            
         });
-
+        
         let cleared = false;
         function doUpdateHumanPoses(msg) {
             if (playback && !playback.running) {
