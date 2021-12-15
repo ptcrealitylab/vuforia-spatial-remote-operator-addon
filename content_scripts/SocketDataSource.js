@@ -15,21 +15,32 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         }
 
         onMessage(event) {
-            let msg = JSON.parse(event.data);
-            if (msg.command !== '/update/humanPoses') {
-                return;
-            }
-            this.lastDataTime = msg.time;
-            // TODO add support for kinect poses
-            // for (let skel of msg.pose) {
-            //     if (skel.joints.length !== realityEditor.gui.ar.desktopRenderer.POSE_NET_JOINTS_LEN) {
-            //         for (let joint of skel.joints) {
-            //             joint.x = -joint.x;
-            //         }
-            //     }
-            // }
+            
+            try {
+                
+                console.log('Message received', event.data);
 
-            this.handlePoint(msg);
+                let msg = JSON.parse(event.data);
+
+                if (msg.command !== '/update/humanPoses') {
+                    return;
+                }
+                this.lastDataTime = msg.time;
+                // TODO add support for kinect poses
+                // for (let skel of msg.pose) {
+                //     if (skel.joints.length !== realityEditor.gui.ar.desktopRenderer.POSE_NET_JOINTS_LEN) {
+                //         for (let joint of skel.joints) {
+                //             joint.x = -joint.x;
+                //         }
+                //     }
+                // }
+
+                this.handlePoint(msg);
+                
+            } catch (error) {
+                console.warn('Could not parse message: ' , error);
+            }
+            
         }
 
         handlePoint(msg) {
