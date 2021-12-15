@@ -262,6 +262,10 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // // but children of body need to use pointerEvents
         // document.getElementById('UIButtons').style.pointerEvents = 'auto';
 
+        window.addEventListener('resize', function() {
+            realityEditor.gui.pocket.onWindowResized(); // reformat pocket tile size/arrangement
+        });
+
         var DISABLE_SAFE_MODE = true;
         if (!DISABLE_SAFE_MODE) {
             if (window.outerWidth !== document.body.offsetWidth) {
