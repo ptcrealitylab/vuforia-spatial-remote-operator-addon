@@ -56,12 +56,28 @@ createNameSpace('realityEditor.device');
             if (typeof isDemoVersion !== 'undefined') {
                 this.isDemoVersion = isDemoVersion;
             }
+            this.callbacks = {
+                onPanToggled: [],
+                onRotateToggled: [],
+                onScaleToggled: []
+            };
             this.addEventListeners();
         }
         addEventListeners() {
+
+            let scrollTimeout = null;
             window.addEventListener('wheel', function(event) {
                 this.mouseInput.unprocessedScroll += event.deltaY;
                 event.preventDefault();
+
+                // update scale callbacks based on whether you've scrolled in this 150ms time period
+                this.triggerScaleCallbacks(true);
+                if (scrollTimeout !== null) {
+                    clearTimeout(scrollTimeout);
+                }
+                scrollTimeout = setTimeout(function() {
+                    this.triggerScaleCallbacks(false);
+                }.bind(this), 150);
             }.bind(this), {passive: false}); // in order to call preventDefault, wheel needs to be active not passive
 
             document.addEventListener('pointerdown', function (event) {
@@ -71,8 +87,10 @@ createNameSpace('realityEditor.device');
                     this.mouseInput.isStrafeRequested = false;
                     if (event.button === 1 || this.keyboard.keyStates[this.keyboard.keyCodes.ALT] === 'down') {
                         this.mouseInput.isStrafeRequested = true;
+                        this.triggerPanCallbacks(true);
                     } else if (event.button === 2) {
                         this.mouseInput.isRightClick = true;
+                        this.triggerRotateCallbacks(true);
                     }
                     this.mouseInput.first.x = event.pageX;
                     this.mouseInput.first.y = event.pageY;
@@ -91,6 +109,9 @@ createNameSpace('realityEditor.device');
                 this.mouseInput.isStrafeRequested = false;
                 this.mouseInput.last.x = 0;
                 this.mouseInput.last.y = 0;
+                this.triggerPanCallbacks(false);
+                this.triggerRotateCallbacks(false);
+                this.triggerScaleCallbacks(false);
             };
 
             document.addEventListener('pointerup', pointerReset);
@@ -226,6 +247,34 @@ createNameSpace('realityEditor.device');
                 this.followingState.followerElementId = null;
             }
         }
+        getTargetMatrix() {
+            return [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 1
+            ];
+        }
+
+        onPanToggled(callback) {
+            this.callbacks.onPanToggled.push(callback);
+        }
+        onRotateToggled(callback) {
+            this.callbacks.onRotateToggled.push(callback);
+        }
+        onScaleToggled(callback) {
+            this.callbacks.onScaleToggled.push(callback);
+        }
+        triggerPanCallbacks(newValue) {
+            this.callbacks.onPanToggled.forEach(function(cb) { cb(newValue); });
+        }
+        triggerRotateCallbacks(newValue) {
+            this.callbacks.onRotateToggled.forEach(function(cb) { cb(newValue); });
+        }
+        triggerScaleCallbacks(newValue) {
+            this.callbacks.onScaleToggled.forEach(function(cb) { cb(newValue); });
+        }
+
 
         // this needs to be called externally each frame that you want it to update
         update() {
