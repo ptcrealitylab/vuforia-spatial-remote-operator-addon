@@ -183,7 +183,6 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             }
         }
 
-
         update();
     }
 
@@ -290,6 +289,15 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             },
             true);
 
+        realityEditor.gui.ar.injectClosestObjectFilter(function(objectKey) {
+            let object = realityEditor.getObject(objectKey);
+            if (!object) { return false; }
+            let isWorld = object.isWorldObject || object.type === 'world';
+            if (!isWorld && realityEditor.sceneGraph.getDistanceToCamera(objectKey) > 2000) {
+                return false;
+            }
+            return true;
+        });
     }
 
     /**
