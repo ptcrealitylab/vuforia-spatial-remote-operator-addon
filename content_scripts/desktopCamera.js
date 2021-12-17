@@ -59,6 +59,10 @@ createNameSpace('realityEditor.device.desktopCamera');
         scale: false
     }
 
+    let staticInteractionCursor = null;
+    let interactionCursor = null;
+    let pointerPosition = { x: 0, y: 0 };
+
     function makeGroundPlaneRotationY(theta) {
         var c = Math.cos(theta), s = Math.sin(theta);
         return [
@@ -128,6 +132,24 @@ createNameSpace('realityEditor.device.desktopCamera');
                 knownInteractionStates.scale = false;
                 console.log('stop scale');
                 scaleToggled();
+            }
+        });
+
+        interactionCursor = document.createElement('img');
+        interactionCursor.id = 'interactionCursor';
+        document.body.appendChild(interactionCursor);
+
+        staticInteractionCursor = document.createElement('img');
+        staticInteractionCursor.id = 'staticInteractionCursor';
+        document.body.appendChild(staticInteractionCursor);
+
+        document.addEventListener('pointermove', function(e) {
+            pointerPosition.x = e.clientX;
+            pointerPosition.y = e.clientY;
+
+            if (interactionCursor.style.display !== 'none') {
+                interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
+                interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
             }
         });
 
@@ -317,19 +339,46 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
     }
 
+    // messageButtonIcon.src = '/addons/spatialCommunication/bw-message.svg';
+
     function panToggled() {
         if (threejsObject) {
             threejsObject.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
         }
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
     }
     function rotateToggled() {
         if (threejsObject) {
             threejsObject.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
         }
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
     function scaleToggled() {
         if (threejsObject) {
             threejsObject.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
+        }
+        if (!threejsObject.visible) {
+            updateInteractionCursor(false);
+        }
+        // updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
+    }
+    function updateInteractionCursor(visible, imageSrc) {
+        interactionCursor.style.display = visible ? 'inline' : 'none';
+        if (imageSrc) {
+            interactionCursor.src = imageSrc;
+        }
+        if (interactionCursor.getClientRects() && interactionCursor.getClientRects().length > 0) {
+            interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
+            interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
+        }
+
+        staticInteractionCursor.style.display = visible ? 'inline' : 'none';
+        if (imageSrc) {
+            staticInteractionCursor.src = imageSrc;
+        }
+        if (staticInteractionCursor.getClientRects() && staticInteractionCursor.getClientRects().length > 0) {
+            staticInteractionCursor.style.left = (pointerPosition.x - staticInteractionCursor.getClientRects()[0].width / 2) + 'px';
+            staticInteractionCursor.style.top = (pointerPosition.y - staticInteractionCursor.getClientRects()[0].height / 2) + 'px';
         }
     }
 
@@ -352,7 +401,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
                 if (!threejsObject && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
                     const THREE = realityEditor.gui.threejsScene.THREE;
-                    threejsObject = new THREE.Mesh(new THREE.BoxGeometry(50,50,50), new THREE.MeshBasicMaterial({color:0xffffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
+                    threejsObject = new THREE.Mesh(new THREE.BoxGeometry(50,50,50), new THREE.MeshBasicMaterial({color:0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
                     threejsObject.name = 'cameraTargetElement';
                     threejsObject.matrixAutoUpdate = false;
                     threejsObject.visible = false;
