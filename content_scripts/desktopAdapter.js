@@ -180,6 +180,31 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             }
         }
 
+        let keyboard = new realityEditor.device.KeyboardListener();
+        keyboard.onKeyDown(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // reset when escape pressed
+            if (code === keyboard.keyCodes.S) {
+                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
+
+                if (!realityEditor.device.editingState.syntheticPinchInfo) {
+                    realityEditor.device.editingState.syntheticPinchInfo = {
+                        startX: touchPosition.x,
+                        startY: touchPosition.y
+                    }
+                }
+            }
+        });
+        keyboard.onKeyUp(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // reset when escape pressed
+            if (code === keyboard.keyCodes.S) {
+                realityEditor.device.editingState.syntheticPinchInfo = null;
+                globalCanvas.hasContent = true; // force the canvas to be cleared
+            }
+        });
 
         update();
     }
@@ -262,6 +287,10 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // // but children of body need to use pointerEvents
         // document.getElementById('UIButtons').style.pointerEvents = 'auto';
 
+        window.addEventListener('resize', function() {
+            realityEditor.gui.pocket.onWindowResized(); // reformat pocket tile size/arrangement
+        });
+
         var DISABLE_SAFE_MODE = true;
         if (!DISABLE_SAFE_MODE) {
             if (window.outerWidth !== document.body.offsetWidth) {
@@ -283,6 +312,15 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             },
             true);
 
+        realityEditor.gui.ar.injectClosestObjectFilter(function(objectKey) {
+            let object = realityEditor.getObject(objectKey);
+            if (!object) { return false; }
+            let isWorld = object.isWorldObject || object.type === 'world';
+            if (!isWorld && realityEditor.sceneGraph.getDistanceToCamera(objectKey) > 2000) {
+                return false;
+            }
+            return true;
+        });
     }
 
     /**
@@ -556,10 +594,45 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // render everything that has been localized
         let tempVisibleObjects = {};
 
+        // first process the world objects
+        let visibleWorlds = [];
+        Object.keys(objects).forEach(function(objectKey) {
+            let object = objects[objectKey];
+
+            // always add world object to scene unles we set a primaryWorldId in the URLSearchParams
+            if (object.isWorldObject || object.type === 'world') {
+                let primaryWorld = getPrimaryWorldId();
+
+                if (!primaryWorld || objectKey === primaryWorld) {
+                    tempVisibleObjects[objectKey] = object.matrix; // actual matrix doesn't matter, just that it's visible
+                    visibleWorlds.push(objectKey);
+                }
+            }
+        });
+
+        // now process the other objects
         Object.keys(objects).forEach(function(objectKey) {
             // todo: check if object.worldId matches a world that is currently loaded
+            let object = objects[objectKey];
 
-            tempVisibleObjects[objectKey] = objects[objectKey].matrix; // right side here doesn't matter
+            // always add world object to scene unles we set a primaryWorldId in the URLSearchParams
+            if (object.isWorldObject || object.type === 'world') {
+                return; // already processed
+            }
+
+            // if there isn't a world object, it's ok to load objects without a world (e.g. as a debugger)
+            if (visibleWorlds.length === 0) {
+                if (!object.worldId) {
+                    tempVisibleObjects[objectKey] = object.matrix; // actual matrix doesn't matter, just that it's visible
+                }
+            } else {
+                // if there is a world loaded, only show objects localized within that world, not at the identity matrix
+                if (object.worldId && visibleWorlds.includes(object.worldId)) {
+                    if (!realityEditor.gui.ar.utilities.isIdentityMatrix(object.matrix)) {
+                        tempVisibleObjects[objectKey] = object.matrix; // actual matrix doesn't matter , just that it's visible
+                    }
+                }
+            }
         });
 
         return tempVisibleObjects;

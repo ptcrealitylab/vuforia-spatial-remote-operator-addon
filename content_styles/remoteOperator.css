@@ -12,3 +12,21 @@ body > * {
     transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0.1, 1);
     pointer-events: auto;
 }
+
+#interactionCursor {
+    pointer-events: none;
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    /*border: 3px solid cyan;*/
+    display: none;
+}
+
+#staticInteractionCursor {
+    pointer-events: none;
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    display: none;
+    opacity: 0.3;
+}

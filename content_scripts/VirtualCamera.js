@@ -56,12 +56,28 @@ createNameSpace('realityEditor.device');
             if (typeof isDemoVersion !== 'undefined') {
                 this.isDemoVersion = isDemoVersion;
             }
+            this.callbacks = {
+                onPanToggled: [],
+                onRotateToggled: [],
+                onScaleToggled: []
+            };
             this.addEventListeners();
         }
         addEventListeners() {
+
+            let scrollTimeout = null;
             window.addEventListener('wheel', function(event) {
                 this.mouseInput.unprocessedScroll += event.deltaY;
                 event.preventDefault();
+
+                // update scale callbacks based on whether you've scrolled in this 150ms time period
+                this.triggerScaleCallbacks(true);
+                if (scrollTimeout !== null) {
+                    clearTimeout(scrollTimeout);
+                }
+                scrollTimeout = setTimeout(function() {
+                    this.triggerScaleCallbacks(false);
+                }.bind(this), 150);
             }.bind(this), {passive: false}); // in order to call preventDefault, wheel needs to be active not passive
 
             document.addEventListener('pointerdown', function (event) {
@@ -71,8 +87,10 @@ createNameSpace('realityEditor.device');
                     this.mouseInput.isStrafeRequested = false;
                     if (event.button === 1 || this.keyboard.keyStates[this.keyboard.keyCodes.ALT] === 'down') {
                         this.mouseInput.isStrafeRequested = true;
+                        this.triggerPanCallbacks(true);
                     } else if (event.button === 2) {
                         this.mouseInput.isRightClick = true;
+                        this.triggerRotateCallbacks(true);
                     }
                     this.mouseInput.first.x = event.pageX;
                     this.mouseInput.first.y = event.pageY;
@@ -91,6 +109,9 @@ createNameSpace('realityEditor.device');
                 this.mouseInput.isStrafeRequested = false;
                 this.mouseInput.last.x = 0;
                 this.mouseInput.last.y = 0;
+                this.triggerPanCallbacks(false);
+                this.triggerRotateCallbacks(false);
+                this.triggerScaleCallbacks(false);
             };
 
             document.addEventListener('pointerup', pointerReset);
@@ -226,6 +247,34 @@ createNameSpace('realityEditor.device');
                 this.followingState.followerElementId = null;
             }
         }
+        getTargetMatrix() {
+            return [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 1
+            ];
+        }
+
+        onPanToggled(callback) {
+            this.callbacks.onPanToggled.push(callback);
+        }
+        onRotateToggled(callback) {
+            this.callbacks.onRotateToggled.push(callback);
+        }
+        onScaleToggled(callback) {
+            this.callbacks.onScaleToggled.push(callback);
+        }
+        triggerPanCallbacks(newValue) {
+            this.callbacks.onPanToggled.forEach(function(cb) { cb(newValue); });
+        }
+        triggerRotateCallbacks(newValue) {
+            this.callbacks.onRotateToggled.forEach(function(cb) { cb(newValue); });
+        }
+        triggerScaleCallbacks(newValue) {
+            this.callbacks.onScaleToggled.forEach(function(cb) { cb(newValue); });
+        }
+
 
         // this needs to be called externally each frame that you want it to update
         update() {
@@ -319,10 +368,30 @@ createNameSpace('realityEditor.device');
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            // TODO: debug/prevent camera singularities (search for old implementation of wouldCameraFlip(currentVerticalVector, velocity, targetVelocity)
+            // prevents camera singularities by slowing down camera movement exponentially as the vertical viewing angle approaches top or bottom
 
-            this.position = add(this.position, this.velocity);
-            this.targetPosition = add(this.targetPosition, this.targetVelocity);
+            // evaluate the new camera position to determine if we need to slow the camera down
+            let potentialPosition = add(this.position, this.velocity);
+            let potentialTargetPosition = add(this.targetPosition, this.targetVelocity);
+            let v_look = add(potentialPosition, negate(potentialTargetPosition));
+            let verticalAngle = Math.acos(v_look[1] / Math.sqrt(v_look[0] * v_look[0] + v_look[1] * v_look[1] + v_look[2] * v_look[2]));
+
+            const UPPER_ANGLE = Math.PI * 0.8; // soft upper bound
+            const LOWER_ANGLE = Math.PI * 0.2; // soft lower bound
+            if (verticalAngle > LOWER_ANGLE && verticalAngle < UPPER_ANGLE) {
+                // if within soft bounds, move the camera as usual
+                this.position = add(this.position, this.velocity);
+                this.targetPosition = add(this.targetPosition, this.targetVelocity);
+            } else {
+                // if between soft bounds and top or bottom, slow movement exponentially as angle approaches 0 or PI
+                // e.g. if angle is PI * 0.85, we are 25% between UPPER_ANGLE and PI, so slow down by 0.25^2 = 6%
+                // e.g. if angle is PI * 0.9, we are 50% between UPPER_ANGLE and PI, so slow down by 0.50^2 = 25%
+                // e.g. if angle is PI * 0.99, we are 95% between UPPER_ANGLE and PI, so slow down by 0.95^2 = 90%
+                let closenessToAbsoluteBorder = (verticalAngle > Math.PI / 2) ? ((verticalAngle - UPPER_ANGLE) / (Math.PI - UPPER_ANGLE)) : ((verticalAngle - LOWER_ANGLE) / (0 - LOWER_ANGLE));
+                let scaleFactor = Math.pow(1 - closenessToAbsoluteBorder, 2);
+                this.position = add(this.position, scalarMultiply(this.velocity, scaleFactor));
+                this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, scaleFactor));
+            }
 
             // tween the matrix every frame to animate it to the new position
             // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
