@@ -193,7 +193,6 @@ const DEBUG_DISABLE_DROPDOWNS = false;
                         startX: touchPosition.x,
                         startY: touchPosition.y
                     }
-                    console.log('set synthetic pinch info: ', realityEditor.device.editingState.syntheticPinchInfo);
                 }
             }
         });

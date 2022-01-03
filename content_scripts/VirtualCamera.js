@@ -368,10 +368,30 @@ createNameSpace('realityEditor.device');
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            // TODO: debug/prevent camera singularities (search for old implementation of wouldCameraFlip(currentVerticalVector, velocity, targetVelocity)
+            // prevents camera singularities by slowing down camera movement exponentially as the vertical viewing angle approaches top or bottom
 
-            this.position = add(this.position, this.velocity);
-            this.targetPosition = add(this.targetPosition, this.targetVelocity);
+            // evaluate the new camera position to determine if we need to slow the camera down
+            let potentialPosition = add(this.position, this.velocity);
+            let potentialTargetPosition = add(this.targetPosition, this.targetVelocity);
+            let v_look = add(potentialPosition, negate(potentialTargetPosition));
+            let verticalAngle = Math.acos(v_look[1] / Math.sqrt(v_look[0] * v_look[0] + v_look[1] * v_look[1] + v_look[2] * v_look[2]));
+
+            const UPPER_ANGLE = Math.PI * 0.8; // soft upper bound
+            const LOWER_ANGLE = Math.PI * 0.2; // soft lower bound
+            if (verticalAngle > LOWER_ANGLE && verticalAngle < UPPER_ANGLE) {
+                // if within soft bounds, move the camera as usual
+                this.position = add(this.position, this.velocity);
+                this.targetPosition = add(this.targetPosition, this.targetVelocity);
+            } else {
+                // if between soft bounds and top or bottom, slow movement exponentially as angle approaches 0 or PI
+                // e.g. if angle is PI * 0.85, we are 25% between UPPER_ANGLE and PI, so slow down by 0.25^2 = 6%
+                // e.g. if angle is PI * 0.9, we are 50% between UPPER_ANGLE and PI, so slow down by 0.50^2 = 25%
+                // e.g. if angle is PI * 0.99, we are 95% between UPPER_ANGLE and PI, so slow down by 0.95^2 = 90%
+                let closenessToAbsoluteBorder = (verticalAngle > Math.PI / 2) ? ((verticalAngle - UPPER_ANGLE) / (Math.PI - UPPER_ANGLE)) : ((verticalAngle - LOWER_ANGLE) / (0 - LOWER_ANGLE));
+                let scaleFactor = Math.pow(1 - closenessToAbsoluteBorder, 2);
+                this.position = add(this.position, scalarMultiply(this.velocity, scaleFactor));
+                this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, scaleFactor));
+            }
 
             // tween the matrix every frame to animate it to the new position
             // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
