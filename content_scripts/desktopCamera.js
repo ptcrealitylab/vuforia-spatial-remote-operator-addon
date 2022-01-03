@@ -30,6 +30,7 @@ createNameSpace('realityEditor.device.desktopCamera');
     });
 
     var cameraTargetPosition = [0, 0, 0];
+    let cameraTargetElementId = null;
 
     let cameraFollowerElementId = null;
 
@@ -51,6 +52,16 @@ createNameSpace('realityEditor.device.desktopCamera');
     let keyboard;
 
     let unityCamera;
+
+    let knownInteractionStates = {
+        pan: false,
+        rotate: false,
+        scale: false
+    }
+
+    let staticInteractionCursor = null;
+    let interactionCursor = null;
+    let pointerPosition = { x: 0, y: 0 };
 
     function makeGroundPlaneRotationY(theta) {
         var c = Math.cos(theta), s = Math.sin(theta);
@@ -87,6 +98,60 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
+
+        cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', undefined, undefined, virtualCamera.getTargetMatrix());
+
+        virtualCamera.onPanToggled(function(isPanning) {
+            if (isPanning && !knownInteractionStates.pan) {
+                knownInteractionStates.pan = true;
+                console.log('start pan');
+                panToggled();
+            } else if (!isPanning && knownInteractionStates.pan) {
+                knownInteractionStates.pan = false;
+                console.log('stop pan');
+                panToggled();
+            }
+        });
+        virtualCamera.onRotateToggled(function(isRotating) {
+            if (isRotating && !knownInteractionStates.rotate) {
+                knownInteractionStates.rotate = true;
+                console.log('start rotate');
+                rotateToggled();
+            } else if (!isRotating && knownInteractionStates.rotate) {
+                knownInteractionStates.rotate = false;
+                console.log('stop rotate');
+                rotateToggled();
+            }
+        });
+        virtualCamera.onScaleToggled(function(isScaling) {
+            if (isScaling && !knownInteractionStates.scale) {
+                knownInteractionStates.scale = true;
+                console.log('start scale');
+                scaleToggled();
+            } else if (!isScaling && knownInteractionStates.scale) {
+                knownInteractionStates.scale = false;
+                console.log('stop scale');
+                scaleToggled();
+            }
+        });
+
+        interactionCursor = document.createElement('img');
+        interactionCursor.id = 'interactionCursor';
+        document.body.appendChild(interactionCursor);
+
+        staticInteractionCursor = document.createElement('img');
+        staticInteractionCursor.id = 'staticInteractionCursor';
+        document.body.appendChild(staticInteractionCursor);
+
+        document.addEventListener('pointermove', function(e) {
+            pointerPosition.x = e.clientX;
+            pointerPosition.y = e.clientY;
+
+            if (interactionCursor.style.display !== 'none') {
+                interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
+                interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
+            }
+        });
 
         let invertedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('INVERTED_COORDINATES', undefined, undefined, [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
         let invertedCoordinatesNode = realityEditor.sceneGraph.getSceneNodeById(invertedCoordinatesNodeId);
@@ -274,6 +339,51 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
     }
 
+    // messageButtonIcon.src = '/addons/spatialCommunication/bw-message.svg';
+
+    function panToggled() {
+        if (threejsObject) {
+            threejsObject.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
+        }
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
+    }
+    function rotateToggled() {
+        if (threejsObject) {
+            threejsObject.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
+        }
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
+    }
+    function scaleToggled() {
+        if (threejsObject) {
+            threejsObject.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
+        }
+        if (!threejsObject.visible) {
+            updateInteractionCursor(false);
+        }
+        // updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
+    }
+    function updateInteractionCursor(visible, imageSrc) {
+        interactionCursor.style.display = visible ? 'inline' : 'none';
+        if (imageSrc) {
+            interactionCursor.src = imageSrc;
+        }
+        if (interactionCursor.getClientRects() && interactionCursor.getClientRects().length > 0) {
+            interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
+            interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
+        }
+
+        staticInteractionCursor.style.display = visible ? 'inline' : 'none';
+        if (imageSrc) {
+            staticInteractionCursor.src = imageSrc;
+        }
+        if (staticInteractionCursor.getClientRects() && staticInteractionCursor.getClientRects().length > 0) {
+            staticInteractionCursor.style.left = (pointerPosition.x - staticInteractionCursor.getClientRects()[0].width / 2) + 'px';
+            staticInteractionCursor.style.top = (pointerPosition.y - staticInteractionCursor.getClientRects()[0].height / 2) + 'px';
+        }
+    }
+
+    let threejsObject = null;
+
     /**
      * Main update loop
      */
@@ -282,9 +392,27 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (virtualCamera) {
             try {
                 virtualCamera.update();
-                unityCamera.update();
 
                 let worldId = realityEditor.worldObjects.getBestWorldObject().objectId;
+
+                // render a cube at the virtual camera's target position
+                let sceneNode = realityEditor.sceneGraph.getSceneNodeById(cameraTargetElementId);
+                sceneNode.setLocalMatrix(virtualCamera.getTargetMatrix());
+
+                if (!threejsObject && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
+                    const THREE = realityEditor.gui.threejsScene.THREE;
+                    threejsObject = new THREE.Mesh(new THREE.BoxGeometry(50,50,50), new THREE.MeshBasicMaterial({color:0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
+                    threejsObject.name = 'cameraTargetElement';
+                    threejsObject.matrixAutoUpdate = false;
+                    threejsObject.visible = false;
+                    realityEditor.gui.threejsScene.addToScene(threejsObject, {worldObjectId: worldId}); //{worldObjectId: areaTargetNode.id, occluded: true});
+                }
+                if (threejsObject) {
+                    realityEditor.gui.threejsScene.setMatrixFromArray(threejsObject.matrix, sceneNode.worldMatrix); //virtualCamera.getTargetMatrix());
+                }
+
+                unityCamera.update();
+
                 let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
                 realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.worldMatrix);
 
