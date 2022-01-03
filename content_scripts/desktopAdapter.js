@@ -183,6 +183,32 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             }
         }
 
+        let keyboard = new realityEditor.device.KeyboardListener();
+        keyboard.onKeyDown(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // reset when escape pressed
+            if (code === keyboard.keyCodes.S) {
+                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
+
+                if (!realityEditor.device.editingState.syntheticPinchInfo) {
+                    realityEditor.device.editingState.syntheticPinchInfo = {
+                        startX: touchPosition.x,
+                        startY: touchPosition.y
+                    }
+                    console.log('set synthetic pinch info: ', realityEditor.device.editingState.syntheticPinchInfo);
+                }
+            }
+        });
+        keyboard.onKeyUp(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // reset when escape pressed
+            if (code === keyboard.keyCodes.S) {
+                realityEditor.device.editingState.syntheticPinchInfo = null;
+            }
+        });
+
         update();
     }
 
