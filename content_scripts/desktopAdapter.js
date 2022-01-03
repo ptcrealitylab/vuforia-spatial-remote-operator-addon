@@ -205,6 +205,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
             // reset when escape pressed
             if (code === keyboard.keyCodes.S) {
                 realityEditor.device.editingState.syntheticPinchInfo = null;
+                globalCanvas.hasContent = true; // force the canvas to be cleared
             }
         });
 
