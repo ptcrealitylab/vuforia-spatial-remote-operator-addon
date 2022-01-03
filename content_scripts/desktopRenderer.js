@@ -97,7 +97,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         y: navmesh.minY,
                         z: (navmesh.maxZ + navmesh.minZ) / 2,
                     };
-                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh) {
+                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
                         gltf = createdMesh;
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
@@ -107,6 +107,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
+
+                        let realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
+                        realityZoneVoxelizer.add();
                     });
                 }
 
