@@ -31,6 +31,7 @@ createNameSpace('realityEditor.device');
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
             this.distanceToTarget = 1;
+            this.preRotateDistanceToTarget = null;
             this.speedFactors = {
                 translation: kTranslation || 1,
                 rotation: kRotation || 1,
@@ -72,11 +73,15 @@ createNameSpace('realityEditor.device');
 
                 // update scale callbacks based on whether you've scrolled in this 150ms time period
                 this.triggerScaleCallbacks(true);
+                this.preRotateDistanceToTarget = null; // if we rotate and scroll, don't lock zoom to pre-rotate level
+
                 if (scrollTimeout !== null) {
                     clearTimeout(scrollTimeout);
                 }
                 scrollTimeout = setTimeout(function() {
                     this.triggerScaleCallbacks(false);
+                    this.preRotateDistanceToTarget = null;
+
                 }.bind(this), 150);
             }.bind(this), {passive: false}); // in order to call preventDefault, wheel needs to be active not passive
 
@@ -91,6 +96,7 @@ createNameSpace('realityEditor.device');
                     } else if (event.button === 2) {
                         this.mouseInput.isRightClick = true;
                         this.triggerRotateCallbacks(true);
+                        this.preRotateDistanceToTarget = this.distanceToTarget;
                     }
                     this.mouseInput.first.x = event.pageX;
                     this.mouseInput.first.y = event.pageY;
@@ -109,6 +115,13 @@ createNameSpace('realityEditor.device');
                 this.mouseInput.isStrafeRequested = false;
                 this.mouseInput.last.x = 0;
                 this.mouseInput.last.y = 0;
+
+                if (this.preRotateDistanceToTarget !== null) {
+                    console.log(this.preRotateDistanceToTarget, this.distanceToTarget);
+                    this.zoomBackToPreRotateLevel();
+                    this.preRotateDistanceToTarget = null;
+                }
+
                 this.triggerPanCallbacks(false);
                 this.triggerRotateCallbacks(false);
                 this.triggerScaleCallbacks(false);
@@ -274,7 +287,13 @@ createNameSpace('realityEditor.device');
         triggerScaleCallbacks(newValue) {
             this.callbacks.onScaleToggled.forEach(function(cb) { cb(newValue); });
         }
-
+        // there is a small bug with orbiting the camera that causes it to drift further away if you go too fast
+        // this locks it at the correct zoom level unless you intentionally scroll while rotating
+        zoomBackToPreRotateLevel() {
+            if (this.preRotateDistanceToTarget === null) { return; }
+            let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
+            this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preRotateDistanceToTarget));
+        }
 
         // this needs to be called externally each frame that you want it to update
         update() {
@@ -391,6 +410,11 @@ createNameSpace('realityEditor.device');
                 let scaleFactor = Math.pow(1 - closenessToAbsoluteBorder, 2);
                 this.position = add(this.position, scalarMultiply(this.velocity, scaleFactor));
                 this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, scaleFactor));
+            }
+
+            // if rotating, and distance has drifted without intentionally zooming, reset back to correct distance
+            if (this.preRotateDistanceToTarget && Math.abs(this.preRotateDistanceToTarget - this.distanceToTarget) > 10) {
+                this.zoomBackToPreRotateLevel();
             }
 
             // tween the matrix every frame to animate it to the new position
