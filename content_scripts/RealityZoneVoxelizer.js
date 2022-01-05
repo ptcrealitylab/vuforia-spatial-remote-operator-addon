@@ -1,11 +1,10 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
-(function(exports) {
-    let THREE;
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
+(function(exports) {
     exports.RealityZoneVoxelizer = class RealityZoneVoxelizer {
         constructor(floorOffset, gltf, navmesh) {
-            THREE = realityEditor.gui.threejsScene.THREE;
             this.floorOffset = floorOffset;
             this.gltf = gltf;
             this.navmesh = navmesh;
