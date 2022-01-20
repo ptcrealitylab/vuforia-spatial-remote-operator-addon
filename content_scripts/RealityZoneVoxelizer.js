@@ -177,14 +177,14 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
             this.res = 100 / 1000;
 
             this.baseMat = new THREE.MeshBasicMaterial({
-                color: 0x00ff00,
-                // transparent: true,
-                // opacity: 0.2,
+                color: 0x777777,
+                transparent: true,
+                opacity: 0.3,
                 wireframe: true,
             });
 
-            this.coolerMat = new THREE.MeshBasicMaterial({
-                color: 0xff0000,
+            this.addedMat = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
                 transparent: true,
                 opacity: 0.3,
                 // wireframe: true,
@@ -344,7 +344,7 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                     ray.z = z;
                     ray.applyMatrix4(matrixWorld);
                     // let pos = something something proj times modelview times ray;
-                    let box = new THREE.Mesh(this.baseGeo, this.coolerMat);
+                    let box = new THREE.Mesh(this.baseGeo, this.addedMat);
                     // box.position.set(ray.x * 1000, ray.y * 1000, ray.z * 1000);
                     box.position.set(ray.x, ray.y, ray.z);
                     box.scale.set(this.res * 1000, this.res * 1000, this.res * 1000);
