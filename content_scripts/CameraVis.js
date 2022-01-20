@@ -223,7 +223,8 @@ void main() {
     }
 
     exports.CameraVisCoordinator = class CameraVisCoordinator {
-        constructor(floorOffset) {
+        constructor(floorOffset, voxelizer) {
+            this.voxelizer = voxelizer;
             this.cameras = {};
             this.visible = true;
             this.spaghettiVisible = true;
@@ -279,6 +280,8 @@ void main() {
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = new WebSocket(url);
+                let canvas = document.createElement('canvas');
+                let context = canvas.getContext('2d');
 
                 ws.addEventListener('message', async (msg) => {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
@@ -303,7 +306,18 @@ void main() {
                     image.onload = () => {
                         const tex = this.cameras[id][textureKey];
                         tex.dispose();
-                        tex.image = image;
+                        // hmmmmm
+                        // most efficient would be if this had a data url for its src
+                        // data url = 'data:image/(png|jpeg);' + base64(blob)
+                        if (textureKey === 'textureDepth') {
+                            canvas.width = image.width;
+                            canvas.height = image.height;
+                            context.drawImage(image, 0, 0, image.width, image.height);
+                            tex.image = canvas;
+                            this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
+                        } else {
+                            tex.image = image;
+                        }
                         tex.needsUpdate = true;
                         // let end = window.performance.now();
                         if (textureKey === 'texture') {
