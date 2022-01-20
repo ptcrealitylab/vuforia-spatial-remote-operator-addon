@@ -2,13 +2,132 @@ const cors = require('cors');
 const express = require('express');
 const expressWs = require('express-ws');
 const makeStreamRouter = require('./makeStreamRouter.js');
+const fs = require('fs');
+const path = require('path');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const ffmpeg = require('fluent-ffmpeg');
 
 module.exports.start = function start() {
     const app = express();
 
+    ffmpeg.setFfmpegPath(ffmpegPath);
+
+    if (!fs.existsSync(path.join(__dirname, 'images'))) {
+        fs.mkdirSync(path.join(__dirname, 'images'));
+    }
+
+    if (fs.existsSync(path.join(__dirname, 'images', 'color'))) {
+        processImages(path.join(__dirname, 'images', 'color'));
+    } else {
+        fs.mkdirSync(path.join(__dirname, 'images', 'color'));
+    }
+
+    if (fs.existsSync(path.join(__dirname, 'images', 'depth'))) {
+        processImages(path.join(__dirname, 'images', 'depth'));
+    } else {
+        fs.mkdirSync(path.join(__dirname, 'images', 'depth'));
+    }
+
+    if (fs.existsSync(path.join(__dirname, 'images', 'matrix'))) {
+        // processImages(path.join(__dirname, 'images', 'matrix'));
+        console.log('TODO: process matrix images too');
+    } else {
+        fs.mkdirSync(path.join(__dirname, 'images', 'matrix'));
+    }
+
+    function processImages(dirPath) {
+        console.log('process: ' + dirPath);
+        let files = fs.readdirSync(dirPath).filter(function(filename) {
+            return filename.includes('.png');
+        });
+        console.log(files);
+
+        const command = ffmpeg();
+        // Use FFMpeg to create a video.
+        // 8 consecutive frames, held for 5 seconds each, 30fps output, no audio
+        // color_1642712727894.png
+        let filename = dirPath.includes('/color') ? 'color' : 'depth';
+        let inputFormat = path.join(dirPath, filename + '_%08d.png');
+        console.log(inputFormat);
+
+        let outputName = path.join(dirPath, filename + '-1920x1080.mp4');
+
+        let timemark = null;
+
+        command
+            .on('end', onEnd)
+            .on('progress', onProgress)
+            // .on('error', onError)
+            .input(inputFormat)
+            .fromFormat('image2pipe')
+            // .addInputOption('-vcodec', 'png')
+            // .inputFormat('png')
+            .inputFPS(30)
+            .output(outputName)
+            .outputFPS(30)
+            .noAudio()
+            .run();
+
+        console.log('processing... ' + filename);
+
+
+        function onEnd() {
+            console.log('Finished processing');
+        }
+
+        function onProgress(progress) {
+            if (progress.timemark !== timemark) {
+                timemark = progress.timemark;
+                console.log('Time mark: ' + timemark + '...');
+            }
+        }
+
+        // function onError(err, _stdout, _stderr) {
+        //     console.log('Cannot process video: ' + err.message);
+        // }
+    }
+
+    // ffmpeg.setFfmpegPath(ffmpegPath);
+    // const command = ffmpeg();
+    // // Use FFMpeg to create a video.
+    // // 8 consecutive frames, held for 5 seconds each, 30fps output, no audio
+    // command
+    //     .input('assets/demo1/Sinewave3-1920x1080_%03d.png')
+    //     .inputFPS(1/5)
+    //     .output('assets/demo1/Sinewave3-1920x1080.mp4')
+    //     .outputFPS(30)
+    //     .noAudio()
+    //     .run();
+
+    let counter = 0;
     app.use(cors());
     expressWs(app);
-    const _streamRouter = makeStreamRouter(app);
+    const streamRouter = makeStreamRouter(app);
+    streamRouter.onFrame(function(rgb, depth, pose) {
+        // console.log(rgb, depth, pose);
+        const zeroPad = (num, places) => String(num).padStart(places, '0');
+
+        let colorFilename = 'color_' + zeroPad(counter, 8) + '.png'; // + Math.floor(Math.random() * 1000)
+        let depthFilename = 'depth_' + zeroPad(counter, 8) + '.png';
+        let matrixFilename = 'matrix_' + zeroPad(counter, 8) + '.png';
+        counter++;
+
+        // let colorFilename = 'color_' + Date.now() + '.png'; // + Math.floor(Math.random() * 1000)
+        // let depthFilename = 'depth_' + Date.now() + '.png';
+        // let matrixFilename = 'matrix_' + Date.now() + '.png';
+
+        fs.writeFile(path.join(__dirname, 'images', 'color', colorFilename), rgb, function() {
+            // console.log('wrote color image');
+        });
+
+        fs.writeFile(path.join(__dirname, 'images', 'depth', depthFilename), depth, function() {
+            // console.log('wrote depth image');
+        });
+
+        fs.writeFile(path.join(__dirname, 'images', 'matrix', matrixFilename), pose, function() {
+            // console.log('wrote matrix image');
+        });
+    });
 
     let allWebsockets = [];
     let sensorDescriptions = {};
