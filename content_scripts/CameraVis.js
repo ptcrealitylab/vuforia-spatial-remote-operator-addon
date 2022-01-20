@@ -92,6 +92,9 @@ void main() {
             this.textureDepth = new THREE.Texture();
             this.textureDepth.minFilter = THREE.NearestFilter;
 
+            this.material = null;
+            this.mesh = null;
+
             if (debug) {
                 this.setupDebugCubes();
             }
