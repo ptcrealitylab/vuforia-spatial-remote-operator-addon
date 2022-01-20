@@ -1,5 +1,5 @@
-const sceneGraph = require('./sceneGraph/index.js');
-const SceneNode = require('./sceneGraph/SceneNode.js');
+const sceneGraph = require('./sceneGraph');
+const SceneNode = require('./sceneGraph/sceneNode.js');
 sceneGraph.initService();
 
 function requestId(req) {
@@ -16,6 +16,7 @@ module.exports = function makeStreamRouter(app) {
     let colorPool = [];
     let depthPool = [];
     let matrixPool = [];
+    let onFrameCallbacks = [];
     app.ws('/colorProvider', function(ws, req) {
         console.log('new colorPro ws');
         const id = requestId(req);
@@ -27,6 +28,7 @@ module.exports = function makeStreamRouter(app) {
                 }
                 ws.send(msgWithId);
             }
+            processFrame(id, msg, null, null);
         });
     });
 
@@ -41,6 +43,7 @@ module.exports = function makeStreamRouter(app) {
                 }
                 ws.send(msgWithId);
             }
+            processFrame(id, null, msg, null);
         });
     });
 
@@ -79,6 +82,7 @@ module.exports = function makeStreamRouter(app) {
             for (const ws of matrixPool) {
                 ws.send(msgWithId);
             }
+            processFrame(id, null, null, msg);
         });
     });
 
@@ -97,7 +101,40 @@ module.exports = function makeStreamRouter(app) {
         matrixPool.push(ws);
     });
 
+    let frameData = {};
+    function processFrame(id, color, depth, matrix) {
+        if (typeof frameData[id] === 'undefined') {
+            frameData[id] = {
+                color: null,
+                depth: null,
+                matrix: null
+            };
+            return;
+        }
+        if (color) {
+            frameData[id].color = color;
+        }
+        if (depth) {
+            frameData[id].depth = depth;
+        }
+        if (matrix) {
+            frameData[id].matrix = matrix;
+        }
+        if (frameData[id].color && frameData[id].depth && frameData[id].matrix) {
+            // console.log('have color, depth, and matrix for id: ' + id);
+            onFrameCallbacks.forEach(function(cb) {
+                cb(frameData[id].color, frameData[id].depth, frameData[id].matrix);
+            });
+            delete frameData[id];
+        }
+    }
+
+    const onFrame = function(callback) {
+        onFrameCallbacks.push(callback);
+    };
+
     return {
+        onFrame: onFrame
     };
 };
 
