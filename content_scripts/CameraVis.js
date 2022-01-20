@@ -120,6 +120,26 @@ void main() {
             this.container.add(this.historyMesh);
         }
 
+        /**
+         * Clone the current state of the mesh rendering part of this CameraVis
+         * @return {THREE.Object3D} object containing all relevant meshes
+         */
+        clonePatch() {
+            let patch = this.container.clone(false);
+            let phone = this.phone.clone(false);
+
+            let mesh = this.mesh.clone();
+            mesh.material = this.material.clone();
+            mesh.material.uniforms.map.value.image = this.texture.image; // .cloneNode();
+            mesh.material.uniforms.map.value.needsUpdate = true;
+            mesh.material.uniforms.mapDepth.value.image = this.textureDepth.image; // .cloneNode();
+            mesh.material.uniforms.mapDepth.value.needsUpdate = true;
+
+            phone.add(mesh);
+            patch.add(phone);
+            return patch;
+        }
+
         setupDebugCubes() {
             let debugDepth = new THREE.MeshBasicMaterial({
                 map: this.textureDepth,
@@ -226,6 +246,7 @@ void main() {
         constructor(floorOffset, voxelizer) {
             this.voxelizer = voxelizer;
             this.cameras = {};
+            this.patches = [];
             this.visible = true;
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
@@ -248,6 +269,12 @@ void main() {
                     this.spaghettiVisible = !this.spaghettiVisible;
                     for (let camera of Object.values(this.cameras)) {
                         camera.historyMesh.visible = this.spaghettiVisible;
+                    }
+                } else if (code === this.keyboard.keyCodes.P) {
+                    for (let camera of Object.values(this.cameras)) {
+                        let patch = camera.clonePatch();
+                        realityEditor.gui.threejsScene.addToScene(patch);
+                        this.patches.push(patch);
                     }
                 }
             });
