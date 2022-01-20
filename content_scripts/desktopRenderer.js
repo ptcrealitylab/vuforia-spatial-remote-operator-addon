@@ -102,14 +102,15 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
 
-                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
+                        let realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
+                        realityZoneVoxelizer.add();
+
+                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
 
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
-                        let realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
-                        realityZoneVoxelizer.add();
                     });
                 }
 
