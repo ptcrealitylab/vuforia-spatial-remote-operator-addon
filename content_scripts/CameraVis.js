@@ -51,6 +51,16 @@ void main() {
   gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
 }`;
 
+    const solidFragmentShader = `
+uniform sampler2D map;
+
+varying vec2 vUv;
+
+void main() {
+  vec4 color = texture2D(map, vUv);
+  gl_FragColor = vec4(color.r, color.g, color.b, 1.0);
+}`;
+
     function setMatrixFromArray(matrix, array) {
         matrix.set(
             array[0], array[4], array[8], array[12],
@@ -125,15 +135,23 @@ void main() {
          * @return {THREE.Object3D} object containing all relevant meshes
          */
         clonePatch() {
+            const width = 640, height = 360;
+
             let patch = this.container.clone(false);
             let phone = this.phone.clone(false);
+            let flatGeo = new THREE.PlaneBufferGeometry(width, height, width, height);
+            flatGeo.translate(width / 2, height / 2);
 
-            let mesh = this.mesh.clone();
-            mesh.material = this.material.clone();
-            mesh.material.uniforms.map.value.image = this.texture.image; // .cloneNode();
-            mesh.material.uniforms.map.value.needsUpdate = true;
-            mesh.material.uniforms.mapDepth.value.image = this.textureDepth.image; // .cloneNode();
-            mesh.material.uniforms.mapDepth.value.needsUpdate = true;
+            let material = this.material.clone();
+            material.fragmentShader = solidFragmentShader;
+            material.uniforms.map.value.image = this.texture.image; // .cloneNode();
+            material.uniforms.map.value.needsUpdate = true;
+            material.uniforms.mapDepth.value.image = this.textureDepth.image; // .cloneNode();
+            material.uniforms.mapDepth.value.needsUpdate = true;
+
+            let mesh = new THREE.Mesh(flatGeo, material);
+            mesh.scale.set(-1, 1, -1);
+            mesh.frustumCulled = false;
 
             phone.add(mesh);
             patch.add(phone);
