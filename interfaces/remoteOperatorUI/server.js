@@ -6,14 +6,14 @@ const fs = require('fs');
 const path = require('path');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
-// const cp = require('child_process');
+const cp = require('child_process');
 
 module.exports.start = function start() {
     const app = express();
     ffmpeg.setFfmpegPath(ffmpegPath);
 
     // from images (I think PNGs don't work, we could try converting to JPGs?)
-    /*
+
     if (!fs.existsSync(path.join(__dirname, 'images'))) {
         fs.mkdirSync(path.join(__dirname, 'images'));
     }
@@ -30,12 +30,12 @@ module.exports.start = function start() {
         fs.mkdirSync(path.join(__dirname, 'images', 'depth'));
     }
 
-    if (fs.existsSync(path.join(__dirname, 'images', 'matrix'))) {
-        // processImages(path.join(__dirname, 'images', 'matrix'));
-        console.log('TODO: process matrix images too');
-    } else {
-        fs.mkdirSync(path.join(__dirname, 'images', 'matrix'));
-    }
+    // if (fs.existsSync(path.join(__dirname, 'images', 'matrix'))) {
+    //     // processImages(path.join(__dirname, 'images', 'matrix'));
+    //     console.log('TODO: process matrix images too');
+    // } else {
+    //     fs.mkdirSync(path.join(__dirname, 'images', 'matrix'));
+    // }
 
     function processImages(dirPath) {
         console.log('process: ' + dirPath);
@@ -44,51 +44,117 @@ module.exports.start = function start() {
         });
         console.log(files);
 
-        const command = ffmpeg();
-        // Use FFMpeg to create a video.
-        // 8 consecutive frames, held for 5 seconds each, 30fps output, no audio
-        // color_1642712727894.png
-        let filename = dirPath.includes('/color') ? 'color' : 'depth';
-        let inputFormat = path.join(dirPath, filename + '_%08d.png');
-        console.log(inputFormat);
+        let imageType = dirPath.includes('color') ? 'color' : 'depth';
 
-        let outputName = path.join(dirPath, filename + '-1920x1080.mp4');
+        let inputWidth = 1920;
+        let inputHeight = 1080;
+        let width = inputWidth / 4;
+        let height = inputHeight / 4;
+        let outputPath = path.join(dirPath, imageType + '_' + width + 'x' + height + '.mp4');
+        console.log('OUTPUTTING VIDEO TO: ' + outputPath);
 
-        let timemark = null;
+        let inputPath = path.join(dirPath, imageType + '_%08d.png');
+        console.log('INPUT: ' + inputPath);
 
-        command
-            .on('end', onEnd)
-            .on('progress', onProgress)
-            // .on('error', onError)
-            .input(inputFormat)
-            .fromFormat('image2pipe')
-            // .addInputOption('-vcodec', 'png')
-            // .inputFormat('png')
-            .inputFPS(30)
-            .output(outputName)
-            .outputFPS(30)
-            .noAudio()
-            .run();
-
-        console.log('processing... ' + filename);
-
-
-        function onEnd() {
-            console.log('Finished processing');
+        let args = [
+            '-r', '10',
+            '-f', 'image2'
+        ];
+        if (imageType === 'color') {
+            args.push('-vcodec', 'mjpeg',);
         }
+        args.push(
+            '-s', inputWidth + 'x' + inputHeight,
+            '-i', inputPath,
+            '-vcodec', 'libx264',
+            '-crf', '25',
+            '-pix_fmt', 'yuv420p',
+            '-vf', 'scale=' + width + ':' + height + ',setsar=1:1',
+            outputPath
+        );
 
-        function onProgress(progress) {
-            if (progress.timemark !== timemark) {
-                timemark = progress.timemark;
-                console.log('Time mark: ' + timemark + '...');
-            }
-        }
+        cp.spawn('ffmpeg', args);
+
+        // let proc = cp.spawn('ffmpeg', [
+        //     '-r', '10',
+        //     '-f', 'image2',
+        //     // '-vcodec', 'mjpeg',
+        //     '-s', inputWidth + 'x' + inputHeight,
+        //     '-i', inputPath,
+        //     '-vcodec', 'libx264',
+        //     '-crf', '25',
+        //     '-pix_fmt', 'yuv420p',
+        //     '-vf', 'scale=' + width + ':' + height + ',setsar=1:1',
+        //     outputPath
+        // ]);
+
+        // proc[imageType] = cp.spawn('ffmpeg', [
+        //     '-r', '10',
+        //     '-f', 'image2pipe',
+        //     '-vcodec', 'mjpeg',
+        //     '-s', '1920x1080',
+        //     '-i', '-',
+        //     '-vcodec', 'libx264',
+        //     '-crf', '25',
+        //     '-pix_fmt', 'yuv420p',
+        //     outputPath
+        // ]);
+
+        // proc.stdin.write(Buffer.from([
+        //     255, 0, 0,
+        //     0, 255, 0,
+        //     0, 255, 255,
+        //     255, 0, 255
+        // ]));
+        //
+        // proc.stdin.end();
+        //
+        // proc.stderr.pipe(process.stdout);
+
+        // const command = ffmpeg();
+        // // Use FFMpeg to create a video.
+        // // 8 consecutive frames, held for 5 seconds each, 30fps output, no audio
+        // // color_1642712727894.png
+        // let filename = dirPath.includes('/color') ? 'color' : 'depth';
+        // let inputFormat = path.join(dirPath, filename + '_%08d.png');
+        // console.log(inputFormat);
+        //
+        // let outputName = path.join(dirPath, filename + '-1920x1080.mp4');
+        //
+        // let timemark = null;
+        //
+        // command
+        //     .on('end', onEnd)
+        //     .on('progress', onProgress)
+        //     // .on('error', onError)
+        //     .input(inputFormat)
+        //     .fromFormat('image2pipe')
+        //     // .addInputOption('-vcodec', 'png')
+        //     // .inputFormat('png')
+        //     .inputFPS(30)
+        //     .output(outputName)
+        //     .outputFPS(30)
+        //     .noAudio()
+        //     .run();
+        //
+        // console.log('processing... ' + filename);
+        //
+        //
+        // function onEnd() {
+        //     console.log('Finished processing');
+        // }
+        //
+        // function onProgress(progress) {
+        //     if (progress.timemark !== timemark) {
+        //         timemark = progress.timemark;
+        //         console.log('Time mark: ' + timemark + '...');
+        //     }
+        // }
 
         // function onError(err, _stdout, _stderr) {
         //     console.log('Cannot process video: ' + err.message);
         // }
     }
-     */
 
     // ffmpeg.setFfmpegPath(ffmpegPath);
     // const command = ffmpeg();
@@ -125,22 +191,22 @@ module.exports.start = function start() {
     //
     // proc.stderr.pipe(process.stdout);
 
-    let outputName = path.join(__dirname, 'video-1920x1080.mp4');
-    let command = ffmpeg();
-    command
-        // .on('end', onEnd)
-        // .on('progress', onProgress)
-        // .on('error', onError)
-        // .input(inputFormat)
-        .inputOptions('-i -')
-        .fromFormat('image2pipe')
-        // .addInputOption('-vcodec', 'png')
-        // .inputFormat('png')
-        .inputFPS(30)
-        .output(outputName)
-        .outputFPS(30)
-        .noAudio()
-        .run();
+    // let outputName = path.join(__dirname, 'video-1920x1080.mp4');
+    // let command = ffmpeg();
+    // command
+    //     // .on('end', onEnd)
+    //     // .on('progress', onProgress)
+    //     // .on('error', onError)
+    //     // .input(inputFormat)
+    //     .inputOptions('-i -')
+    //     .fromFormat('image2pipe')
+    //     // .addInputOption('-vcodec', 'png')
+    //     // .inputFormat('png')
+    //     .inputFPS(30)
+    //     .output(outputName)
+    //     .outputFPS(30)
+    //     .noAudio()
+    //     .run();
 
     let counter = 0;
     app.use(cors());
