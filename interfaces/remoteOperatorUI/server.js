@@ -6,12 +6,14 @@ const fs = require('fs');
 const path = require('path');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
+// const cp = require('child_process');
 
 module.exports.start = function start() {
     const app = express();
-
     ffmpeg.setFfmpegPath(ffmpegPath);
 
+    // from images (I think PNGs don't work, we could try converting to JPGs?)
+    /*
     if (!fs.existsSync(path.join(__dirname, 'images'))) {
         fs.mkdirSync(path.join(__dirname, 'images'));
     }
@@ -86,6 +88,7 @@ module.exports.start = function start() {
         //     console.log('Cannot process video: ' + err.message);
         // }
     }
+     */
 
     // ffmpeg.setFfmpegPath(ffmpegPath);
     // const command = ffmpeg();
@@ -98,6 +101,46 @@ module.exports.start = function start() {
     //     .outputFPS(30)
     //     .noAudio()
     //     .run();
+
+    // https://stackoverflow.com/questions/46073876/node-js-buffer-data-to-ffmpeg
+    // let outputPath = path.join(__dirname, '1.png');
+    //
+    // let proc = cp.spawn('ffmpeg', [
+    //     '-hide_banner',
+    //     '-f', 'rawvideo',
+    //     '-pix_fmt', 'rgb24',
+    //     '-s', '2x2',
+    //     '-i', '-',
+    //     outputPath
+    // ]);
+    //
+    // proc.stdin.write(Buffer.from([
+    //     255, 0, 0,
+    //     0, 255, 0,
+    //     0, 255, 255,
+    //     255, 0, 255
+    // ]));
+    //
+    // proc.stdin.end();
+    //
+    // proc.stderr.pipe(process.stdout);
+
+    let outputName = path.join(__dirname, 'video-1920x1080.mp4');
+    let command = ffmpeg();
+    command
+        // .on('end', onEnd)
+        // .on('progress', onProgress)
+        // .on('error', onError)
+        // .input(inputFormat)
+        .inputOptions('-i -')
+        .fromFormat('image2pipe')
+        // .addInputOption('-vcodec', 'png')
+        // .inputFormat('png')
+        .inputFPS(30)
+        .output(outputName)
+        .outputFPS(30)
+        .noAudio()
+        .run();
 
     let counter = 0;
     app.use(cors());
