@@ -14,7 +14,7 @@
  * https://webglfundamentals.org/webgl/lessons/webgl-scene-graph.html
  */
 
-const SceneNode = require('./SceneNode.js');
+const SceneNode = require('./sceneNode.js');
 
 let sceneGraph = {};
 let rootNode;
