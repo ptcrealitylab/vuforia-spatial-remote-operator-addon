@@ -33,9 +33,105 @@ class VideoServer {
 
         console.log('Created a VideoServer with path: ' + this.outputPath);
 
+        this.persistentInfo = this.loadPersistentInfo();
+        this.checkPersistentInfoIntegrity();
+
+        this.concatExisting();
         this.setupRoutes(app);
     }
+    loadPersistentInfo() {
+        let jsonPath = path.join(this.outputPath, 'videoInfo.json');
+        let defaultInfo = {
+            mergedFiles: {
+                color: {},
+                depth: {}
+            }
+        };
+        if (!fs.existsSync(jsonPath)) {
+            fs.writeFileSync(jsonPath, JSON.stringify(defaultInfo, null, 4));
+            return defaultInfo;
+        } else {
+            return JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8', flag: 'r' }));
+        }
+    }
+    checkPersistentInfoIntegrity() {
+        // ensure that none of the concatenated video files listed in the json file have been deleted
+        let deletedVideos = [];
+        Object.keys(this.persistentInfo.mergedFiles.color).forEach(filePath => {
+            if (!fs.existsSync(filePath)) {
+                deletedVideos.push(filePath);
+                console.log('video file was deleted: ' + filePath);
+            }
+        });
+        deletedVideos.forEach(filePath => {
+            delete this.persistentInfo.mergedFiles.color[filePath];
+        });
+
+        deletedVideos = [];
+        Object.keys(this.persistentInfo.mergedFiles.depth).forEach(filePath => {
+            if (!fs.existsSync(filePath)) {
+                deletedVideos.push(filePath);
+                console.log('video file was deleted: ' + filePath);
+            }
+        });
+        deletedVideos.forEach(filePath => {
+            delete this.persistentInfo.mergedFiles.depth[filePath];
+        });
+    }
+    concatExisting() {
+        let files = fs.readdirSync(this.outputPath).filter(filename => filename.includes('.mp4'));
+        let colorFiles = files.filter(filename => filename.includes('color_stream'));
+        let depthFiles = files.filter(filename => filename.includes('depth_stream'));
+
+        let allPreviouslyMergedColorStreams = Object.values(this.persistentInfo.mergedFiles.color).reduce((a, b) => a.concat(b), []);
+        let allPreviouslyMergedDepthStreams = Object.values(this.persistentInfo.mergedFiles.depth).reduce((a, b) => a.concat(b), []);
+
+        // remove files that have already been merged
+        colorFiles = colorFiles.filter(filename => !allPreviouslyMergedColorStreams.includes(filename));
+        depthFiles = depthFiles.filter(filename => !allPreviouslyMergedDepthStreams.includes(filename));
+
+        if (colorFiles.length > 0 && depthFiles.length > 0) {
+            console.log('there are videos that need to be concatenated');
+
+            let mergedColorFilePath = this.concatFiles(colorFiles, 'color_filenames_tmp.txt', 'color_merged');
+            let mergedDepthFilePath = this.concatFiles(depthFiles, 'depth_filenames_tmp.txt', 'depth_merged');
+
+            this.persistentInfo.mergedFiles.color[mergedColorFilePath] = colorFiles; // colorFiles.map(filename => path.join(this.outputPath, filename));
+            this.persistentInfo.mergedFiles.depth[mergedDepthFilePath] = depthFiles; // depthFiles.map(filename => path.join(this.outputPath, filename));
+            this.savePersistentInfo();
+        } else {
+            console.log('no new videos need to be concatenated');
+        }
+    }
+    savePersistentInfo() {
+        let jsonPath = path.join(this.outputPath, 'videoInfo.json');
+        fs.writeFileSync(jsonPath, JSON.stringify(this.persistentInfo, null, 4));
+        console.log('saved videoInfo');
+    }
+    concatFiles(files, txt_filename, mp4_title) {
+        let fileText = '';
+        for (let i = 0; i < files.length; i++) {
+            fileText += 'file \'' + path.join(this.outputPath, files[i]) + '\'\n';
+        }
+
+        // write file list to txt file so it can be used by ffmpeg as input
+        let colorFilePath = path.join(this.outputPath, txt_filename);
+        if (fs.existsSync(colorFilePath)) {
+            fs.unlinkSync(colorFilePath);
+        }
+        fs.writeFileSync(colorFilePath, fileText);
+
+        return this.ffmpeg_concat_mp4s(mp4_title, colorFilePath);
+    }
     setupRoutes(app) {
+        app.get('/videoInfo', function(req, res) {
+            // let jsonPath = path.join(this.outputPath, 'videoInfo.json');
+            // if (!fs.existsSync(jsonPath)) {
+            //     fs.writeFileSync(jsonPath, JSON.stringify(this.persistentInfo));
+            // }
+            // res.sendFile(jsonPath);
+            res.json(this.persistentInfo);
+        }.bind(this));
         // https://dev.to/abdisalan_js/how-to-code-a-video-streaming-server-using-nodejs-2o0
         // As of 1/25/22, works in Chrome but not Safari
         app.get('/video/:id', function(req, res) {
@@ -50,12 +146,10 @@ class VideoServer {
             if (!fs.existsSync(videoPath)) {
                 res.status(404).send('No video at path: ' + videoPath);
                 return;
-            } else {
-                console.log('Found video at path: ' + videoPath);
             }
 
             const videoSize = fs.statSync(videoPath).size;
-            console.log('Video Size = ' + Math.round(videoSize / 1000)  + 'kb');
+            // console.log('Video Size = ' + Math.round(videoSize / 1000)  + 'kb');
 
             // Parse Range (example: "bytes=32324-")
             const CHUNK_SIZE = 10 ** 6; // 1 MB
@@ -144,6 +238,22 @@ class VideoServer {
         if (typeof depthProcess !== 'undefined' && depthStatus === 'STARTED') {
             depthProcess.stdin.write(depth);
         }
+    }
+    ffmpeg_concat_mp4s(output_name, file_list_path) {
+        // ffmpeg -f concat -safe 0 -i fileList.txt -c copy mergedVideo.mp4
+
+        let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
+        let args = [
+            '-f', 'concat',
+            '-safe', '0',
+            '-i', file_list_path,
+            '-c', 'copy',
+            filePath
+        ];
+
+        cp.spawn('ffmpeg', args);
+
+        return filePath;
     }
     ffmpeg_image2mp4(output_name, framerate = 8, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
         let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
