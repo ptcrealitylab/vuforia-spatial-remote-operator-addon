@@ -57,9 +57,11 @@ class VideoServer {
     checkPersistentInfoIntegrity() {
         // ensure that none of the concatenated video files listed in the json file have been deleted
         let deletedVideos = [];
+        let anyChanges = false;
         Object.keys(this.persistentInfo.mergedFiles.color).forEach(filePath => {
             if (!fs.existsSync(filePath)) {
                 deletedVideos.push(filePath);
+                anyChanges = true;
                 console.log('video file was deleted: ' + filePath);
             }
         });
@@ -71,12 +73,15 @@ class VideoServer {
         Object.keys(this.persistentInfo.mergedFiles.depth).forEach(filePath => {
             if (!fs.existsSync(filePath)) {
                 deletedVideos.push(filePath);
+                anyChanges = true;
                 console.log('video file was deleted: ' + filePath);
             }
         });
         deletedVideos.forEach(filePath => {
             delete this.persistentInfo.mergedFiles.depth[filePath];
         });
+
+        if (anyChanges) { this.savePersistentInfo(); }
     }
     concatExisting() {
         let files = fs.readdirSync(this.outputPath).filter(filename => filename.includes('.mp4'));
@@ -90,17 +95,23 @@ class VideoServer {
         colorFiles = colorFiles.filter(filename => !allPreviouslyMergedColorStreams.includes(filename));
         depthFiles = depthFiles.filter(filename => !allPreviouslyMergedDepthStreams.includes(filename));
 
-        if (colorFiles.length > 0 && depthFiles.length > 0) {
-            console.log('there are videos that need to be concatenated');
-
+        let anyChanges = false;
+        if (colorFiles.length > 0) {
             let mergedColorFilePath = this.concatFiles(colorFiles, 'color_filenames_tmp.txt', 'color_merged');
-            let mergedDepthFilePath = this.concatFiles(depthFiles, 'depth_filenames_tmp.txt', 'depth_merged');
-
             this.persistentInfo.mergedFiles.color[mergedColorFilePath] = colorFiles; // colorFiles.map(filename => path.join(this.outputPath, filename));
+            anyChanges = true;
+        }
+        if (depthFiles.length > 0) {
+            let mergedDepthFilePath = this.concatFiles(depthFiles, 'depth_filenames_tmp.txt', 'depth_merged');
             this.persistentInfo.mergedFiles.depth[mergedDepthFilePath] = depthFiles; // depthFiles.map(filename => path.join(this.outputPath, filename));
+            anyChanges = true;
+        }
+
+        if (anyChanges) {
+            console.log('new videos were concatenated');
             this.savePersistentInfo();
         } else {
-            console.log('no new videos need to be concatenated');
+            console.log('no new videos needed to be concatenated');
         }
     }
     savePersistentInfo() {
