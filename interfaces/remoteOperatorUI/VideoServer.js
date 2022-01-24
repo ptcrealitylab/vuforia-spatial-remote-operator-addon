@@ -35,13 +35,13 @@ class VideoServer {
         this.frameCounter = 0;
 
         // start color stream process
-        this.processes[this.PROCESS.COLOR] = this.ffmpeg_image2mp4('color_stream', 10, 'mjpeg', 1920, 1080, 25, 0.25);
+        this.processes[this.PROCESS.COLOR] = this.ffmpeg_image2mp4('color_stream', 8, 'mjpeg', 1920, 1080, 25, 0.25);
         if (this.processes[this.PROCESS.COLOR]) {
             this.processStatuses[this.PROCESS.COLOR] = this.STATUS.STARTED;
         }
 
         // start depth stream process
-        this.processes[this.PROCESS.DEPTH] = this.ffmpeg_image2mp4('depth_stream', 10, 'png', 1920, 1080, 25, 0.25);
+        this.processes[this.PROCESS.DEPTH] = this.ffmpeg_image2mp4('depth_stream', 8, 'png', 1920, 1080, 25, 0.25);
         if (this.processes[this.PROCESS.DEPTH]) {
             this.processStatuses[this.PROCESS.DEPTH] = this.STATUS.STARTED;
         }
@@ -51,7 +51,7 @@ class VideoServer {
             setTimeout(function() {
                 this.startRecording();
             }.bind(this), 100);
-        }.bind(this), 10000);
+        }.bind(this), 30000);
     }
     stopRecording() {
         this.isRecording = false;
@@ -102,7 +102,7 @@ class VideoServer {
             depthProcess.stdin.write(depth);
         }
     }
-    ffmpeg_image2mp4(output_name, framerate = 10, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
+    ffmpeg_image2mp4(output_name, framerate = 8, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
         let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
 
         let outputWidth = input_width * output_scale;
@@ -160,103 +160,3 @@ class VideoServer {
 }
 
 module.exports = VideoServer;
-
-// let childProcesses = {};
-// let childProcessStatus = {};
-//
-// // from images (I think PNGs don't work, we could try converting to JPGs?)
-//
-// if (!fs.existsSync(path.join(__dirname, 'images'))) {
-//     fs.mkdirSync(path.join(__dirname, 'images'));
-// }
-//
-// if (fs.existsSync(path.join(__dirname, 'images', 'color'))) {
-//     processImages(path.join(__dirname, 'images', 'color'));
-// } else {
-//     fs.mkdirSync(path.join(__dirname, 'images', 'color'));
-//     processImages(path.join(__dirname, 'images', 'color'));
-// }
-//
-// if (fs.existsSync(path.join(__dirname, 'images', 'depth'))) {
-//     processImages(path.join(__dirname, 'images', 'depth'));
-// } else {
-//     fs.mkdirSync(path.join(__dirname, 'images', 'depth'));
-//     processImages(path.join(__dirname, 'images', 'depth'));
-// }
-//
-// // if (fs.existsSync(path.join(__dirname, 'images', 'matrix'))) {
-// //     // processImages(path.join(__dirname, 'images', 'matrix'));
-// //     console.log('TODO: process matrix images too');
-// // } else {
-// //     fs.mkdirSync(path.join(__dirname, 'images', 'matrix'));
-// // }
-//
-// let counter = 0;
-// app.use(cors());
-// expressWs(app);
-// const streamRouter = makeStreamRouter(app);
-// streamRouter.onFrame(function(rgb, depth, pose) {
-//     // console.log(rgb, depth, pose);
-//     const zeroPad = (num, places) => String(num).padStart(places, '0');
-//
-//     let colorFilename = 'color_' + zeroPad(counter, 8) + '.png'; // + Math.floor(Math.random() * 1000)
-//     let depthFilename = 'depth_' + zeroPad(counter, 8) + '.png';
-//     let matrixFilename = 'matrix_' + zeroPad(counter, 8) + '.png';
-//     counter++;
-//
-//     if (typeof childProcesses['color'] !== 'undefined' && childProcessStatus['color'] === 'STARTED') {
-//         console.log('write frame to color stdin');
-//         childProcesses['color'].stdin.write(rgb);
-//     }
-//
-//     // if (typeof childProcesses['depth'] !== 'undefined' && childProcessStatus['depth'] === 'STARTED') {
-//     //     console.log('write frame to depth stdin');
-//     //     childProcesses['depth'].stdin.write(depth);
-//     // }
-//
-//     if (counter > 30) {
-//         if (typeof childProcesses['color'] !== 'undefined' && childProcessStatus['color'] === 'STARTED') {
-//             console.log('end color process');
-//             childProcesses['color'].stdin.setEncoding('utf8');
-//             childProcesses['color'].stdin.write('q');
-//             // childProcesses['color'].exit();
-//
-//             childProcesses['color'].stdin.end();
-//
-//             childProcessStatus['color'] = 'ENDING';
-//
-//             // childProcesses['color'].stderr.pipe(childProcesses['color'].stdout);
-//             // delete childProcesses['color'];
-//         }
-//
-//         // if (typeof childProcesses['depth'] !== 'undefined' && childProcessStatus['depth'] === 'STARTED') {
-//         //     console.log('end depth process');
-//         //     // childProcesses['depth'].stdin.end();
-//         //     childProcesses['depth'].stdin.setEncoding('utf8');
-//         //     childProcesses['depth'].stdin.write('q');
-//         //     // childProcesses['depth'].exit();
-//         //     childProcessStatus['depth'] = 'ENDING';
-//         //
-//         //     // childProcesses['depth'].stderr.pipe(childProcesses['depth'].stdout);
-//         //     // delete childProcesses['depth'];
-//         // }
-//
-//         counter = 0;
-//     }
-//
-//     // let colorFilename = 'color_' + Date.now() + '.png'; // + Math.floor(Math.random() * 1000)
-//     // let depthFilename = 'depth_' + Date.now() + '.png';
-//     // let matrixFilename = 'matrix_' + Date.now() + '.png';
-//
-//     fs.writeFile(path.join(__dirname, 'images', 'color', colorFilename), rgb, function() {
-//         // console.log('wrote color image');
-//     });
-//
-//     fs.writeFile(path.join(__dirname, 'images', 'depth', depthFilename), depth, function() {
-//         // console.log('wrote depth image');
-//     });
-//
-//     fs.writeFile(path.join(__dirname, 'images', 'matrix', matrixFilename), pose, function() {
-//         // console.log('wrote matrix image');
-//     });
-// });

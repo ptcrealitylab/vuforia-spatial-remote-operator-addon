@@ -3,102 +3,11 @@ const express = require('express');
 const expressWs = require('express-ws');
 const makeStreamRouter = require('./makeStreamRouter.js');
 const VideoServer = require('./VideoServer.js');
-// const fs = require('fs');
 const path = require('path');
-// const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-// const ffmpeg = require('fluent-ffmpeg');
-// const cp = require('child_process');
 
 module.exports.start = function start() {
     const app = express();
     const videoServer = new VideoServer(path.join(__dirname, 'videos'));
-
-    // ffmpeg.setFfmpegPath(ffmpegPath);
-    // let childProcesses = {};
-    // let childProcessStatus = {};
-    // from images (I think PNGs don't work, we could try converting to JPGs?)
-    // if (!fs.existsSync(path.join(__dirname, 'images'))) {
-    //     fs.mkdirSync(path.join(__dirname, 'images'));
-    // }
-    //
-    // if (fs.existsSync(path.join(__dirname, 'images', 'color'))) {
-    //     processImages(path.join(__dirname, 'images', 'color'));
-    // } else {
-    //     fs.mkdirSync(path.join(__dirname, 'images', 'color'));
-    //     processImages(path.join(__dirname, 'images', 'color'));
-    // }
-    //
-    // if (fs.existsSync(path.join(__dirname, 'images', 'depth'))) {
-    //     processImages(path.join(__dirname, 'images', 'depth'));
-    // } else {
-    //     fs.mkdirSync(path.join(__dirname, 'images', 'depth'));
-    //     processImages(path.join(__dirname, 'images', 'depth'));
-    // }
-
-    // if (fs.existsSync(path.join(__dirname, 'images', 'matrix'))) {
-    //     // processImages(path.join(__dirname, 'images', 'matrix'));
-    //     console.log('TODO: process matrix images too');
-    // } else {
-    //     fs.mkdirSync(path.join(__dirname, 'images', 'matrix'));
-    // }
-
-    // function processImages(dirPath) {
-    //     console.log('process: ' + dirPath);
-    //     let files = fs.readdirSync(dirPath).filter(function(filename) {
-    //         return filename.includes('.png');
-    //     });
-    //     // console.log(files);
-    //
-    //     let imageType = dirPath.includes('color') ? 'color' : 'depth';
-    //
-    //     let inputWidth = 1920;
-    //     let inputHeight = 1080;
-    //     let width = inputWidth / 4;
-    //     let height = inputHeight / 4;
-    //     let outputPath = path.join(dirPath, imageType + '_' + width + 'x' + height + '.mp4');
-    //     console.log('OUTPUTTING VIDEO TO: ' + outputPath);
-    //
-    //     let inputPath = path.join(dirPath, imageType + '_%08d.png');
-    //     console.log('INPUT: ' + inputPath);
-    //
-    //     let args = [
-    //         '-r', '10',
-    //         '-f', 'image2pipe'
-    //     ];
-    //     if (imageType === 'color') {
-    //         args.push('-vcodec', 'mjpeg',);
-    //     }
-    //     args.push(
-    //         '-s', inputWidth + 'x' + inputHeight,
-    //         // '-i', inputPath,
-    //         '-i', '-',
-    //         '-vcodec', 'libx264',
-    //         '-crf', '25',
-    //         '-pix_fmt', 'yuv420p',
-    //         '-vf', 'scale=' + width + ':' + height + ',setsar=1:1',
-    //         outputPath
-    //     );
-    //
-    //     console.log(args);
-    //
-    //     childProcesses[imageType] = cp.spawn('ffmpeg', args);
-    //     childProcessStatus[imageType] = 'STARTED';
-    //
-    //     childProcesses[imageType].stdout.on('data', function(data) {
-    //         console.log('stdout data', data);
-    //     });
-    //
-    //     childProcesses[imageType].stderr.setEncoding('utf8');
-    //     childProcesses[imageType].stderr.on('data', function(data) {
-    //         console.log('stderr data', data);
-    //     });
-    //
-    //     childProcesses[imageType].on('close', function() {
-    //         console.log('finished');
-    //     });
-    //
-    //     console.log('created childProcess for ' + imageType);
-    // }
 
     app.use(cors());
     expressWs(app);
