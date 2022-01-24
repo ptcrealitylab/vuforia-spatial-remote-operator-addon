@@ -9,4 +9,4 @@
 node_modules
 
 # media files stored by addon
-remoteOperatorUI/videos
+interfaces/remoteOperatorUI/videos
