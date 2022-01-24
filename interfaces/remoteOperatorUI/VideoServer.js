@@ -10,7 +10,7 @@ const cp = require('child_process');
 
 class VideoServer {
     constructor(app, outputPath) {
-        this.outputPath = outputPath;
+        this.outputPath = outputPath; // TODO: pass in relative path to __dirname (e.g. just /videos instead of absolute path)
         this.isRecording = false;
         this.processes = {};
         this.processStatuses = {};
