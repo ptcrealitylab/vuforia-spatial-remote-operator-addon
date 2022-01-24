@@ -7,7 +7,7 @@ const path = require('path');
 
 module.exports.start = function start() {
     const app = express();
-    const videoServer = new VideoServer(path.join(__dirname, 'videos'));
+    const videoServer = new VideoServer(app, path.join(__dirname, 'videos'));
 
     app.use(cors());
     expressWs(app);
@@ -30,6 +30,10 @@ module.exports.start = function start() {
 
     let activeSkels = {};
 
+    app.get('/test', function(req, res) {
+        res.sendFile(path.join(__dirname, 'test.html'));
+    });
+
     app.ws('/', (ws) => {
         console.log('an attempt /');
         allWebsockets.push(ws);
@@ -41,8 +45,8 @@ module.exports.start = function start() {
 
         let playback = null;
         ws.on('message', (msgStr, _isBinary) => {
-            
-            try{
+
+            try {
                 const msg = JSON.parse(msgStr);
                 switch (msg.command) {
                 case '/update/humanPoses':
@@ -55,9 +59,9 @@ module.exports.start = function start() {
             } catch (error) {
                 console.warn('Could not parse message: ' , error);
             }
-            
+
         });
-        
+
         let cleared = false;
         function doUpdateHumanPoses(msg) {
             if (playback && !playback.running) {
