@@ -1,8 +1,11 @@
-// const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-// const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
+
+// TODO: write pose matrices so they can be cross-referenced with the video stream
+// TODO: include unique per-device id in video filename so images from the same device are separated from other devices
+// TODO: on server startup, try to append all contiguous video segments from previous session into a single video
+// TODO: create streaming media server from which a HTML video element can stream video data
 
 class VideoServer {
     constructor(outputPath) {
@@ -10,7 +13,6 @@ class VideoServer {
         this.isRecording = false;
         this.processes = {};
         this.processStatuses = {};
-        this.frameCounter = 0;
         this.PROCESS = Object.freeze({
             COLOR: 'COLOR',
             DEPTH: 'DEPTH'
@@ -32,7 +34,6 @@ class VideoServer {
     }
     startRecording() {
         this.isRecording = true;
-        this.frameCounter = 0;
 
         // start color stream process
         this.processes[this.PROCESS.COLOR] = this.ffmpeg_image2mp4('color_stream', 8, 'mjpeg', 1920, 1080, 25, 0.25);
@@ -86,9 +87,6 @@ class VideoServer {
             return;
         }
 
-        console.log('write rgb and depth frames');
-
-        this.frameCounter++;
         let colorProcess = this.processes[this.PROCESS.COLOR];
         let depthProcess = this.processes[this.PROCESS.DEPTH];
         let colorStatus = this.processStatuses[this.PROCESS.COLOR];
