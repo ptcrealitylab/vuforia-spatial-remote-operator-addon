@@ -4,12 +4,10 @@ const cp = require('child_process');
 
 // TODO: write pose matrices so they can be cross-referenced with the video stream
 // TODO: include unique per-device id in video filename so images from the same device are separated from other devices
-// TODO: on server startup, try to append all contiguous video segments from previous session into a single video
-// TODO: create streaming media server from which a HTML video element can stream video data
 // TODO: listen to when the ffmpeg process fully finishes writing data to disk, so that process can be killed/freed/etc
 
 class VideoServer {
-    constructor(app, outputPath) {
+    constructor(outputPath) {
         this.outputPath = outputPath; // TODO: pass in relative path to __dirname (e.g. just /videos instead of absolute path)
         this.isRecording = false;
         this.processes = {};
@@ -37,7 +35,6 @@ class VideoServer {
         this.checkPersistentInfoIntegrity();
 
         this.concatExisting();
-        this.setupRoutes(app);
     }
     loadPersistentInfo() {
         let jsonPath = path.join(this.outputPath, 'videoInfo.json');
@@ -95,14 +92,16 @@ class VideoServer {
         colorFiles = colorFiles.filter(filename => !allPreviouslyMergedColorStreams.includes(filename));
         depthFiles = depthFiles.filter(filename => !allPreviouslyMergedDepthStreams.includes(filename));
 
+        let timestamp = Date.now();
+
         let anyChanges = false;
         if (colorFiles.length > 0) {
-            let mergedColorFilePath = this.concatFiles(colorFiles, 'color_filenames_tmp.txt', 'color_merged');
+            let mergedColorFilePath = this.concatFiles(colorFiles, 'color_filenames_tmp.txt', 'color_merged', timestamp);
             this.persistentInfo.mergedFiles.color[mergedColorFilePath] = colorFiles; // colorFiles.map(filename => path.join(this.outputPath, filename));
             anyChanges = true;
         }
         if (depthFiles.length > 0) {
-            let mergedDepthFilePath = this.concatFiles(depthFiles, 'depth_filenames_tmp.txt', 'depth_merged');
+            let mergedDepthFilePath = this.concatFiles(depthFiles, 'depth_filenames_tmp.txt', 'depth_merged', timestamp);
             this.persistentInfo.mergedFiles.depth[mergedDepthFilePath] = depthFiles; // depthFiles.map(filename => path.join(this.outputPath, filename));
             anyChanges = true;
         }
@@ -119,7 +118,7 @@ class VideoServer {
         fs.writeFileSync(jsonPath, JSON.stringify(this.persistentInfo, null, 4));
         console.log('saved videoInfo');
     }
-    concatFiles(files, txt_filename, mp4_title) {
+    concatFiles(files, txt_filename, mp4_title, timestamp) {
         let fileText = '';
         for (let i = 0; i < files.length; i++) {
             fileText += 'file \'' + path.join(this.outputPath, files[i]) + '\'\n';
@@ -132,55 +131,7 @@ class VideoServer {
         }
         fs.writeFileSync(colorFilePath, fileText);
 
-        return this.ffmpeg_concat_mp4s(mp4_title, colorFilePath);
-    }
-    setupRoutes(app) {
-        app.get('/videoInfo', function(req, res) {
-            // let jsonPath = path.join(this.outputPath, 'videoInfo.json');
-            // if (!fs.existsSync(jsonPath)) {
-            //     fs.writeFileSync(jsonPath, JSON.stringify(this.persistentInfo));
-            // }
-            // res.sendFile(jsonPath);
-            res.json(this.persistentInfo);
-        }.bind(this));
-        // https://dev.to/abdisalan_js/how-to-code-a-video-streaming-server-using-nodejs-2o0
-        // As of 1/25/22, works in Chrome but not Safari
-        app.get('/video/:id', function(req, res) {
-            const range = req.headers.range;
-            if (!range) {
-                res.status(400).send('Requires Range header');
-                return;
-            }
-
-            const videoPath = path.join(this.outputPath, req.params.id);
-
-            if (!fs.existsSync(videoPath)) {
-                res.status(404).send('No video at path: ' + videoPath);
-                return;
-            }
-
-            const videoSize = fs.statSync(videoPath).size;
-            // console.log('Video Size = ' + Math.round(videoSize / 1000)  + 'kb');
-
-            // Parse Range (example: "bytes=32324-")
-            const CHUNK_SIZE = 10 ** 6; // 1 MB
-            const start = Number(range.replace(/\D/g, ''));
-            const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
-
-            // Create Headers
-            const contentLength = end - start + 1;
-            const headers = {
-                'Content-Range': `bytes ${start}-${end}/${videoSize}`,
-                'Accept-Ranges': 'bytes',
-                'Content-Length': contentLength,
-                'Content-Type': 'video/mp4',
-            };
-
-            // HTTP Status 206 for partial content
-            res.writeHead(206, headers);
-            const videoStream = fs.createReadStream(videoPath, { start, end });
-            videoStream.pipe(res);
-        }.bind(this));
+        return this.ffmpeg_concat_mp4s(mp4_title, colorFilePath, timestamp);
     }
     startRecording() {
         this.isRecording = true;
@@ -250,10 +201,10 @@ class VideoServer {
             depthProcess.stdin.write(depth);
         }
     }
-    ffmpeg_concat_mp4s(output_name, file_list_path) {
+    ffmpeg_concat_mp4s(output_name, file_list_path, timestamp) {
         // ffmpeg -f concat -safe 0 -i fileList.txt -c copy mergedVideo.mp4
-
-        let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
+        // we pass in a timestamp so we can use an identical one in the color and depth videos that match up
+        let filePath = path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
         let args = [
             '-f', 'concat',
             '-safe', '0',
