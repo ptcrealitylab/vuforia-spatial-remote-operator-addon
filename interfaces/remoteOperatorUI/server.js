@@ -4,10 +4,19 @@ const expressWs = require('express-ws');
 const makeStreamRouter = require('./makeStreamRouter.js');
 const VideoServer = require('./VideoServer.js');
 const path = require('path');
+const os = require('os');
 
 module.exports.start = function start() {
     const app = express();
-    const videoServer = new VideoServer(app, path.join(__dirname, 'videos'));
+
+    const objectsPath = path.join(os.homedir(), 'Documents', 'spatialToolbox');
+    const identityFolderName = '.identity';
+
+    // old path: in the addon
+    // const videoServer = new VideoServer(app, path.join(__dirname, 'videos'));
+
+    // new path: in the Documents/spatialToolbox/.identity
+    const videoServer = new VideoServer(path.join(objectsPath, identityFolderName, '/virtualizer_recordings'));
 
     app.use(cors());
     expressWs(app);

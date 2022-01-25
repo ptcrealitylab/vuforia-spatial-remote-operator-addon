@@ -30,3 +30,11 @@ body > * {
     display: none;
     opacity: 0.3;
 }
+
+.videoPreview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1000, 1);
+    z-index: 1000;
+}

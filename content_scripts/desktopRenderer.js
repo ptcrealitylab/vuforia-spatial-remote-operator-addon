@@ -111,6 +111,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 }
 
                 checkExist();
+
+                // also create the VideoPlayback and search the server of the world object for any recorded videos
+                let videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
             }
         });
 
