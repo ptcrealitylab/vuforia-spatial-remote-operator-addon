@@ -9,6 +9,7 @@ createNameSpace('realityEditor.device');
         constructor(serverIp) {
             this.ip = serverIp;
             this.videoInfo = null;
+            this.visible = true;
             this.loadAvailableVideos().then(info => {
                 console.log(info);
                 if (info.color && info.color.length > 0 && info.depth && info.depth.length > 0) {
@@ -18,12 +19,31 @@ createNameSpace('realityEditor.device');
                 console.log(error);
             });
         }
+        toggleVisibility(newValue) {
+            if (typeof newValue !== 'undefined') {
+                this.visible = newValue;
+            } else {
+                this.visible = !this.visible;
+            }
+            this.updateVisibility();
+        }
+        updateVisibility() {
+            if (this.visible) {
+                this.timelineContainer.classList.remove('hiddenTimeline');
+            } else {
+                this.timelineContainer.classList.add('hiddenTimeline');
+            }
+        }
         createHTMLElements(info) {
-            // create a timeline
-            // create a handle on the timeline for scrolling
-            // create a play and pause button
-            // create a track on the timeline for each pair of videos – vertically spaced per device – horizontally per timestamp
-            // create two preview videos
+            // [ ] create a timeline
+            // [ ] create a playhead on the timeline for scrolling
+            // [ ] create a play and pause button
+            this.timelineContainer = this.createTimelineElement();
+            document.body.appendChild(this.timelineContainer);
+
+            // [ ] create a track on the timeline for each pair of videos – vertically spaced per device – horizontally per timestamp
+
+            // [x] create two preview videos
 
             let firstColorSrc = 'http://' + this.ip + ':8080/virtualizer_recording/' + info.color[0];
             let firstDepthSrc = 'http://' + this.ip + ':8080/virtualizer_recording/' + info.depth[0];
@@ -39,6 +59,45 @@ createNameSpace('realityEditor.device');
 
             document.body.appendChild(colorVideoElement);
             document.body.appendChild(depthVideoElement);
+        }
+        createTimelineElement() {
+            let container = document.createElement('div');
+            container.id = 'timelineContainer';
+            // container has a left box to hold the layer visibility toggles, a center box for the timeline, and a right box for playback controls
+            let leftBox = document.createElement('div');
+            let centerBox = document.createElement('div');
+            let rightBox = document.createElement('div');
+            [leftBox, centerBox, rightBox].forEach(elt => {
+                elt.classList.add('timelineBox');
+                container.appendChild(elt);
+            });
+            leftBox.id = 'timelineVisibilityBox';
+            centerBox.id = 'timelineTrackBox';
+            rightBox.id = 'timelineControlsBox';
+
+            let playhead = document.createElement('img');
+            playhead.id = 'timelinePlayhead';
+            playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
+            centerBox.appendChild(playhead);
+
+            let playButton = document.createElement('img');
+            playButton.id = 'timelinePlayButton';
+            playButton.src = '/addons/vuforia-spatial-remote-operator-addon/playButton.svg';
+
+            let seekButton = document.createElement('img');
+            seekButton.id = 'timelineSeekButton';
+            seekButton.src = '/addons/vuforia-spatial-remote-operator-addon/seekButton.svg';
+
+            let speedButton = document.createElement('img');
+            speedButton.id = 'timelineSpeedButton';
+            speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_1x.svg';
+
+            [playButton, seekButton, speedButton].forEach(elt => {
+                elt.classList.add('timelineControlButton');
+                rightBox.appendChild(elt);
+            });
+
+            return container;
         }
         createVideoElement(id, src) {
             let video = document.createElement('video');
@@ -86,9 +145,9 @@ createNameSpace('realityEditor.device');
                 });
                 // console.log(this.videoInfo);
 
-                sendRequest('http://' + this.ip + ':31337/videoInfo', 'GET', function (response) {
-                    console.log('response', response);
-                });
+                // sendRequest('http://' + this.ip + ':31337/videoInfo', 'GET', function (response) {
+                //     console.log('response', response);
+                // });
             });
         }
         // async downloadVideoInfo() {

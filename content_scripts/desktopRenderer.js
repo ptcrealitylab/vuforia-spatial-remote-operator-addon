@@ -45,6 +45,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let gltf = null;
     let staticModelMode = false;
 
+    let videoPlayback = null;
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -113,7 +115,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 checkExist();
 
                 // also create the VideoPlayback and search the server of the world object for any recorded videos
-                let videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
+                videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
             }
         });
 
@@ -160,6 +162,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     gltf.visible = false;
                     console.log('hide gltf');
                 }
+            } else if (params.event.code === 'KeyY') {
+                videoPlayback.toggleVisibility();
             }
         });
     }
