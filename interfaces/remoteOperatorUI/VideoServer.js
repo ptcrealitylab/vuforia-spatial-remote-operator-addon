@@ -22,6 +22,7 @@ class VideoServer {
             ENDING: 'ENDING',
             ENDED: 'ENDED'
         });
+        this.SEGMENT_LENGTH = 30000;
         this.anythingReceived = false;
 
         if (!fs.existsSync(this.outputPath)) {
@@ -85,24 +86,37 @@ class VideoServer {
         let colorFiles = files.filter(filename => filename.includes('color_stream'));
         let depthFiles = files.filter(filename => filename.includes('depth_stream'));
 
-        let allPreviouslyMergedColorStreams = Object.values(this.persistentInfo.mergedFiles.color).reduce((a, b) => a.concat(b), []);
-        let allPreviouslyMergedDepthStreams = Object.values(this.persistentInfo.mergedFiles.depth).reduce((a, b) => a.concat(b), []);
+        let allPreviouslyMergedColorStreams = Object.values(this.persistentInfo.mergedFiles.color).reduce((a, b) => a.fileList.concat(b.fileList), []);
+        let allPreviouslyMergedDepthStreams = Object.values(this.persistentInfo.mergedFiles.depth).reduce((a, b) => a.fileList.concat(b.fileList), []);
 
         // remove files that have already been merged
         colorFiles = colorFiles.filter(filename => !allPreviouslyMergedColorStreams.includes(filename));
         depthFiles = depthFiles.filter(filename => !allPreviouslyMergedDepthStreams.includes(filename));
 
-        let timestamp = Date.now();
+        let currentTimestamp = Date.now();
 
         let anyChanges = false;
         if (colorFiles.length > 0) {
-            let mergedColorFilePath = this.concatFiles(colorFiles, 'color_filenames_tmp.txt', 'color_merged', timestamp);
-            this.persistentInfo.mergedFiles.color[mergedColorFilePath] = colorFiles; // colorFiles.map(filename => path.join(this.outputPath, filename));
+            let mergedColorFilePath = this.concatFiles(colorFiles, 'color_filenames_tmp.txt', 'color_merged', currentTimestamp);
+            let timeInfo = this.extractTimeInformation(colorFiles);
+            // TODO: don't write absolutePath of mergedColorFilePath to the json file, write relative path
+            this.persistentInfo.mergedFiles.color[mergedColorFilePath] = {
+                fileList: colorFiles, // colorFiles.map(filename => path.join(this.outputPath, filename));
+                startTime: timeInfo.start,
+                endTime: timeInfo.end,
+                duration: timeInfo.duration
+            };
             anyChanges = true;
         }
         if (depthFiles.length > 0) {
-            let mergedDepthFilePath = this.concatFiles(depthFiles, 'depth_filenames_tmp.txt', 'depth_merged', timestamp);
-            this.persistentInfo.mergedFiles.depth[mergedDepthFilePath] = depthFiles; // depthFiles.map(filename => path.join(this.outputPath, filename));
+            let mergedDepthFilePath = this.concatFiles(depthFiles, 'depth_filenames_tmp.txt', 'depth_merged', currentTimestamp);
+            let timeInfo = this.extractTimeInformation(depthFiles);
+            this.persistentInfo.mergedFiles.depth[mergedDepthFilePath] = {
+                fileList: depthFiles,
+                startTime: timeInfo.start,
+                endTime: timeInfo.end,
+                duration: timeInfo.duration
+            };
             anyChanges = true;
         }
 
@@ -112,6 +126,16 @@ class VideoServer {
         } else {
             console.log('no new videos needed to be concatenated');
         }
+    }
+    extractTimeInformation(fileList) {
+        let fileRecordingTimes = fileList.map(filename => parseInt(filename.match(/[0-9]{13,}/))); // extract timestamp
+        let firstTimestamp = Math.min(...fileRecordingTimes) - this.SEGMENT_LENGTH; // estimate, since this is at the end of the first video
+        let lastTimestamp = Math.max(...fileRecordingTimes);
+        return {
+            start: firstTimestamp,
+            end: lastTimestamp,
+            duration: lastTimestamp - firstTimestamp
+        };
     }
     savePersistentInfo() {
         let jsonPath = path.join(this.outputPath, 'videoInfo.json');
@@ -153,7 +177,7 @@ class VideoServer {
             setTimeout(function() {
                 this.startRecording();
             }.bind(this), 100);
-        }.bind(this), 30000);
+        }.bind(this), this.SEGMENT_LENGTH);
     }
     stopRecording() {
         this.isRecording = false;
