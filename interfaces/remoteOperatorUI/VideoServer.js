@@ -86,8 +86,8 @@ class VideoServer {
         let colorFiles = files.filter(filename => filename.includes('color_stream'));
         let depthFiles = files.filter(filename => filename.includes('depth_stream'));
 
-        let allPreviouslyMergedColorStreams = Object.values(this.persistentInfo.mergedFiles.color).reduce((a, b) => a.fileList.concat(b.fileList), []);
-        let allPreviouslyMergedDepthStreams = Object.values(this.persistentInfo.mergedFiles.depth).reduce((a, b) => a.fileList.concat(b.fileList), []);
+        let allPreviouslyMergedColorStreams = Object.values(this.persistentInfo.mergedFiles.color).reduce((a, b) => a.concat(b.fileList), []);
+        let allPreviouslyMergedDepthStreams = Object.values(this.persistentInfo.mergedFiles.depth).reduce((a, b) => a.concat(b.fileList), []);
 
         // remove files that have already been merged
         colorFiles = colorFiles.filter(filename => !allPreviouslyMergedColorStreams.includes(filename));
