@@ -84,6 +84,35 @@ body > * {
     width: 20px;
 }
 
+.timelinePlayheadSelected {
+    filter: hue-rotate(-120deg) saturate(400%);
+    -webkit-filter: hue-rotate(-120deg) saturate(400%);
+}
+
+.timelineTrack {
+    position: absolute;
+    background-color: rgba(0,255,255, 0.1);
+    left: 5px;
+    width: calc(100% - 2 * 5px);
+}
+
+.timelineTrack:hover {
+    background-color: rgba(0,255,255, 0.2);
+}
+
+.timelineSegment {
+    position: absolute;
+    background-color: rgba(0,255,255, 0.5);
+    border-radius: 10px;
+    top: 0;
+    height: 100%;
+}
+
+.timelineSegment:hover {
+    background-color: rgba(0,255,255, 0.7);
+    border: 2px solid white;
+}
+
 #timelineControlsBox {
     position: absolute;
     left: calc(100vw - 2 * 20px - 60px);

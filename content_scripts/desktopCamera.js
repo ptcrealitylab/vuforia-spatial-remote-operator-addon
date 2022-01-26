@@ -147,9 +147,9 @@ createNameSpace('realityEditor.device.desktopCamera');
             pointerPosition.x = e.clientX;
             pointerPosition.y = e.clientY;
 
-            if (interactionCursor.style.display !== 'none') {
-                interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
-                interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
+            if (interactionCursor && interactionCursor.getClientRects() && interactionCursor.getClientRects()[0] && interactionCursor.style.display !== 'none') {
+                interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width / 2) + 'px';
+                interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height / 2) + 'px';
             }
         });
 
@@ -367,9 +367,9 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (imageSrc) {
             interactionCursor.src = imageSrc;
         }
-        if (interactionCursor.getClientRects() && interactionCursor.getClientRects().length > 0) {
-            interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
-            interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
+        if (interactionCursor && interactionCursor.getClientRects() && interactionCursor.getClientRects()[0] && interactionCursor.getClientRects().length > 0) {
+            interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width / 2) + 'px';
+            interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height / 2) + 'px';
         }
 
         staticInteractionCursor.style.display = visible ? 'inline' : 'none';
