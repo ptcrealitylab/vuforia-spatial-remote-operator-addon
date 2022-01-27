@@ -59,12 +59,18 @@ createNameSpace('realityEditor.device');
             this.colorVideoPreview = colorVideoElement;
             this.depthVideoPreview = depthVideoElement;
 
-            colorVideoElement.style.top = 100 + 'px';
-            colorVideoElement.style.left = 50 + 'px';
-            depthVideoElement.style.top = 100 + 'px';
-            depthVideoElement.style.left = 340 + 'px';
+            colorVideoElement.style.top = 90 + 'px';
+            colorVideoElement.style.left = 20 + 'px';
+            depthVideoElement.style.top = 90 + 'px';
+            depthVideoElement.style.left = 310 + 'px';
 
             colorVideoElement.addEventListener('timeupdate', () => {
+                let colorCtx = this.colorVideoCanvas.getContext('2d');
+                let depthCtx = this.depthVideoCanvas.getContext('2d');
+                colorCtx.drawImage(this.colorVideoPreview, 0, 0, 960, 540);
+                depthCtx.drawImage(this.depthVideoPreview, 0, 0, 256, 144);
+                // TODO: getImageData and pass buffers to point cloud renderer
+
                 if (!this.isPlaying) { return; } // ignore timeupdates due to user scrolling interactions
                 if (!this.selectedSegmentId) { return; } // TODO: make it work even if no selected segment
                 // console.log('timeupdate: ', colorVideoElement.currentTime);
@@ -76,6 +82,22 @@ createNameSpace('realityEditor.device');
 
             document.body.appendChild(colorVideoElement);
             document.body.appendChild(depthVideoElement);
+
+            // [x] create a canvas for the video to be written to so its pixel data can be extracted
+            // TODO: move to OffscreenCanvas and worker thread (https://developers.google.com/web/updates/2018/08/offscreen-canvas)
+            let colorVideoCanvas = document.createElement('canvas');
+            colorVideoCanvas.id = 'colorVideoCanvas';
+            colorVideoCanvas.width = 960;
+            colorVideoCanvas.height = 540;
+            document.body.appendChild(colorVideoCanvas);
+            this.colorVideoCanvas = colorVideoCanvas;
+
+            let depthVideoCanvas = document.createElement('canvas');
+            depthVideoCanvas.id = 'depthVideoCanvas';
+            depthVideoCanvas.width = 256;
+            depthVideoCanvas.height = 144;
+            document.body.appendChild(depthVideoCanvas);
+            this.depthVideoCanvas = depthVideoCanvas;
         }
         createTimelineElement() {
             let container = document.createElement('div');
@@ -147,13 +169,12 @@ createNameSpace('realityEditor.device');
                 let containerWidth = trackBox.getClientRects()[0].width;
 
                 let relativeX = pointerX - containerLeft;
-                let leftMargin = 5;
-                let rightMargin = 5;
+                let leftMargin = 20;
+                let rightMargin = 20;
                 let halfPlayheadWidth = 10;
                 playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
 
                 let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth) / (containerWidth - leftMargin - rightMargin);
-                // console.log(playheadTimePercent);
 
                 let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
                 this.timeScrolledTo(this.trackInfo.metadata.minTime + playheadTimePercent * duration);
@@ -197,49 +218,44 @@ createNameSpace('realityEditor.device');
             Object.keys(this.trackInfo.tracks.defaultDevice.segments).forEach(segmentId => {
                 let segment = this.trackInfo.tracks.defaultDevice.segments[segmentId];
                 if (timestamp > segment.start && timestamp < segment.end) {
-                    console.log('Scrolling on top of ' + segmentId);
+                    // console.log('Scrolling on top of ' + segmentId);
                     if (this.selectedSegmentId !== segmentId) {
                         this.selectedSegmentId = segmentId;
-                        let videoSourceElement = this.colorVideoPreview.querySelector('source');
-                        let filename = segmentId.replace(/^.*[\\\/]/, '');
-                        videoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + filename;
+
+                        let colorVideoSourceElement = this.colorVideoPreview.querySelector('source');
+                        let filename = segment.colorVideo.replace(/^.*[\\\/]/, '');
+                        colorVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + filename;
                         this.colorVideoPreview.load();
-                        console.log('src = ' + videoSourceElement.src);
+                        console.log('src = ' + colorVideoSourceElement.src);
+
+                        let depthVideoSourceElement = this.depthVideoPreview.querySelector('source');
+                        filename = segment.depthVideo.replace(/^.*[\\\/]/, '');
+                        depthVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + filename;
+                        this.depthVideoPreview.load();
+                        console.log('src = ' + depthVideoSourceElement.src);
                     }
                     // calculate currentTime
-                    console.log((timestamp - segment.start) / 1000);
+                    // console.log((timestamp - segment.start) / 1000);
                     this.colorVideoPreview.currentTime = (timestamp - segment.start) / 1000;
+                    this.depthVideoPreview.currentTime = (timestamp - segment.start) / 1000;
                 }
             });
 
             // if it is, load that video into the video players, and set the currentTime to the correct converted timestamp
         }
         movePlayheadToTime(timestamp) {
-            // calculate new X position to follow mouse, constrained to trackBox element
-            // let pointerX = e.pageX;
-
+            // calculate new X position of playhead based on timestamp relative to full time range
             let trackBox = document.getElementById('timelineTrackBox');
-            let containerLeft = trackBox.getClientRects()[0].left;
             let containerWidth = trackBox.getClientRects()[0].width;
-
-            // let relativeX = pointerX - containerLeft;
-            let leftMargin = 5;
-            let rightMargin = 5;
+            let leftMargin = 20;
             let halfPlayheadWidth = 10;
-            // playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
-            //
-            // let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth) / (containerWidth - leftMargin - rightMargin);
-            // // console.log(playheadTimePercent);
-            //
-            // let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
-            // this.timeScrolledTo(this.trackInfo.metadata.minTime + playheadTimePercent * duration);
 
             // calculate normalized time based on absolute timestamp
             let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
             let timePercent = Math.max(0, Math.min(1, (timestamp - this.trackInfo.metadata.minTime) / duration));
 
             let playheadElement = document.getElementById('timelinePlayhead');
-            playheadElement.style.left = (timePercent * containerWidth) + rightMargin + halfPlayheadWidth + 'px';
+            playheadElement.style.left = (timePercent * containerWidth) + leftMargin + halfPlayheadWidth + 'px';
 
         }
         createVideoTracks(videoInfo) {
@@ -265,7 +281,7 @@ createNameSpace('realityEditor.device');
                 let info = videoInfo.mergedFiles.color[filePath];
                 this.trackInfo.tracks.defaultDevice.segments[filePath] = {
                     colorVideo: filePath,
-                    depthVideo: 'TODO: get matching depth video',
+                    depthVideo: this.getMatchingDepthVideo(filePath),
                     start: info.startTime,
                     end: info.endTime,
                     visible: true,
@@ -319,6 +335,18 @@ createNameSpace('realityEditor.device');
                     this.positionAndScaleSegment(segmentElement, segments[segmentId], trackInfo);
                 });
             }
+        }
+        // TODO: update this if the file naming changes to not include the timestamp or if depth+color aren't guaranteed to have identical timestamps
+        getMatchingDepthVideo(colorFilePath) {
+            // find the depth video by searching filenames for one with the same timestamp
+            // "/Users/Ben/Documents/spatialToolbox/.identity/virtualizer_recordings/color_merged_1643228509255.mp4"
+            let videoTimestamp = colorFilePath.match(/[0-9]{13,}/); // extract timestamp
+            let depthVideoPaths = Object.keys(this.videoInfo.mergedFiles.depth);
+            let matchingPathArray = depthVideoPaths.filter(path => path.includes(videoTimestamp));
+            if (matchingPathArray.length > 0) {
+                return matchingPathArray[0];
+            }
+            return '';
         }
         positionAndScaleTrack(trackElement, trackInfo, index, numTracks) {
             console.log('position and scale track:');
@@ -407,43 +435,6 @@ createNameSpace('realityEditor.device');
             };
             req.send();
         });
-    }
-
-    function sendRequest(url, httpStyle, callback, body) {
-        if (!body) { body = ''; }
-        let req = new XMLHttpRequest();
-        try {
-            req.open(httpStyle, url, true);
-            if (httpStyle === 'POST') {
-                req.setRequestHeader('Access-Control-Allow-Headers', '*');
-                req.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-            }
-            // Just like regular ol' XHR
-            req.onreadystatechange = function () {
-                if (req.readyState === 4) {
-                    if (req.status === 200) {
-                        // JSON.parse(req.responseText) etc.
-                        if (req.responseText)
-                            callback(req.responseText);
-                    } else {
-                        // Handle error case
-                        callback('err');
-                        console.log('could not load content');
-                    }
-                }
-            };
-            if (httpStyle === 'POST') {
-                req.send(body);
-            } else {
-                req.send();
-            }
-
-        } catch (e) {
-            console.warn(e);
-            callback(e);
-            callback('err');
-            console.log('could not connect to' + url);
-        }
     }
 
     exports.VideoPlayback = VideoPlayback;

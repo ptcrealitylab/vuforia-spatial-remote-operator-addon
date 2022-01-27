@@ -24,6 +24,7 @@ class VideoServer {
         });
         this.SEGMENT_LENGTH = 30000;
         this.anythingReceived = false;
+        this.DEBUG_WRITE_IMAGES = false;
 
         if (!fs.existsSync(this.outputPath)) {
             fs.mkdirSync(this.outputPath, {recursive: true});
@@ -161,13 +162,15 @@ class VideoServer {
         this.isRecording = true;
 
         // start color stream process
-        this.processes[this.PROCESS.COLOR] = this.ffmpeg_image2mp4('color_stream', 8, 'mjpeg', 1920, 1080, 25, 0.25);
+        // depth images are 1920x1080 lossy JPG images
+        this.processes[this.PROCESS.COLOR] = this.ffmpeg_image2mp4('color_stream', 8, 'mjpeg', 1920, 1080, 25, 0.5);
         if (this.processes[this.PROCESS.COLOR]) {
             this.processStatuses[this.PROCESS.COLOR] = this.STATUS.STARTED;
         }
 
         // start depth stream process
-        this.processes[this.PROCESS.DEPTH] = this.ffmpeg_image2mp4('depth_stream', 8, 'png', 1920, 1080, 25, 0.25);
+        // depth images are 256x144 lossless PNG buffers
+        this.processes[this.PROCESS.DEPTH] = this.ffmpeg_image2mp4('depth_stream', 8, 'png', 256, 144, 25, 1);
         if (this.processes[this.PROCESS.DEPTH]) {
             this.processStatuses[this.PROCESS.DEPTH] = this.STATUS.STARTED;
         }
@@ -224,6 +227,25 @@ class VideoServer {
         if (typeof depthProcess !== 'undefined' && depthStatus === 'STARTED') {
             depthProcess.stdin.write(depth);
         }
+
+        if (this.DEBUG_WRITE_IMAGES) {
+            let colorFilename = 'color_' + Date.now() + '.png'; // + Math.floor(Math.random() * 1000)
+            let depthFilename = 'depth_' + Date.now() + '.png';
+            // let matrixFilename = 'matrix_' + Date.now() + '.png';
+            fs.writeFile(path.join(this.outputPath, colorFilename), rgb, function() {
+                // console.log('wrote color image');
+            });
+
+            fs.writeFile(path.join(this.outputPath, depthFilename), depth, function() {
+                // console.log('wrote depth image');
+            });
+
+            // fs.writeFile(path.join(__dirname, 'images', 'matrix', matrixFilename), pose, function() {
+            //     // console.log('wrote matrix image');
+            // });
+
+        }
+
     }
     ffmpeg_concat_mp4s(output_name, file_list_path, timestamp) {
         // ffmpeg -f concat -safe 0 -i fileList.txt -c copy mergedVideo.mp4
