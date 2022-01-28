@@ -84,9 +84,34 @@ body > * {
     width: 20px;
 }
 
+.timelinePlayheadPlaying {
+    filter: hue-rotate(-60deg) saturate(400%);
+    -webkit-filter: hue-rotate(-120deg) saturate(400%);
+}
+
 .timelinePlayheadSelected {
     filter: hue-rotate(-120deg) saturate(400%);
     -webkit-filter: hue-rotate(-120deg) saturate(400%);
+}
+
+#timelineVideoPreviewContainer {
+    position: absolute;
+    left: -68px;
+    top: -159px;
+    width: 480px;
+    height: 135px;
+    display: none;
+}
+
+/*.timelineVideoPreviewHidden {*/
+/*}*/
+
+.timelineVideoPreviewPlaying {
+    display: inline !important;
+}
+
+.timelineVideoPreviewSelected {
+    display: inline !important;
 }
 
 .timelineTrack {
@@ -153,7 +178,7 @@ body > * {
 #colorVideoCanvas {
     position: absolute;
     left: 20px;
-    top: 240px;
+    top: 100px;
     width: 960px;
     height: 540px;
     transform-origin: left top;
@@ -165,7 +190,7 @@ body > * {
 #depthVideoCanvas {
     position: absolute;
     left: 520px;
-    top: 240px;
+    top: 100px;
     width: 256px;
     height: 144px;
     transform-origin: left top;
