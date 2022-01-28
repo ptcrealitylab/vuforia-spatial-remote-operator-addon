@@ -167,6 +167,8 @@ class VideoServer {
 
         console.log('parsed sessions for ' + deviceId + ':', sessions);
 
+        let anyChanges = false;
+
         Object.keys(sessions).forEach(sessionId => {
             if (sessions[sessionId].finalColorVideo && sessions[sessionId].finalDepthVideo) { return; }
 
@@ -175,6 +177,10 @@ class VideoServer {
                 let outputFilePath = this.concatFiles(deviceId, sessionId, 'color', thisSession.colorChunks);
                 let timeInfo = this.extractTimeInformation(thisSession.colorChunks);
                 console.log('merged color chunks, got time info', outputFilePath, timeInfo);
+                thisSession.finalColorVideo = {
+                    filePath: outputFilePath,
+                    timeInfo: timeInfo
+                };
                 // // TODO: don't write absolutePath of mergedColorFilePath to the json file, write relative path
                 // this.persistentInfo.mergedFiles.color[mergedColorFilePath] = {
                 //     fileList: colorFiles, // colorFiles.map(filename => path.join(this.outputPath, filename));
@@ -182,12 +188,17 @@ class VideoServer {
                 //     endTime: timeInfo.end,
                 //     duration: timeInfo.duration
                 // };
+                anyChanges = true;
             }
 
             if (!thisSession.finalDepthVideo && thisSession.depthChunks.length > 0) {
                 let outputFilePath = this.concatFiles(deviceId, sessionId, 'depth', thisSession.depthChunks);
                 let timeInfo = this.extractTimeInformation(thisSession.depthChunks);
                 console.log('merged depth chunks, got time info', outputFilePath, timeInfo);
+                thisSession.finalDepthVideo = {
+                    filePath: outputFilePath,
+                    timeInfo: timeInfo
+                };
                 // // TODO: don't write absolutePath of mergedColorFilePath to the json file, write relative path
                 // this.persistentInfo.mergedFiles.color[mergedColorFilePath] = {
                 //     fileList: colorFiles, // colorFiles.map(filename => path.join(this.outputPath, filename));
@@ -195,17 +206,22 @@ class VideoServer {
                 //     endTime: timeInfo.end,
                 //     duration: timeInfo.duration
                 // };
+                anyChanges = true;
             }
         });
 
-        // if (anyChanges) {
-        //     console.log('new videos were concatenated');
-        //     this.savePersistentInfo();
-        // } else {
-        //     console.log('no new videos needed to be concatenated');
-        // }
+        this.persistentInfo[deviceId] = sessions;
+
+        if (anyChanges) {
+            console.log('new videos were concatenated');
+            this.savePersistentInfo();
+        } else {
+            console.log('no new videos needed to be concatenated');
+        }
+
+        console.log(this.persistentInfo);
     }
-    extractTimeInformation(fileList) {
+    extractTimeInformation(fileList) { // TODO: we can probably just use the SEGMENT_LENGTH * fileList.length?
         let fileRecordingTimes = fileList.map(filename => parseInt(filename.match(/[0-9]{13,}/))); // extract timestamp
         let firstTimestamp = Math.min(...fileRecordingTimes) - this.SEGMENT_LENGTH; // estimate, since this is at the end of the first video
         let lastTimestamp = Math.max(...fileRecordingTimes);
@@ -416,14 +432,14 @@ class VideoServer {
 
         cp.spawn('ffmpeg', args);
     }
-    ffmpeg_image2mp4(output_path, framerate = 8, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
+    ffmpeg_image2mp4(output_path, framerate = 10, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
         // let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
 
         let outputWidth = input_width * output_scale;
         let outputHeight = input_height * output_scale;
 
         let args = [
-            // '-r', framerate,
+            '-r', framerate,
             // '-framerate', framerate,
             // '-probesize', '5000',
             // '-analyzeduration', '5000',
@@ -459,16 +475,25 @@ class VideoServer {
         return process;
     }
     getUnprocessedChunkFilePaths(deviceId, colorOrDepth = 'color') {
-        let unprocessedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks);
-        return fs.readdirSync(path.join(unprocessedPath, colorOrDepth)).filter(filename => filename.includes('.mp4'));
+        let unprocessedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, colorOrDepth);
+        if (!fs.existsSync(unprocessedPath)) {
+            fs.mkdirSync(unprocessedPath, { recursive: true });
+        }
+        return fs.readdirSync(unprocessedPath).filter(filename => filename.includes('.mp4'));
     }
     getProcessedChunkFilePaths(deviceId, colorOrDepth = 'color') {
-        let processedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks);
-        return fs.readdirSync(path.join(processedPath, colorOrDepth)).filter(filename => filename.includes('.mp4'));
+        let processedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks, colorOrDepth);
+        if (!fs.existsSync(processedPath)) {
+            fs.mkdirSync(processedPath, { recursive: true });
+        }
+        return fs.readdirSync(processedPath).filter(filename => filename.includes('.mp4'));
     }
     getSessionFilePaths(deviceId, colorOrDepth = 'color') {
-        let sessionPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos);
-        return fs.readdirSync(path.join(sessionPath, colorOrDepth)).filter(filename => filename.includes('.mp4'));
+        let sessionPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, colorOrDepth);
+        if (!fs.existsSync(sessionPath)) {
+            fs.mkdirSync(sessionPath, { recursive: true });
+        }
+        return fs.readdirSync(sessionPath).filter(filename => filename.includes('.mp4'));
     }
     evaluateAndRescaleVideosIfNeeded(deviceId) {
         let unprocessedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks);
@@ -479,21 +504,13 @@ class VideoServer {
         let unprocessedDepthFiles = this.getUnprocessedChunkFilePaths(deviceId, 'depth');
         let processedDepthFiles = this.getProcessedChunkFilePaths(deviceId, 'depth');
 
-        // let allPreviouslyMergedColorStreams = Object.values(this.persistentInfo.mergedFiles.color).reduce((a, b) => a.concat(b.fileList), []);
-        // let allPreviouslyMergedDepthStreams = Object.values(this.persistentInfo.mergedFiles.depth).reduce((a, b) => a.concat(b.fileList), []);
-
-        // remove files that have already been merged
-        // colorFiles = colorFiles.filter(filename => !allPreviouslyMergedColorStreams.includes(filename));
-        // depthFiles = depthFiles.filter(filename => !allPreviouslyMergedDepthStreams.includes(filename));
-
-        // for each file, check if a _resized_ file already exists, and delete _stream_ if so – otherwise create _resized_
+        // for each file, check if a processed file already exists
         let filesToScale = [];
         unprocessedColorFiles.forEach(filename => {
             let alreadyScaled = false;
             let timestamp = filename.match(/[0-9]{13,}/);
             processedColorFiles.forEach(resizedFilename => {
                 if (resizedFilename.includes(timestamp)) {
-                    // delete the colorStreamFile
                     alreadyScaled = true;
                 }
             });
@@ -505,8 +522,6 @@ class VideoServer {
             }
         });
         if (filesToScale.length > 0) {
-            // this.rescaleVideoLengths(filesToScale, 30.0);
-
             for (let i = 0; i < filesToScale.length; i++) {
                 let inputPath = path.join(unprocessedPath, 'color', filesToScale[i]);
                 let outputPath = path.join(processedPath, 'color', filesToScale[i]);
@@ -520,7 +535,6 @@ class VideoServer {
             let timestamp = filename.match(/[0-9]{13,}/);
             processedDepthFiles.forEach(resizedFilename => {
                 if (resizedFilename.includes(timestamp)) {
-                    // delete the colorStreamFile
                     alreadyScaled = true;
                 }
             });
@@ -532,21 +546,12 @@ class VideoServer {
             }
         });
         if (filesToScale.length > 0) {
-            // this.rescaleVideoLengths(filesToScale, 30.0);
-
             for (let i = 0; i < filesToScale.length; i++) {
                 let inputPath = path.join(unprocessedPath, 'depth', filesToScale[i]);
                 let outputPath = path.join(processedPath, 'depth', filesToScale[i]);
                 this.ffmpeg_adjust_length(outputPath, inputPath, this.SEGMENT_LENGTH / 1000);
             }
         }
-
-        // if (colorFiles.length > 0) {
-        //     this.rescaleVideoLengths(colorFiles, 30.0);
-        // }
-        // if (depthFiles.length > 0) {
-        //     this.rescaleVideoLengths(depthFiles, 30.0);
-        // }
     }
     /**
      * Generates a random 8 character unique identifier using uppercase, lowercase, and numbers (e.g. "jzY3y338")
