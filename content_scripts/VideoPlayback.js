@@ -59,11 +59,6 @@ createNameSpace('realityEditor.device');
             this.colorVideoPreview = colorVideoElement;
             this.depthVideoPreview = depthVideoElement;
 
-            colorVideoElement.style.top = 90 + 'px';
-            colorVideoElement.style.left = 20 + 'px';
-            depthVideoElement.style.top = 90 + 'px';
-            depthVideoElement.style.left = 310 + 'px';
-
             colorVideoElement.addEventListener('timeupdate', () => {
                 let colorCtx = this.colorVideoCanvas.getContext('2d');
                 let depthCtx = this.depthVideoCanvas.getContext('2d');
@@ -80,8 +75,10 @@ createNameSpace('realityEditor.device');
                 this.movePlayheadToTime(absoluteTime);
             });
 
-            document.body.appendChild(colorVideoElement);
-            document.body.appendChild(depthVideoElement);
+            let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+            videoPreviewContainer.appendChild(colorVideoElement);
+            videoPreviewContainer.appendChild(depthVideoElement);
+            depthVideoElement.style.left = 240 + 'px';
 
             // [x] create a canvas for the video to be written to so its pixel data can be extracted
             // TODO: move to OffscreenCanvas and worker thread (https://developers.google.com/web/updates/2018/08/offscreen-canvas)
@@ -119,6 +116,13 @@ createNameSpace('realityEditor.device');
             playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
             centerBox.appendChild(playhead);
             this.setupPlayhead(playhead);
+
+            let videoPreviewContainer = document.createElement('div');
+            videoPreviewContainer.id = 'timelineVideoPreviewContainer';
+            videoPreviewContainer.classList.add('timelineBox');
+            centerBox.appendChild(videoPreviewContainer);
+            // left = -68px is most left as possible
+            // width = 480px for now, to show both, but should change to 240px eventually
 
             let playButton = document.createElement('img');
             playButton.id = 'timelinePlayButton';
@@ -174,6 +178,12 @@ createNameSpace('realityEditor.device');
                 let halfPlayheadWidth = 10;
                 playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
 
+                // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
+                let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+                let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+                let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
+
                 let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth) / (containerWidth - leftMargin - rightMargin);
 
                 let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
@@ -182,6 +192,10 @@ createNameSpace('realityEditor.device');
             playheadElement.addEventListener('pointerdown', e => {
                 this.playheadClickedDown = true;
                 playheadElement.classList.add('timelinePlayheadSelected');
+
+                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+                videoPreview.classList.add('timelineVideoPreviewSelected');
+
                 if (this.isPlaying) {
                     this.pauseVideoPlayback();
                 }
@@ -189,16 +203,28 @@ createNameSpace('realityEditor.device');
             document.addEventListener('pointerup', e => {
                 this.playheadClickedDown = false;
                 playheadElement.classList.remove('timelinePlayheadSelected');
+
+                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+                videoPreview.classList.remove('timelineVideoPreviewSelected');
             });
             document.addEventListener('pointercancel', e => {
                 this.playheadClickedDown = false;
                 playheadElement.classList.remove('timelinePlayheadSelected');
+
+                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+                videoPreview.classList.remove('timelineVideoPreviewSelected');
             });
         }
         playVideoPlayback() {
             this.colorVideoPreview.play();
             this.depthVideoPreview.play();
             this.isPlaying = true;
+
+            let playheadElement = document.getElementById('timelinePlayhead');
+            playheadElement.classList.add('timelinePlayheadPlaying');
+
+            let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+            videoPreview.classList.add('timelineVideoPreviewPlaying');
 
             let playButton = document.getElementById('timelinePlayButton');
             playButton.src = '/addons/vuforia-spatial-remote-operator-addon/pauseButton.svg';
@@ -207,6 +233,12 @@ createNameSpace('realityEditor.device');
             this.colorVideoPreview.pause();
             this.depthVideoPreview.pause();
             this.isPlaying = false;
+
+            let playheadElement = document.getElementById('timelinePlayhead');
+            playheadElement.classList.remove('timelinePlayheadPlaying');
+
+            let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+            videoPreview.classList.remove('timelineVideoPreviewPlaying');
 
             let playButton = document.getElementById('timelinePlayButton');
             playButton.src = '/addons/vuforia-spatial-remote-operator-addon/playButton.svg';
@@ -256,6 +288,12 @@ createNameSpace('realityEditor.device');
 
             let playheadElement = document.getElementById('timelinePlayhead');
             playheadElement.style.left = (timePercent * containerWidth) + leftMargin + halfPlayheadWidth + 'px';
+
+            // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
+            let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+            let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+            let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+            videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
 
         }
         createVideoTracks(videoInfo) {
