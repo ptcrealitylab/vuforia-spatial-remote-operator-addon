@@ -21,8 +21,8 @@ module.exports.start = function start() {
     app.use(cors());
     expressWs(app);
     const streamRouter = makeStreamRouter(app);
-    streamRouter.onFrame(function(rgb, depth, pose) {
-        videoServer.onFrame(rgb, depth, pose);
+    streamRouter.onFrame(function(rgb, depth, pose, deviceId) {
+        videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId);
     });
 
     let allWebsockets = [];

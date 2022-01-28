@@ -123,7 +123,7 @@ module.exports = function makeStreamRouter(app) {
         if (frameData[id].color && frameData[id].depth && frameData[id].matrix) {
             // console.log('have color, depth, and matrix for id: ' + id);
             onFrameCallbacks.forEach(function(cb) {
-                cb(frameData[id].color, frameData[id].depth, frameData[id].matrix);
+                cb(frameData[id].color, frameData[id].depth, frameData[id].matrix, id);
             });
             delete frameData[id];
         }
