@@ -183,7 +183,7 @@ createNameSpace('realityEditor.device');
                 }
                 speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_' + this.playbackSpeed + 'x.svg';
             });
-        }
+        } // TODO: make use of requestVideoFrameCallback ? videoElement.duration, etc
         setupPlayhead(playheadElement) {
             document.addEventListener('pointermove', e => {
                 if (!this.playheadClickedDown) { return; }
@@ -207,7 +207,8 @@ createNameSpace('realityEditor.device');
                 let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
                 videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
 
-                let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth) / (containerWidth - leftMargin - rightMargin);
+                let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+                console.log(playheadTimePercent);
 
                 let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
                 this.timeScrolledTo(this.trackInfo.metadata.minTime + playheadTimePercent * duration);
@@ -268,6 +269,9 @@ createNameSpace('realityEditor.device');
         }
         timeScrolledTo(timestamp) {
             // console.log('time scrolled to ' + timestamp);
+            // let thisTime = ((timestamp - this.trackInfo.metadata.minTime) / 1000 / 60);
+            // let maxTime = ((this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime) / 1000 / 60);
+            // console.log('time scrolled to: ' + thisTime + ' out of ' + maxTime);
 
             // check if timestamp is within [start,end] for any of the segments on all of the tracks
             Object.keys(this.trackInfo.tracks).forEach(deviceId => {
@@ -301,10 +305,20 @@ createNameSpace('realityEditor.device');
             // if it is, load that video into the video players, and set the currentTime to the correct converted timestamp
         }
         movePlayheadToTime(timestamp) {
+            /*
+            playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
+            let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+            (playheadTimePercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin)) = parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin;
+            (playheadTimePercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin)) - halfPlayheadWidth + leftMargin = playheadElement.style.left;
+            playheadElement.style.left = leftMargin - halfPlayheadWidth + (playheadTimePercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin));
+            console.log(playheadTimePercent);
+             */
+
             // calculate new X position of playhead based on timestamp relative to full time range
             let trackBox = document.getElementById('timelineTrackBox');
             let containerWidth = trackBox.getClientRects()[0].width;
             let leftMargin = 20;
+            let rightMargin = 20;
             let halfPlayheadWidth = 10;
 
             // calculate normalized time based on absolute timestamp
@@ -312,7 +326,8 @@ createNameSpace('realityEditor.device');
             let timePercent = Math.max(0, Math.min(1, (timestamp - this.trackInfo.metadata.minTime) / duration));
 
             let playheadElement = document.getElementById('timelinePlayhead');
-            playheadElement.style.left = (timePercent * containerWidth) + leftMargin + halfPlayheadWidth + 'px';
+            // playheadElement.style.left = (timePercent * containerWidth) + leftMargin + halfPlayheadWidth + 'px';
+            playheadElement.style.left = leftMargin - halfPlayheadWidth + (timePercent * (containerWidth  - halfPlayheadWidth - leftMargin - rightMargin)) + 'px';
 
             // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
@@ -465,7 +480,7 @@ createNameSpace('realityEditor.device');
             video.id = id;
             video.classList.add('videoPreview');
             video.setAttribute('width', '240');
-            // video.setAttribute('controls', 'controls');
+            video.setAttribute('controls', 'controls');
             video.setAttribute('muted', 'muted');
             // video.setAttribute('autoplay', 'autoplay');
 
