@@ -12,13 +12,17 @@ createNameSpace('realityEditor.device');
             this.trackInfo = {};
             this.visible = true;
             this.selectedSegmentId = null;
+            this.selectedSegments = {};
             this.isPlaying = false;
             this.playbackSpeed = 1;
             this.loadAvailableVideos().then(info => {
-                console.log(info);
-                if (info.color && info.color.length > 0 && info.depth && info.depth.length > 0) {
-                    this.createHTMLElements(info);
+                console.log(this.videoInfo);
+                if (Object.keys(this.videoInfo).length > 0) {
+                    this.createHTMLElements();
                 }
+                // if (info.color && info.color.length > 0 && info.depth && info.depth.length > 0) {
+                //     this.createHTMLElements(info);
+                // }
             }).catch(error => {
                 console.log(error);
             });
@@ -38,7 +42,9 @@ createNameSpace('realityEditor.device');
                 this.timelineContainer.classList.add('hiddenTimeline');
             }
         }
-        createHTMLElements(info) {
+        createHTMLElements() {
+            let info = this.videoInfo;
+
             // [x] create a timeline
             // [x] create a playhead on the timeline for scrolling
             // [x] create a play and pause button
@@ -50,8 +56,14 @@ createNameSpace('realityEditor.device');
 
             // [x] create two preview videos
 
-            let firstColorSrc = 'http://' + this.ip + ':8080/virtualizer_recording/' + info.color[0];
-            let firstDepthSrc = 'http://' + this.ip + ':8080/virtualizer_recording/' + info.depth[0];
+            // TODO: BEN LOOK AT THIS!!
+            // TODO: MONDAY MORNING – I just updated the server.js to have a new endpoint for the APIs: /virtualizer_recording/:deviceId/:colorOrDepth/:filename
+            // TODO: update these videos to load from the correct new endpoints
+            // TODO: next, the this.videoInfo has a new structure: { deviceId: { sessionId: { finalColorVideo: {}, finalDepthVideo: {} } }
+            // TODO: load and populate the tracks and segments using this data structure instead of parsing that info from the color and depth filenames in old structure
+
+            let firstColorSrc = ''; //'http://' + this.ip + ':8080/virtualizer_recording/' + info.color[0];
+            let firstDepthSrc = ''; //'http://' + this.ip + ':8080/virtualizer_recording/' + info.depth[0];
 
             console.log('create video HTML elements');
             let colorVideoElement = this.createVideoElement('colorVideoPreview', firstColorSrc);
@@ -59,6 +71,7 @@ createNameSpace('realityEditor.device');
             this.colorVideoPreview = colorVideoElement;
             this.depthVideoPreview = depthVideoElement;
 
+            // TODO: how to handle video preview of multiple parallel tracks?
             colorVideoElement.addEventListener('timeupdate', () => {
                 let colorCtx = this.colorVideoCanvas.getContext('2d');
                 let depthCtx = this.depthVideoCanvas.getContext('2d');
@@ -67,10 +80,11 @@ createNameSpace('realityEditor.device');
                 // TODO: getImageData and pass buffers to point cloud renderer
 
                 if (!this.isPlaying) { return; } // ignore timeupdates due to user scrolling interactions
-                if (!this.selectedSegmentId) { return; } // TODO: make it work even if no selected segment
+                let selectedSegments = this.getSelectedSegments();
+                if (selectedSegments.length === 0) { return; } // TODO: make it work even if no selected segment
                 // console.log('timeupdate: ', colorVideoElement.currentTime);
                 let timeMs = colorVideoElement.currentTime * 1000;
-                let segmentInfo = this.trackInfo.tracks.defaultDevice.segments[this.selectedSegmentId];
+                let segmentInfo = this.trackInfo.tracks[selectedSegments[0].deviceId].segments[selectedSegments[0].segmentId];
                 let absoluteTime = segmentInfo.start + timeMs;
                 this.movePlayheadToTime(absoluteTime);
             });
@@ -95,6 +109,15 @@ createNameSpace('realityEditor.device');
             depthVideoCanvas.height = 144;
             document.body.appendChild(depthVideoCanvas);
             this.depthVideoCanvas = depthVideoCanvas;
+        }
+        getSelectedSegments() {
+            // key = deviceId, value = segmentId
+            return Object.keys(this.selectedSegments).map(function(deviceId) {
+                return {
+                    deviceId: deviceId,
+                    segmentId: this.selectedSegments[deviceId]
+                };
+            }.bind(this)).filter(info => !!info.segmentId);
         }
         createTimelineElement() {
             let container = document.createElement('div');
@@ -247,30 +270,32 @@ createNameSpace('realityEditor.device');
             // console.log('time scrolled to ' + timestamp);
 
             // check if timestamp is within [start,end] for any of the segments on all of the tracks
-            Object.keys(this.trackInfo.tracks.defaultDevice.segments).forEach(segmentId => {
-                let segment = this.trackInfo.tracks.defaultDevice.segments[segmentId];
-                if (timestamp > segment.start && timestamp < segment.end) {
-                    // console.log('Scrolling on top of ' + segmentId);
-                    if (this.selectedSegmentId !== segmentId) {
-                        this.selectedSegmentId = segmentId;
+            Object.keys(this.trackInfo.tracks).forEach(deviceId => {
+                Object.keys(this.trackInfo.tracks[deviceId].segments).forEach(segmentId => {
+                    let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
+                    if (timestamp > segment.start && timestamp < segment.end) {
+                        // console.log('Scrolling on top of ' + segmentId);
+                        if (this.selectedSegments[deviceId] !== segmentId) {
+                            this.selectedSegments[deviceId] = segmentId;
 
-                        let colorVideoSourceElement = this.colorVideoPreview.querySelector('source');
-                        let filename = segment.colorVideo.replace(/^.*[\\\/]/, '');
-                        colorVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + filename;
-                        this.colorVideoPreview.load();
-                        console.log('src = ' + colorVideoSourceElement.src);
+                            let colorVideoSourceElement = this.colorVideoPreview.querySelector('source');
+                            let filename = segment.colorVideo.replace(/^.*[\\\/]/, '');
+                            colorVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + deviceId + '/color/' + filename;
+                            this.colorVideoPreview.load();
+                            console.log('src = ' + colorVideoSourceElement.src);
 
-                        let depthVideoSourceElement = this.depthVideoPreview.querySelector('source');
-                        filename = segment.depthVideo.replace(/^.*[\\\/]/, '');
-                        depthVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + filename;
-                        this.depthVideoPreview.load();
-                        console.log('src = ' + depthVideoSourceElement.src);
+                            let depthVideoSourceElement = this.depthVideoPreview.querySelector('source');
+                            filename = segment.depthVideo.replace(/^.*[\\\/]/, '');
+                            depthVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + deviceId + '/depth/' + filename;
+                            this.depthVideoPreview.load();
+                            console.log('src = ' + depthVideoSourceElement.src);
+                        }
+                        // calculate currentTime
+                        // console.log((timestamp - segment.start) / 1000);
+                        this.colorVideoPreview.currentTime = (timestamp - segment.start) / 1000;
+                        this.depthVideoPreview.currentTime = (timestamp - segment.start) / 1000;
                     }
-                    // calculate currentTime
-                    // console.log((timestamp - segment.start) / 1000);
-                    this.colorVideoPreview.currentTime = (timestamp - segment.start) / 1000;
-                    this.depthVideoPreview.currentTime = (timestamp - segment.start) / 1000;
-                }
+                });
             });
 
             // if it is, load that video into the video players, and set the currentTime to the correct converted timestamp
@@ -301,10 +326,10 @@ createNameSpace('realityEditor.device');
 
             this.trackInfo = {
                 tracks: {
-                    defaultDevice: { // TODO: give each video the uuid of its author device
-                        segments: {},
-                        index: 0
-                    }
+                    // defaultDevice: { // TODO: give each video the uuid of its author device
+                    //     segments: {},
+                    //     index: 0
+                    // }
                 }, // each device gets its own track. more than one segment can be on that track
                 metadata: {
                     minTime: 0,
@@ -315,35 +340,64 @@ createNameSpace('realityEditor.device');
             let earliestTime = Date.now();
             let latestTime = 0;
 
-            Object.keys(videoInfo.mergedFiles.color).forEach(filePath => {
-                let info = videoInfo.mergedFiles.color[filePath];
-                this.trackInfo.tracks.defaultDevice.segments[filePath] = {
-                    colorVideo: filePath,
-                    depthVideo: this.getMatchingDepthVideo(filePath),
-                    start: info.startTime,
-                    end: info.endTime,
-                    visible: true,
-                };
-                earliestTime = Math.min(earliestTime, info.startTime);
-                latestTime = Math.max(latestTime, info.endTime);
+            Object.keys(videoInfo).forEach(deviceId => {
+                Object.keys(videoInfo[deviceId]).forEach(sessionId => {
+                    let sessionInfo = videoInfo[deviceId][sessionId];
+                    if (typeof this.trackInfo.tracks[deviceId] === 'undefined') {
+                        this.trackInfo.tracks[deviceId] = {
+                            segments: {},
+                            index: 0
+                        };
+                    }
+                    this.trackInfo.tracks[deviceId].segments[sessionId] = {
+                        colorVideo: sessionInfo.finalColorVideo.filePath,
+                        depthVideo: sessionInfo.finalDepthVideo.filePath, // this.getMatchingDepthVideo(filePath),
+                        start: sessionInfo.finalColorVideo.timeInfo.start,
+                        end: sessionInfo.finalColorVideo.timeInfo.end,
+                        visible: true,
+                    };
+                    earliestTime = Math.min(earliestTime, sessionInfo.finalColorVideo.timeInfo.start);
+                    latestTime = Math.max(latestTime, sessionInfo.finalColorVideo.timeInfo.end);
+                });
             });
+
+            // Object.keys(videoInfo.mergedFiles.color).forEach(filePath => {
+            //     let info = videoInfo.mergedFiles.color[filePath];
+            //     this.trackInfo.tracks.defaultDevice.segments[filePath] = {
+            //         colorVideo: filePath,
+            //         depthVideo: this.getMatchingDepthVideo(filePath),
+            //         start: info.startTime,
+            //         end: info.endTime,
+            //         visible: true,
+            //     };
+            //     earliestTime = Math.min(earliestTime, info.startTime);
+            //     latestTime = Math.max(latestTime, info.endTime);
+            // });
 
             // only go back at most 30 mins from the most recent video
             const MAX_TIMELINE_LENGTH = 1000 * 60 * 30;
             let keysToRemove = [];
             let newEarliestTime = latestTime;
-            Object.keys(this.trackInfo.tracks.defaultDevice.segments).forEach(segmentId => {
-                let segment = this.trackInfo.tracks.defaultDevice.segments[segmentId];
-                if (segment.start < latestTime - MAX_TIMELINE_LENGTH) {
-                    keysToRemove.push(segmentId);
-                } else {
-                    newEarliestTime = Math.min(newEarliestTime, segment.start);
-                }
+            Object.keys(this.trackInfo.tracks).forEach(deviceId => {
+                Object.keys(this.trackInfo.tracks[deviceId].segments).forEach(segmentId => {
+                    let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
+                    if (segment.start < latestTime - MAX_TIMELINE_LENGTH) {
+                        keysToRemove.push({
+                            deviceId: deviceId,
+                            segmentId: segmentId
+                        });
+                    } else {
+                        newEarliestTime = Math.min(newEarliestTime, segment.start);
+                    }
+                });
             });
-            keysToRemove.forEach(segmentId => {
-                console.log(segmentId + ' is too old');
-                delete this.trackInfo.tracks.defaultDevice.segments[segmentId];
-                earliestTime = newEarliestTime;
+            keysToRemove.forEach(keys => {
+                console.log(keys.segmentId + ' is too old');
+                delete this.trackInfo.tracks[keys.deviceId].segments[keys.segmentId];
+                if (Object.keys(this.trackInfo.tracks[keys.deviceId].segments).length < 1) {
+                    delete this.trackInfo.tracks[keys.deviceId];
+                }
+                earliestTime = newEarliestTime; // only apply this effect if we delete at least one segment
             });
 
             this.trackInfo.metadata.minTime = earliestTime;
@@ -434,17 +488,18 @@ createNameSpace('realityEditor.device');
                 httpGet('http://' + this.ip + ':8080/virtualizer_recordings').then(info => {
                     console.log(info);
                     this.videoInfo = info;
+                    resolve();
 
-                    let rgbVideos = Object.keys(info.mergedFiles.color).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
-                    let depthVideos = Object.keys(info.mergedFiles.depth).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
+                    // let rgbVideos = Object.keys(info.mergedFiles.color).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
+                    // let depthVideos = Object.keys(info.mergedFiles.depth).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
 
-                    console.log(rgbVideos);
-                    console.log(depthVideos);
+                    // console.log(rgbVideos);
+                    // console.log(depthVideos);
 
-                    resolve({
-                        color: rgbVideos,
-                        depth: depthVideos
-                    });
+                    // resolve({
+                    //     color: rgbVideos,
+                    //     depth: depthVideos
+                    // });
                 }).catch(reason => {
                     console.warn(reason);
                     reject(reason);
