@@ -38,17 +38,8 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                     idx += 1;
                 }
                 let cell = tree[idx];
-                if (typeof cell === 'number') {
-                    let zeros = new THREE.Matrix4(
-                        0, 0, 0, 0,
-                        0, 0, 0, 0,
-                        0, 0, 0, 0,
-                        0, 0, 0, 0
-                    );
-                    this.boxesMesh.setMatrixAt(cell, zeros);
-                    // tree[idx] = value;
-                    // updateSomehow();
-                    return;
+                if (!Array.isArray(cell)) {
+                    return cell;
                 }
                 if (x > midX) {
                     minX = midX;
@@ -91,10 +82,16 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                 if (y > midY) {
                     idx += 1;
                 }
-                let cell = tree[idx];
-                if (typeof cell === 'number') {
+                if (typeof tree[idx] === 'undefined') {
                     tree[idx] = value;
-                    return true;
+                    return;
+                }
+                let cell = tree[idx];
+                if (!Array.isAray(cell)) {
+                    let cur = cell;
+                    tree[idx] = [];
+                    cell = [];
+                    this.insert(cur.x, cur.y, cur.z, cur);
                 }
                 if (x > midX) {
                     minX = midX;
@@ -138,9 +135,8 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                     idx += 1;
                 }
                 let cell = tree[idx];
-                if (typeof cell === 'number') {
-                    // tree[idx] = value;
-                    // updateSomehow();
+                if (!Array.isArray(cell)) {
+                    delete tree[idx];
                     return cell;
                 }
                 if (x > midX) {
@@ -192,8 +188,10 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
             this.baseGeo = new THREE.BoxBufferGeometry(1, 1, 1);
             const maxBoxes = 1 << 16;
             this.boxesMesh = new THREE.InstancedMesh(this.baseGeo, this.baseMat, maxBoxes);
+            this.addedRemovedOct = null;
 
             this.boxes = [];
+            this.voxOct = null;
 
             realityEditor.gui.threejsScene.addToScene(this.container);
         }
@@ -220,6 +218,15 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                 maxY: avgY + diff / 2,
                 maxZ: avgZ + diff / 2,
             });
+            this.addedRemovedOct = new OctTree({
+                minX: avgX - diff / 2,
+                minY: avgY - diff / 2,
+                minZ: avgZ - diff / 2,
+                maxX: avgX + diff / 2,
+                maxY: avgY + diff / 2,
+                maxZ: avgZ + diff / 2,
+            });
+
             this.voxOct.tree = this.scanRegion(
                 avgX - diff / 2,
                 avgY - diff / 2,
@@ -279,8 +286,8 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                                 // // box.rotation.y = Math.random() * 0.4;
                                 // box.scale.set(res * 1000, res * 1000, res * 1000);
                                 // this.container.add(box);
+                                oct.push(this.boxesMesh.count);
                                 this.boxesMesh.count += 1;
-                                oct.push(true);
                             } else {
                                 oct.push(this.scanRegion(
                                     x - res / 2, y - res / 2, z - res / 2,
