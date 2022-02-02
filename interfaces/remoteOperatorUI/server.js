@@ -26,6 +26,7 @@ module.exports.start = function start() {
 
     app.ws('/', (ws) => {
         console.log('an attempt /');
+        
         allWebsockets.push(ws);
         let wsId = '' + (Math.random() * 9999);
 
@@ -36,8 +37,11 @@ module.exports.start = function start() {
         let playback = null;
         ws.on('message', (msgStr, _isBinary) => {
             
+            console.log('message received: ', msgStr);
+            
             try{
                 const msg = JSON.parse(msgStr);
+                
                 switch (msg.command) {
                 case '/update/humanPoses':
                     doUpdateHumanPoses(msg);
@@ -45,13 +49,21 @@ module.exports.start = function start() {
                 case '/update/sensorDescription':
                     doUpdateSensorDescription(msg);
                     break;
+                case '/update/hololensPose':
+                    
+                    doUpdateHololensPose(msg);
+                    break;
                 }
             } catch (error) {
                 console.warn('Could not parse message: ' , error);
             }
             
         });
-        
+
+        function doUpdateHololensPose(msg) {
+            broadcast(ws, JSON.stringify(msg));
+        }
+
         let cleared = false;
         function doUpdateHumanPoses(msg) {
             if (playback && !playback.running) {
