@@ -15,6 +15,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
  */
 
 (function(exports) {
+    const ENABLE_VOXELIZER = false;
+
     /**
      * @type {Canvas} - the DOM element where the images streamed from a reality zone are rendered
      */
@@ -102,8 +104,11 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
 
-                        let realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
-                        realityZoneVoxelizer.add();
+                        let realityZoneVoxelizer;
+                        if (ENABLE_VOXELIZER) {
+                            realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
+                            realityZoneVoxelizer.add();
+                        }
 
                         let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
