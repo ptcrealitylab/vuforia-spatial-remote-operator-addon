@@ -404,7 +404,9 @@ void main() {
                             canvas.height = image.height;
                             context.drawImage(image, 0, 0, image.width, image.height);
                             tex.image = canvas;
-                            this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
+                            if (this.voxelizer) {
+                                this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
+                            }
                         } else {
                             tex.image = image;
                         }
