@@ -11,10 +11,10 @@ createNameSpace('realityEditor.device');
             this.videoInfo = null;
             this.trackInfo = {};
             this.visible = true;
-            this.selectedSegmentId = null;
             this.selectedSegments = {};
             this.isPlaying = false;
             this.playbackSpeed = 1;
+            this.displayPointClouds = false;
             this.loadAvailableVideos().then(info => {
                 console.log(this.videoInfo);
                 if (Object.keys(this.videoInfo).length > 0) {
@@ -77,11 +77,20 @@ createNameSpace('realityEditor.device');
                 let depthCtx = this.depthVideoCanvas.getContext('2d');
                 colorCtx.drawImage(this.colorVideoPreview, 0, 0, 960, 540);
                 depthCtx.drawImage(this.depthVideoPreview, 0, 0, 256, 144);
-                // TODO: getImageData and pass buffers to point cloud renderer
 
-                if (!this.isPlaying) { return; } // ignore timeupdates due to user scrolling interactions
                 let selectedSegments = this.getSelectedSegments();
                 if (selectedSegments.length === 0) { return; } // TODO: make it work even if no selected segment
+
+                // TODO: getImageData and pass buffers to point cloud renderer
+                // let colorPixels = colorCtx.getImageData(0, 0, 960, 540);
+                // let depthPixels = depthCtx.getImageData(0, 0, 256, 144);
+                let colorImageUrl = this.colorVideoCanvas.toDataURL('image/jpeg');
+                let depthImageUrl = this.depthVideoCanvas.toDataURL('image/png');
+                let poseMatrix = this.extractPoseFromDepthCanvas();
+                this.processPointCloud(selectedSegments[0].deviceId, colorImageUrl, depthImageUrl, poseMatrix); // [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+
+                if (!this.isPlaying) { return; } // ignore timeupdates due to user scrolling interactions
+
                 // console.log('timeupdate: ', colorVideoElement.currentTime);
                 let timeMs = colorVideoElement.currentTime * 1000;
                 let segmentInfo = this.trackInfo.tracks[selectedSegments[0].deviceId].segments[selectedSegments[0].segmentId];
@@ -98,8 +107,10 @@ createNameSpace('realityEditor.device');
             // TODO: move to OffscreenCanvas and worker thread (https://developers.google.com/web/updates/2018/08/offscreen-canvas)
             let colorVideoCanvas = document.createElement('canvas');
             colorVideoCanvas.id = 'colorVideoCanvas';
+            colorVideoCanvas.setAttribute('crossOrigin', 'anonymous');
             colorVideoCanvas.width = 960;
             colorVideoCanvas.height = 540;
+            colorVideoCanvas.style.display = 'none';
             document.body.appendChild(colorVideoCanvas);
             this.colorVideoCanvas = colorVideoCanvas;
 
@@ -107,8 +118,44 @@ createNameSpace('realityEditor.device');
             depthVideoCanvas.id = 'depthVideoCanvas';
             depthVideoCanvas.width = 256;
             depthVideoCanvas.height = 144;
+            // depthVideoCanvas.style.display = 'none';
             document.body.appendChild(depthVideoCanvas);
             this.depthVideoCanvas = depthVideoCanvas;
+        }
+        async extractPoseFromDepthCanvas() {
+            if (typeof this.poseCanvas === 'undefined') {
+                this.poseCanvas = document.createElement('canvas');
+                this.poseCanvas.id = 'poseCanvas';
+                this.poseCanvas.width = 8;
+                this.poseCanvas.height = 8;
+                document.body.append(this.poseCanvas);
+            }
+            let poseCtx = this.poseCanvas.getContext('2d');
+            let imageData = this.depthVideoCanvas.getContext('2d').getImageData(0, 0, 8, 8);
+            poseCtx.putImageData(imageData, 0, 0);
+            // poseCtx.scale(10, 10);
+            console.log(imageData.data);
+
+            let buffer = new ArrayBuffer(256);
+            let view = new DataView(buffer);
+            imageData.data.forEach(function(b, i) {
+                view.setUint8(i, b);
+            });
+            // read bits as floats
+            let firstNum = view.getFloat32(0);
+            console.log(firstNum);
+
+            let matrix = [];
+            for (let i = 0; i < 16; i++) {
+                matrix[i] = view.getFloat32(i * 16);
+            }
+
+            console.log(matrix);
+
+            // let matrix = imageData.data; // new Float32Array(await imageData.arrayBuffer());
+            // console.log(matrix);
+
+            return matrix;
         }
         getSelectedSegments() {
             // key = deviceId, value = segmentId
@@ -203,12 +250,14 @@ createNameSpace('realityEditor.device');
 
                 // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
                 let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-                let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-                let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
-                videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
+                if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
+                    let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+                    let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                    videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
+                }
 
                 let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
-                console.log(playheadTimePercent);
+                // console.log(playheadTimePercent);
 
                 let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
                 this.timeScrolledTo(this.trackInfo.metadata.minTime + playheadTimePercent * duration);
@@ -274,35 +323,52 @@ createNameSpace('realityEditor.device');
             // console.log('time scrolled to: ' + thisTime + ' out of ' + maxTime);
 
             // check if timestamp is within [start,end] for any of the segments on all of the tracks
+            let anySegmentSelected = false;
             Object.keys(this.trackInfo.tracks).forEach(deviceId => {
+                let deviceHasSelectedSegment = false;
                 Object.keys(this.trackInfo.tracks[deviceId].segments).forEach(segmentId => {
                     let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
                     if (timestamp > segment.start && timestamp < segment.end) {
-                        // console.log('Scrolling on top of ' + segmentId);
-                        if (this.selectedSegments[deviceId] !== segmentId) {
-                            this.selectedSegments[deviceId] = segmentId;
+                        deviceHasSelectedSegment = true;
+
+                        if (this.selectedSegments[deviceId] !== segmentId && !anySegmentSelected) {
+                            // if it is, load that video into the video players,
 
                             let colorVideoSourceElement = this.colorVideoPreview.querySelector('source');
                             let filename = segment.colorVideo.replace(/^.*[\\\/]/, '');
-                            colorVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + deviceId + '/color/' + filename;
+                            colorVideoSourceElement.src = '/virtualizer_recording/' + deviceId + '/color/' + filename;
+                            // colorVideoSourceElement.src = 'http://localhost:8080/recordings/' + deviceId + '/session_videos/color/' + filename;
                             this.colorVideoPreview.load();
                             console.log('src = ' + colorVideoSourceElement.src);
 
                             let depthVideoSourceElement = this.depthVideoPreview.querySelector('source');
                             filename = segment.depthVideo.replace(/^.*[\\\/]/, '');
-                            depthVideoSourceElement.src = 'http://' + this.ip + ':8080/virtualizer_recording/' + deviceId + '/depth/' + filename;
+                            depthVideoSourceElement.src = '/virtualizer_recording/' + deviceId + '/depth/' + filename;
+                            // depthVideoSourceElement.src = 'http://localhost:8080/recordings/' + deviceId + '/session_videos/depth/' + filename;
                             this.depthVideoPreview.load();
                             console.log('src = ' + depthVideoSourceElement.src);
                         }
-                        // calculate currentTime
-                        // console.log((timestamp - segment.start) / 1000);
+
+                        this.selectedSegments[deviceId] = segmentId;
+                        anySegmentSelected = true; // this makes sure we stick with first track's segment
+
+                        //  and set the currentTime to the correct converted timestamp
                         this.colorVideoPreview.currentTime = (timestamp - segment.start) / 1000;
                         this.depthVideoPreview.currentTime = (timestamp - segment.start) / 1000;
                     }
                 });
+                if (!deviceHasSelectedSegment) {
+                    this.selectedSegments[deviceId] = null;
+                }
             });
 
-            // if it is, load that video into the video players, and set the currentTime to the correct converted timestamp
+            if (anySegmentSelected) {
+                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+                videoPreview.classList.remove('timelineVideoPreviewNoSource');
+            } else {
+                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+                videoPreview.classList.add('timelineVideoPreviewNoSource');
+            }
         }
         movePlayheadToTime(timestamp) {
             /*
@@ -331,9 +397,11 @@ createNameSpace('realityEditor.device');
 
             // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-            let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-            let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
-            videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
+            if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
+                let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+                let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
+            }
 
         }
         createVideoTracks(videoInfo) {
@@ -356,7 +424,9 @@ createNameSpace('realityEditor.device');
             let latestTime = 0;
 
             Object.keys(videoInfo).forEach(deviceId => {
+                console.log('loading track for device: ' + deviceId);
                 Object.keys(videoInfo[deviceId]).forEach(sessionId => {
+                    console.log('loading ' + deviceId + ' session ' + sessionId);
                     let sessionInfo = videoInfo[deviceId][sessionId];
                     if (typeof this.trackInfo.tracks[deviceId] === 'undefined') {
                         this.trackInfo.tracks[deviceId] = {
@@ -390,7 +460,7 @@ createNameSpace('realityEditor.device');
             // });
 
             // only go back at most 30 mins from the most recent video
-            const MAX_TIMELINE_LENGTH = 1000 * 60 * 30;
+            const MAX_TIMELINE_LENGTH = 1000 * 60 * 60 * 2; // 2 hrs
             let keysToRemove = [];
             let newEarliestTime = latestTime;
             Object.keys(this.trackInfo.tracks).forEach(deviceId => {
@@ -500,7 +570,7 @@ createNameSpace('realityEditor.device');
             return new Promise((resolve, reject) => {
                 // this.downloadVideoInfo().then(info => console.log(info));
                 // httpGet('http://' + this.ip + ':31337/videoInfo').then(info => {
-                httpGet('http://' + this.ip + ':8080/virtualizer_recordings').then(info => {
+                httpGet('/virtualizer_recordings').then(info => {
                     console.log(info);
                     this.videoInfo = info;
                     resolve();
@@ -521,7 +591,54 @@ createNameSpace('realityEditor.device');
                 });
             });
         }
+        processPointCloud(deviceId, colorPixels, depthPixels, _poseMatrix) {
+            if (!this.displayPointClouds) {
+                return;
+            }
+            if (typeof this.loadPointCloud !== 'undefined') {
+                let cameraId = parseInt(deviceId.replace('device_', ''));
+                let poseMatrix = [0.14402000606060028,0.9848149418830872,-0.09694764018058777,0,-0.07154643535614014,0.10807616263628006,0.9915645122528076,0,0.9869853258132935,-0.13586850464344025,0.0860244631767273,0,81.54875183105469,685.0294189453125,54.82767105102539,1];
+
+                // let colorBlobUrl = decodeBase64JpgToBlobUrl(colorPixels);
+                // let depthBlobUrl = decodeBase64JpgToBlobUrl(depthPixels);
+                // console.log(colorBlobUrl, depthBlobUrl);
+
+                this.loadPointCloud(cameraId, colorPixels, depthPixels, poseMatrix);
+            }
+        }
+        setPointCloudCallback(callback) {
+            this.loadPointCloud = callback;
+        }
+        togglePointClouds() {
+            this.displayPointClouds = !this.displayPointClouds;
+        }
     }
+
+    /*
+    function b64toBlob(b64Data, contentType, sliceSize) {
+        contentType = contentType || '';
+        sliceSize = sliceSize || 512;
+        var byteCharacters = atob(b64Data);
+        var byteArrays = [];
+        for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+            var slice = byteCharacters.slice(offset, offset + sliceSize);
+            var byteNumbers = new Array(slice.length);
+            for (var i = 0; i < slice.length; i++) {
+                byteNumbers[i] = slice.charCodeAt(i);
+            }
+            var byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+        }
+        return new Blob(byteArrays, {type: contentType});
+    }
+
+    function decodeBase64JpgToBlobUrl(base64String) {
+        var blob = b64toBlob(base64String, 'image/jpeg');
+        var blobUrl = URL.createObjectURL(blob);
+        return blobUrl;
+
+    }
+    */
 
     function httpGet (url) {
         return new Promise((resolve, reject) => {
@@ -544,6 +661,81 @@ createNameSpace('realityEditor.device');
             req.send();
         });
     }
+
+    // (function (root, factory) {
+    //     if (typeof define === 'function' && define.amd) {
+    //         // AMD. Register as an anonymous module.
+    //         define([], function() {factory(root);});
+    //     } else factory(root);
+    //     // node.js has always supported base64 conversions, while browsers that support
+    //     // web workers support base64 too, but you may never know.
+    // })(typeof exports !== 'undefined' ? exports : this, function(root) {
+    //     if (root.atob) {
+    //         // Some browsers' implementation of atob doesn't support whitespaces
+    //         // in the encoded string (notably, IE). This wraps the native atob
+    //         // in a function that strips the whitespaces.
+    //         // The original function can be retrieved in atob.original
+    //         try {
+    //             root.atob(' ');
+    //         } catch(e) {
+    //             root.atob = (function(atob) {
+    //                 var func = function(string) {
+    //                     return atob(String(string).replace(/[\t\n\f\r ]+/g, ''));
+    //                 };
+    //                 func.original = atob;
+    //                 return func;
+    //             })(root.atob);
+    //         }
+    //         return;
+    //     }
+    //
+    //     // base64 character set, plus padding character (=)
+    //     var b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
+    //         // Regular expression to check formal correctness of base64 encoded strings
+    //         b64re = /^(?:[A-Za-z\d+\/]{4})*?(?:[A-Za-z\d+\/]{2}(?:==)?|[A-Za-z\d+\/]{3}=?)?$/;
+    //
+    //     root.btoa = function(string) {
+    //         string = String(string);
+    //         var bitmap, a, b, c,
+    //             result = '', i = 0,
+    //             rest = string.length % 3; // To determine the final padding
+    //
+    //         for (; i < string.length;) {
+    //             if ((a = string.charCodeAt(i++)) > 255
+    //                 || (b = string.charCodeAt(i++)) > 255
+    //                 || (c = string.charCodeAt(i++)) > 255)
+    //                 throw new TypeError('Failed to execute \'btoa\' on \'Window\': The string to be encoded contains characters outside of the Latin1 range.');
+    //
+    //             bitmap = (a << 16) | (b << 8) | c;
+    //             result += b64.charAt(bitmap >> 18 & 63) + b64.charAt(bitmap >> 12 & 63)
+    //                 + b64.charAt(bitmap >> 6 & 63) + b64.charAt(bitmap & 63);
+    //         }
+    //
+    //         // If there's need of padding, replace the last 'A's with equal signs
+    //         return rest ? result.slice(0, rest - 3) + "===".substring(rest) : result;
+    //     };
+    //
+    //     root.atob = function(string) {
+    //         // atob can work with strings with whitespaces, even inside the encoded part,
+    //         // but only \t, \n, \f, \r and ' ', which can be stripped.
+    //         string = String(string).replace(/[\t\n\f\r ]+/g, "");
+    //         if (!b64re.test(string))
+    //             throw new TypeError('Failed to execute \'atob\' on \'Window\': The string to be decoded is not correctly encoded.');
+    //
+    //         // Adding the padding if missing, for semplicity
+    //         string += '=='.slice(2 - (string.length & 3));
+    //         var bitmap, result = '', r1, r2, i = 0;
+    //         for (; i < string.length;) {
+    //             bitmap = b64.indexOf(string.charAt(i++)) << 18 | b64.indexOf(string.charAt(i++)) << 12
+    //                 | (r1 = b64.indexOf(string.charAt(i++))) << 6 | (r2 = b64.indexOf(string.charAt(i++)));
+    //
+    //             result += r1 === 64 ? String.fromCharCode(bitmap >> 16 & 255)
+    //                 : r2 === 64 ? String.fromCharCode(bitmap >> 16 & 255, bitmap >> 8 & 255)
+    //                     : String.fromCharCode(bitmap >> 16 & 255, bitmap >> 8 & 255, bitmap & 255);
+    //         }
+    //         return result;
+    //     };
+    // });
 
     exports.VideoPlayback = VideoPlayback;
 })(realityEditor.device);
