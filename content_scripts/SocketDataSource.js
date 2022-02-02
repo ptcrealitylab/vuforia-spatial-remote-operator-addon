@@ -7,11 +7,11 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             this.poses = [];
 
             const url = 'ws://' + window.location.hostname + ':31337/';
-            this.socket = new WebSocket(url);
+            // this.socket = new WebSocket(url);
 
             this.onMessage = this.onMessage.bind(this);
 
-            this.socket.addEventListener('message', this.onMessage);
+            // this.socket.addEventListener('message', this.onMessage);
         }
 
         onMessage(event) {
