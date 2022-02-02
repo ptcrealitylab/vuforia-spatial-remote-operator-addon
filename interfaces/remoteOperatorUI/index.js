@@ -86,9 +86,23 @@ function startHTTPServer(localUIApp, port) {
     http.listen(port, function() {
         console.log('~~~ started remote operator on port ' + port);
 
-        localUIApp.app.use('/virtualizer_recording/:deviceId/:colorDepthOrPose/:filename', function (req, res) {
+        localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {
             let deviceId = req.params.deviceId;
-            let videoType = req.params.colorDepthOrPose;
+            let filename = req.params.filename;
+
+            const jsonFilePath = path.join(objectsPath, identityFolderName, 'virtualizer_recordings', deviceId, 'session_videos', 'pose', filename);
+
+            if (!fs.existsSync(jsonFilePath)) {
+                res.status(404).send('No file at path: ' + jsonFilePath);
+                return;
+            }
+
+            res.sendFile(jsonFilePath);
+        });
+
+        localUIApp.app.use('/virtualizer_recording/:deviceId/:colorOrDepth/:filename', function (req, res) {
+            let deviceId = req.params.deviceId;
+            let videoType = req.params.colorOrDepth;
             let filename = req.params.filename;
             const videoPath = path.join(objectsPath, identityFolderName, 'virtualizer_recordings', deviceId, 'session_videos', videoType, filename);
 
