@@ -61,7 +61,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             // try loading area target GLB file into the threejs scene
             if (criteriaMet) {
                 isGlbLoaded = true;
-                let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb')
+                let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
 
                 function checkExist() {
                     fetch(gltfPath).then(res => {
@@ -102,8 +102,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
 
-                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
-                        cameraVisCoordinator.connect();
+                        // let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
+                        // cameraVisCoordinator.connect();
 
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
