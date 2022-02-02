@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 const VideoLib = require('node-video-lib');
+const Jimp = require('jimp');
+const { performance } = require('perf_hooks');
 
 // TODO: write pose matrices so they can be cross-referenced with the video stream
 // TODO: listen to when the ffmpeg process fully finishes writing data to disk, so that process can be killed/freed/etc
@@ -13,7 +15,8 @@ class VideoServer {
         this.outputPath = outputPath;
         this.PROCESS = Object.freeze({
             COLOR: 'COLOR',
-            DEPTH: 'DEPTH'
+            DEPTH: 'DEPTH',
+            POSE: 'POSE'
         });
         this.STATUS = Object.freeze({
             NOT_STARTED: 'NOT_STARTED',
@@ -28,10 +31,11 @@ class VideoServer {
         });
         this.processes = {};
         this.processStatuses = {};
-        this.SEGMENT_LENGTH = 15000;
+        this.poses = {};
+        this.SEGMENT_LENGTH = 5000; // TODO: bring back to 15000
         this.isRecording = {}; // boolean for each deviceId
         this.anythingReceived = {}; // boolean for each deviceId
-        this.DEBUG_WRITE_IMAGES = false;
+        this.DEBUG_WRITE_IMAGES = true;
         this.sessionId = this.uuidTimeShort(); // each time the server restarts, tag videos from this instance with a unique ID
 
         if (!fs.existsSync(this.outputPath)) {
@@ -42,10 +46,7 @@ class VideoServer {
         console.log('Created a VideoServer with path: ' + this.outputPath);
 
         this.persistentInfo = this.loadPersistentInfo();
-        // this.checkPersistentInfoIntegrity(); // TODO: reimplement this with new file structure
-
-        // for each deviceId in persistentInfo
-        // this.concatExisting(); // TODO: reimplement with new file structure
+        this.checkPersistentInfoIntegrity(); // TODO: reimplement this with new file structure
 
         // every 10s, check if any newly recorded videos need to be processed
         // setInterval(() => {
@@ -75,27 +76,27 @@ class VideoServer {
         // ensure that none of the concatenated video files listed in the json file have been deleted
         let deletedVideos = [];
         let anyChanges = false;
-        Object.keys(this.persistentInfo.mergedFiles.color).forEach(filePath => {
-            if (!fs.existsSync(filePath)) {
-                deletedVideos.push(filePath);
-                anyChanges = true;
-                console.log('video file was deleted: ' + filePath);
-            }
-        });
-        deletedVideos.forEach(filePath => {
-            delete this.persistentInfo.mergedFiles.color[filePath];
+
+        Object.keys(this.persistentInfo).forEach(deviceId => {
+            Object.keys(this.persistentInfo[deviceId]).forEach(sessionId => {
+                let session = this.persistentInfo[deviceId][sessionId];
+                let videos = [session.finalColorVideo, session.finalDepthVideo];
+                videos.forEach(videoInfo => {
+                    if (videoInfo && videoInfo.filePath && !fs.existsSync(videoInfo.filePath)) {
+                        deletedVideos.push({
+                            deviceId: deviceId,
+                            sessionId: sessionId,
+                            videoPath: videoInfo.filePath
+                        });
+                        anyChanges = true;
+                        console.log('video file was deleted: ' + videoInfo.filePath);
+                    }
+                });
+            });
         });
 
-        deletedVideos = [];
-        Object.keys(this.persistentInfo.mergedFiles.depth).forEach(filePath => {
-            if (!fs.existsSync(filePath)) {
-                deletedVideos.push(filePath);
-                anyChanges = true;
-                console.log('video file was deleted: ' + filePath);
-            }
-        });
-        deletedVideos.forEach(filePath => {
-            delete this.persistentInfo.mergedFiles.depth[filePath];
+        deletedVideos.forEach(deletionInfo => {
+            delete this.persistentInfo[deletionInfo.deviceId][deletionInfo.sessionId];
         });
 
         if (anyChanges) { this.savePersistentInfo(); }
@@ -148,8 +149,11 @@ class VideoServer {
                     finalColorVideo: null,
                     finalDepthVideo: null
                 };
+                sessions[sessionId].finalColorVideo = {
+                    filePath: filepath,
+                    timeInfo: null
+                };
             }
-            sessions[sessionId].finalColorVideo = filepath;
         });
 
         depthSessions.forEach(filepath => {
@@ -161,8 +165,11 @@ class VideoServer {
                     finalColorVideo: null,
                     finalDepthVideo: null
                 };
+                sessions[sessionId].finalDepthVideo = {
+                    filePath: filepath,
+                    timeInfo: null
+                };
             }
-            sessions[sessionId].finalDepthVideo = filepath;
         });
 
         console.log('parsed sessions for ' + deviceId + ':', sessions);
@@ -170,7 +177,8 @@ class VideoServer {
         let anyChanges = false;
 
         Object.keys(sessions).forEach(sessionId => {
-            if (sessions[sessionId].finalColorVideo && sessions[sessionId].finalDepthVideo) { return; }
+            if (sessions[sessionId].finalColorVideo && sessions[sessionId].finalDepthVideo
+                && sessions[sessionId].finalColorVideo.timeInfo && sessions[sessionId].finalDepthVideo.timeInfo) { return; }
 
             let thisSession = sessions[sessionId];
             if (!thisSession.finalColorVideo && thisSession.colorChunks.length > 0) {
@@ -244,7 +252,10 @@ class VideoServer {
 
         // write file list to txt file so it can be used by ffmpeg as input
         let txt_filename = colorOrDepth + '_filenames_' + sessionId + '.txt';
-        let txtFilePath = path.join(this.outputPath, deviceId, txt_filename);
+        if (!fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
+            fs.mkdirSync(path.join(this.outputPath, deviceId, 'tmp'));
+        }
+        let txtFilePath = path.join(this.outputPath, deviceId, 'tmp', txt_filename);
         if (fs.existsSync(txtFilePath)) {
             fs.unlinkSync(txtFilePath);
         }
@@ -263,10 +274,13 @@ class VideoServer {
         if (!fs.existsSync(path.join(this.outputPath, deviceId))) {
             fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'color'), { recursive: true });
             fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth'), { recursive: true });
+            fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose'), { recursive: true });
             fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks, 'color'), { recursive: true });
             fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks, 'depth'), { recursive: true });
+            fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks, 'pose'), { recursive: true });
             fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, 'color'), { recursive: true });
             fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, 'depth'), { recursive: true });
+            fs.mkdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, 'pose'), { recursive: true });
         }
 
         if (typeof this.persistentInfo[deviceId] === 'undefined') {
@@ -291,10 +305,21 @@ class VideoServer {
         // start depth stream process
         // depth images are 256x144 lossless PNG buffers
         let depthOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.mp4');
-        this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 25, 1);
+        this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
         if (this.processes[deviceId][this.PROCESS.DEPTH]) {
             this.processStatuses[deviceId][this.PROCESS.DEPTH] = this.STATUS.STARTED;
         }
+
+        // start pose stream process
+        // depth images are 8x8 lossless PNG buffers
+        // let poseOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.mp4');
+        // this.processes[deviceId][this.PROCESS.POSE] = this.ffmpeg_image2mp4(poseOutputPath, 10, 'pgm', 8, 8, 0, 1);
+        // if (this.processes[deviceId][this.PROCESS.POSE]) {
+        //     this.processStatuses[deviceId][this.PROCESS.POSE] = this.STATUS.STARTED;
+        // }
+
+        this.processStatuses[deviceId][this.PROCESS.POSE] = this.STATUS.STARTED;
+        this.poses[deviceId] = [];
 
         setTimeout(function() {
             this.stopRecording(deviceId);
@@ -308,8 +333,10 @@ class VideoServer {
 
         let colorProcess = this.processes[deviceId][this.PROCESS.COLOR];
         let depthProcess = this.processes[deviceId][this.PROCESS.DEPTH];
+        // let poseProcess = this.processes[deviceId][this.PROCESS.POSE];
         let colorStatus = this.processStatuses[deviceId][this.PROCESS.COLOR];
         let depthStatus = this.processStatuses[deviceId][this.PROCESS.DEPTH];
+        let poseStatus = this.processStatuses[deviceId][this.PROCESS.POSE];
 
         if (colorProcess !== 'undefined' && colorStatus === this.STATUS.STARTED) {
             console.log('end color process');
@@ -325,9 +352,21 @@ class VideoServer {
             depthProcess.stdin.write('q');
             depthProcess.stdin.end();
             depthStatus = this.STATUS.ENDING;
+
+            let poseOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', 'chunk_' + this.sessionId + '_' + Date.now() + '.txt');
+            fs.writeFileSync(poseOutputPath, this.poses[deviceId].toString());
+            this.poses[deviceId] = [];
+        }
+
+        if (/*poseProcess !== 'undefined' &&*/ poseStatus === this.STATUS.STARTED) {
+            console.log('end pose process');
+            // poseProcess.stdin.setEncoding('utf8');
+            // poseProcess.stdin.write('q');
+            // poseProcess.stdin.end();
+            poseStatus = this.STATUS.ENDING;
         }
     }
-    onFrame(rgb, depth, _pose, deviceId) {
+    async onFrame(rgb, depth, pose, deviceId) {
         if (!this.anythingReceived[deviceId]) {
             this.startRecording(deviceId); // start recording the first time it receives a data packet
             this.anythingReceived[deviceId] = true;
@@ -338,20 +377,108 @@ class VideoServer {
 
         let colorProcess = this.processes[deviceId][this.PROCESS.COLOR];
         let depthProcess = this.processes[deviceId][this.PROCESS.DEPTH];
+        // let poseProcess = this.processes[deviceId][this.PROCESS.POSE];
         let colorStatus = this.processStatuses[deviceId][this.PROCESS.COLOR];
         let depthStatus = this.processStatuses[deviceId][this.PROCESS.DEPTH];
+        let poseStatus = this.processStatuses[deviceId][this.PROCESS.POSE];
+
+        let time = performance.now();
+        const image = await Jimp.read(depth);
+
+        let depthWidth = 256;
+        let poseWidth = 8;
+
+        let scaleFactor = 4; // how many pixels (w and h) will be used for each source pixel
+
+        for (let y = 0; y < poseWidth; y++) {
+            for (let x = 0; x < poseWidth; x++) {
+                let poseIndex = x + y * poseWidth;
+                
+                for (let r = 0; r < scaleFactor; r++) {
+                    // for (let c = 0; c < scaleFactor; c++) {
+                        let depthIndex = (x * scaleFactor) + y * poseWidth;
+                        image.bitmap.data[(depthIndex + r) * (4)] = pose[poseIndex];
+                        image.bitmap.data[(depthIndex + r) * (4) + 1] = pose[poseIndex];
+                        image.bitmap.data[(depthIndex + r) * (4) + 2] = pose[poseIndex];
+                    // }
+                    // image.bitmap.data[(depthIndex + r) * (4) + poseWidth * 4] = pose[poseIndex];
+                    // image.bitmap.data[(depthIndex + r) * (4) + 1 + poseWidth * 4] = pose[poseIndex];
+                    // image.bitmap.data[(depthIndex + r) * (4) + 2 + poseWidth * 4] = pose[poseIndex];
+                    //
+                    // image.bitmap.data[(depthIndex + r) * (4) + 2 * poseWidth * 4] = pose[poseIndex];
+                    // image.bitmap.data[(depthIndex + r) * (4) + 1 + 2 * poseWidth * 4] = pose[poseIndex];
+                    // image.bitmap.data[(depthIndex + r) * (4) + 2 + 2 * poseWidth * 4] = pose[poseIndex];
+                    //
+                    // image.bitmap.data[(depthIndex + r) * (4) + 3 * poseWidth * 4] = pose[poseIndex];
+                    // image.bitmap.data[(depthIndex + r) * (4) + 1 + 3 * poseWidth * 4] = pose[poseIndex];
+                    // image.bitmap.data[(depthIndex + r) * (4) + 2 + 3 * poseWidth * 4] = pose[poseIndex];
+                }
+                
+            }
+        }
+
+        // for (let y = 0; y < poseWidth; y++) {
+        //     for (let x = 0; x < poseWidth; x++) {
+        //         let poseIndex = x + y * poseWidth;
+        //         for (let sy = 0; sy < scaleFactor; sy++) {
+        //             for (let sx = 0; sx < scaleFactor; sx++) {
+        //                 let depthIndex = (x + sx) + (y + sy) * depthWidth;
+        //                 // image.bitmap.data[3 + i * 4] = pose[i];
+        //                 image.bitmap.data[depthIndex * 4] = pose[poseIndex];
+        //                 image.bitmap.data[depthIndex * 4 + 1] = pose[poseIndex];
+        //                 image.bitmap.data[depthIndex * 4 + 2] = pose[poseIndex];
+        //             }
+        //         }
+        //         // let poseIndex = x + y * poseWidth;
+        //         // let depthIndex = x + y * depthWidth;
+        //         // // image.bitmap.data[3 + i * 4] = pose[i];
+        //         // image.bitmap.data[depthIndex * 4] = pose[poseIndex];
+        //         // image.bitmap.data[depthIndex * 4 + 1] = pose[poseIndex];
+        //         // image.bitmap.data[depthIndex * 4 + 2] = pose[poseIndex];
+        //     }
+        // }
+        const newDepthBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+        let newTime = performance.now();
+        let dt = newTime - time;
+        console.log('read + alter took ' + dt + ' ms');
+        
+        let rgbaPose = [];
+        for (let i = 0; i < pose.length; i++) {
+            rgbaPose.push(pose[i]);
+            rgbaPose.push(pose[i]);
+            rgbaPose.push(pose[i]);
+            rgbaPose.push(255);
+        }
+
+        // new Jimp({ data: rgbaPose, width: 8, height: 8}, function(err, image) {
+        //     console.log(err, image);
+        // }); //await jimp.read(pose);
 
         if (typeof colorProcess !== 'undefined' && colorStatus === 'STARTED') {
             colorProcess.stdin.write(rgb);
         }
 
         if (typeof depthProcess !== 'undefined' && depthStatus === 'STARTED') {
-            depthProcess.stdin.write(depth);
+            depthProcess.stdin.write(newDepthBuffer);
+        }
+
+        // if (typeof poseProcess !== 'undefined' && poseStatus === 'STARTED') {
+        //     // poseProcess.stdin.write(pose);
+        //     // http://netpbm.sourceforge.net/doc/pgm.html
+        //     // let posePGM = this.pose2pgm(pose, 8, 8);
+        //     // let posePGM = this.pose2pgm(pose, 8, 8);
+        //     // poseProcess.stdin.write(posePGM);
+        // }
+
+        if (typeof this.poses[deviceId] !== 'undefined' && poseStatus === 'STARTED') {
+            this.poses[deviceId].push(pose.toString('base64'));
         }
 
         if (this.DEBUG_WRITE_IMAGES) {
             let colorFilename = 'color_' + Date.now() + '.png'; // + Math.floor(Math.random() * 1000)
             let depthFilename = 'depth_' + Date.now() + '.png';
+            let poseFilename = 'pose_' + Date.now() + '.png'; //'.pgm';
+            let poseAloneFilename = 'pose_alone_' + Date.now() + '.png'; //'.pgm';
             let imageDir = path.join(this.outputPath, deviceId, 'debug_images');
             if (!fs.existsSync(imageDir)) {
                 fs.mkdirSync(imageDir, { recursive: true });
@@ -364,6 +491,13 @@ class VideoServer {
             fs.writeFile(path.join(imageDir, depthFilename), depth, function() {
                 // console.log('wrote depth image');
             });
+
+            image.write(path.join(imageDir, poseFilename));
+            // poseImage.write(path.join(imageDir, poseAloneFilename));
+
+            // fs.writeFile(path.join(imageDir, poseFilename), this.pose2pgm(pose, 8, 8), function() {
+            //     // console.log('wrote pose.pgm');
+            // });
 
             // fs.writeFile(path.join(__dirname, 'images', 'matrix', matrixFilename), pose, function() {
             //     // console.log('wrote matrix image');
@@ -383,11 +517,34 @@ class VideoServer {
     //     let processedDepthFiles = fs.readdirSync(path.join(processedPath, 'depth')).filter(filename => filename.includes('.mp4'));
     //
     //     for (let i = 0; i < files.length; i++) {
-    //         // let outputPath = 
+    //         // let outputPath =
     //         this.ffmpeg_adjust_length(files[i].replace('stream', 'resized'), path.join(this.outputPath, files[i]), newDuration);
     //     }
     // }
+    pose2pgm(pose, width = 8, height = 8) { // conforms to http://netpbm.sourceforge.net/doc/pgm.html
+        const CR = '\n';
+        let header = 'P2'; // required
+        header += CR; // add whitespace char
+        header += width;
+        header += CR; // add whitespace char
+        header += height;
+        header += CR; // add whitespace char
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let i = y * width + x;
+                header += pose[i] + ' ';
+            }
+            header += CR;
+        }
+        return header;
+    }
     ffmpeg_adjust_length(output_path, input_path, newDuration) {
+        let filesize = fs.statSync(input_path);
+        console.log(filesize.size + ' bytes');
+        if (filesize.size === 0) {
+            console.warn('corrupted video has 0 bytes, cant resize: ' + input_path);
+            return;
+        }
         fs.open(input_path, 'r', function(err, fd) {
             try {
                 let movie = VideoLib.MovieParser.parse(fd);
@@ -413,7 +570,7 @@ class VideoServer {
                 return output_path;
                 // });
             } catch (ex) {
-                console.error('Error:', ex);
+                console.error('Video Error: ' + input_path, ex);
             } finally {
                 fs.closeSync(fd);
             }
@@ -432,31 +589,66 @@ class VideoServer {
 
         cp.spawn('ffmpeg', args);
     }
-    ffmpeg_image2mp4(output_path, framerate = 10, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
+    ffmpeg_image2mp4(output_path, framerate = 10, input_vcodec, input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
         // let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
 
         let outputWidth = input_width * output_scale;
         let outputHeight = input_height * output_scale;
 
-        let args = [
-            '-r', framerate,
-            // '-framerate', framerate,
-            // '-probesize', '5000',
-            // '-analyzeduration', '5000',
-            '-f', 'image2pipe',
-            '-vcodec', input_vcodec,
-            '-s', input_width + 'x' + input_height,
-            '-i', '-',
-            '-vcodec', 'libx264',
-            '-crf', crf,
-            '-pix_fmt', 'yuv420p',
-            '-vf', 'scale=' + outputWidth + ':' + outputHeight + ', setsar=1:1', //, realtime, fps=' + framerate,
-            // '-preset', 'ultrafast',
-            // '-copyts',
-            // '-tune', 'zerolatency',
-            // '-r', framerate, // will duplicate frames to meet this but still look like the framerate set before -i,
-            output_path
-        ];
+        // let filterString = ', geq=r=\'if(eq(X,0)*eq(Y,0),0,p(X,Y))\':g=\'if(eq(X,0)*eq(Y,0),0,p(X,Y))\':b=\'if(eq(X,0)*eq(Y,0),0,p(X,Y))\''; // first pixel only
+        // let filterString = ', geq=' +
+        //     'r=\'if(eq(X,0)*eq(Y,0),0,p(X,Y))\'' +
+        //     ':g=\'if(eq(X,0)*eq(Y,0),0,p(X,Y))\'' +
+        //     ':b=\'if(eq(X,0)*eq(Y,0),0,p(X,Y))\'';
+
+        // let filterString = ', geq=' +
+        //     'r=\'if(between(X,0,8)*between(Y,0,8),0,p(X,Y))\'' +
+        //     ':g=\'if(between(X,0,8)*between(Y,0,8),0,p(X,Y))\'' +
+        //     ':b=\'if(between(X,0,8)*between(Y,0,8),0,p(X,Y))\'';
+
+        let filterString = '';
+
+        let args = [];
+        if (typeof input_vcodec !== 'undefined') {
+            args = [
+                '-r', framerate,
+                // '-framerate', framerate,
+                // '-probesize', '5000',
+                // '-analyzeduration', '5000',
+                '-f', 'image2pipe',
+                '-vcodec', input_vcodec,
+                '-s', input_width + 'x' + input_height,
+                '-i', '-',
+                '-vcodec', 'libx264',
+                '-crf', crf,
+                '-pix_fmt', 'yuv420p',
+                '-vf', 'scale=' + outputWidth + ':' + outputHeight + ', setsar=1:1' + filterString, //, realtime, fps=' + framerate,
+                // '-preset', 'ultrafast',
+                // '-copyts',
+                // '-tune', 'zerolatency',
+                // '-r', framerate, // will duplicate frames to meet this but still look like the framerate set before -i,
+                output_path
+            ];
+        } else {
+            args = [
+                '-r', framerate,
+                // '-framerate', framerate,
+                // '-probesize', '5000',
+                // '-analyzeduration', '5000',
+                '-f', 'image2pipe',
+                '-s', input_width + 'x' + input_height,
+                '-i', '-',
+                '-vcodec', 'libx264',
+                '-crf', crf,
+                '-pix_fmt', 'yuv420p',
+                '-vf', 'scale=' + outputWidth + ':' + outputHeight + ', setsar=1:1' + filterString, //, realtime, fps=' + framerate,
+                // '-preset', 'ultrafast',
+                // '-copyts',
+                // '-tune', 'zerolatency',
+                // '-r', framerate, // will duplicate frames to meet this but still look like the framerate set before -i,
+                output_path
+            ];
+        }
 
         let process = cp.spawn('ffmpeg', args);
 

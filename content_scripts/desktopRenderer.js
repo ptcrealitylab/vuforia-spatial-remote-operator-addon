@@ -109,14 +109,15 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
+
+                        // also create the VideoPlayback and search the server of the world object for any recorded videos
+                        videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
+                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        window.globalVideoPlayback = videoPlayback;
                     });
                 }
 
                 checkExist();
-
-                // also create the VideoPlayback and search the server of the world object for any recorded videos
-                videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
-                window.globalVideoPlayback = videoPlayback;
             }
         });
 
@@ -165,6 +166,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 }
             } else if (params.event.code === 'KeyY') {
                 videoPlayback.toggleVisibility();
+            } else if (params.event.code === 'KeyU') {
+                videoPlayback.togglePointClouds();
             }
         });
     }
