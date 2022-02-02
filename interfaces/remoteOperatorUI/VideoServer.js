@@ -2,6 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 const VideoLib = require('node-video-lib');
+const ffmpeg = require('@ffmpeg-installer/ffmpeg');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+
+console.log('FFMPEG installer:', ffmpeg.path, ffmpeg.version);
 
 // TODO: write pose matrices so they can be cross-referenced with the video stream
 // TODO: listen to when the ffmpeg process fully finishes writing data to disk, so that process can be killed/freed/etc
@@ -28,7 +32,7 @@ class VideoServer {
         this.processes = {};
         this.processStatuses = {};
         this.poses = {};
-        this.SEGMENT_LENGTH = 5000; // TODO: bring back to 15000
+        this.SEGMENT_LENGTH = 15000;
         this.isRecording = {}; // boolean for each deviceId
         this.anythingReceived = {}; // boolean for each deviceId
         this.DEBUG_WRITE_IMAGES = false;
@@ -87,6 +91,13 @@ class VideoServer {
 
         deletedVideos.forEach(deletionInfo => {
             delete this.persistentInfo[deletionInfo.deviceId][deletionInfo.sessionId];
+        });
+
+        Object.keys(this.persistentInfo).forEach(deviceId => {
+            if (Object.keys(this.persistentInfo[deviceId]).length === 0) {
+                delete this.persistentInfo[deviceId];
+                anyChanges = true;
+            }
         });
 
         if (anyChanges) { this.savePersistentInfo(); }
@@ -179,13 +190,6 @@ class VideoServer {
                     filePath: outputFilePath,
                     timeInfo: timeInfo
                 };
-                // // TODO: don't write absolutePath of mergedColorFilePath to the json file, write relative path
-                // this.persistentInfo.mergedFiles.color[mergedColorFilePath] = {
-                //     fileList: colorFiles, // colorFiles.map(filename => path.join(this.outputPath, filename));
-                //     startTime: timeInfo.start,
-                //     endTime: timeInfo.end,
-                //     duration: timeInfo.duration
-                // };
                 anyChanges = true;
             }
 
@@ -197,13 +201,6 @@ class VideoServer {
                     filePath: outputFilePath,
                     timeInfo: timeInfo
                 };
-                // // TODO: don't write absolutePath of mergedColorFilePath to the json file, write relative path
-                // this.persistentInfo.mergedFiles.color[mergedColorFilePath] = {
-                //     fileList: colorFiles, // colorFiles.map(filename => path.join(this.outputPath, filename));
-                //     startTime: timeInfo.start,
-                //     endTime: timeInfo.end,
-                //     duration: timeInfo.duration
-                // };
                 anyChanges = true;
             }
         });
@@ -235,6 +232,8 @@ class VideoServer {
         console.log('saved videoInfo');
     }
     concatFiles(deviceId, sessionId, colorOrDepth = 'color', files) {
+        this.concatPosesIfNeeded(deviceId, sessionId);
+
         let fileText = '';
         for (let i = 0; i < files.length; i++) {
             fileText += 'file \'' + path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks, colorOrDepth, files[i]) + '\'\n';
@@ -255,6 +254,32 @@ class VideoServer {
         let outputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, colorOrDepth, filename);
         this.ffmpeg_concat_mp4s(outputPath, txtFilePath);
         return outputPath;
+    }
+    concatPosesIfNeeded(deviceId, sessionId) {
+        // check if output file exists for this device/session pair
+        let filename = 'device_' + deviceId + '_session_' + sessionId + '.json'; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
+        let outputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, 'pose', filename);
+        if (fs.existsSync(outputPath)) {
+            return;
+        }
+        console.log('we still need to process poses for ' + deviceId + ' (session ' + sessionId + ')');
+        // load all chunks
+        let files = fs.readdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose'));
+        console.log(files);
+        files = files.filter(filename => {
+            return filename.includes(sessionId);
+        });
+        console.log('unprocessed pose chunks: ', files);
+
+        let poseData = [];
+        files.forEach(filename => {
+            let filePath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', filename);
+            // poseData[filename] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            poseData.push(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
+        });
+        let flattened = poseData.flat();
+        console.log(flattened);
+        fs.writeFileSync(outputPath, JSON.stringify(flattened));
     }
     startRecording(deviceId) {
         this.isRecording[deviceId] = true;
@@ -343,8 +368,8 @@ class VideoServer {
             depthProcess.stdin.end();
             depthStatus = this.STATUS.ENDING;
 
-            let poseOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', 'chunk_' + this.sessionId + '_' + Date.now() + '.txt');
-            fs.writeFileSync(poseOutputPath, this.poses[deviceId].toString());
+            let poseOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', 'chunk_' + this.sessionId + '_' + Date.now() + '.json');
+            fs.writeFileSync(poseOutputPath, JSON.stringify(this.poses[deviceId]));
             this.poses[deviceId] = [];
         }
 
@@ -390,7 +415,7 @@ class VideoServer {
 
         if (typeof this.poses[deviceId] !== 'undefined' && poseStatus === 'STARTED') {
             this.poses[deviceId].push({
-                pose: pose.toString(),
+                pose: pose.toString('base64'),
                 time: Date.now()
             });
         }
@@ -442,8 +467,8 @@ class VideoServer {
     ffmpeg_adjust_length(output_path, input_path, newDuration) {
         let filesize = fs.statSync(input_path);
         console.log(filesize.size + ' bytes');
-        if (filesize.size === 0) {
-            console.warn('corrupted video has 0 bytes, cant resize: ' + input_path);
+        if (filesize.size <= 48) {
+            console.warn('corrupted video has ~0 bytes, cant resize: ' + input_path);
             return;
         }
         fs.open(input_path, 'r', function(err, fd) {
@@ -462,7 +487,7 @@ class VideoServer {
                     '-filter:v', 'setpts=' + newDuration / movie.relativeDuration() + '*PTS',
                     output_path
                 ];
-                let process = cp.spawn('ffmpeg', args);
+                let process = cp.spawn(ffmpegPath, args);
                 process.stderr.setEncoding('utf8');
                 process.stderr.on('data', function(data) {
                     console.log('stderr data', data);
@@ -488,7 +513,7 @@ class VideoServer {
             output_path
         ];
 
-        cp.spawn('ffmpeg', args);
+        cp.spawn(ffmpegPath, args);
     }
     ffmpeg_image2mp4(output_path, framerate = 10, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
         // let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
@@ -516,7 +541,7 @@ class VideoServer {
             output_path
         ];
 
-        let process = cp.spawn('ffmpeg', args);
+        let process = cp.spawn(ffmpegPath, args);
 
         // process.stdout.on('data', function(data) {
         //     console.log('stdout data', data);
@@ -529,7 +554,6 @@ class VideoServer {
         //     console.log('finished');
         // });
 
-        console.log('created child_process with args:', args);
         return process;
     }
     getUnprocessedChunkFilePaths(deviceId, colorOrDepth = 'color') {
