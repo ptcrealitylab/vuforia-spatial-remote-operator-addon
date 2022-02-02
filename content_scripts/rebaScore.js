@@ -1,5 +1,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer.rebaScore');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 (function(exports) {
     const POSE_JOINTS = Object.freeze({
         PELVIS: 0,
@@ -121,8 +123,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer.rebaScore');
     }
 
     function calculateXAngle(skel, jointARaw, jointBRaw) {
-        const THREE = realityEditor.gui.threejsScene.THREE;
-
         const jointA = jointToPoseNet(jointARaw);
         const jointB = jointToPoseNet(jointBRaw);
 
@@ -145,8 +145,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer.rebaScore');
     }
 
     function  calculateYAngle(skel, jointARaw, jointBRaw) {
-        const THREE = realityEditor.gui.threejsScene.THREE;
-
         const jointA = jointToPoseNet(jointARaw);
         const jointB = jointToPoseNet(jointBRaw);
 
@@ -181,8 +179,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer.rebaScore');
     }
 
     function calculateZAngle(skel, jointARaw, jointBRaw) {
-        const THREE = realityEditor.gui.threejsScene.THREE;
-
         const jointA = jointToPoseNet(jointARaw);
         const jointB = jointToPoseNet(jointBRaw);
 

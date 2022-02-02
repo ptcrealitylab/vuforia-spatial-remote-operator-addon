@@ -1,5 +1,7 @@
 createNameSpace('realityEditor.device.cameraVis');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 (function(exports) {
     const debug = false;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
@@ -49,6 +51,16 @@ void main() {
   gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
 }`;
 
+    const solidFragmentShader = `
+uniform sampler2D map;
+
+varying vec2 vUv;
+
+void main() {
+  vec4 color = texture2D(map, vUv);
+  gl_FragColor = vec4(color.r, color.g, color.b, 1.0);
+}`;
+
     function setMatrixFromArray(matrix, array) {
         matrix.set(
             array[0], array[4], array[8], array[12],
@@ -60,8 +72,6 @@ void main() {
 
     class CameraVis {
         constructor(id, floorOffset) {
-            const THREE = realityEditor.gui.threejsScene.THREE;
-
             this.id = id;
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
@@ -97,6 +107,9 @@ void main() {
             this.textureDepth = new THREE.Texture();
             this.textureDepth.minFilter = THREE.NearestFilter;
 
+            this.material = null;
+            this.mesh = null;
+
             if (debug) {
                 this.setupDebugCubes();
             }
@@ -122,9 +135,35 @@ void main() {
             this.container.add(this.historyMesh);
         }
 
-        setupDebugCubes() {
-            const THREE = realityEditor.gui.threejsScene.THREE;
+        /**
+         * Clone the current state of the mesh rendering part of this CameraVis
+         * @return {THREE.Object3D} object containing all relevant meshes
+         */
+        clonePatch() {
+            const width = 640, height = 360;
 
+            let patch = this.container.clone(false);
+            let phone = this.phone.clone(false);
+            let flatGeo = new THREE.PlaneBufferGeometry(width, height, width, height);
+            flatGeo.translate(width / 2, height / 2);
+
+            let material = this.material.clone();
+            material.fragmentShader = solidFragmentShader;
+            material.uniforms.map.value.image = this.texture.image; // .cloneNode();
+            material.uniforms.map.value.needsUpdate = true;
+            material.uniforms.mapDepth.value.image = this.textureDepth.image; // .cloneNode();
+            material.uniforms.mapDepth.value.needsUpdate = true;
+
+            let mesh = new THREE.Mesh(flatGeo, material);
+            mesh.scale.set(-1, 1, -1);
+            mesh.frustumCulled = false;
+
+            phone.add(mesh);
+            patch.add(phone);
+            return patch;
+        }
+
+        setupDebugCubes() {
             let debugDepth = new THREE.MeshBasicMaterial({
                 map: this.textureDepth,
             });
@@ -171,8 +210,6 @@ void main() {
         }
 
         setupPointCloud() {
-            const THREE = realityEditor.gui.threejsScene.THREE;
-
             const width = 640, height = 360;
 
             this.geometry = new THREE.BufferGeometry();
@@ -222,7 +259,6 @@ void main() {
         }
 
         setTime(time) {
-            const THREE = realityEditor.gui.threejsScene.THREE;
             this.time = time;
             if (this.matrices.length === 0) {
                 return;
@@ -260,8 +296,10 @@ void main() {
     }
 
     exports.CameraVisCoordinator = class CameraVisCoordinator {
-        constructor(floorOffset) {
+        constructor(floorOffset, voxelizer) {
+            this.voxelizer = voxelizer;
             this.cameras = {};
+            this.patches = [];
             this.visible = true;
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
@@ -284,6 +322,12 @@ void main() {
                     this.spaghettiVisible = !this.spaghettiVisible;
                     for (let camera of Object.values(this.cameras)) {
                         camera.historyMesh.visible = this.spaghettiVisible;
+                    }
+                } else if (code === this.keyboard.keyCodes.P) {
+                    for (let camera of Object.values(this.cameras)) {
+                        let patch = camera.clonePatch();
+                        realityEditor.gui.threejsScene.addToScene(patch);
+                        this.patches.push(patch);
                     }
                 }
             });
@@ -326,6 +370,8 @@ void main() {
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = new WebSocket(url);
+                let canvas = document.createElement('canvas');
+                let context = canvas.getContext('2d');
 
                 ws.addEventListener('message', async (msg) => {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
@@ -350,7 +396,18 @@ void main() {
                     image.onload = () => {
                         const tex = this.cameras[id][textureKey];
                         tex.dispose();
-                        tex.image = image;
+                        // hmmmmm
+                        // most efficient would be if this had a data url for its src
+                        // data url = 'data:image/(png|jpeg);' + base64(blob)
+                        if (textureKey === 'textureDepth') {
+                            canvas.width = image.width;
+                            canvas.height = image.height;
+                            context.drawImage(image, 0, 0, image.width, image.height);
+                            tex.image = canvas;
+                            this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
+                        } else {
+                            tex.image = image;
+                        }
                         tex.needsUpdate = true;
                         // let end = window.performance.now();
                         if (textureKey === 'texture') {
