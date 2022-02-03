@@ -262,7 +262,8 @@ void main() {
                 const id = bytes[0];
                 // const pktType = bytes[1];
                 // if (pktType === PKT_MATRIX) {
-                const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
+                let result = await msg.data.slice(1, msg.data.size).arrayBuffer();
+                const mat = new Float32Array(result);
                 // }
                 if (!this.cameras[id]) {
                     this.createCameraVis(id);
@@ -395,9 +396,9 @@ void main() {
             };
             textureDepthImage.src = textureDepthUrl;
 
-            // 3. Update Matrix // TODO: console.log the depth buffer bytes and see if something's wrong with scale
+            // 3. Update Matrix
 
-            if (!matrix || !newlyCreated) { return; }
+            if (!matrix) { return; }
 
             // const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
             this.cameras[id].update(matrix);

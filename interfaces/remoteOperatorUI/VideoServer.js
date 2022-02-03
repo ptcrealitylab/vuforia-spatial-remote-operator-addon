@@ -414,6 +414,10 @@ class VideoServer {
         // }
 
         if (typeof this.poses[deviceId] !== 'undefined' && poseStatus === 'STARTED') {
+            console.log('pose', pose);
+            let matrix = new Float32Array(pose.buffer);
+            console.log(matrix);
+
             this.poses[deviceId].push({
                 pose: pose.toString('base64'),
                 time: Date.now()
