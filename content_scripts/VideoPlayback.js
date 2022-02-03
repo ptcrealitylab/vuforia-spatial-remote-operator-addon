@@ -17,13 +17,10 @@ createNameSpace('realityEditor.device');
             this.playbackSpeed = 1;
             this.displayPointClouds = false;
             this.loadAvailableVideos().then(info => {
-                console.log(this.videoInfo);
-                if (Object.keys(this.videoInfo).length > 0) {
+                this.videoInfo = info;
+                if (this.videoInfo && Object.keys(this.videoInfo).length > 0) {
                     this.createHTMLElements();
                 }
-                // if (info.color && info.color.length > 0 && info.depth && info.depth.length > 0) {
-                //     this.createHTMLElements(info);
-                // }
             }).catch(error => {
                 console.log(error);
             });
@@ -44,8 +41,6 @@ createNameSpace('realityEditor.device');
             }
         }
         createHTMLElements() {
-            let info = this.videoInfo;
-
             // [x] create a timeline
             // [x] create a playhead on the timeline for scrolling
             // [x] create a play and pause button
@@ -56,13 +51,6 @@ createNameSpace('realityEditor.device');
             this.createVideoTracks(this.videoInfo);
 
             // [x] create two preview videos
-
-            // TODO: BEN LOOK AT THIS!!
-            // TODO: MONDAY MORNING – I just updated the server.js to have a new endpoint for the APIs: /virtualizer_recording/:deviceId/:colorOrDepth/:filename
-            // TODO: update these videos to load from the correct new endpoints
-            // TODO: next, the this.videoInfo has a new structure: { deviceId: { sessionId: { finalColorVideo: {}, finalDepthVideo: {} } }
-            // TODO: load and populate the tracks and segments using this data structure instead of parsing that info from the color and depth filenames in old structure
-
             let firstColorSrc = ''; //'http://' + this.ip + ':8080/virtualizer_recording/' + info.color[0];
             let firstDepthSrc = ''; //'http://' + this.ip + ':8080/virtualizer_recording/' + info.depth[0];
 
@@ -216,7 +204,7 @@ createNameSpace('realityEditor.device');
             return container;
         }
         setupControlButtons(playButton, seekButton, speedButton) {
-            playButton.addEventListener('pointerup', e => {
+            playButton.addEventListener('pointerup', _e => {
                 if (this.isPlaying) {
                     this.pauseVideoPlayback();
                 } else {
@@ -224,7 +212,7 @@ createNameSpace('realityEditor.device');
                 }
             });
             // TODO: what does seek button do?
-            speedButton.addEventListener('pointerup', e => {
+            speedButton.addEventListener('pointerup', _e => {
                 this.playbackSpeed *= 2;
                 if (this.playbackSpeed > 8) {
                     this.playbackSpeed = 1;
@@ -263,7 +251,7 @@ createNameSpace('realityEditor.device');
                 let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
                 this.timeScrolledTo(this.trackInfo.metadata.minTime + playheadTimePercent * duration);
             });
-            playheadElement.addEventListener('pointerdown', e => {
+            playheadElement.addEventListener('pointerdown', _e => {
                 this.playheadClickedDown = true;
                 playheadElement.classList.add('timelinePlayheadSelected');
 
@@ -274,14 +262,14 @@ createNameSpace('realityEditor.device');
                     this.pauseVideoPlayback();
                 }
             });
-            document.addEventListener('pointerup', e => {
+            document.addEventListener('pointerup', _e => {
                 this.playheadClickedDown = false;
                 playheadElement.classList.remove('timelinePlayheadSelected');
 
                 let videoPreview = document.getElementById('timelineVideoPreviewContainer');
                 videoPreview.classList.remove('timelineVideoPreviewSelected');
             });
-            document.addEventListener('pointercancel', e => {
+            document.addEventListener('pointercancel', _e => {
                 this.playheadClickedDown = false;
                 playheadElement.classList.remove('timelinePlayheadSelected');
 
@@ -490,7 +478,14 @@ createNameSpace('realityEditor.device');
             this.trackInfo.metadata.maxTime = latestTime > 0 ? latestTime : Date.now();
             console.log('trackInfo', this.trackInfo);
 
-            this.addPoseInfoToTracks().then(r => console.log(r));
+            this.addPoseInfoToTracks().then(response => {
+                console.log('addPoseInfoToTracks', response);
+                console.log('tInfo2', this.trackInfo);
+            }).catch(error => {
+                console.warn('error in addPoseInfoToTracks', error);
+            });
+
+            console.log('tInfo1', this.trackInfo);
 
             let numTracks = Object.keys(this.trackInfo.tracks).length;
 
@@ -517,17 +512,35 @@ createNameSpace('realityEditor.device');
             }
         }
         async addPoseInfoToTracks() {
-            // add pose info to tracks
-            // http://localhost:8081/virtualizer_recording/device_21/pose/device_device_21_session_wE1fcfcd.json
-            Object.keys(this.trackInfo.tracks).forEach(deviceId => {
-                Object.keys(this.trackInfo.tracks[deviceId].segments).forEach(segmentId => {
-                    let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
-                    this.loadPoseInfo(deviceId, segmentId).then(poseInfo => {
-                        segment.poses = poseInfo;
-                        console.log('added pose info to segment ' + segmentId);
-                    }).catch(error => {
-                        console.warn(error);
+            return new Promise((resolve, reject) => {
+                // add pose info to tracks
+                // http://localhost:8081/virtualizer_recording/device_21/pose/device_device_21_session_wE1fcfcd.json
+                let promises = [];
+                Object.keys(this.trackInfo.tracks).forEach(deviceId => {
+                    Object.keys(this.trackInfo.tracks[deviceId].segments).forEach(segmentId => {
+                        // let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
+                        promises.push(this.loadPoseInfo(deviceId, segmentId));
+                        // this.loadPoseInfo(deviceId, segmentId).then(poseInfo => {
+                        //     segment.poses = poseInfo;
+                        //     console.log('added pose info to segment ' + segmentId);
+                        // }).catch(error => {
+                        //     console.warn(error);
+                        // });
                     });
+                });
+                if (promises.length === 0) {
+                    resolve();
+                    return;
+                }
+                Promise.all(promises).then((poses) => {
+                    poses.forEach(response => {
+                        let segment = this.trackInfo.tracks[response.deviceId].segments[response.segmentId];
+                        segment.poses = response.poseInfo;
+                    });
+                    resolve();
+                }).catch(error => {
+                    console.warn(error);
+                    reject();
                 });
             });
         }
@@ -535,7 +548,11 @@ createNameSpace('realityEditor.device');
             return new Promise((resolve, reject) => {
                 // http://localhost:8081/virtualizer_recording/device_21/pose/device_device_21_session_wE1fcfcd.json
                 httpGet('/virtualizer_recording/' + deviceId + '/pose/device_' + deviceId + '_session_' + segmentId + '.json').then(poseInfo => {
-                    resolve(poseInfo);
+                    resolve({
+                        deviceId: deviceId,
+                        segmentId: segmentId,
+                        poseInfo: poseInfo
+                    });
                 }).catch(reason => {
                     console.warn(reason);
                     reject(reason);
@@ -601,8 +618,7 @@ createNameSpace('realityEditor.device');
                 // httpGet('http://' + this.ip + ':31337/videoInfo').then(info => {
                 httpGet('/virtualizer_recordings').then(info => {
                     console.log(info);
-                    this.videoInfo = info;
-                    resolve();
+                    resolve(info);
 
                     // let rgbVideos = Object.keys(info.mergedFiles.color).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
                     // let depthVideos = Object.keys(info.mergedFiles.depth).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
