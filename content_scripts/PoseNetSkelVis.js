@@ -1,5 +1,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 (function(exports) {
 
     const POSE_JOINTS = {
@@ -60,8 +62,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     class PoseNetSkelVis {
         constructor(skel, floorOffset) {
-            const THREE = realityEditor.gui.threejsScene.THREE;
-
             this.spheres = [];
             this.container = new THREE.Group();
             this.container.position.y = -floorOffset;
@@ -74,7 +74,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         }
 
         createSpheres() {
-            const THREE = realityEditor.gui.threejsScene.THREE;
             const geo = new THREE.SphereGeometry(0.03, 12, 12);
             const mat = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0x0077ff});
             for (const _joint in POSE_JOINTS_COOL) {
@@ -100,7 +99,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 console.warn('other pose format passed into PoseNetSkelVis');
                 return;
             }
-            const THREE = realityEditor.gui.threejsScene.THREE;
 
             for (let i = 0; i < this.spheres.length; i++) {
                 let jointI = POSE_JOINTS_COOL_INDEX[i];
