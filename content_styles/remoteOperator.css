@@ -35,7 +35,7 @@ body > * {
     position: absolute;
     left: 0;
     top: 0;
-    transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1000, 1);
+    transform: matrix3d(-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 1000, 1);
     z-index: 1000;
 }
 
@@ -97,9 +97,9 @@ body > * {
 #timelineVideoPreviewContainer {
     position: absolute;
     left: -68px;
-    top: -159px;
-    width: 480px;
-    height: 135px;
+    top: -168px;
+    width: 512px;
+    height: 144px;
     display: none;
 }
 

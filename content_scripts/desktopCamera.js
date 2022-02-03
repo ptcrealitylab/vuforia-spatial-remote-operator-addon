@@ -104,33 +104,33 @@ createNameSpace('realityEditor.device.desktopCamera');
         virtualCamera.onPanToggled(function(isPanning) {
             if (isPanning && !knownInteractionStates.pan) {
                 knownInteractionStates.pan = true;
-                console.log('start pan');
+                // console.log('start pan');
                 panToggled();
             } else if (!isPanning && knownInteractionStates.pan) {
                 knownInteractionStates.pan = false;
-                console.log('stop pan');
+                // console.log('stop pan');
                 panToggled();
             }
         });
         virtualCamera.onRotateToggled(function(isRotating) {
             if (isRotating && !knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = true;
-                console.log('start rotate');
+                // console.log('start rotate');
                 rotateToggled();
             } else if (!isRotating && knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = false;
-                console.log('stop rotate');
+                // console.log('stop rotate');
                 rotateToggled();
             }
         });
         virtualCamera.onScaleToggled(function(isScaling) {
             if (isScaling && !knownInteractionStates.scale) {
                 knownInteractionStates.scale = true;
-                console.log('start scale');
+                // console.log('start scale');
                 scaleToggled();
             } else if (!isScaling && knownInteractionStates.scale) {
                 knownInteractionStates.scale = false;
-                console.log('stop scale');
+                // console.log('stop scale');
                 scaleToggled();
             }
         });
