@@ -70,21 +70,28 @@ createNameSpace('realityEditor.device');
                 let selectedSegments = this.getSelectedSegments();
                 if (selectedSegments.length === 0) { return; } // TODO: make it work even if no selected segment
 
+                // console.log('timeupdate: ', colorVideoElement.currentTime);
+                let timeMs = colorVideoElement.currentTime * 1000;
+                let segmentInfo = this.trackInfo.tracks[selectedSegments[0].deviceId].segments[selectedSegments[0].segmentId];
+                let absoluteTime = segmentInfo.start + timeMs;
+
                 // TODO: getImageData and pass buffers to point cloud renderer
                 // let colorPixels = colorCtx.getImageData(0, 0, 960, 540);
                 // let depthPixels = depthCtx.getImageData(0, 0, 256, 144);
                 let colorImageUrl = this.colorVideoCanvas.toDataURL('image/jpeg');
                 let depthImageUrl = this.depthVideoCanvas.toDataURL('image/png');
                 // let poseMatrix = this.extractPoseFromDepthCanvas();
-                this.processPointCloud(selectedSegments[0].deviceId, colorImageUrl, depthImageUrl, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+                let closestPose = this.getClosestPose(selectedSegments[0].deviceId, selectedSegments[0].segmentId, absoluteTime);
+                if (closestPose) {
+                    this.processPointCloud(selectedSegments[0].deviceId, colorImageUrl, depthImageUrl, closestPose);
+                }
+                // this.processPointCloud(selectedSegments[0].deviceId, colorImageUrl, depthImageUrl, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
-                if (!this.isPlaying) { return; } // ignore timeupdates due to user scrolling interactions
-
-                // console.log('timeupdate: ', colorVideoElement.currentTime);
-                let timeMs = colorVideoElement.currentTime * 1000;
-                let segmentInfo = this.trackInfo.tracks[selectedSegments[0].deviceId].segments[selectedSegments[0].segmentId];
-                let absoluteTime = segmentInfo.start + timeMs;
-                this.movePlayheadToTime(absoluteTime);
+                // this function triggers in two cases: scrolling and playing the video.
+                // in the case of playing the video, we need to match the scroll playhead with video progress
+                if (this.isPlaying) {
+                    this.movePlayheadToTime(absoluteTime);
+                }
             });
 
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
@@ -107,9 +114,48 @@ createNameSpace('realityEditor.device');
             depthVideoCanvas.id = 'depthVideoCanvas';
             depthVideoCanvas.width = 256;
             depthVideoCanvas.height = 144;
-            // depthVideoCanvas.style.display = 'none';
+            depthVideoCanvas.style.display = 'none';
             document.body.appendChild(depthVideoCanvas);
             this.depthVideoCanvas = depthVideoCanvas;
+        }
+        getClosestPose(deviceId, segmentId, absoluteTime) {
+            let segmentPoses = this.trackInfo.tracks[deviceId].segments[segmentId].poses;
+            // find the pose that minimizes dt
+            // this array might contain ~400 values per minute of video. TODO: in future, make more sparse and estimate/interpolate
+            let min_older_dt = Date.now();
+            let min_newer_dt = Date.now();
+            let closestPoseBase64_older = null; //[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+            let closestPoseBase64_newer = null; //[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+            segmentPoses.forEach(poseEntry => {
+                let this_dt = absoluteTime - poseEntry.time;
+                if (this_dt >= 0 && Math.abs(this_dt) < min_newer_dt) {
+                    min_newer_dt = Math.abs(this_dt);
+                    closestPoseBase64_newer = poseEntry.pose;
+                } else if (this_dt <= 0 && Math.abs(this_dt) < min_older_dt) {
+                    min_older_dt = Math.abs(this_dt);
+                    closestPoseBase64_older = poseEntry.pose;
+                }
+            });
+            // if (closestPoseBase64_older) {
+            //     console.log('closest <pose to time ' + absoluteTime + ' is ' + closestPoseBase64_older.substr(0, 5) + ' (dt = ' + min_older_dt + ')');
+            // }
+            // if (closestPoseBase64_newer) {
+            //     console.log('closest >pose to time ' + absoluteTime + ' is ' + closestPoseBase64_newer.substr(0, 5) + ' (dt = ' + min_newer_dt + ')');
+            // }
+            if (closestPoseBase64_older && closestPoseBase64_newer) {
+                let byteCharacters = window.atob(closestPoseBase64_newer);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                console.log(byteArray);
+                // const blob = new Blob([byteArray]); //, {type: contentType})
+                let matrix = new Float32Array(byteArray.buffer);
+                console.log(matrix);
+                return matrix;
+            }
+            return null; //closestPoseBase64;
         }
         // async extractPoseFromDepthCanvas() {
         //     if (typeof this.poseCanvas === 'undefined') {
@@ -360,15 +406,6 @@ createNameSpace('realityEditor.device');
             }
         }
         movePlayheadToTime(timestamp) {
-            /*
-            playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
-            let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
-            (playheadTimePercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin)) = parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin;
-            (playheadTimePercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin)) - halfPlayheadWidth + leftMargin = playheadElement.style.left;
-            playheadElement.style.left = leftMargin - halfPlayheadWidth + (playheadTimePercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin));
-            console.log(playheadTimePercent);
-             */
-
             // calculate new X position of playhead based on timestamp relative to full time range
             let trackBox = document.getElementById('timelineTrackBox');
             let containerWidth = trackBox.getClientRects()[0].width;
@@ -391,18 +428,10 @@ createNameSpace('realityEditor.device');
                 let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
                 videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
             }
-
         }
         createVideoTracks(videoInfo) {
-            console.log('create track elements for', videoInfo);
-
             this.trackInfo = {
-                tracks: {
-                    // defaultDevice: { // TODO: give each video the uuid of its author device
-                    //     segments: {},
-                    //     index: 0
-                    // }
-                }, // each device gets its own track. more than one segment can be on that track
+                tracks: {}, // each device gets its own track. more than one segment can be on that track
                 metadata: {
                     minTime: 0,
                     maxTime: 1
@@ -435,21 +464,8 @@ createNameSpace('realityEditor.device');
                 });
             });
 
-            // Object.keys(videoInfo.mergedFiles.color).forEach(filePath => {
-            //     let info = videoInfo.mergedFiles.color[filePath];
-            //     this.trackInfo.tracks.defaultDevice.segments[filePath] = {
-            //         colorVideo: filePath,
-            //         depthVideo: this.getMatchingDepthVideo(filePath),
-            //         start: info.startTime,
-            //         end: info.endTime,
-            //         visible: true,
-            //     };
-            //     earliestTime = Math.min(earliestTime, info.startTime);
-            //     latestTime = Math.max(latestTime, info.endTime);
-            // });
-
-            // only go back at most 30 mins from the most recent video
-            const MAX_TIMELINE_LENGTH = 1000 * 60 * 60 * 2; // 2 hrs
+            // only go back at most 2 hrs from the most recent video
+            const MAX_TIMELINE_LENGTH = 1000 * 60 * 60 * 2;
             let keysToRemove = [];
             let newEarliestTime = latestTime;
             Object.keys(this.trackInfo.tracks).forEach(deviceId => {
@@ -518,14 +534,7 @@ createNameSpace('realityEditor.device');
                 let promises = [];
                 Object.keys(this.trackInfo.tracks).forEach(deviceId => {
                     Object.keys(this.trackInfo.tracks[deviceId].segments).forEach(segmentId => {
-                        // let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
                         promises.push(this.loadPoseInfo(deviceId, segmentId));
-                        // this.loadPoseInfo(deviceId, segmentId).then(poseInfo => {
-                        //     segment.poses = poseInfo;
-                        //     console.log('added pose info to segment ' + segmentId);
-                        // }).catch(error => {
-                        //     console.warn(error);
-                        // });
                     });
                 });
                 if (promises.length === 0) {
@@ -596,20 +605,11 @@ createNameSpace('realityEditor.device');
             video.id = id;
             video.classList.add('videoPreview');
             video.setAttribute('width', '240');
-            video.setAttribute('controls', 'controls');
+            video.setAttribute('controls', 'controls'); // TODO: remove this after done debugging
             video.setAttribute('muted', 'muted');
-            // video.setAttribute('autoplay', 'autoplay');
-
             let source = document.createElement('source');
             source.src = src;
             video.appendChild(source);
-
-            /*
-                <video id="videoPlayer" width="650" controls muted="muted" autoplay>
-                    <source src="/video/depth_stream_1643050443659.mp4" type="video/mp4" />
-                </video>
-             */
-
             return video;
         }
         loadAvailableVideos() {
@@ -619,30 +619,19 @@ createNameSpace('realityEditor.device');
                 httpGet('/virtualizer_recordings').then(info => {
                     console.log(info);
                     resolve(info);
-
-                    // let rgbVideos = Object.keys(info.mergedFiles.color).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
-                    // let depthVideos = Object.keys(info.mergedFiles.depth).map(absolutePath => absolutePath.replace(/^.*[\\\/]/, ''));
-
-                    // console.log(rgbVideos);
-                    // console.log(depthVideos);
-
-                    // resolve({
-                    //     color: rgbVideos,
-                    //     depth: depthVideos
-                    // });
                 }).catch(reason => {
                     console.warn(reason);
                     reject(reason);
                 });
             });
         }
-        processPointCloud(deviceId, colorPixels, depthPixels, _poseMatrix) {
+        processPointCloud(deviceId, colorPixels, depthPixels, poseMatrix) {
             if (!this.displayPointClouds) {
                 return;
             }
             if (typeof this.loadPointCloud !== 'undefined') {
                 let cameraId = parseInt(deviceId.replace('device_', ''));
-                let poseMatrix = [0.14402000606060028,0.9848149418830872,-0.09694764018058777,0,-0.07154643535614014,0.10807616263628006,0.9915645122528076,0,0.9869853258132935,-0.13586850464344025,0.0860244631767273,0,81.54875183105469,685.0294189453125,54.82767105102539,1];
+                // let poseMatrix = [0.14402000606060028,0.9848149418830872,-0.09694764018058777,0,-0.07154643535614014,0.10807616263628006,0.9915645122528076,0,0.9869853258132935,-0.13586850464344025,0.0860244631767273,0,81.54875183105469,685.0294189453125,54.82767105102539,1];
 
                 // let colorBlobUrl = decodeBase64JpgToBlobUrl(colorPixels);
                 // let depthBlobUrl = decodeBase64JpgToBlobUrl(depthPixels);
