@@ -117,7 +117,7 @@ createNameSpace('realityEditor.device');
                 this.mouseInput.last.y = 0;
 
                 if (this.preRotateDistanceToTarget !== null) {
-                    console.log(this.preRotateDistanceToTarget, this.distanceToTarget);
+                    // console.log(this.preRotateDistanceToTarget, this.distanceToTarget);
                     this.zoomBackToPreRotateLevel();
                     this.preRotateDistanceToTarget = null;
                 }

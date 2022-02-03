@@ -35,11 +35,11 @@ class VideoServer {
         this.SEGMENT_LENGTH = 15000;
         this.isRecording = {}; // boolean for each deviceId
         this.anythingReceived = {}; // boolean for each deviceId
-        this.DEBUG_WRITE_IMAGES = false;
+        this.DEBUG_WRITE_IMAGES = true;
         this.sessionId = this.uuidTimeShort(); // each time the server restarts, tag videos from this instance with a unique ID
 
         this.COLOR_FILETYPE = 'mp4';
-        this.DEPTH_FILETYPE = 'mp4';
+        this.DEPTH_FILETYPE = 'webm';
 
         if (!fs.existsSync(this.outputPath)) {
             fs.mkdirSync(this.outputPath, {recursive: true});
@@ -82,9 +82,14 @@ class VideoServer {
                     if (videoInfo && videoInfo.filePath && !fs.existsSync(videoInfo.filePath)) {
                         // if its chunks were also deleted, then delete this, otherwise recover it
                         let colorOrDepth = (videoInfo.filePath.includes('color')) ? 'color' : 'depth';
-                        let anyChunkMissing = videoInfo.colorChunks.some(filename => {
-                            return !fs.existsSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, colorOrDepth, filename));
-                        });
+                        let anyChunkMissing = false;
+                        if (!videoInfo.colorChunks) {
+                            anyChunkMissing = true;
+                        } else {
+                            anyChunkMissing = videoInfo.colorChunks.some(filename => {
+                                return !fs.existsSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, colorOrDepth, filename));
+                            });
+                        }
                         if (anyChunkMissing) {
                             deletedVideos.push({
                                 deviceId: deviceId,
@@ -587,11 +592,15 @@ class VideoServer {
             '-r', framerate,
             '-f', 'image2pipe',
             '-vcodec', input_vcodec,
+            '-pix_fmt', 'argb',
             '-s', input_width + 'x' + input_height,
             '-i', '-',
-            '-vcodec', 'libx265',
-            '-x265-params', 'lossless=1',
-            '-pix_fmt', 'yuv420p',
+            // '-vcodec', 'libx265',
+            '-vcodec', 'libvpx-vp9',
+            '-lossless', '1',
+            // '-x265-params', 'lossless=1',
+            // '-pix_fmt', 'yuv420p',
+            '-pix_fmt', 'argb',
             // '-vf', 'scale=' + outputWidth + ':' + outputHeight + ', setsar=1:1', //, realtime, fps=' + framerate,
             // '-preset', 'ultrafast',
             // '-copyts',

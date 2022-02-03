@@ -15,7 +15,7 @@ createNameSpace('realityEditor.device');
             this.selectedSegments = {};
             this.isPlaying = false;
             this.playbackSpeed = 1;
-            this.displayPointClouds = false;
+            this.displayPointClouds = true;
             this.loadAvailableVideos().then(info => {
                 this.videoInfo = info;
                 if (this.videoInfo && Object.keys(this.videoInfo).length > 0) {
@@ -65,7 +65,7 @@ createNameSpace('realityEditor.device');
                 let colorCtx = this.colorVideoCanvas.getContext('2d');
                 let depthCtx = this.depthVideoCanvas.getContext('2d');
                 colorCtx.drawImage(this.colorVideoPreview, 0, 0, 960, 540);
-                depthCtx.drawImage(this.depthVideoPreview, 0, 0, 256, 144);
+                depthCtx.drawImage(this.depthVideoPreview, 0, 0);
 
                 let selectedSegments = this.getSelectedSegments();
                 if (selectedSegments.length === 0) { return; } // TODO: make it work even if no selected segment
@@ -80,6 +80,9 @@ createNameSpace('realityEditor.device');
                 // let depthPixels = depthCtx.getImageData(0, 0, 256, 144);
                 let colorImageUrl = this.colorVideoCanvas.toDataURL('image/jpeg');
                 let depthImageUrl = this.depthVideoCanvas.toDataURL('image/png');
+
+                let depthImageData = this.depthVideoCanvas.getContext('2d').getImageData(0, 0, 256, 144).data;
+
                 // let poseMatrix = this.extractPoseFromDepthCanvas();
                 let closestPose = this.getClosestPose(selectedSegments[0].deviceId, selectedSegments[0].segmentId, absoluteTime);
                 if (closestPose) {
@@ -97,7 +100,7 @@ createNameSpace('realityEditor.device');
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
             videoPreviewContainer.appendChild(colorVideoElement);
             videoPreviewContainer.appendChild(depthVideoElement);
-            depthVideoElement.style.left = 240 + 'px';
+            depthVideoElement.style.left = 256 + 'px';
 
             // [x] create a canvas for the video to be written to so its pixel data can be extracted
             // TODO: move to OffscreenCanvas and worker thread (https://developers.google.com/web/updates/2018/08/offscreen-canvas)
@@ -106,7 +109,7 @@ createNameSpace('realityEditor.device');
             colorVideoCanvas.setAttribute('crossOrigin', 'anonymous');
             colorVideoCanvas.width = 960;
             colorVideoCanvas.height = 540;
-            colorVideoCanvas.style.display = 'none';
+            // colorVideoCanvas.style.display = 'none';
             document.body.appendChild(colorVideoCanvas);
             this.colorVideoCanvas = colorVideoCanvas;
 
@@ -114,7 +117,7 @@ createNameSpace('realityEditor.device');
             depthVideoCanvas.id = 'depthVideoCanvas';
             depthVideoCanvas.width = 256;
             depthVideoCanvas.height = 144;
-            depthVideoCanvas.style.display = 'none';
+            // depthVideoCanvas.style.display = 'none';
             document.body.appendChild(depthVideoCanvas);
             this.depthVideoCanvas = depthVideoCanvas;
         }
@@ -142,8 +145,9 @@ createNameSpace('realityEditor.device');
             // if (closestPoseBase64_newer) {
             //     console.log('closest >pose to time ' + absoluteTime + ' is ' + closestPoseBase64_newer.substr(0, 5) + ' (dt = ' + min_newer_dt + ')');
             // }
-            if (closestPoseBase64_older && closestPoseBase64_newer) {
-                let byteCharacters = window.atob(closestPoseBase64_newer);
+            if (closestPoseBase64_newer || closestPoseBase64_older) {
+                let closestPoseBase64 = closestPoseBase64_older || closestPoseBase64_newer;
+                let byteCharacters = window.atob(closestPoseBase64);
                 const byteNumbers = new Array(byteCharacters.length);
                 for (let i = 0; i < byteCharacters.length; i++) {
                     byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -464,8 +468,8 @@ createNameSpace('realityEditor.device');
                 });
             });
 
-            // only go back at most 2 hrs from the most recent video
-            const MAX_TIMELINE_LENGTH = 1000 * 60 * 60 * 2;
+            // only go back at most 1 hr from the most recent video
+            const MAX_TIMELINE_LENGTH = 1000 * 60 * 60 * 0.5;
             let keysToRemove = [];
             let newEarliestTime = latestTime;
             Object.keys(this.trackInfo.tracks).forEach(deviceId => {
@@ -604,8 +608,8 @@ createNameSpace('realityEditor.device');
             let video = document.createElement('video');
             video.id = id;
             video.classList.add('videoPreview');
-            video.setAttribute('width', '240');
-            video.setAttribute('controls', 'controls'); // TODO: remove this after done debugging
+            video.setAttribute('width', '256');
+            // video.setAttribute('controls', 'controls'); // TODO: remove this after done debugging
             video.setAttribute('muted', 'muted');
             let source = document.createElement('source');
             // source.setAttribute('type', 'video/mp4; codecs=hevc');
@@ -646,6 +650,7 @@ createNameSpace('realityEditor.device');
         }
         togglePointClouds() {
             this.displayPointClouds = !this.displayPointClouds;
+            console.log('displayPointClouds = ' + this.displayPointClouds);
         }
     }
 
