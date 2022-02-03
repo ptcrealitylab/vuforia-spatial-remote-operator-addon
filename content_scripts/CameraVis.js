@@ -393,6 +393,10 @@ void main() {
         }
 
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
+            if (typeof this.manualTextureCanvas === 'undefined') {
+                this.manualTextureCanvas = document.createElement('canvas');
+                this.manualTextureContext = this.manualTextureCanvas.getContext('2d');
+            }
             // const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
             // const id = bytes[0];
             let newlyCreated = false;
@@ -441,6 +445,13 @@ void main() {
             textureDepthImage.onload = () => {
                 const tex = this.cameras[id]['textureDepth'];
                 tex.dispose();
+
+                this.manualTextureCanvas.width = textureDepthImage.width;
+                this.manualTextureCanvas.height = textureDepthImage.height;
+                this.manualTextureContext.drawImage(textureDepthImage, 0, 0, textureDepthImage.width, textureDepthImage.height);
+                tex.image = this.manualTextureCanvas;
+                this.voxelizer.raycastDepthTexture(this.cameras[id].phone, this.manualTextureCanvas, this.manualTextureContext);
+
                 tex.image = textureDepthImage;
                 tex.needsUpdate = true;
                 // let end = window.performance.now();
