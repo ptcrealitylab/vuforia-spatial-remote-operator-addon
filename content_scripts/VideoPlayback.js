@@ -81,7 +81,7 @@ createNameSpace('realityEditor.device');
                 let colorImageUrl = this.colorVideoCanvas.toDataURL('image/jpeg');
                 let depthImageUrl = this.depthVideoCanvas.toDataURL('image/png');
 
-                let depthImageData = this.depthVideoCanvas.getContext('2d').getImageData(0, 0, 256, 144).data;
+                // let depthImageData = this.depthVideoCanvas.getContext('2d').getImageData(0, 0, 256, 144).data;
 
                 // let poseMatrix = this.extractPoseFromDepthCanvas();
                 let closestPose = this.getClosestPose(selectedSegments[0].deviceId, selectedSegments[0].segmentId, absoluteTime);
