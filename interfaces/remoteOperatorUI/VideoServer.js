@@ -38,6 +38,9 @@ class VideoServer {
         this.DEBUG_WRITE_IMAGES = false;
         this.sessionId = this.uuidTimeShort(); // each time the server restarts, tag videos from this instance with a unique ID
 
+        this.COLOR_FILETYPE = 'mp4';
+        this.DEPTH_FILETYPE = 'mp4';
+
         if (!fs.existsSync(this.outputPath)) {
             fs.mkdirSync(this.outputPath, {recursive: true});
             console.log('Created directory for VideoServer outputPath: ' + this.outputPath);
@@ -77,13 +80,20 @@ class VideoServer {
                 let videos = [session.finalColorVideo, session.finalDepthVideo];
                 videos.forEach(videoInfo => {
                     if (videoInfo && videoInfo.filePath && !fs.existsSync(videoInfo.filePath)) {
-                        deletedVideos.push({
-                            deviceId: deviceId,
-                            sessionId: sessionId,
-                            videoPath: videoInfo.filePath
+                        // if its chunks were also deleted, then delete this, otherwise recover it
+                        let colorOrDepth = (videoInfo.filePath.includes('color')) ? 'color' : 'depth';
+                        let anyChunkMissing = videoInfo.colorChunks.some(filename => {
+                            return !fs.existsSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, colorOrDepth, filename));
                         });
-                        anyChanges = true;
-                        console.log('video file was deleted: ' + videoInfo.filePath);
+                        if (anyChunkMissing) {
+                            deletedVideos.push({
+                                deviceId: deviceId,
+                                sessionId: sessionId,
+                                videoPath: videoInfo.filePath
+                            });
+                            anyChanges = true;
+                            console.log('video file (and chunks) was deleted: ' + videoInfo.filePath);
+                        }
                     }
                 });
             });
@@ -250,7 +260,8 @@ class VideoServer {
         }
         fs.writeFileSync(txtFilePath, fileText);
 
-        let filename = 'device_' + deviceId + '_session_' + sessionId + '.mp4'; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
+        let filetype = (colorOrDepth === 'depth') ? this.DEPTH_FILETYPE : this.COLOR_FILETYPE;
+        let filename = 'device_' + deviceId + '_session_' + sessionId + '.' + filetype; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
         let outputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, colorOrDepth, filename);
         this.ffmpeg_concat_mp4s(outputPath, txtFilePath);
         return outputPath;
@@ -311,7 +322,7 @@ class VideoServer {
         // start color stream process
         // depth images are 1920x1080 lossy JPG images
         let chunkTimestamp = Date.now();
-        let colorOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'color', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.mp4');
+        let colorOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'color', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.' + this.COLOR_FILETYPE);
         this.processes[deviceId][this.PROCESS.COLOR] = this.ffmpeg_image2mp4(colorOutputPath, 10, 'mjpeg', 1920, 1080, 25, 0.5);
         if (this.processes[deviceId][this.PROCESS.COLOR]) {
             this.processStatuses[deviceId][this.PROCESS.COLOR] = this.STATUS.STARTED;
@@ -319,8 +330,10 @@ class VideoServer {
 
         // start depth stream process
         // depth images are 256x144 lossless PNG buffers
-        let depthOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.mp4');
-        this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
+        let depthOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.' + this.DEPTH_FILETYPE);
+        this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144);
+
+        // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
         if (this.processes[deviceId][this.PROCESS.DEPTH]) {
             this.processStatuses[deviceId][this.PROCESS.DEPTH] = this.STATUS.STARTED;
         }
@@ -414,9 +427,9 @@ class VideoServer {
         // }
 
         if (typeof this.poses[deviceId] !== 'undefined' && poseStatus === 'STARTED') {
-            console.log('pose', pose);
-            let matrix = new Float32Array(pose.buffer);
-            console.log(matrix);
+            // console.log('pose', pose);
+            // let matrix = new Float32Array(pose.buffer);
+            // console.log(matrix);
 
             this.poses[deviceId].push({
                 pose: pose.toString('base64'),
@@ -477,18 +490,20 @@ class VideoServer {
         }
         fs.open(input_path, 'r', function(err, fd) {
             try {
-                let movie = VideoLib.MovieParser.parse(fd);
+                // let movie = VideoLib.MovieParser.parse(fd);
                 // Work with movie
-                console.log('Duration:', movie.relativeDuration());
+                // console.log('Duration:', movie.relativeDuration());
 
                 // getVideoDurationInSeconds(input_path).then((duration) => {
                 // console.log('old duration = ' + duration);
 
+                let movieDuration = 10;
+
                 console.log('change duration:', output_path, input_path, newDuration);
                 let args = [
-                    '-f', 'mp4',
+                    // '-f', filetype,
                     '-i', input_path,
-                    '-filter:v', 'setpts=' + newDuration / movie.relativeDuration() + '*PTS',
+                    '-filter:v', 'setpts=' + newDuration / movieDuration /*movie.relativeDuration()*/ + '*PTS',
                     output_path
                 ];
                 let process = cp.spawn(ffmpegPath, args);
@@ -560,26 +575,87 @@ class VideoServer {
 
         return process;
     }
+    ffmpeg_image2losslessVideo(output_path, framerate = 10, input_vcodec = 'png', input_width = 256, input_height = 144) {
+        // let outputWidth = input_width;
+        // let outputHeight = input_height;
+
+        // ffmpeg -i video.avi -c:v libx265 \
+        //         -x265-params "profile=monochrome12:crf=0:lossless=1:preset=veryslow:qp=0" \
+        //         video.mkv
+
+        let args = [
+            '-r', framerate,
+            '-f', 'image2pipe',
+            '-vcodec', input_vcodec,
+            '-s', input_width + 'x' + input_height,
+            '-i', '-',
+            '-vcodec', 'libx265',
+            '-x265-params', 'lossless=1',
+            '-pix_fmt', 'yuv420p',
+            // '-vf', 'scale=' + outputWidth + ':' + outputHeight + ', setsar=1:1', //, realtime, fps=' + framerate,
+            // '-preset', 'ultrafast',
+            // '-copyts',
+            // '-tune', 'zerolatency',
+            // '-r', framerate, // will duplicate frames to meet this but still look like the framerate set before -i,
+            output_path
+        ];
+
+        // not working with MP4 ... works losslessly with .MKV but not playable in HTML video element
+        // let args = [
+        //     '-r', framerate,
+        //     '-f', 'image2pipe',
+        //     '-vcodec', input_vcodec,
+        //     '-s', input_width + 'x' + input_height,
+        //     '-i', '-',
+        //     '-vcodec', 'libx265',
+        //     '-x265-params', 'crf=0:lossless=1:preset=veryslow:qp=0',
+        //     // '-pix_fmt', 'yuv420p',
+        //     // '-vf', 'scale=' + outputWidth + ':' + outputHeight + ', setsar=1:1', //, realtime, fps=' + framerate,
+        //     // '-preset', 'ultrafast',
+        //     // '-copyts',
+        //     // '-tune', 'zerolatency',
+        //     // '-r', framerate, // will duplicate frames to meet this but still look like the framerate set before -i,
+        //     output_path
+        // ];
+
+        let process = cp.spawn(ffmpegPath, args);
+
+        // process.stdout.on('data', function(data) {
+        //     console.log('stdout data', data);
+        // });
+        process.stderr.setEncoding('utf8');
+        process.stderr.on('data', function(data) {
+            console.log('stderr data', data);
+        });
+        // process.on('close', function() {
+        //     console.log('finished');
+        // });
+
+        return process;
+    }
     getUnprocessedChunkFilePaths(deviceId, colorOrDepth = 'color') {
         let unprocessedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, colorOrDepth);
         if (!fs.existsSync(unprocessedPath)) {
             fs.mkdirSync(unprocessedPath, { recursive: true });
         }
-        return fs.readdirSync(unprocessedPath).filter(filename => filename.includes('.mp4'));
+        let filetype = '.' + ((colorOrDepth === 'depth') ? this.DEPTH_FILETYPE : this.COLOR_FILETYPE);
+        return fs.readdirSync(unprocessedPath).filter(filename => filename.includes(filetype));
     }
     getProcessedChunkFilePaths(deviceId, colorOrDepth = 'color') {
         let processedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks, colorOrDepth);
         if (!fs.existsSync(processedPath)) {
             fs.mkdirSync(processedPath, { recursive: true });
         }
-        return fs.readdirSync(processedPath).filter(filename => filename.includes('.mp4'));
+        let filetype = '.' + ((colorOrDepth === 'depth') ? this.DEPTH_FILETYPE : this.COLOR_FILETYPE);
+        return fs.readdirSync(processedPath).filter(filename => filename.includes(filetype));
     }
     getSessionFilePaths(deviceId, colorOrDepth = 'color') {
         let sessionPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, colorOrDepth);
         if (!fs.existsSync(sessionPath)) {
             fs.mkdirSync(sessionPath, { recursive: true });
         }
-        return fs.readdirSync(sessionPath).filter(filename => filename.includes('.mp4'));
+        let filetype = '.' + ((colorOrDepth === 'depth') ? this.DEPTH_FILETYPE : this.COLOR_FILETYPE);
+        return fs.readdirSync(sessionPath).filter(filename => filename.includes(filetype));
     }
     evaluateAndRescaleVideosIfNeeded(deviceId) {
         let unprocessedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks);

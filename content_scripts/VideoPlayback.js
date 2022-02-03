@@ -608,6 +608,7 @@ createNameSpace('realityEditor.device');
             video.setAttribute('controls', 'controls'); // TODO: remove this after done debugging
             video.setAttribute('muted', 'muted');
             let source = document.createElement('source');
+            // source.setAttribute('type', 'video/mp4; codecs=hevc');
             source.src = src;
             video.appendChild(source);
             return video;
