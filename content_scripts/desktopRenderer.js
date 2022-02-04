@@ -15,6 +15,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
  */
 
 (function(exports) {
+    const ENABLE_VOXELIZER = false;
+
     /**
      * @type {Canvas} - the DOM element where the images streamed from a reality zone are rendered
      */
@@ -99,12 +101,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         y: navmesh.minY,
                         z: (navmesh.maxZ + navmesh.minZ) / 2,
                     };
-                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh) {
+                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
                         gltf = createdMesh;
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
 
-                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
+                        let realityZoneVoxelizer;
+                        if (ENABLE_VOXELIZER) {
+                            realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
+                            realityZoneVoxelizer.add();
+                        }
+
+                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
 
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
