@@ -25,11 +25,41 @@ void main() {
   vUv = vec2(position.x / width, position.y / height);
 
   vec4 color = texture2D(mapDepth, vUv);
-  float depth = (color.r + color.g / 256.0 + color.b / (256.0 * 256.0)) * 1000.0;
+  // float depth = (color.r + color.g / 256.0 + color.b / (256.0 * 256.0)) * 1000.0;
+
+  // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
+  int r = int(color.r * 255.0);
+  int g = int(color.g * 255.0);
+  int b = int(color.b * 255.0);
+
+  float depth = float((r & 1) |
+      ((g & 1) << 1) |
+      ((b & 1) << 2) |
+      ((r & (1 << 1)) << (3 - 1)) |
+      ((g & (1 << 1)) << (4 - 1)) |
+      ((b & (1 << 1)) << (5 - 1)) |
+      ((r & (1 << 2)) << (6 - 2)) |
+      ((g & (1 << 2)) << (7 - 2)) |
+      ((b & (1 << 2)) << (8 - 2)) |
+      ((r & (1 << 3)) << (9 - 3)) |
+      ((g & (1 << 3)) << (10 - 3)) |
+      ((b & (1 << 3)) << (11 - 3)) |
+      ((r & (1 << 4)) << (12 - 4)) |
+      ((g & (1 << 4)) << (13 - 4)) |
+      ((b & (1 << 4)) << (14 - 4)) |
+      ((r & (1 << 5)) << (15 - 5)) |
+      ((g & (1 << 5)) << (16 - 5)) |
+      ((b & (1 << 5)) << (17 - 5)) |
+      ((r & (1 << 6)) << (18 - 6)) |
+      ((g & (1 << 6)) << (19 - 6)) |
+      ((b & (1 << 6)) << (20 - 6)) |
+      ((r & (1 << 7)) << (21 - 7)) |
+      ((g & (1 << 7)) << (22 - 7)) |
+      ((b & (1 << 7)) << (23 - 7)));
 
   // Projection code by @kcmic
 
-  float z = depth * 256.0 - 0.05; // Not exactly sure why it's this
+  float z = depth * (1000.0 / float(1 << (24 - 4))); // * 256.0 - 0.05; // Not exactly sure why it's this
 
   vec4 pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
@@ -37,7 +67,7 @@ void main() {
     -z,
     1.0);
 
-  gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
+  gl_PointSize = pointSizeBase + pointSize * z * depthScale;
   gl_Position = projectionMatrix * modelViewMatrix * pos;
 }`;
 
@@ -229,8 +259,8 @@ void main() {
                     mapDepth: {value: this.textureDepth},
                     width: {value: width},
                     height: {value: height},
-                    depthScale: {value: 0.15}, // roughly 256 / 1920
-                    pointSize: { value: 2 * 0.666 },
+                    depthScale: {value: 32 / (256 * 256)}, // roughly 256 / 1920
+                    pointSize: { value: 2 },
                 },
                 vertexShader,
                 fragmentShader,
