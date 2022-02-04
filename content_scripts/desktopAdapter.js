@@ -386,7 +386,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // ];
         // realityEditor.gui.ar.draw.rotateX = rotateX;
 
-        DEBUG_CLIENT_NAME = 'Remote Operator';
+        window.DEBUG_CLIENT_NAME = 'Remote Operator';
     }
 
     /**
