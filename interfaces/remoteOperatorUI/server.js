@@ -53,7 +53,13 @@ module.exports.start = function start() {
                     
                     doUpdateHololensPose(msg);
                     break;
+                
+                case '/update/urPose':
+                    console.log('/update/urPose');
+                    doUpdateURPose(msg);
+                    break;
                 }
+                
             } catch (error) {
                 console.warn('Could not parse message: ' , error);
             }
@@ -61,6 +67,10 @@ module.exports.start = function start() {
         });
 
         function doUpdateHololensPose(msg) {
+            broadcast(ws, JSON.stringify(msg));
+        }
+        function doUpdateURPose(msg) {
+            console.log('doUpdateURPose');
             broadcast(ws, JSON.stringify(msg));
         }
 
