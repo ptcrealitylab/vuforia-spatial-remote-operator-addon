@@ -25,18 +25,42 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             this.hololensModel = new THREE.Group();
             this.container.add(this.hololensModel);
 
+            this.UR3EModel = new THREE.Group();
+            this.container.add(this.UR3EModel);
+
             this.humanoidModel = new THREE.Group();
             this.container.add(this.humanoidModel);
             this.humanoid = [];
 
+            // Load UR3E model
+            const fbxLoader = new FBXLoader();
+            fbxLoader.load(
+                '/addons/vuforia-spatial-remote-operator-addon/UnityRobotics_RF3_s1.fbx',
+                (object) => {
+
+                    console.log('Add UR3E', object);
+                    this.UR3EModel.add(object);
+                    object.rotation.z = - Math.PI / 2;
+                    object.scale.set(1000,1000,1000);
+                    object.position.x -= 1000;
+                },
+                (xhr) => {
+                    console.log((xhr.loaded / xhr.total) * 100 + '% loaded')
+                },
+                (error) => {
+                    console.log(error)
+                }
+            );
+
+            /*
             const geometry = new THREE.SphereGeometry( 50, 32, 16 );
             const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
             this.handLeft = new THREE.Mesh( geometry, material );
             this.handRight = new THREE.Mesh( geometry, material );
             this.container.add( this.handLeft );
             this.container.add( this.handRight );
-            
 
+            
             // Load Hololens model
             const fbxLoader = new FBXLoader();
             fbxLoader.load(
@@ -56,6 +80,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 }
             );
 
+            
             const loader = new GLTFLoader();
             loader.load( '/addons/vuforia-spatial-remote-operator-addon/Xbot.glb',
                 (object) => {
@@ -67,12 +92,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     this.humanoidModel.add(this.humanoid);
 
                     const rootBone = this.humanoid.children[0].children[0];
-                    
-                    /*let skeleton = new THREE.SkeletonHelper( rootBone );
-                    skeleton.visible = true;
-                    this.container.add( skeleton );*/
 
-                    //rootBone.children[0].rotation.z = - Math.PI / 2;  // Change spine position
+                    rootBone.children[0].rotation.z = - Math.PI / 2;  // Change spine rotation
 
                     console.log('Root Bone child: ', rootBone.children[0]); // Spine
                     
@@ -83,7 +104,25 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 (error) => {
                     console.log(error)
                 }
-            );
+            );*/
+            
+            let mirurNode = realityEditor.sceneGraph.getSceneNodeById('MIRUR_ufva2zpinam');
+            let worldId = realityEditor.worldObjects.getBestWorldObject().objectId;
+            let worldNode = realityEditor.sceneGraph.getSceneNodeById(worldId);
+
+            let mirurMatrix = mirurNode.getMatrixRelativeTo(worldNode);
+            
+            console.log('MIRUR worldId: ', worldId);
+            console.log('MIRUR Matrix: ', mirurMatrix);
+
+            const geometry = new THREE.BoxGeometry( 100, 400, 200 );
+            const material = new THREE.MeshBasicMaterial( {color: 'cyan', transparent: true, opacity: 0.5} );
+            const cube = new THREE.Mesh( geometry, material );
+            this.container.add( cube );
+            
+            //cube.matrixAutoUpdate = false;
+            //cube.matrix.set(mirurMatrix);
+            //cube.updateMatrixWorld();
 
             this.draw = this.draw.bind(this);
             window.rzv = this;
@@ -95,6 +134,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             this.drawSkels(skels);
             
             this.drawHololensPose();
+            
+            this.drawRobotPose();
 
             window.requestAnimationFrame(this.draw);
         }
@@ -105,6 +146,13 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
         unityToWorldRot(rotation){
             return {x: - rotation.y, y: - rotation.x, z: rotation.z};
+        }
+        
+        drawRobotPose(){
+            if (this.UR3EModel){
+                let robotData = this.dataSource.robotData;
+                
+            }
         }
         
         drawHololensPose(){

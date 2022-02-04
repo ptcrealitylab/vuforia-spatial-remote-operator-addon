@@ -12,11 +12,16 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             this.onMessage = this.onMessage.bind(this);
 
             this.socket.addEventListener('message', this.onMessage);
+
+            this.socket.addEventListener('open', function(event) { console.log('yes I am open', event); });
+            this.socket.addEventListener('error', function(event) { console.log('oh no error', event); });
             
             this.hololensPosition = {x: 0, y: 0, z: 0};
             this.hololensRotation = {x: 0, y: 0, z: 0};
             this.hololensRightHandPosition = {x: 0, y: 0, z: 0};
             this.hololensLeftHandPosition = {x: 0, y: 0, z: 0};
+            
+            this.robotData = [];
         }
 
         onMessage(event) {
@@ -24,6 +29,11 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             try {
                 
                 let msg = JSON.parse(event.data);
+
+                if (msg.command === '/update/urPose') {
+                    console.log('ROBOT DATA: ', msg.robotData);
+                    this.robotData = msg.robotData;
+                }
                 
                 if (msg.command === '/update/hololensPose') {
 
