@@ -50,7 +50,7 @@ createNameSpace('realityEditor.device');
 
             // [x] create a track on the timeline for each pair of videos – vertically spaced per device – horizontally per timestamp
             this.createVideoTracks(this.videoInfo);
-            
+
             this.playheadTimestamp = this.trackInfo.metadata.minTime;
 
             // [x] create two preview videos

@@ -110,10 +110,15 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
-                        // also create the VideoPlayback and search the server of the world object for any recorded videos
-                        videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
-                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                        window.globalVideoPlayback = videoPlayback;
+                        let videoPlaybackCoordinator = new realityEditor.videoPlayback.Coordinator();
+                        videoPlaybackCoordinator.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        videoPlaybackCoordinator.load();
+                        window.videoPlayback = videoPlaybackCoordinator;
+
+                        // // also create the VideoPlayback and search the server of the world object for any recorded videos
+                        // videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
+                        // videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        // window.globalVideoPlayback = videoPlayback;
                     });
                 }
 

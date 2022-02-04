@@ -96,7 +96,7 @@ body > * {
 
 #timelineVideoPreviewContainer {
     position: absolute;
-    left: -68px;
+    left: -128px;
     top: -168px;
     width: 512px;
     height: 144px;
