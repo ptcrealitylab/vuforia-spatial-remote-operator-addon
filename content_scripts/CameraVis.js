@@ -1,5 +1,7 @@
 createNameSpace('realityEditor.device.cameraVis');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 (function(exports) {
     const debug = true;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
@@ -23,11 +25,41 @@ void main() {
   vUv = vec2(position.x / width, position.y / height);
 
   vec4 color = texture2D(mapDepth, vUv);
-  float depth = (color.r + color.g / 256.0 + color.b / (256.0 * 256.0)) * 1000.0;
+  // float depth = (color.r + color.g / 256.0 + color.b / (256.0 * 256.0)) * 1000.0;
+
+  // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
+  int r = int(color.r * 255.0);
+  int g = int(color.g * 255.0);
+  int b = int(color.b * 255.0);
+
+  float depth = float((r & 1) |
+      ((g & 1) << 1) |
+      ((b & 1) << 2) |
+      ((r & (1 << 1)) << (3 - 1)) |
+      ((g & (1 << 1)) << (4 - 1)) |
+      ((b & (1 << 1)) << (5 - 1)) |
+      ((r & (1 << 2)) << (6 - 2)) |
+      ((g & (1 << 2)) << (7 - 2)) |
+      ((b & (1 << 2)) << (8 - 2)) |
+      ((r & (1 << 3)) << (9 - 3)) |
+      ((g & (1 << 3)) << (10 - 3)) |
+      ((b & (1 << 3)) << (11 - 3)) |
+      ((r & (1 << 4)) << (12 - 4)) |
+      ((g & (1 << 4)) << (13 - 4)) |
+      ((b & (1 << 4)) << (14 - 4)) |
+      ((r & (1 << 5)) << (15 - 5)) |
+      ((g & (1 << 5)) << (16 - 5)) |
+      ((b & (1 << 5)) << (17 - 5)) |
+      ((r & (1 << 6)) << (18 - 6)) |
+      ((g & (1 << 6)) << (19 - 6)) |
+      ((b & (1 << 6)) << (20 - 6)) |
+      ((r & (1 << 7)) << (21 - 7)) |
+      ((g & (1 << 7)) << (22 - 7)) |
+      ((b & (1 << 7)) << (23 - 7)));
 
   // Projection code by @kcmic
 
-  float z = depth * 256.0 - 0.05; // Not exactly sure why it's this
+  float z = depth * (1000.0 / float(1 << (24 - 4))); // * 256.0 - 0.05; // Not exactly sure why it's this
 
   vec4 pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
@@ -35,7 +67,7 @@ void main() {
     -z,
     1.0);
 
-  gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
+  gl_PointSize = pointSizeBase + pointSize * z * depthScale;
   gl_Position = projectionMatrix * modelViewMatrix * pos;
 }`;
 
@@ -49,6 +81,16 @@ void main() {
   gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
 }`;
 
+    const solidFragmentShader = `
+uniform sampler2D map;
+
+varying vec2 vUv;
+
+void main() {
+  vec4 color = texture2D(map, vUv);
+  gl_FragColor = vec4(color.r, color.g, color.b, 1.0);
+}`;
+
     function setMatrixFromArray(matrix, array) {
         matrix.set(
             array[0], array[4], array[8], array[12],
@@ -60,8 +102,7 @@ void main() {
 
     class CameraVis {
         constructor(id, floorOffset) {
-            const THREE = realityEditor.gui.threejsScene.THREE;
-
+            this.id = id;
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
             // this.container.rotation.y = Math.PI;
@@ -76,14 +117,18 @@ void main() {
             const geo = new THREE.BoxGeometry(100, 100, 80);
             const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
-            this.box = new THREE.Mesh(geo, mat);
-            this.phone.add(this.box);
+            const box = new THREE.Mesh(geo, mat);
+            box.name = 'cameraVisCamera';
+            box.cameraVisId = this.id;
+            this.phone.add(box);
 
             const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
             const cone = new THREE.Mesh(geoCone, mat);
             cone.rotation.x = -Math.PI / 2;
             cone.rotation.y = Math.PI / 8;
             cone.position.z = 65;
+            cone.name = 'cameraVisCamera';
+            cone.cameraVisId = this.id;
             this.phone.add(cone);
 
             this.texture = new THREE.Texture();
@@ -91,6 +136,9 @@ void main() {
 
             this.textureDepth = new THREE.Texture();
             this.textureDepth.minFilter = THREE.NearestFilter;
+
+            this.material = null;
+            this.mesh = null;
 
             if (debug) {
                 this.setupDebugCubes();
@@ -117,9 +165,35 @@ void main() {
             this.container.add(this.historyMesh);
         }
 
-        setupDebugCubes() {
-            const THREE = realityEditor.gui.threejsScene.THREE;
+        /**
+         * Clone the current state of the mesh rendering part of this CameraVis
+         * @return {THREE.Object3D} object containing all relevant meshes
+         */
+        clonePatch() {
+            const width = 640, height = 360;
 
+            let patch = this.container.clone(false);
+            let phone = this.phone.clone(false);
+            let flatGeo = new THREE.PlaneBufferGeometry(width, height, width, height);
+            flatGeo.translate(width / 2, height / 2);
+
+            let material = this.material.clone();
+            material.fragmentShader = solidFragmentShader;
+            material.uniforms.map.value.image = this.texture.image; // .cloneNode();
+            material.uniforms.map.value.needsUpdate = true;
+            material.uniforms.mapDepth.value.image = this.textureDepth.image; // .cloneNode();
+            material.uniforms.mapDepth.value.needsUpdate = true;
+
+            let mesh = new THREE.Mesh(flatGeo, material);
+            mesh.scale.set(-1, 1, -1);
+            mesh.frustumCulled = false;
+
+            phone.add(mesh);
+            patch.add(phone);
+            return patch;
+        }
+
+        setupDebugCubes() {
             let debugDepth = new THREE.MeshBasicMaterial({
                 map: this.textureDepth,
             });
@@ -130,14 +204,42 @@ void main() {
             let debugColor = new THREE.MeshBasicMaterial({
                 map: this.texture,
             });
-            let debugColorCube = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), debugColor);
-            this.container.add(debugColorCube);
-            debugColorCube.position.set(-400, 250, -1000);
+            this.debugColorCube = new THREE.Mesh(new THREE.PlaneGeometry(100, 100 * 1080 / 1920), debugColor);
+            // this.container.add(debugColorCube);
+            this.debugColorCube.position.set(-180 * window.innerWidth / window.innerHeight, 140, -1000);
+            this.debugColorCube.rotation.z = Math.PI;
+        }
+
+        toggleColorCube(i) {
+            if (!this.debugColorCube || !this.debugColorCube.parent) {
+                this.addColorCube(i);
+            } else {
+                this.removeColorCube();
+            }
+        }
+
+        addColorCube(i) {
+            const THREE = realityEditor.gui.threejsScene.THREE;
+
+            if (!this.debugColorCube) {
+                let debugColor = new THREE.MeshBasicMaterial({
+                    map: this.texture,
+                });
+                this.debugColorCube = new THREE.Mesh(new THREE.PlaneGeometry(100, 100 * 1080 / 1920), debugColor);
+                // this.container.add(debugColorCube);
+                this.debugColorCube.rotation.z = Math.PI;
+            }
+            let x = -180 * window.innerWidth / window.innerHeight;
+            let y = 140 - i * 100;
+            this.debugColorCube.position.set(x, y, -1000);
+            realityEditor.gui.threejsScene.addToScene(this.debugColorCube, {parentToCamera: true});
+        }
+
+        removeColorCube() {
+            realityEditor.gui.threejsScene.removeFromScene(this.debugColorCube);
         }
 
         setupPointCloud() {
-            const THREE = realityEditor.gui.threejsScene.THREE;
-
             const width = 640, height = 360;
 
             this.geometry = new THREE.BufferGeometry();
@@ -157,8 +259,8 @@ void main() {
                     mapDepth: {value: this.textureDepth},
                     width: {value: width},
                     height: {value: height},
-                    depthScale: {value: 0.15}, // roughly 256 / 1920
-                    pointSize: { value: 2 * 0.666 },
+                    depthScale: {value: 32 / (256 * 256)}, // roughly 256 / 1920
+                    pointSize: { value: 2 },
                 },
                 vertexShader,
                 fragmentShader,
@@ -187,7 +289,6 @@ void main() {
         }
 
         setTime(time) {
-            const THREE = realityEditor.gui.threejsScene.THREE;
             this.time = time;
             if (this.matrices.length === 0) {
                 return;
@@ -225,8 +326,10 @@ void main() {
     }
 
     exports.CameraVisCoordinator = class CameraVisCoordinator {
-        constructor(floorOffset) {
+        constructor(floorOffset, voxelizer) {
+            this.voxelizer = voxelizer;
             this.cameras = {};
+            this.patches = [];
             this.visible = true;
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
@@ -250,8 +353,22 @@ void main() {
                     for (let camera of Object.values(this.cameras)) {
                         camera.historyMesh.visible = this.spaghettiVisible;
                     }
+                } else if (code === this.keyboard.keyCodes.P) {
+                    for (let camera of Object.values(this.cameras)) {
+                        let patch = camera.clonePatch();
+                        realityEditor.gui.threejsScene.addToScene(patch);
+                        this.patches.push(patch);
+                    }
                 }
             });
+
+            this.onPointerDown = this.onPointerDown.bind(this);
+            this.updatePositioningMode = this.updatePositioningMode.bind(this);
+            this.getTouchEventCatcher();
+
+            realityEditor.gui.buttons.registerCallbackForButton(
+                'setting',
+                this.updatePositioningMode);
         }
 
         connectWsToMatrix(url) {
@@ -274,6 +391,8 @@ void main() {
                 for (let camera of Object.values(this.cameras)) {
                     if (now - camera.lastUpdate > 2000) {
                         camera.mesh.visible = false;
+                    } else if (!camera.mesh.visible) {
+                        camera.mesh.visible = true;
                     }
                 }
             });
@@ -282,6 +401,8 @@ void main() {
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = new WebSocket(url);
+                let canvas = document.createElement('canvas');
+                let context = canvas.getContext('2d');
 
                 ws.addEventListener('message', async (msg) => {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
@@ -307,7 +428,20 @@ void main() {
                     image.onload = () => {
                         const tex = this.cameras[id][textureKey];
                         tex.dispose();
-                        tex.image = image;
+                        // hmmmmm
+                        // most efficient would be if this had a data url for its src
+                        // data url = 'data:image/(png|jpeg);' + base64(blob)
+                        if (textureKey === 'textureDepth') {
+                            canvas.width = image.width;
+                            canvas.height = image.height;
+                            context.drawImage(image, 0, 0, image.width, image.height);
+                            tex.image = canvas;
+                            if (this.voxelizer) {
+                                this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
+                            }
+                        } else {
+                            tex.image = image;
+                        }
                         tex.needsUpdate = true;
                         // let end = window.performance.now();
                         if (textureKey === 'texture') {
@@ -418,6 +552,55 @@ void main() {
             this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
         }
+
+        updatePositioningMode() {
+            if (!globalStates.settingsButtonState) {
+                this.getTouchEventCatcher().style.display = '';
+                this.getTouchEventCatcher().style.pointerEvents = 'auto';
+            } else {
+                this.getTouchEventCatcher().style.display = 'none';
+                this.getTouchEventCatcher().style.pointerEvents = 'none';
+            }
+        }
+
+        // ensures there's a div on top of everything that blocks touch events from reaching the tools when we're in this mode
+        getTouchEventCatcher() {
+            if (!this.touchEventCatcher) {
+                this.touchEventCatcher = document.createElement('div');
+                this.touchEventCatcher.style.position = 'absolute';
+                this.touchEventCatcher.style.left = '0';
+                this.touchEventCatcher.style.top = '0';
+                this.touchEventCatcher.style.width = '100vw';
+                this.touchEventCatcher.style.height = '100vh';
+                let zIndex = 2900; // above scene elements, below pocket and menus
+                this.touchEventCatcher.style.zIndex = zIndex;
+                this.touchEventCatcher.style.transform = 'matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,' + zIndex + ',1)';
+                document.body.appendChild(this.touchEventCatcher);
+
+                this.touchEventCatcher.addEventListener('pointerdown', this.onPointerDown);
+            }
+            return this.touchEventCatcher;
+        }
+
+        // hit test threeJsScene to see if we hit any of the anchor threeJsGroups
+        // if we are, keep track of it so we can move it on pointermove. also give visual feedback
+        onPointerDown(e) {
+            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY);
+
+            intersects.forEach((intersect) => {
+                if (intersect.object.name !== 'cameraVisCamera') {
+                    return;
+                }
+
+                let id = intersect.object.cameraVisId;
+                let i = Object.keys(this.cameras).indexOf('' + id);
+                this.cameras[id].toggleColorCube(i);
+
+                // stop propagation if we hit anything, otherwise pass the event on to the rest of the application
+                e.stopPropagation();
+            });
+        }
+
     };
 
 })(realityEditor.device.cameraVis);

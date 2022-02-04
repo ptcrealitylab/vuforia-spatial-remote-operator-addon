@@ -8,11 +8,11 @@
 
 createNameSpace('realityEditor.device.multiclientUI');
 
-(function(exports) {
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
+(function(exports) {
     let allConnectedCameras = {};
     let isCameraSubscriptionActive = false;
-    let THREE;
 
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
@@ -23,7 +23,6 @@ createNameSpace('realityEditor.device.multiclientUI');
             }, 100); // give time for bestWorldObject to update before checking
         });
 
-        THREE = realityEditor.gui.threejsScene.THREE;
 
         update();
     }

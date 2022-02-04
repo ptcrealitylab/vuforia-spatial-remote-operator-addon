@@ -13,7 +13,8 @@ module.exports = {
         'objects': 'writable'
     },
     'parserOptions': {
-        'ecmaVersion': 2018
+        'ecmaVersion': 2018,
+        sourceType: 'module',
     },
     'rules': {
         'no-prototype-builtins': 'off',
