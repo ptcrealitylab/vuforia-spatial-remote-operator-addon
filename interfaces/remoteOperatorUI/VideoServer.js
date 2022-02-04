@@ -12,6 +12,11 @@ console.log('FFMPEG installer:', ffmpeg.path, ffmpeg.version);
 
 class VideoServer {
     constructor(outputPath) {
+        // configurable constants
+        this.SEGMENT_LENGTH = 15000;
+        this.RESCALE_VIDEOS = false; // disable to prevent lossy transformation
+        this.DEBUG_WRITE_IMAGES = true;
+
         this.outputPath = outputPath;
         this.PROCESS = Object.freeze({
             COLOR: 'COLOR',
@@ -32,10 +37,8 @@ class VideoServer {
         this.processes = {};
         this.processStatuses = {};
         this.poses = {};
-        this.SEGMENT_LENGTH = 15000;
         this.isRecording = {}; // boolean for each deviceId
         this.anythingReceived = {}; // boolean for each deviceId
-        this.DEBUG_WRITE_IMAGES = true;
         this.sessionId = this.uuidTimeShort(); // each time the server restarts, tag videos from this instance with a unique ID
 
         this.COLOR_FILETYPE = 'mp4';
@@ -56,7 +59,7 @@ class VideoServer {
         });
 
         Object.keys(this.persistentInfo).forEach(deviceId => {
-            this.evaluateAndRescaleVideosIfNeeded(deviceId);
+            this.evaluateAndRescaleVideosIfNeeded(deviceId, this.RESCALE_VIDEOS);
         });
     }
     loadPersistentInfo() {
@@ -141,6 +144,7 @@ class VideoServer {
                 };
             }
             sessions[sessionId].colorChunks.push(filepath);
+            sessions[sessionId].chunkLength = this.SEGMENT_LENGTH;
         });
 
         depthChunks.forEach(filepath => {
@@ -154,6 +158,7 @@ class VideoServer {
                 };
             }
             sessions[sessionId].depthChunks.push(filepath);
+            sessions[sessionId].chunkLength = this.SEGMENT_LENGTH;
         });
 
         colorSessions.forEach(filepath => {
@@ -666,63 +671,51 @@ class VideoServer {
         let filetype = '.' + ((colorOrDepth === 'depth') ? this.DEPTH_FILETYPE : this.COLOR_FILETYPE);
         return fs.readdirSync(sessionPath).filter(filename => filename.includes(filetype));
     }
-    evaluateAndRescaleVideosIfNeeded(deviceId) {
+    evaluateAndRescaleVideosIfNeeded(deviceId, rescaleEnabled) {
         let unprocessedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks);
         let processedPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks);
 
-        let unprocessedColorFiles = this.getUnprocessedChunkFilePaths(deviceId, 'color');
-        let processedColorFiles = this.getProcessedChunkFilePaths(deviceId, 'color');
-        let unprocessedDepthFiles = this.getUnprocessedChunkFilePaths(deviceId, 'depth');
-        let processedDepthFiles = this.getProcessedChunkFilePaths(deviceId, 'depth');
+        let fileMap = {
+            color: {
+                processed: this.getProcessedChunkFilePaths(deviceId, 'color'),
+                unprocessed: this.getUnprocessedChunkFilePaths(deviceId, 'color')
+            },
+            depth: {
+                processed: this.getProcessedChunkFilePaths(deviceId, 'depth'),
+                unprocessed: this.getUnprocessedChunkFilePaths(deviceId, 'depth')
+            }
+        };
 
-        // for each file, check if a processed file already exists
-        let filesToScale = [];
-        unprocessedColorFiles.forEach(filename => {
-            let alreadyScaled = false;
-            let timestamp = filename.match(/[0-9]{13,}/);
-            processedColorFiles.forEach(resizedFilename => {
-                if (resizedFilename.includes(timestamp)) {
-                    alreadyScaled = true;
+        Object.keys(fileMap).forEach(colorOrDepth => {
+            let filesToScale = [];
+            fileMap[colorOrDepth].unprocessed.forEach(filename => {
+                let timestamp = filename.match(/[0-9]{13,}/);
+                if (!fileMap[colorOrDepth].processed.some(resizedFilename => resizedFilename.includes(timestamp))) {
+                    let colorFilename = filename.replace(/\.[^/.]+$/, '') + '.' + this.COLOR_FILETYPE;
+                    let depthFilename = filename.replace(/\.[^/.]+$/, '') + '.' + this.DEPTH_FILETYPE;
+                    let colorFilePath = path.join(unprocessedPath, 'color', colorFilename);
+                    let depthFilePath = path.join(unprocessedPath, 'depth', depthFilename);
+                    if (fs.existsSync(colorFilePath) && fs.existsSync(depthFilePath)) {
+                        let byteSizeColor = fs.statSync(colorFilePath).size;
+                        let byteSizeDepth = fs.statSync(depthFilePath).size;
+                        if (byteSizeColor > 48 && byteSizeDepth > 48) {
+                            filesToScale.push(filename);
+                        } else {
+                            console.log('skipping ' + filename + ' due to incomplete size');
+                        }
+                    }
                 }
             });
-            if (alreadyScaled) {
-                // console.log('delete color file: ' + filename);
-                // fs.rmSync(path.join(this.outputPath, filename));
-            } else {
-                filesToScale.push(filename);
-            }
-        });
-        if (filesToScale.length > 0) {
-            for (let i = 0; i < filesToScale.length; i++) {
-                let inputPath = path.join(unprocessedPath, 'color', filesToScale[i]);
-                let outputPath = path.join(processedPath, 'color', filesToScale[i]);
-                this.ffmpeg_adjust_length(outputPath, inputPath, this.SEGMENT_LENGTH / 1000);
-            }
-        }
-
-        filesToScale = [];
-        unprocessedDepthFiles.forEach(filename => {
-            let alreadyScaled = false;
-            let timestamp = filename.match(/[0-9]{13,}/);
-            processedDepthFiles.forEach(resizedFilename => {
-                if (resizedFilename.includes(timestamp)) {
-                    alreadyScaled = true;
+            filesToScale.forEach(filename => {
+                let inputPath = path.join(unprocessedPath, colorOrDepth, filename);
+                let outputPath = path.join(processedPath, colorOrDepth, filename);
+                if (rescaleEnabled) {
+                    this.ffmpeg_adjust_length(outputPath, inputPath, this.SEGMENT_LENGTH / 1000);
+                } else {
+                    fs.copyFileSync(inputPath, outputPath, fs.constants.COPYFILE_EXCL);
                 }
             });
-            if (alreadyScaled) {
-                // console.log('delete depth file: ' + filename);
-                // fs.rmSync(path.join(this.outputPath, filename));
-            } else {
-                filesToScale.push(filename);
-            }
         });
-        if (filesToScale.length > 0) {
-            for (let i = 0; i < filesToScale.length; i++) {
-                let inputPath = path.join(unprocessedPath, 'depth', filesToScale[i]);
-                let outputPath = path.join(processedPath, 'depth', filesToScale[i]);
-                this.ffmpeg_adjust_length(outputPath, inputPath, this.SEGMENT_LENGTH / 1000);
-            }
-        }
     }
     /**
      * Generates a random 8 character unique identifier using uppercase, lowercase, and numbers (e.g. "jzY3y338")

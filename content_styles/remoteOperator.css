@@ -64,15 +64,15 @@ body > * {
     position: relative;
     left: 0;
     top: 0;
-    width: 60px;
+    width: 120px;
     height: 180px;
 }
 
 #timelineTrackBox {
     position: absolute;
-    left: calc(60px + 4px);
+    left: calc(120px + 4px);
     top: 0;
-    width: calc(100vw - 2 * 20px - 2 * 60px - 2 * 4px);
+    width: calc(100vw - 2 * 20px - 120px - 60px - 2 * 4px);
     height: 180px;
 }
 
@@ -101,6 +101,14 @@ body > * {
     width: 512px;
     height: 144px;
     display: none;
+}
+
+#timelineTimestampDisplay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 48px;
 }
 
 /*.timelineVideoPreviewHidden {*/

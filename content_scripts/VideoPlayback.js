@@ -16,6 +16,7 @@ createNameSpace('realityEditor.device');
             this.isPlaying = false;
             this.playbackSpeed = 1;
             this.displayPointClouds = true;
+            this.playheadTimestamp = Date.now();
             this.loadAvailableVideos().then(info => {
                 this.videoInfo = info;
                 if (this.videoInfo && Object.keys(this.videoInfo).length > 0) {
@@ -49,6 +50,8 @@ createNameSpace('realityEditor.device');
 
             // [x] create a track on the timeline for each pair of videos – vertically spaced per device – horizontally per timestamp
             this.createVideoTracks(this.videoInfo);
+            
+            this.playheadTimestamp = this.trackInfo.metadata.minTime;
 
             // [x] create two preview videos
             let firstColorSrc = ''; //'http://' + this.ip + ':8080/virtualizer_recording/' + info.color[0];
@@ -73,7 +76,7 @@ createNameSpace('realityEditor.device');
                 // console.log('timeupdate: ', colorVideoElement.currentTime);
                 let timeMs = colorVideoElement.currentTime * 1000;
                 let segmentInfo = this.trackInfo.tracks[selectedSegments[0].deviceId].segments[selectedSegments[0].segmentId];
-                let absoluteTime = segmentInfo.start + timeMs;
+                let absoluteTime = segmentInfo.start + timeMs * segmentInfo.timeMultiplier;
 
                 // TODO: getImageData and pass buffers to point cloud renderer
                 // let colorPixels = colorCtx.getImageData(0, 0, 960, 540);
@@ -81,7 +84,7 @@ createNameSpace('realityEditor.device');
                 let colorImageUrl = this.colorVideoCanvas.toDataURL('image/jpeg');
                 let depthImageUrl = this.depthVideoCanvas.toDataURL('image/png');
 
-                let depthImageData = this.depthVideoCanvas.getContext('2d').getImageData(0, 0, 256, 144).data;
+                // let depthImageData = this.depthVideoCanvas.getContext('2d').getImageData(0, 0, 256, 144).data;
 
                 // let poseMatrix = this.extractPoseFromDepthCanvas();
                 let closestPose = this.getClosestPose(selectedSegments[0].deviceId, selectedSegments[0].segmentId, absoluteTime);
@@ -92,9 +95,10 @@ createNameSpace('realityEditor.device');
 
                 // this function triggers in two cases: scrolling and playing the video.
                 // in the case of playing the video, we need to match the scroll playhead with video progress
-                if (this.isPlaying) {
-                    this.movePlayheadToTime(absoluteTime);
-                }
+                // if (this.isPlaying) {
+                //     this.movePlayheadToTime(absoluteTime);
+                //     this.setPlayheadTimestamp(absoluteTime);
+                // }
             });
 
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
@@ -120,6 +124,8 @@ createNameSpace('realityEditor.device');
             // depthVideoCanvas.style.display = 'none';
             document.body.appendChild(depthVideoCanvas);
             this.depthVideoCanvas = depthVideoCanvas;
+
+            this.playLoop(); // only after DOM is built can we start the loop
         }
         getClosestPose(deviceId, segmentId, absoluteTime) {
             let segmentPoses = this.trackInfo.tracks[deviceId].segments[segmentId].poses;
@@ -153,10 +159,10 @@ createNameSpace('realityEditor.device');
                     byteNumbers[i] = byteCharacters.charCodeAt(i);
                 }
                 const byteArray = new Uint8Array(byteNumbers);
-                console.log(byteArray);
+                // console.log(byteArray);
                 // const blob = new Blob([byteArray]); //, {type: contentType})
                 let matrix = new Float32Array(byteArray.buffer);
-                console.log(matrix);
+                // console.log(matrix);
                 return matrix;
             }
             return null; //closestPoseBase64;
@@ -220,6 +226,21 @@ createNameSpace('realityEditor.device');
             centerBox.id = 'timelineTrackBox';
             rightBox.id = 'timelineControlsBox';
 
+            let timestampDisplay = document.createElement('div');
+            timestampDisplay.id = 'timelineTimestampDisplay';
+            // timestampDisplay.classList.add('timelineBox');
+            let defaultDate = new Date(0);
+            // let dateString = defaultDate.toLocaleTimeString(undefined, {
+            //     hour:   '2-digit',
+            //     minute: '2-digit',
+            //     second: '2-digit',
+            // });
+            let dateString = this.getFormattedTime(defaultDate);
+            // let format1 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.ENGLISH).format(now);
+
+            timestampDisplay.innerText = dateString;
+            leftBox.appendChild(timestampDisplay);
+
             let playhead = document.createElement('img');
             playhead.id = 'timelinePlayhead';
             playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
@@ -258,16 +279,26 @@ createNameSpace('realityEditor.device');
                 if (this.isPlaying) {
                     this.pauseVideoPlayback();
                 } else {
+                    if (this.playheadTimestamp === this.trackInfo.metadata.maxTime) {
+                        this.playheadTimestamp = this.trackInfo.metadata.minTime;
+                    }
                     this.playVideoPlayback();
                 }
             });
             // TODO: what does seek button do?
             speedButton.addEventListener('pointerup', _e => {
                 this.playbackSpeed *= 2;
-                if (this.playbackSpeed > 8) {
+                if (this.playbackSpeed > 64) {
                     this.playbackSpeed = 1;
                 }
                 speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_' + this.playbackSpeed + 'x.svg';
+
+                let selectedSegments = this.getSelectedSegments();
+                if (selectedSegments.length > 0) {
+                    let segment = this.selectedSegments[0];
+                    this.colorVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                    this.colorVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                }
             });
         } // TODO: make use of requestVideoFrameCallback ? videoElement.duration, etc
         setupPlayhead(playheadElement) {
@@ -292,14 +323,17 @@ createNameSpace('realityEditor.device');
                 if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
                     let previewWidth = videoPreviewContainer.getClientRects()[0].width;
                     let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
-                    videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
+                    videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-68, previewRelativeX)) + 'px';
                 }
 
                 let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
                 // console.log(playheadTimePercent);
 
                 let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
-                this.timeScrolledTo(this.trackInfo.metadata.minTime + playheadTimePercent * duration);
+
+                let absoluteTime = this.trackInfo.metadata.minTime + playheadTimePercent * duration;
+                this.setPlayheadTimestamp(absoluteTime);
+                this.timeScrolledTo(absoluteTime, true);
             });
             playheadElement.addEventListener('pointerdown', _e => {
                 this.playheadClickedDown = true;
@@ -327,6 +361,14 @@ createNameSpace('realityEditor.device');
                 videoPreview.classList.remove('timelineVideoPreviewSelected');
             });
         }
+        getFormattedTime(relativeTimestamp) {
+            let timeSeconds = relativeTimestamp / 1000;
+            let hours = Math.floor(timeSeconds / (60 * 60));
+            let minutes = Math.floor(timeSeconds / 60);
+            let seconds = Math.floor(timeSeconds % 60);
+            const zeroPad = (num, places) => String(num).padStart(places, '0');
+            return zeroPad(hours, 2) + ':' + zeroPad(minutes, 2) + ':' + zeroPad(seconds, 2);
+        }
         playVideoPlayback() {
             this.colorVideoPreview.play();
             this.depthVideoPreview.play();
@@ -340,6 +382,23 @@ createNameSpace('realityEditor.device');
 
             let playButton = document.getElementById('timelinePlayButton');
             playButton.src = '/addons/vuforia-spatial-remote-operator-addon/pauseButton.svg';
+        }
+        playLoop() {
+            if (this.isPlaying) {
+                let dt = Date.now() - this.lastTime;
+                let newTime = this.playheadTimestamp + (dt * this.playbackSpeed);
+                if (newTime > this.trackInfo.metadata.maxTime) {
+                    this.pauseVideoPlayback();
+                    newTime = this.trackInfo.metadata.maxTime;
+                }
+                this.movePlayheadToTime(newTime);
+                this.setPlayheadTimestamp(newTime);
+                this.timeScrolledTo(newTime, false);
+            }
+            this.lastTime = Date.now();
+            requestAnimationFrame(() => {
+                this.playLoop();
+            });
         }
         pauseVideoPlayback() {
             this.colorVideoPreview.pause();
@@ -355,7 +414,18 @@ createNameSpace('realityEditor.device');
             let playButton = document.getElementById('timelinePlayButton');
             playButton.src = '/addons/vuforia-spatial-remote-operator-addon/playButton.svg';
         }
-        timeScrolledTo(timestamp) {
+        setPlayheadTimestamp(timestamp) {
+            this.playheadTimestamp = timestamp;
+            // console.log(this.playheadTimestamp);
+
+            // let time = new Date(timestamp);
+            // let formatted = time.toISOString();
+
+            let relativeTime = timestamp - this.trackInfo.metadata.minTime;
+            let textfield = document.getElementById('timelineTimestampDisplay');
+            textfield.innerText = this.getFormattedTime(relativeTime);
+        }
+        timeScrolledTo(timestamp, interaction) {
             // console.log('time scrolled to ' + timestamp);
             // let thisTime = ((timestamp - this.trackInfo.metadata.minTime) / 1000 / 60);
             // let maxTime = ((this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime) / 1000 / 60);
@@ -377,6 +447,15 @@ createNameSpace('realityEditor.device');
                             let filename = segment.colorVideo.replace(/^.*[\\\/]/, '');
                             colorVideoSourceElement.src = '/virtualizer_recording/' + deviceId + '/color/' + filename;
                             // colorVideoSourceElement.src = 'http://localhost:8080/recordings/' + deviceId + '/session_videos/color/' + filename;
+                            this.colorVideoPreview.addEventListener('loadedmetadata', (_e) => {
+                                if (typeof segment.timeMultiplier === 'undefined') {
+                                    let videoDuration = this.colorVideoPreview.duration;
+                                    let intendedDuration = (segment.end - segment.start) / 1000;
+                                    segment.timeMultiplier = videoDuration / intendedDuration;
+                                    console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
+                                }
+                                this.colorVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                            });
                             this.colorVideoPreview.load();
                             console.log('src = ' + colorVideoSourceElement.src);
 
@@ -384,16 +463,33 @@ createNameSpace('realityEditor.device');
                             filename = segment.depthVideo.replace(/^.*[\\\/]/, '');
                             depthVideoSourceElement.src = '/virtualizer_recording/' + deviceId + '/depth/' + filename;
                             // depthVideoSourceElement.src = 'http://localhost:8080/recordings/' + deviceId + '/session_videos/depth/' + filename;
+                            this.colorVideoPreview.addEventListener('loadedmetadata', (_e) => {
+                                if (typeof segment.timeMultiplier === 'undefined') {
+                                    let videoDuration = this.depthVideoPreview.duration;
+                                    let intendedDuration = (segment.end - segment.start) / 1000;
+                                    segment.timeMultiplier = videoDuration / intendedDuration;
+                                    console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
+                                }
+                                this.depthVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                            });
                             this.depthVideoPreview.load();
                             console.log('src = ' + depthVideoSourceElement.src);
+
+                            if (this.isPlaying) {
+                                this.playVideoPlayback(); // actually play the videos
+                            }
                         }
 
                         this.selectedSegments[deviceId] = segmentId;
                         anySegmentSelected = true; // this makes sure we stick with first track's segment
 
                         //  and set the currentTime to the correct converted timestamp
-                        this.colorVideoPreview.currentTime = (timestamp - segment.start) / 1000;
-                        this.depthVideoPreview.currentTime = (timestamp - segment.start) / 1000;
+                        if (interaction) {
+                            let currentTime = (segment.timeMultiplier || 1) * (timestamp - segment.start) / 1000;
+                            console.log(currentTime);
+                            this.colorVideoPreview.currentTime = currentTime;
+                            this.depthVideoPreview.currentTime = currentTime;
+                        }
                     }
                 });
                 if (!deviceHasSelectedSegment) {
@@ -430,7 +526,7 @@ createNameSpace('realityEditor.device');
             if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
                 let previewWidth = videoPreviewContainer.getClientRects()[0].width;
                 let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
-                videoPreviewContainer.style.left = Math.min(window.innerWidth - 588, Math.max(-68, previewRelativeX)) + 'px';
+                videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-68, previewRelativeX)) + 'px';
             }
         }
         createVideoTracks(videoInfo) {
@@ -469,7 +565,7 @@ createNameSpace('realityEditor.device');
             });
 
             // only go back at most 1 hr from the most recent video
-            const MAX_TIMELINE_LENGTH = 1000 * 60 * 60 * 0.5;
+            const MAX_TIMELINE_LENGTH = 1000 * 60 * 60 * 1.1;
             let keysToRemove = [];
             let newEarliestTime = latestTime;
             Object.keys(this.trackInfo.tracks).forEach(deviceId => {
@@ -609,7 +705,7 @@ createNameSpace('realityEditor.device');
             video.id = id;
             video.classList.add('videoPreview');
             video.setAttribute('width', '256');
-            // video.setAttribute('controls', 'controls'); // TODO: remove this after done debugging
+            video.setAttribute('controls', 'controls'); // TODO: remove this after done debugging
             video.setAttribute('muted', 'muted');
             let source = document.createElement('source');
             // source.setAttribute('type', 'video/mp4; codecs=hevc');
