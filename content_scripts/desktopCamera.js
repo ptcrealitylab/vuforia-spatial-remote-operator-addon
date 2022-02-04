@@ -147,9 +147,10 @@ createNameSpace('realityEditor.device.desktopCamera');
             pointerPosition.x = e.clientX;
             pointerPosition.y = e.clientY;
 
-            if (interactionCursor.style.display !== 'none') {
-                interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
-                interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
+            let interactionCursorRects = interactionCursor.getClientRects();
+            if (interactionCursor.style.display !== 'none' && interactionCursorRects.length > 0) {
+                interactionCursor.style.left = (pointerPosition.x - interactionCursorRects[0].width / 2) + 'px';
+                interactionCursor.style.top = (pointerPosition.y - interactionCursorRects[0].height / 2) + 'px';
             }
         });
 
