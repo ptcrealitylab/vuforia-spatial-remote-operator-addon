@@ -58,6 +58,7 @@ body > * {
     width: calc(100vw - 40px);
     height: 180px;
     /*pointer-events: none;*/
+    transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 3000, 1);
 }
 
 #timelineVisibilityBox {
