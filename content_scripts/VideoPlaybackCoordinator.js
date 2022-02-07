@@ -14,7 +14,7 @@ createNameSpace('realityEditor.videoPlayback');
             colorVideoCanvas.id = 'colorVideoCanvas';
             colorVideoCanvas.width = 960;
             colorVideoCanvas.height = 540;
-            // colorVideoCanvas.style.display = 'none';
+            colorVideoCanvas.style.display = 'none';
             document.body.appendChild(colorVideoCanvas);
             this.colorVideoCanvas = colorVideoCanvas;
 
@@ -22,7 +22,7 @@ createNameSpace('realityEditor.videoPlayback');
             depthVideoCanvas.id = 'depthVideoCanvas';
             depthVideoCanvas.width = 256;
             depthVideoCanvas.height = 144;
-            // depthVideoCanvas.style.display = 'none';
+            depthVideoCanvas.style.display = 'none';
             document.body.appendChild(depthVideoCanvas);
             this.depthVideoCanvas = depthVideoCanvas;
         }
@@ -40,9 +40,15 @@ createNameSpace('realityEditor.videoPlayback');
                 depthCtx.drawImage(depthVideo, 0, 0);
 
                 // console.log('timeupdate: ', colorVideoElement.currentTime);
-                let timeMs = colorVideo.currentTime * 1000;
+                // let timeMs = colorVideo.currentTime * 1000;
                 let segmentInfo = this.videoSources.getSegmentInfo(deviceId, segmentId);
-                let absoluteTime = segmentInfo.start + timeMs * segmentInfo.timeMultiplier;
+                // let absoluteTime = segmentInfo.start + timeMs * segmentInfo.timeMultiplier;
+
+                let videoTimePercent = colorVideo.currentTime / colorVideo.duration;
+                console.log(videoTimePercent);
+                let firstPoseTime = segmentInfo.poses[0].time;
+                let lastPoseTime = segmentInfo.poses[segmentInfo.poses.length - 1].time;
+                let computedTime = firstPoseTime + videoTimePercent * (lastPoseTime - firstPoseTime);
 
                 // TODO: getImageData and pass buffers to point cloud renderer
                 // let colorPixels = colorCtx.getImageData(0, 0, 960, 540);
@@ -51,10 +57,16 @@ createNameSpace('realityEditor.videoPlayback');
                 let depthImageUrl = this.depthVideoCanvas.toDataURL('image/png');
 
                 // let poseMatrix = this.extractPoseFromDepthCanvas();
-                let closestPose = this.videoSources.getClosestPose(deviceId, segmentId, absoluteTime);
+                let closestPose = this.videoSources.getClosestPose(deviceId, segmentId, computedTime);
                 if (closestPose) {
                     this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, closestPose);
                 }
+            });
+            this.timeline.onSegmentSelected(() => {
+                console.log('segment selected');
+            });
+            this.timeline.onSegmentDeselected(() => {
+                console.log('segment deselected');
             });
         }
         processPointCloud(deviceId, colorImageUrl, depthImageUrl, poseMatrix) {
