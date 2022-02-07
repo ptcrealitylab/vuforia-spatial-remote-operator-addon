@@ -38,15 +38,16 @@ createNameSpace('realityEditor.videoPlayback');
                         };
                         trackIndex++;
                     }
+                    let timeInfo = this.parseTimeInfo(sessionInfo.color);
                     this.trackInfo.tracks[deviceId].segments[sessionId] = {
-                        colorVideo: sessionInfo.finalColorVideo.filePath,
-                        depthVideo: sessionInfo.finalDepthVideo.filePath, // this.getMatchingDepthVideo(filePath),
-                        start: sessionInfo.finalColorVideo.timeInfo.start,
-                        end: sessionInfo.finalColorVideo.timeInfo.end,
+                        colorVideo: sessionInfo.color,
+                        depthVideo: sessionInfo.depth, // this.getMatchingDepthVideo(filePath),
+                        start: timeInfo.start,
+                        end: timeInfo.end,
                         visible: true,
                     };
-                    earliestTime = Math.min(earliestTime, sessionInfo.finalColorVideo.timeInfo.start);
-                    latestTime = Math.max(latestTime, sessionInfo.finalColorVideo.timeInfo.end);
+                    earliestTime = Math.min(earliestTime, timeInfo.start);
+                    latestTime = Math.max(latestTime, timeInfo.end);
                 });
             });
 
@@ -60,6 +61,17 @@ createNameSpace('realityEditor.videoPlayback');
             }).catch(error => {
                 console.warn('error in addPoseInfoToTracks', error);
             });
+        }
+        parseTimeInfo(filename) {
+            let re_start = new RegExp('start_[0-9]{13,}');
+            let re_end = new RegExp('end_[0-9]{13,}');
+            let startMatches = filename.match(re_start);
+            let endMatches = filename.match(re_end);
+            if (!startMatches || !endMatches || startMatches.length === 0 || endMatches.length === 0) { return null; }
+            return {
+                start: startMatches[0].replace('start_', ''),
+                end: endMatches[0].replace('end_', '')
+            };
         }
         getTrackInfo(deviceId) {
             return this.trackInfo.tracks[deviceId];

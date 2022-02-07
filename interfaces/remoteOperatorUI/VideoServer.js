@@ -15,7 +15,7 @@ class VideoServer {
         // configurable constants
         this.SEGMENT_LENGTH = 15000;
         this.RESCALE_VIDEOS = false; // disable to prevent lossy transformation
-        this.DEBUG_WRITE_IMAGES = true;
+        this.DEBUG_WRITE_IMAGES = false;
 
         this.outputPath = outputPath;
         this.PROCESS = Object.freeze({
@@ -42,7 +42,7 @@ class VideoServer {
         this.sessionId = this.uuidTimeShort(); // each time the server restarts, tag videos from this instance with a unique ID
 
         this.COLOR_FILETYPE = 'mp4';
-        this.DEPTH_FILETYPE = 'webm';
+        this.DEPTH_FILETYPE = 'mp4';
 
         if (!fs.existsSync(this.outputPath)) {
             fs.mkdirSync(this.outputPath, {recursive: true});
@@ -51,8 +51,12 @@ class VideoServer {
 
         console.log('Created a VideoServer with path: ' + this.outputPath);
 
-        this.persistentInfo = this.loadPersistentInfo();
-        this.checkPersistentInfoIntegrity(); // TODO: reimplement this with new file structure
+        this.persistentInfo = this.buildPersistentInfo(); //this.loadPersistentInfo();
+        this.savePersistentInfo(); // write the updated persistent info to a json file so the server can send it to clients
+        // this.checkPersistentInfoIntegrity();
+
+        console.log('BUILT PERSISTENT INFO:');
+        console.log(this.persistentInfo);
 
         Object.keys(this.persistentInfo).forEach(deviceId => {
             this.concatExisting(deviceId);
@@ -62,63 +66,96 @@ class VideoServer {
             this.evaluateAndRescaleVideosIfNeeded(deviceId, this.RESCALE_VIDEOS);
         });
     }
-    loadPersistentInfo() {
+    savePersistentInfo() {
         let jsonPath = path.join(this.outputPath, 'videoInfo.json');
-        let defaultInfo = {};
-        if (!fs.existsSync(jsonPath)) {
-            fs.writeFileSync(jsonPath, JSON.stringify(defaultInfo, null, 4));
-            return defaultInfo;
-        } else {
-            return JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8', flag: 'r' }));
-        }
+        fs.writeFileSync(jsonPath, JSON.stringify(this.persistentInfo, null, 4));
+        console.log('saved videoInfo');
     }
-    checkPersistentInfoIntegrity() {
-        // ensure that none of the concatenated video files listed in the json file have been deleted
-        let deletedVideos = [];
-        let anyChanges = false;
+    buildPersistentInfo() {
+        let info = {};
 
-        Object.keys(this.persistentInfo).forEach(deviceId => {
-            Object.keys(this.persistentInfo[deviceId]).forEach(sessionId => {
-                let session = this.persistentInfo[deviceId][sessionId];
-                let videos = [session.finalColorVideo, session.finalDepthVideo];
-                videos.forEach(videoInfo => {
-                    if (videoInfo && videoInfo.filePath && !fs.existsSync(videoInfo.filePath)) {
-                        // if its chunks were also deleted, then delete this, otherwise recover it
-                        let colorOrDepth = (videoInfo.filePath.includes('color')) ? 'color' : 'depth';
-                        let anyChunkMissing = false;
-                        if (!videoInfo.colorChunks) {
-                            anyChunkMissing = true;
-                        } else {
-                            anyChunkMissing = videoInfo.colorChunks.some(filename => {
-                                return !fs.existsSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, colorOrDepth, filename));
-                            });
-                        }
-                        if (anyChunkMissing) {
-                            deletedVideos.push({
-                                deviceId: deviceId,
-                                sessionId: sessionId,
-                                videoPath: videoInfo.filePath
-                            });
-                            anyChanges = true;
-                            console.log('video file (and chunks) was deleted: ' + videoInfo.filePath);
-                        }
-                    }
-                });
-            });
+        // each folder in this.outputPath is a device
+        // check that folder's session_videos, processed_chunks, and unprocessed_chunks to determine how many sessions there are and what state they're in
+        fs.readdirSync(this.outputPath).filter((filename) => {
+            let isHidden = filename[0] === '.';
+            return fs.statSync(path.join(this.outputPath, filename)).isDirectory() && !isHidden;
+        }).forEach(deviceDirName => {
+            info[deviceDirName] = this.parseDeviceDirectory(path.join(this.outputPath, deviceDirName));
         });
 
-        deletedVideos.forEach(deletionInfo => {
-            delete this.persistentInfo[deletionInfo.deviceId][deletionInfo.sessionId];
-        });
+        return info;
+    }
+    parseDeviceDirectory(devicePath) {
+        let info = {};
 
-        Object.keys(this.persistentInfo).forEach(deviceId => {
-            if (Object.keys(this.persistentInfo[deviceId]).length === 0) {
-                delete this.persistentInfo[deviceId];
-                anyChanges = true;
+        let sessionVideosPath = path.join(devicePath, this.DIR_NAMES.session_videos);
+        let unprocessedChunksPath = path.join(devicePath, this.DIR_NAMES.unprocessed_chunks);
+        let processedChunksPath = path.join(devicePath, this.DIR_NAMES.processed_chunks);
+
+        // add color and pose videos
+        fs.readdirSync(path.join(sessionVideosPath, 'color')).forEach(filepath => {
+            let sessionId = this.getSessionIdFromFilename(filepath, 'session_');
+            if (sessionId && sessionId.length === 8) {
+                if (typeof info[sessionId] === 'undefined') {
+                    info[sessionId] = {};
+                }
+                info[sessionId].color = filepath;
+                if (fs.existsSync(path.join(sessionVideosPath, 'depth', filepath))) {
+                    info[sessionId].depth = filepath;
+                }
+            }
+        });
+        // append pose data separately from logic for color, since pose may be available before color & depth
+        fs.readdirSync(path.join(sessionVideosPath, 'pose')).forEach(filepath => {
+            let sessionId = this.getSessionIdFromFilename(filepath, 'session_');
+            if (sessionId && sessionId.length === 8) {
+                if (typeof info[sessionId] === 'undefined') {
+                    info[sessionId] = {};
+                }
+                info[sessionId].pose = filepath;
             }
         });
 
-        if (anyChanges) { this.savePersistentInfo(); }
+        // add an array of processed chunk files
+        fs.readdirSync(path.join(processedChunksPath, 'color')).forEach(filepath => {
+            let sessionId = this.getSessionIdFromFilename(filepath, 'chunk_');
+            if (sessionId && sessionId.length === 8) {
+                if (typeof info[sessionId] === 'undefined') {
+                    info[sessionId] = {};
+                }
+                if (typeof info[sessionId].processed_chunks === 'undefined') {
+                    info[sessionId].processed_chunks = [];
+                }
+                if (fs.existsSync(path.join(processedChunksPath, 'depth', filepath))) {
+                    info[sessionId].processed_chunks.push(filepath);
+                }
+            }
+        });
+
+        // add an array of unprocessed chunk files
+        fs.readdirSync(path.join(unprocessedChunksPath, 'color')).forEach(filepath => {
+            let sessionId = this.getSessionIdFromFilename(filepath, 'chunk_');
+            if (sessionId && sessionId.length === 8) {
+                if (typeof info[sessionId] === 'undefined') {
+                    info[sessionId] = {};
+                }
+                if (typeof info[sessionId].unprocessed_chunks === 'undefined') {
+                    info[sessionId].unprocessed_chunks = [];
+                }
+                if (fs.existsSync(path.join(unprocessedChunksPath, 'depth', filepath))) {
+                    // TODO: also check that matching pose json file exists
+                    info[sessionId].unprocessed_chunks.push(filepath);
+                }
+            }
+        });
+
+        return info;
+    }
+    getSessionIdFromFilename(filename, prefix) {
+        let re = new RegExp(prefix + '[a-zA-Z0-9]{8}');
+        let matches = filename.match(re);
+        if (!matches || matches.length === 0) { return null; }
+        return (prefix ? matches[0].replace(prefix, '') : matches[0]);
     }
     concatExisting(deviceId) {
         if (!fs.existsSync(path.join(this.outputPath, deviceId))) {
@@ -126,115 +163,20 @@ class VideoServer {
             return;
         }
 
-        let sessions = {}; // extract list of session uuids from chunk filenames
-
-        let colorChunks = this.getProcessedChunkFilePaths(deviceId, 'color');
-        let depthChunks = this.getProcessedChunkFilePaths(deviceId, 'depth');
-        let colorSessions = this.getSessionFilePaths(deviceId, 'color');
-        let depthSessions = this.getSessionFilePaths(deviceId, 'depth');
-
-        colorChunks.forEach(filepath => { // e.g. chunk_Dw7jlxox_1643398707456.mp4 -> Dw7jlxox
-            let sessionId = filepath.match(/chunk_[a-zA-Z0-9]{8}/)[0].replace('chunk_', '');
-            if (typeof sessions[sessionId] === 'undefined') {
-                sessions[sessionId] = {
-                    colorChunks: [],
-                    depthChunks: [],
-                    finalColorVideo: null,
-                    finalDepthVideo: null
-                };
-            }
-            sessions[sessionId].colorChunks.push(filepath);
-            sessions[sessionId].chunkLength = this.SEGMENT_LENGTH;
-        });
-
-        depthChunks.forEach(filepath => {
-            let sessionId = filepath.match(/chunk_[a-zA-Z0-9]{8}/)[0].replace('chunk_', '');
-            if (typeof sessions[sessionId] === 'undefined') {
-                sessions[sessionId] = {
-                    colorChunks: [],
-                    depthChunks: [],
-                    finalColorVideo: null,
-                    finalDepthVideo: null
-                };
-            }
-            sessions[sessionId].depthChunks.push(filepath);
-            sessions[sessionId].chunkLength = this.SEGMENT_LENGTH;
-        });
-
-        colorSessions.forEach(filepath => {
-            let sessionId = filepath.match(/session_[a-zA-Z0-9]{8}/)[0].replace('session_', '');
-            if (typeof sessions[sessionId] === 'undefined') {
-                sessions[sessionId] = {
-                    colorChunks: [],
-                    depthChunks: [],
-                    finalColorVideo: null,
-                    finalDepthVideo: null
-                };
-                sessions[sessionId].finalColorVideo = {
-                    filePath: filepath,
-                    timeInfo: null
-                };
-            }
-        });
-
-        depthSessions.forEach(filepath => {
-            let sessionId = filepath.match(/session_[a-zA-Z0-9]{8}/)[0].replace('session_', '');
-            if (typeof sessions[sessionId] === 'undefined') {
-                sessions[sessionId] = {
-                    colorChunks: [],
-                    depthChunks: [],
-                    finalColorVideo: null,
-                    finalDepthVideo: null
-                };
-                sessions[sessionId].finalDepthVideo = {
-                    filePath: filepath,
-                    timeInfo: null
-                };
-            }
-        });
-
-        console.log('parsed sessions for ' + deviceId + ':', sessions);
-
-        let anyChanges = false;
-
+        let sessions = this.persistentInfo[deviceId];
         Object.keys(sessions).forEach(sessionId => {
-            if (sessions[sessionId].finalColorVideo && sessions[sessionId].finalDepthVideo
-                && sessions[sessionId].finalColorVideo.timeInfo && sessions[sessionId].finalDepthVideo.timeInfo) { return; }
-
-            let thisSession = sessions[sessionId];
-            if (!thisSession.finalColorVideo && thisSession.colorChunks.length > 0) {
-                let outputFilePath = this.concatFiles(deviceId, sessionId, 'color', thisSession.colorChunks);
-                let timeInfo = this.extractTimeInformation(thisSession.colorChunks);
-                console.log('merged color chunks, got time info', outputFilePath, timeInfo);
-                thisSession.finalColorVideo = {
-                    filePath: outputFilePath,
-                    timeInfo: timeInfo
-                };
-                anyChanges = true;
-            }
-
-            if (!thisSession.finalDepthVideo && thisSession.depthChunks.length > 0) {
-                let outputFilePath = this.concatFiles(deviceId, sessionId, 'depth', thisSession.depthChunks);
-                let timeInfo = this.extractTimeInformation(thisSession.depthChunks);
-                console.log('merged depth chunks, got time info', outputFilePath, timeInfo);
-                thisSession.finalDepthVideo = {
-                    filePath: outputFilePath,
-                    timeInfo: timeInfo
-                };
-                anyChanges = true;
+            let s = sessions[sessionId];
+            if (s.color && s.depth && s.pose) { return; }
+            if (s.processed_chunks && s.processed_chunks.length > 0) {
+                if (!s.color) { s.color = this.concatFiles(deviceId, sessionId, 'color', s.processed_chunks); }
+                if (!s.depth) { s.depth = this.concatFiles(deviceId, sessionId, 'depth', s.processed_chunks); }
+                if (!s.pose) { s.pose = this.concatPosesIfNeeded(deviceId, sessionId); }
             }
         });
 
-        this.persistentInfo[deviceId] = sessions;
-
-        if (anyChanges) {
-            console.log('new videos were concatenated');
-            this.savePersistentInfo();
-        } else {
-            console.log('no new videos needed to be concatenated');
-        }
-
+        console.log('UPDATED INFO:');
         console.log(this.persistentInfo);
+        this.savePersistentInfo();
     }
     extractTimeInformation(fileList) { // TODO: we can probably just use the SEGMENT_LENGTH * fileList.length?
         let fileRecordingTimes = fileList.map(filename => parseInt(filename.match(/[0-9]{13,}/))); // extract timestamp
@@ -246,18 +188,13 @@ class VideoServer {
             duration: lastTimestamp - firstTimestamp
         };
     }
-    savePersistentInfo() {
-        let jsonPath = path.join(this.outputPath, 'videoInfo.json');
-        fs.writeFileSync(jsonPath, JSON.stringify(this.persistentInfo, null, 4));
-        console.log('saved videoInfo');
-    }
     concatFiles(deviceId, sessionId, colorOrDepth = 'color', files) {
-        this.concatPosesIfNeeded(deviceId, sessionId);
-
         let fileText = '';
         for (let i = 0; i < files.length; i++) {
             fileText += 'file \'' + path.join(this.outputPath, deviceId, this.DIR_NAMES.processed_chunks, colorOrDepth, files[i]) + '\'\n';
         }
+
+        let timeInfo = this.extractTimeInformation(files);
 
         // write file list to txt file so it can be used by ffmpeg as input
         let txt_filename = colorOrDepth + '_filenames_' + sessionId + '.txt';
@@ -271,22 +208,22 @@ class VideoServer {
         fs.writeFileSync(txtFilePath, fileText);
 
         let filetype = (colorOrDepth === 'depth') ? this.DEPTH_FILETYPE : this.COLOR_FILETYPE;
-        let filename = 'device_' + deviceId + '_session_' + sessionId + '.' + filetype; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
+        let filename = 'device_' + deviceId + '_session_' + sessionId + '_start_' + timeInfo.start + '_end_' + timeInfo.end + '.' + filetype; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
         let outputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, colorOrDepth, filename);
         this.ffmpeg_concat_mp4s(outputPath, txtFilePath);
-        return outputPath;
+
+        return filename;
     }
     concatPosesIfNeeded(deviceId, sessionId) {
         // check if output file exists for this device/session pair
         let filename = 'device_' + deviceId + '_session_' + sessionId + '.json'; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
         let outputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.session_videos, 'pose', filename);
         if (fs.existsSync(outputPath)) {
-            return;
+            return filename; // already exists, return early
         }
         console.log('we still need to process poses for ' + deviceId + ' (session ' + sessionId + ')');
         // load all chunks
         let files = fs.readdirSync(path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose'));
-        console.log(files);
         files = files.filter(filename => {
             return filename.includes(sessionId);
         });
@@ -299,8 +236,9 @@ class VideoServer {
             poseData.push(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
         });
         let flattened = poseData.flat();
-        console.log(flattened);
         fs.writeFileSync(outputPath, JSON.stringify(flattened));
+
+        return filename;
     }
     startRecording(deviceId) {
         this.isRecording[deviceId] = true;
@@ -320,13 +258,10 @@ class VideoServer {
         }
 
         if (typeof this.persistentInfo[deviceId] === 'undefined') {
-            this.persistentInfo[deviceId] = {
-                mergedFiles: {
-                    color: {},
-                    depth: {}
-                }
-            };
-            this.savePersistentInfo();
+            this.persistentInfo[deviceId] = {}
+        }
+        if (typeof this.persistentInfo[deviceId][this.sessionId] === 'undefined') {
+            this.persistentInfo[deviceId][this.sessionId] = {};
         }
 
         // start color stream process
