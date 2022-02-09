@@ -77,13 +77,11 @@ createNameSpace('realityEditor.videoPlayback');
             let colorPreviewContainer = document.createElement('div');
             colorPreviewContainer.classList.add('videoPreviewContainer');
             colorPreviewContainer.id = 'timelineColorPreviewContainer';
-            colorPreviewContainer.style.backgroundColor = 'green';
 
             let depthPreviewContainer = document.createElement('div');
             depthPreviewContainer.classList.add('videoPreviewContainer');
             depthPreviewContainer.id = 'timelineDepthPreviewContainer';
             depthPreviewContainer.style.left = 256 + 'px';
-            depthPreviewContainer.style.backgroundColor = 'red';
 
             videoPreviewContainer.appendChild(colorPreviewContainer);
             videoPreviewContainer.appendChild(depthPreviewContainer);
@@ -144,6 +142,7 @@ createNameSpace('realityEditor.videoPlayback');
             let videoPreviewContainer = document.createElement('div');
             videoPreviewContainer.id = 'timelineVideoPreviewContainer';
             videoPreviewContainer.classList.add('timelineBox');
+            videoPreviewContainer.classList.add('timelineVideoPreviewNoTrack'); // need to click on timeline to select
             centerBox.appendChild(videoPreviewContainer);
             // left = -68px is most left as possible
             // width = 480px for now, to show both, but should change to 240px eventually
@@ -220,6 +219,9 @@ createNameSpace('realityEditor.videoPlayback');
             videoPreview.classList.remove('timelineVideoPreviewSelected');
 
             // reset track/segment selection
+            // TODO: if we drop this segment on top of another segment on this track, reset this segment position to previous
+            // TODO: also save timeOffsets into window.localStorage so we can persist them on this client? if so, have a reset button too
+            // TODO: also have a lock/unlock button that allows editing the timeline, so we can't do it by default
             if (this.interactingWithSegment) {
                 // move segment if its timeOffset was changed
                 let segmentElement = document.getElementById(this.getSegmentElementId(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId));
@@ -292,6 +294,14 @@ createNameSpace('realityEditor.videoPlayback');
             let widthTime = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
             let dTime = dx * (widthTime / widthPixels);
 
+            let trackInfo = this.trackInfo.tracks[this.interactingWithSegment.trackId];
+            let segmentInfo = trackInfo.segments[this.interactingWithSegment.segmentId];
+            if (segmentInfo.start + this.initialTimeOffset + dTime < this.trackInfo.metadata.minTime) {
+                dTime = this.trackInfo.metadata.minTime - segmentInfo.start - this.initialTimeOffset;
+            } else if (segmentInfo.end + this.initialTimeOffset + dTime > this.trackInfo.metadata.maxTime) {
+                dTime = this.trackInfo.metadata.maxTime - segmentInfo.end - this.initialTimeOffset;
+            }
+
             console.log('dTime = ' + dTime + ', initial = ' + this.initialTimeOffset + ', result = ' + (dTime + this.initialTimeOffset));
             this.timeOffsets[this.interactingWithSegment.trackId][this.interactingWithSegment.segmentId] = (dTime + this.initialTimeOffset);
 
@@ -321,9 +331,6 @@ createNameSpace('realityEditor.videoPlayback');
                 callback(); // TODO: do we need this? if so, pass in deviceId and segmentId too
             });
 
-            // TODO: really do this:
-            // TODO: we need a video element for each device, but only display the one in the playhead preview if it's the selectedTrack
-
             ['color', 'depth'].forEach(colorOrDepth => {
                 let videoElement = this.getVideoElement(deviceId, colorOrDepth);
                 // load that video into the video players
@@ -343,12 +350,19 @@ createNameSpace('realityEditor.videoPlayback');
                 console.log('src = ' + videoSourceElement.src);
             });
 
+            // visually highlight the segments that are currently playing
+            let segmentElement = document.getElementById(this.getSegmentElementId(deviceId, segmentId));
+            segmentElement.classList.add('timelineSegmentPlaying');
+
             if (this.isPlaying) {
                 this.playVideoPlayback(); // actually play the videos
             }
         }
         segmentDeselected(deviceId, segmentId) {
             console.log('deselected segment ' + segmentId + ' on track ' + deviceId);
+
+            let segmentElement = document.getElementById(this.getSegmentElementId(deviceId, segmentId));
+            segmentElement.classList.remove('timelineSegmentPlaying');
 
             this.callbacks.onSegmentSelected.forEach(callback => {
                 callback();
@@ -364,7 +378,6 @@ createNameSpace('realityEditor.videoPlayback');
         }
         timeScrolledTo(timestamp, interaction) {
             // check if timestamp is within [start,end] for any of the segments on all of the tracks
-            let anySegmentSelected = false;
 
             this.forEachTrack((deviceId, _trackInfo) => {
                 let deviceHasSelectedSegment = false;
@@ -376,7 +389,6 @@ createNameSpace('realityEditor.videoPlayback');
                             this.segmentSelected(deviceId, segmentId, trackInfo, segment);
                         }
                         this.selectedSegments[deviceId] = segmentId;
-                        anySegmentSelected = true; // this makes sure we stick with first track's segment
 
                         //  and set the currentTime to the correct converted timestamp
                         if (interaction) {
@@ -390,15 +402,22 @@ createNameSpace('realityEditor.videoPlayback');
                     }
                     this.selectedSegments[deviceId] = null;
                 }
-            });
 
-            if (anySegmentSelected) {
-                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
-                videoPreview.classList.remove('timelineVideoPreviewNoSource');
-            } else {
-                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
-                videoPreview.classList.add('timelineVideoPreviewNoSource');
-            }
+                let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+                if (deviceHasSelectedSegment) {
+                    this.videoElements[deviceId].color.classList.remove('timelineInnerVideoNoSource');
+                    this.videoElements[deviceId].depth.classList.remove('timelineInnerVideoNoSource');
+                    if (this.selectedTrack === deviceId) {
+                        videoPreviewContainer.classList.remove('timelineVideoPreviewNoSource');
+                    }
+                } else {
+                    this.videoElements[deviceId].color.classList.add('timelineInnerVideoNoSource');
+                    this.videoElements[deviceId].depth.classList.add('timelineInnerVideoNoSource');
+                    if (this.selectedTrack === deviceId) {
+                        videoPreviewContainer.classList.add('timelineVideoPreviewNoSource');
+                    }
+                }
+            });
         }
         movePlayheadToTime(timestamp) {
             // calculate new X position of playhead based on timestamp relative to full time range
@@ -443,23 +462,7 @@ createNameSpace('realityEditor.videoPlayback');
             });
             // TODO: what does seek button do?
             speedButton.addEventListener('pointerup', _e => {
-                this.playbackSpeed *= 2;
-                if (this.playbackSpeed > 64) {
-                    this.playbackSpeed = 1;
-                }
-                speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_' + this.playbackSpeed + 'x.svg';
-
-                let selectedSegments = this.getSelectedSegments();
-                selectedSegments.forEach(info => {
-                    let segment = this.trackInfo.tracks[info.deviceId].segments[info.segmentId];
-                    this.getVideoElement(info.deviceId, 'color').playbackRate = this.playbackSpeed * segment.timeMultiplier;
-                    this.getVideoElement(info.deviceId, 'depth').playbackRate = this.playbackSpeed * segment.timeMultiplier;
-                });
-
-                if (!this.isPlaying) { return; }
-
-                this.pauseVideoPlayback();
-                this.playVideoPlayback();
+                this.multiplySpeed(2.0, true);
             });
         }
         createVideoElement(id) {
@@ -594,6 +597,9 @@ createNameSpace('realityEditor.videoPlayback');
             }
             depthContainer.appendChild(this.getVideoElement(trackId, 'depth'));
 
+            let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+            videoPreviewContainer.classList.remove('timelineVideoPreviewNoTrack');
+
             if (this.isPlaying) {
                 this.pauseVideoPlayback();
                 setTimeout(() => {
@@ -606,6 +612,9 @@ createNameSpace('realityEditor.videoPlayback');
             let element = document.getElementById(this.getTrackElementId(trackId));
             element.classList.remove('selectedTrack');
             this.selectedTrack = null;
+
+            let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+            videoPreviewContainer.classList.add('timelineVideoPreviewNoTrack');
         }
         selectSegment(trackId, segmentId) {
             console.log('select segment', trackId, segmentId);
@@ -664,6 +673,43 @@ createNameSpace('realityEditor.videoPlayback');
         }
         onSegmentDeselected(callback) {
             this.callbacks.onSegmentDeselected.push(callback);
+        }
+        togglePlayback() {
+            if (this.isPlaying) {
+                this.pauseVideoPlayback();
+            } else {
+                this.playVideoPlayback();
+            }
+        }
+        toggleVisibility() {
+            if (this.timelineContainer.classList.contains('hiddenTimeline')) {
+                this.timelineContainer.classList.remove('hiddenTimeline');
+            } else {
+                this.timelineContainer.classList.add('hiddenTimeline');
+            }
+        }
+        multiplySpeed(factor = 2, allowLoop = true) {
+            this.playbackSpeed *= factor;
+            if (this.playbackSpeed > 64) {
+                this.playbackSpeed = allowLoop ? 1 : 64;
+            } else if (this.playbackSpeed < 1) {
+                this.playbackSpeed = allowLoop ? 64 : 1;
+            }
+
+            let speedButton = document.getElementById('timelineSpeedButton');
+            speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_' + this.playbackSpeed + 'x.svg';
+
+            let selectedSegments = this.getSelectedSegments();
+            selectedSegments.forEach(info => {
+                let segment = this.trackInfo.tracks[info.deviceId].segments[info.segmentId];
+                this.getVideoElement(info.deviceId, 'color').playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                this.getVideoElement(info.deviceId, 'depth').playbackRate = this.playbackSpeed * segment.timeMultiplier;
+            });
+
+            if (!this.isPlaying) { return; }
+
+            this.pauseVideoPlayback();
+            this.playVideoPlayback();
         }
     }
 

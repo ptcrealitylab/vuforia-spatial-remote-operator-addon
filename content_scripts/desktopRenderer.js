@@ -118,15 +118,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
-                        let videoPlaybackCoordinator = new realityEditor.videoPlayback.Coordinator();
-                        videoPlaybackCoordinator.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                        videoPlaybackCoordinator.load();
-                        window.videoPlayback = videoPlaybackCoordinator;
-
-                        // // also create the VideoPlayback and search the server of the world object for any recorded videos
-                        // videoPlayback = new realityEditor.device.VideoPlayback(object.ip);
-                        // videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                        // window.globalVideoPlayback = videoPlayback;
+                        videoPlayback = new realityEditor.videoPlayback.Coordinator();
+                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.load();
+                        window.videoPlayback = videoPlayback;
                     });
                 }
 
@@ -177,10 +172,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     gltf.visible = false;
                     console.log('hide gltf');
                 }
-            } else if (params.event.code === 'KeyY') {
-                videoPlayback.toggleVisibility();
-            } else if (params.event.code === 'KeyU') {
-                videoPlayback.togglePointClouds();
+            }
+
+            if (videoPlayback) {
+                videoPlayback.handleKeyUp(params.event.code);
             }
         });
     }
