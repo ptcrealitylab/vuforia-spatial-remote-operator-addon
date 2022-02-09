@@ -130,6 +130,7 @@ body > * {
 .timelineTrack {
     position: absolute;
     background-color: rgba(0,255,255, 0.1);
+    border-radius: 7px;
     left: 20px;
     width: calc(100% - 2 * 20px);
 }
@@ -138,17 +139,28 @@ body > * {
     background-color: rgba(0,255,255, 0.2);
 }
 
+.selectedTrack {
+    border: 2px solid rgba(0,255,255, 0.5);
+    margin: -2px;
+}
+
 .timelineSegment {
     position: absolute;
     background-color: rgba(0,255,255, 0.5);
-    border-radius: 10px;
+    border-radius: 5px;
     top: 0;
     height: 100%;
+    z-index: 100;
 }
 
 .timelineSegment:hover {
-    background-color: rgba(0,255,255, 0.7);
+    /*background-color: rgba(0,255,255, 0.7);*/
     /*border: 2px solid white;*/
+}
+
+.selectedSegment {
+    background-color: rgba(0,255,255, 0.9);
+    /*border: 2px solid rgba(255,255,255, 0.5);*/
 }
 
 #timelineControlsBox {
