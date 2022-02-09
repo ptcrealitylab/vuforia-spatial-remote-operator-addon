@@ -12,11 +12,26 @@ createNameSpace('realityEditor.videoPlayback');
                 onSegmentDeselected: []
             };
             this.selectedSegments = {};
+            this.selectedTrack = null;
+            this.interactingWithSegment = null;
+            this.timeOffsets = {};
+            this.pointerStart = null;
 
             this.buildHTMLElements();
         }
         loadTracks(trackInfo) {
             this.trackInfo = trackInfo;
+
+            // populate timeOffsets with default values
+            console.log('create default timeOffsets');
+            this.forEachSegment(null, (deviceId, segmentId, _trackInfo, _segmentInfo) => {
+                if (typeof this.timeOffsets[deviceId] === 'undefined') {
+                    this.timeOffsets[deviceId] = {};
+                }
+                if (typeof this.timeOffsets[deviceId][segmentId] === 'undefined') {
+                    this.timeOffsets[deviceId][segmentId] = 0;
+                }
+            });
 
             this.setupPlayhead();
 
@@ -123,36 +138,14 @@ createNameSpace('realityEditor.videoPlayback');
         }
         setupPlayhead() {
             let playheadElement = this.playhead;
+            document.addEventListener('pointerdown', e => {
+                this.pointerStart = {
+                    x: e.pageX,
+                    y: e.pageY
+                };
+            });
             document.addEventListener('pointermove', e => {
-                if (!this.playheadClickedDown) { return; }
-
-                // calculate new X position to follow mouse, constrained to trackBox element
-                let pointerX = e.pageX;
-
-                let trackBox = document.getElementById('timelineTrackBox');
-                let containerLeft = trackBox.getClientRects()[0].left;
-                let containerWidth = trackBox.getClientRects()[0].width;
-
-                let relativeX = pointerX - containerLeft;
-                let leftMargin = 20;
-                let rightMargin = 20;
-                let halfPlayheadWidth = 10;
-                playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
-
-                // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
-                let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-                if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
-                    let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-                    let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
-                    videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-128, previewRelativeX)) + 'px';
-                }
-
-                let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
-                let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
-
-                let absoluteTime = this.trackInfo.metadata.minTime + playheadTimePercent * duration;
-                this.setPlayheadTimestamp(absoluteTime);
-                this.timeScrolledTo(absoluteTime, true);
+                this.onDocumentPointerMove(e);
             });
             playheadElement.addEventListener('pointerdown', _e => {
                 this.playheadClickedDown = true;
@@ -165,19 +158,11 @@ createNameSpace('realityEditor.videoPlayback');
                     this.pauseVideoPlayback();
                 }
             });
-            document.addEventListener('pointerup', _e => {
-                this.playheadClickedDown = false;
-                playheadElement.classList.remove('timelinePlayheadSelected');
-
-                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
-                videoPreview.classList.remove('timelineVideoPreviewSelected');
+            document.addEventListener('pointerup', e => {
+                this.onDocumentPointerUp(e);
             });
-            document.addEventListener('pointercancel', _e => {
-                this.playheadClickedDown = false;
-                playheadElement.classList.remove('timelinePlayheadSelected');
-
-                let videoPreview = document.getElementById('timelineVideoPreviewContainer');
-                videoPreview.classList.remove('timelineVideoPreviewSelected');
+            document.addEventListener('pointercancel', e => {
+                this.onDocumentPointerUp(e);
             });
 
             setTimeout(() => {
@@ -192,6 +177,114 @@ createNameSpace('realityEditor.videoPlayback');
                     callback(deviceId, this.trackInfo.tracks[deviceId]);
                 }
             });
+        }
+        onDocumentPointerUp(_e) {
+            // reset playhead selection
+            this.playheadClickedDown = false;
+            let playheadElement = document.getElementById('timelinePlayhead');
+            playheadElement.classList.remove('timelinePlayheadSelected');
+
+            let videoPreview = document.getElementById('timelineVideoPreviewContainer');
+            videoPreview.classList.remove('timelineVideoPreviewSelected');
+
+            // reset track/segment selection
+            if (this.interactingWithSegment) {
+                // move segment if its timeOffset was changed
+                let segmentElement = document.getElementById(this.getSegmentElementId(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId));
+                if (segmentElement) {
+                    this.positionAndScaleSegment(segmentElement, this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId);
+                }
+
+                // this will cause the time of the video preview to update, if any is still under the playhead
+                let timeOffset = this.timeOffsets[this.interactingWithSegment.trackId][this.interactingWithSegment.segmentId];
+                let segment = this.trackInfo.tracks[this.interactingWithSegment.trackId].segments[this.interactingWithSegment.segmentId];
+                if (this.playheadTimestamp >= (segment.start + timeOffset) && this.playheadTimestamp <= (segment.end + timeOffset)) {
+                    this.onTimeUpdated(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId, this.playheadTimestamp);
+                }
+
+                this.deselectSegment(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId);
+            }
+
+            this.pointerStart = null;
+        }
+        onDocumentPointerMove(e) {
+            if (this.playheadClickedDown) {
+                this.onPointerMovePlayhead(e);
+            } else if (this.interactingWithSegment) {
+                this.onPointerMoveSegment(e);
+            }
+        }
+        onPointerMovePlayhead(e) {
+            let playheadElement = document.getElementById('timelinePlayhead');
+
+            // calculate new X position to follow mouse, constrained to trackBox element
+            let pointerX = e.pageX;
+
+            let trackBox = document.getElementById('timelineTrackBox');
+            let containerLeft = trackBox.getClientRects()[0].left;
+            let containerWidth = trackBox.getClientRects()[0].width;
+
+            let relativeX = pointerX - containerLeft;
+            let leftMargin = 20;
+            let rightMargin = 20;
+            let halfPlayheadWidth = 10;
+            playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
+
+            // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
+            let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+            if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
+                let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+                let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-128, previewRelativeX)) + 'px';
+            }
+
+            let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+            let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
+
+            let absoluteTime = this.trackInfo.metadata.minTime + playheadTimePercent * duration;
+            this.setPlayheadTimestamp(absoluteTime);
+            this.timeScrolledTo(absoluteTime, true);
+        }
+        onPointerMoveSegment(e) {
+            let segmentElement = document.getElementById(this.getSegmentElementId(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId));
+            if (!segmentElement) { return; }
+
+            // calculate new X position to follow mouse, constrained to trackBox element
+            let pointerX = e.pageX;
+            let dx = pointerX - this.pointerStart.x;
+            console.log('dx = ' + dx);
+
+            let trackBox = document.getElementById('timelineTrackBox');
+            // let containerLeft = trackBox.getClientRects()[0].left;
+            let widthPixels = trackBox.getClientRects()[0].width;
+            let widthTime = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
+            let dTime = dx * (widthTime / widthPixels);
+
+            console.log('dTime = ' + dTime + ', initial = ' + this.initialTimeOffset + ', result = ' + (dTime + this.initialTimeOffset));
+            this.timeOffsets[this.interactingWithSegment.trackId][this.interactingWithSegment.segmentId] = (dTime + this.initialTimeOffset);
+
+            this.positionAndScaleSegment(segmentElement, this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId);
+
+            // let relativeX = pointerX - containerLeft;
+            // let leftMargin = 20;
+            // let rightMargin = 20;
+            // let halfPlayheadWidth = 10;
+            // playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
+            //
+            // // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
+            // let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+            // if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
+            //     let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+            //     let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+            //     videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-128, previewRelativeX)) + 'px';
+            // }
+            //
+            // let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+            // let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
+            //
+            // let absoluteTime = this.trackInfo.metadata.minTime + playheadTimePercent * duration;
+            // this.setPlayheadTimestamp(absoluteTime);
+            // this.timeScrolledTo(absoluteTime, true);
         }
         forEachSegment(deviceId = null, callback) {
             if (!deviceId) {
@@ -216,6 +309,8 @@ createNameSpace('realityEditor.videoPlayback');
             this.callbacks.onSegmentSelected.forEach(callback => {
                 callback();
             });
+
+            // TODO: we need a video element for each device, but only display the one in the playhead preview if it's the selectedTrack
 
             // load that video into the video players,
             let colorVideoSourceElement = this.colorVideoPreview.querySelector('source');
@@ -262,8 +357,9 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         onTimeUpdated(deviceId, segmentId, timestamp) {
+            let timeOffset = this.timeOffsets[deviceId][segmentId];
             let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
-            let currentTime = (segment.timeMultiplier || 1) * (timestamp - segment.start) / 1000;
+            let currentTime = (segment.timeMultiplier || 1) * (timestamp - (segment.start + timeOffset)) / 1000;
             // console.log(currentTime);
             this.colorVideoPreview.currentTime = currentTime;
             this.depthVideoPreview.currentTime = currentTime;
@@ -275,7 +371,8 @@ createNameSpace('realityEditor.videoPlayback');
             this.forEachTrack((deviceId, _trackInfo) => {
                 let deviceHasSelectedSegment = false;
                 this.forEachSegment(deviceId, (deviceId, segmentId, trackInfo, segment) => {
-                    if (timestamp >= segment.start && timestamp <= segment.end) {
+                    let timeOffset = this.timeOffsets[deviceId][segmentId];
+                    if (timestamp >= (segment.start + timeOffset) && timestamp <= (segment.end + timeOffset)) {
                         deviceHasSelectedSegment = true;
                         if (this.selectedSegments[deviceId] !== segmentId) {
                             this.segmentSelected(deviceId, segmentId, trackInfo, segment);
@@ -433,6 +530,7 @@ createNameSpace('realityEditor.videoPlayback');
                 console.log('creating elements for track: ' + thisTrackId);
                 let trackElement = document.createElement('div');
                 trackElement.classList.add('timelineTrack');
+                trackElement.id = this.getTrackElementId(thisTrackId);
                 document.getElementById('timelineTrackBox').appendChild(trackElement);
 
                 let trackInfo = this.trackInfo.tracks[thisTrackId];
@@ -443,10 +541,69 @@ createNameSpace('realityEditor.videoPlayback');
                     console.log('creating elements for segment ' + segmentId + ' in track ' + thisTrackId);
                     let segmentElement = document.createElement('div');
                     segmentElement.classList.add('timelineSegment');
+                    segmentElement.id = this.getSegmentElementId(thisTrackId, segmentId);
                     trackElement.appendChild(segmentElement);
-                    this.positionAndScaleSegment(segmentElement, segments[segmentId], trackInfo);
+                    this.positionAndScaleSegment(segmentElement, thisTrackId, segmentId);
+
+                    segmentElement.addEventListener('pointerdown', () => {
+                        console.log('segment down');
+                        this.selectSegment(thisTrackId, segmentId);
+
+                        if (this.isPlaying) {
+                            this.pauseVideoPlayback();
+                        }
+                    });
+                });
+
+                // clicking on the track (row background) toggles it as the selected track 
+                trackElement.addEventListener('pointerdown', () => {
+                    console.log('track down');
+                    if (this.selectedTrack === thisTrackId) {
+                        if (!this.interactingWithSegment) {
+                            this.deselectTrack(thisTrackId);
+                        }
+                    } else {
+                        this.selectTrack(thisTrackId);
+                    }
                 });
             }
+        }
+        getTrackElementId(trackId) {
+            return 'timelineTrack_' + trackId;
+        }
+        getSegmentElementId(trackId, segmentId) {
+            return 'timelineSegment_' + trackId + '_' + segmentId;
+        }
+        selectTrack(trackId) {
+            this.deselectTrack(this.selectedTrack);
+            this.selectedTrack = trackId;
+            let element = document.getElementById(this.getTrackElementId(trackId));
+            element.classList.add('selectedTrack');
+        }
+        deselectTrack(trackId) {
+            if (!this.selectedTrack) { return; }
+            let element = document.getElementById(this.getTrackElementId(trackId));
+            element.classList.remove('selectedTrack');
+            this.selectedTrack = null;
+        }
+        selectSegment(trackId, segmentId) {
+            console.log('select segment', trackId, segmentId);
+            if (this.interactingWithSegment) {
+                this.deselectSegment(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId);
+            }
+            this.interactingWithSegment = {
+                trackId: trackId,
+                segmentId: segmentId
+            };
+            let element = document.getElementById(this.getSegmentElementId(trackId, segmentId));
+            element.classList.add('selectedSegment');
+            this.initialTimeOffset = this.timeOffsets[trackId][segmentId];
+        }
+        deselectSegment(trackId, segmentId) {
+            if (!this.interactingWithSegment) { return; }
+            let element = document.getElementById(this.getSegmentElementId(trackId, segmentId));
+            element.classList.remove('selectedSegment');
+            this.interactingWithSegment = null;
         }
         positionAndScaleTrack(trackElement, trackInfo, index, numTracks) {
             console.log('position and scale track:');
@@ -456,15 +613,17 @@ createNameSpace('realityEditor.videoPlayback');
             trackElement.style.top = ((marginPercent * (index + 1)) + (heightPercent * index)) + '%';
             trackElement.style.height = heightPercent + '%';
         }
-        positionAndScaleSegment(segmentElement, segmentInfo, trackInfo) {
+        positionAndScaleSegment(segmentElement, trackId, segmentId) {
             console.log('position and scale segment:');
+            let trackInfo = this.trackInfo.tracks[trackId];
+            let segmentInfo = trackInfo.segments[segmentId];
             console.log(segmentElement, segmentInfo, trackInfo);
             let segmentDuration = segmentInfo.end - segmentInfo.start;
 
             let maxTime = this.trackInfo.metadata.maxTime; // Math.max(Date.now(), this.trackInfo.metadata.maxTime);
             let trackDuration = maxTime - this.trackInfo.metadata.minTime;
             let lengthPercent = segmentDuration / trackDuration * 100.0;
-            let startPercent = (segmentInfo.start - this.trackInfo.metadata.minTime) / trackDuration * 100.0;
+            let startPercent = ((segmentInfo.start + this.timeOffsets[trackId][segmentId]) - this.trackInfo.metadata.minTime) / trackDuration * 100.0;
             segmentElement.style.width = lengthPercent + '%';
             segmentElement.style.left = startPercent + '%';
         }

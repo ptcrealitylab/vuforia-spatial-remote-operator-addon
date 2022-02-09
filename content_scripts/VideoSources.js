@@ -42,8 +42,8 @@ createNameSpace('realityEditor.videoPlayback');
                     this.trackInfo.tracks[deviceId].segments[sessionId] = {
                         colorVideo: sessionInfo.color,
                         depthVideo: sessionInfo.depth, // this.getMatchingDepthVideo(filePath),
-                        start: timeInfo.start,
-                        end: timeInfo.end,
+                        start: parseInt(timeInfo.start),
+                        end: parseInt(timeInfo.end),
                         visible: true,
                     };
                     earliestTime = Math.min(earliestTime, timeInfo.start);
