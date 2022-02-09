@@ -39,6 +39,16 @@ body > * {
     z-index: 1000;
 }
 
+.videoPreviewContainer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: matrix3d(-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 1000, 1);
+    z-index: 1000;
+    width: 256px;
+    height: 144px;
+}
+
 .timelineBox {
     position: absolute;
     left: 0;
