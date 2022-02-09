@@ -16,6 +16,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.interactingWithSegment = null;
             this.timeOffsets = {};
             this.pointerStart = null;
+            this.videoElements = {};
 
             this.buildHTMLElements();
         }
@@ -39,23 +40,23 @@ createNameSpace('realityEditor.videoPlayback');
             this.createVideoTracks();
             this.playheadTimestamp = this.trackInfo.metadata.minTime;
 
-            this.addPlaybackListeners();
+            // this.addPlaybackListeners();
 
             this.playLoop(); // only after DOM is built can we start the loop
         }
-        addPlaybackListeners() {
-            // TODO: how to handle video preview of multiple parallel tracks?
-            this.colorVideoPreview.addEventListener('timeupdate', () => {
-                let selectedSegments = this.getSelectedSegments();
-                selectedSegments.forEach(selected => {
-                    // trigger the external callbacks for each video
-                    this.callbacks.onVideoFrame.forEach(callback => {
-                        // TODO: associate a different video element with each track
-                        callback(this.colorVideoPreview, this.depthVideoPreview, selected.deviceId, selected.segmentId);
-                    });
-                });
-            });
-        }
+        // addPlaybackListeners() {
+        //     // TODO: how to handle video preview of multiple parallel tracks?
+        //     this.colorVideoPreview.addEventListener('timeupdate', () => {
+        //         let selectedSegments = this.getSelectedSegments();
+        //         selectedSegments.forEach(selected => {
+        //             // trigger the external callbacks for each video
+        //             this.callbacks.onVideoFrame.forEach(callback => {
+        //                 // TODO: associate a different video element with each track
+        //                 callback(this.colorVideoPreview, this.depthVideoPreview, selected.deviceId, selected.segmentId);
+        //             });
+        //         });
+        //     });
+        // }
         getSelectedSegments() {
             // key = deviceId, value = segmentId
             return Object.keys(this.selectedSegments).map(function(deviceId) {
@@ -70,18 +71,49 @@ createNameSpace('realityEditor.videoPlayback');
             this.timelineContainer = this.createTimelineElement();
             document.body.appendChild(this.timelineContainer);
 
-            // create two preview videos
-            console.log('create video HTML elements');
-            let colorVideoElement = this.createVideoElement('colorVideoPreview');
-            let depthVideoElement = this.createVideoElement('depthVideoPreview');
-            this.colorVideoPreview = colorVideoElement;
-            this.depthVideoPreview = depthVideoElement;
-
-            // for now, add the video previews to move with the scrolling playhead
+            // create containers for two preview videos
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-            videoPreviewContainer.appendChild(colorVideoElement);
-            videoPreviewContainer.appendChild(depthVideoElement);
-            depthVideoElement.style.left = 256 + 'px';
+
+            let colorPreviewContainer = document.createElement('div');
+            colorPreviewContainer.classList.add('videoPreviewContainer');
+            colorPreviewContainer.id = 'timelineColorPreviewContainer';
+            colorPreviewContainer.style.backgroundColor = 'green';
+
+            let depthPreviewContainer = document.createElement('div');
+            depthPreviewContainer.classList.add('videoPreviewContainer');
+            depthPreviewContainer.id = 'timelineDepthPreviewContainer';
+            depthPreviewContainer.style.left = 256 + 'px';
+            depthPreviewContainer.style.backgroundColor = 'red';
+
+            videoPreviewContainer.appendChild(colorPreviewContainer);
+            videoPreviewContainer.appendChild(depthPreviewContainer);
+        }
+        getVideoElement(trackId, colorOrDepth) {
+            if (colorOrDepth !== 'color' && colorOrDepth !== 'depth') { console.warn('passing invalid colorOrDepth to getVideoElement', colorOrDepth); }
+
+            if (typeof this.videoElements[trackId] === 'undefined') {
+                this.videoElements[trackId] = {};
+            }
+            if (typeof this.videoElements[trackId].depth === 'undefined') {
+                this.videoElements[trackId].depth = this.createVideoElement('depth_video_' + trackId);
+            }
+            if (typeof this.videoElements[trackId].color === 'undefined') {
+                this.videoElements[trackId].color = this.createVideoElement('color_video_' + trackId);
+
+                this.videoElements[trackId].color.addEventListener('timeupdate', () => {
+                    let selectedSegments = this.getSelectedSegments();
+                    selectedSegments.filter((info) => {
+                        return info.deviceId === trackId;
+                    }).forEach(selected => { // there should only be one, assuming segments on the same track can't overlap
+                        // trigger the external callbacks for each video
+                        this.callbacks.onVideoFrame.forEach(callback => {
+                            callback(this.videoElements[trackId].color, this.videoElements[trackId].depth, selected.deviceId, selected.segmentId);
+                        });
+                    });
+                });
+            }
+
+            return this.videoElements[trackId][colorOrDepth];
         }
         createTimelineElement() {
             let container = document.createElement('div');
@@ -264,27 +296,6 @@ createNameSpace('realityEditor.videoPlayback');
             this.timeOffsets[this.interactingWithSegment.trackId][this.interactingWithSegment.segmentId] = (dTime + this.initialTimeOffset);
 
             this.positionAndScaleSegment(segmentElement, this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId);
-
-            // let relativeX = pointerX - containerLeft;
-            // let leftMargin = 20;
-            // let rightMargin = 20;
-            // let halfPlayheadWidth = 10;
-            // playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
-            //
-            // // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
-            // let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-            // if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
-            //     let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-            //     let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
-            //     videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-128, previewRelativeX)) + 'px';
-            // }
-            //
-            // let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
-            // let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
-            //
-            // let absoluteTime = this.trackInfo.metadata.minTime + playheadTimePercent * duration;
-            // this.setPlayheadTimestamp(absoluteTime);
-            // this.timeScrolledTo(absoluteTime, true);
         }
         forEachSegment(deviceId = null, callback) {
             if (!deviceId) {
@@ -307,43 +318,30 @@ createNameSpace('realityEditor.videoPlayback');
         }
         segmentSelected(deviceId, segmentId, trackInfo, segment) {
             this.callbacks.onSegmentSelected.forEach(callback => {
-                callback();
+                callback(); // TODO: do we need this? if so, pass in deviceId and segmentId too
             });
 
+            // TODO: really do this:
             // TODO: we need a video element for each device, but only display the one in the playhead preview if it's the selectedTrack
 
-            // load that video into the video players,
-            let colorVideoSourceElement = this.colorVideoPreview.querySelector('source');
-            let filename = segment.colorVideo.replace(/^.*[\\\/]/, '');
-            colorVideoSourceElement.src = '/virtualizer_recording/' + deviceId + '/color/' + filename;
-            // colorVideoSourceElement.src = 'http://localhost:8080/recordings/' + deviceId + '/session_videos/color/' + filename;
-            this.colorVideoPreview.addEventListener('loadedmetadata', (_e) => {
-                if (typeof segment.timeMultiplier === 'undefined') {
-                    let videoDuration = this.colorVideoPreview.duration;
-                    let intendedDuration = (segment.end - segment.start) / 1000;
-                    segment.timeMultiplier = videoDuration / intendedDuration;
-                    console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
-                }
-                this.colorVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
+            ['color', 'depth'].forEach(colorOrDepth => {
+                let videoElement = this.getVideoElement(deviceId, colorOrDepth);
+                // load that video into the video players
+                let videoSourceElement = videoElement.querySelector('source');
+                let filename = segment.colorVideo.replace(/^.*[\\\/]/, '');
+                videoSourceElement.src = '/virtualizer_recording/' + deviceId + '/' + colorOrDepth + '/' + filename;
+                videoElement.addEventListener('loadedmetadata', (_e) => {
+                    if (typeof segment.timeMultiplier === 'undefined') {
+                        let videoDuration = videoElement.duration;
+                        let intendedDuration = (segment.end - segment.start) / 1000;
+                        segment.timeMultiplier = videoDuration / intendedDuration;
+                        console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
+                    }
+                    videoElement.playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                });
+                videoElement.load();
+                console.log('src = ' + videoSourceElement.src);
             });
-            this.colorVideoPreview.load();
-            console.log('src = ' + colorVideoSourceElement.src);
-
-            let depthVideoSourceElement = this.depthVideoPreview.querySelector('source');
-            filename = segment.depthVideo.replace(/^.*[\\\/]/, '');
-            depthVideoSourceElement.src = '/virtualizer_recording/' + deviceId + '/depth/' + filename;
-            // depthVideoSourceElement.src = 'http://localhost:8080/recordings/' + deviceId + '/session_videos/depth/' + filename;
-            this.colorVideoPreview.addEventListener('loadedmetadata', (_e) => {
-                if (typeof segment.timeMultiplier === 'undefined') {
-                    let videoDuration = this.depthVideoPreview.duration;
-                    let intendedDuration = (segment.end - segment.start) / 1000;
-                    segment.timeMultiplier = videoDuration / intendedDuration;
-                    console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
-                }
-                this.depthVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
-            });
-            this.depthVideoPreview.load();
-            console.log('src = ' + depthVideoSourceElement.src);
 
             if (this.isPlaying) {
                 this.playVideoPlayback(); // actually play the videos
@@ -361,8 +359,8 @@ createNameSpace('realityEditor.videoPlayback');
             let segment = this.trackInfo.tracks[deviceId].segments[segmentId];
             let currentTime = (segment.timeMultiplier || 1) * (timestamp - (segment.start + timeOffset)) / 1000;
             // console.log(currentTime);
-            this.colorVideoPreview.currentTime = currentTime;
-            this.depthVideoPreview.currentTime = currentTime;
+            this.getVideoElement(deviceId, 'color').currentTime = currentTime;
+            this.getVideoElement(deviceId, 'depth').currentTime = currentTime;
         }
         timeScrolledTo(timestamp, interaction) {
             // check if timestamp is within [start,end] for any of the segments on all of the tracks
@@ -454,8 +452,8 @@ createNameSpace('realityEditor.videoPlayback');
                 let selectedSegments = this.getSelectedSegments();
                 selectedSegments.forEach(info => {
                     let segment = this.trackInfo.tracks[info.deviceId].segments[info.segmentId];
-                    this.colorVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
-                    this.depthVideoPreview.playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                    this.getVideoElement(info.deviceId, 'color').playbackRate = this.playbackSpeed * segment.timeMultiplier;
+                    this.getVideoElement(info.deviceId, 'depth').playbackRate = this.playbackSpeed * segment.timeMultiplier;
                 });
 
                 if (!this.isPlaying) { return; }
@@ -493,8 +491,10 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         playVideoPlayback() {
-            this.colorVideoPreview.play();
-            this.depthVideoPreview.play();
+            this.forEachTrack((deviceId, _trackInfo) => {
+                this.getVideoElement(deviceId, 'color').play();
+                this.getVideoElement(deviceId, 'depth').play();
+            });
             this.isPlaying = true;
 
             let playheadElement = document.getElementById('timelinePlayhead');
@@ -507,8 +507,10 @@ createNameSpace('realityEditor.videoPlayback');
             playButton.src = '/addons/vuforia-spatial-remote-operator-addon/pauseButton.svg';
         }
         pauseVideoPlayback() {
-            this.colorVideoPreview.pause();
-            this.depthVideoPreview.pause();
+            this.forEachTrack((deviceId, _trackInfo) => {
+                this.getVideoElement(deviceId, 'color').pause();
+                this.getVideoElement(deviceId, 'depth').pause();
+            });
             this.isPlaying = false;
 
             let playheadElement = document.getElementById('timelinePlayhead');
@@ -579,6 +581,25 @@ createNameSpace('realityEditor.videoPlayback');
             this.selectedTrack = trackId;
             let element = document.getElementById(this.getTrackElementId(trackId));
             element.classList.add('selectedTrack');
+
+            let colorContainer = document.getElementById('timelineColorPreviewContainer');
+            while (colorContainer.firstChild) {
+                colorContainer.removeChild(colorContainer.firstChild);
+            }
+            colorContainer.appendChild(this.getVideoElement(trackId, 'color'));
+
+            let depthContainer = document.getElementById('timelineDepthPreviewContainer');
+            while (depthContainer.firstChild) {
+                depthContainer.removeChild(depthContainer.firstChild);
+            }
+            depthContainer.appendChild(this.getVideoElement(trackId, 'depth'));
+
+            if (this.isPlaying) {
+                this.pauseVideoPlayback();
+                setTimeout(() => {
+                    this.playVideoPlayback();
+                }, 100);
+            }
         }
         deselectTrack(trackId) {
             if (!this.selectedTrack) { return; }
