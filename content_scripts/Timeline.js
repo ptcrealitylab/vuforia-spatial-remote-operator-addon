@@ -396,6 +396,7 @@ createNameSpace('realityEditor.videoPlayback');
                         }
                     }
                 });
+                // TODO: fix this so segmentDeselected gets called even if two segments on same track are right next to eachother
                 if (!deviceHasSelectedSegment) {
                     if (this.selectedSegments[deviceId]) {
                         this.segmentDeselected(deviceId, this.selectedSegments[deviceId]);
@@ -451,14 +452,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         setupControlButtons(playButton, seekButton, speedButton) {
             playButton.addEventListener('pointerup', _e => {
-                if (this.isPlaying) {
-                    this.pauseVideoPlayback();
-                } else {
-                    if (this.playheadTimestamp === this.trackInfo.metadata.maxTime) {
-                        this.playheadTimestamp = this.trackInfo.metadata.minTime;
-                    }
-                    this.playVideoPlayback();
-                }
+                this.togglePlayback();
             });
             // TODO: what does seek button do?
             speedButton.addEventListener('pointerup', _e => {
@@ -678,6 +672,9 @@ createNameSpace('realityEditor.videoPlayback');
             if (this.isPlaying) {
                 this.pauseVideoPlayback();
             } else {
+                if (this.playheadTimestamp === this.trackInfo.metadata.maxTime) {
+                    this.playheadTimestamp = this.trackInfo.metadata.minTime;
+                }
                 this.playVideoPlayback();
             }
         }

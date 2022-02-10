@@ -21,8 +21,20 @@ module.exports.start = function start() {
     app.use(cors());
     expressWs(app);
     const streamRouter = makeStreamRouter(app);
-    streamRouter.onFrame(function(rgb, depth, pose, deviceId) {
-        videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId);
+
+    // trigger events in VideoServer whenever sockets connect, disconnect, or send data
+    streamRouter.onFrame((rgb, depth, pose, deviceId) => {
+        videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId); // TODO: remove device_ from name?
+    });
+    streamRouter.onConnection((deviceId) => {
+        videoServer.onConnection('device_' + deviceId);
+    });
+    streamRouter.onDisconnection((deviceId) => {
+        videoServer.onDisconnection('device_' + deviceId);
+    });
+    streamRouter.onError((deviceId) => {
+        console.log('on error: ' + deviceId); // haven't seen this trigger yet but probably good to also disconnect
+        videoServer.onDisconnection('device_' + deviceId);
     });
 
     let allWebsockets = [];
