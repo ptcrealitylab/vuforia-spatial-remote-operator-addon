@@ -16,7 +16,12 @@ module.exports = function makeStreamRouter(app) {
     let colorPool = [];
     let depthPool = [];
     let matrixPool = [];
-    let onFrameCallbacks = [];
+    let callbacks = {
+        onFrame: [],
+        onConnection: [],
+        onDisconnection: [],
+        onError: []
+    };
     app.ws('/colorProvider', function(ws, req) {
         console.log('new colorPro ws');
         const id = requestId(req);
@@ -29,6 +34,22 @@ module.exports = function makeStreamRouter(app) {
                 ws.send(msgWithId);
             }
             processFrame(id, msg, null, null);
+        });
+        ws.on('close', function(event) {
+            console.log('ws.onclose ', event, id);
+            callbacks.onDisconnection.forEach(function(cb) {
+                cb(id);
+            });
+        });
+        ws.on('error', function(event) {
+            console.log('ws.onerror', event, id);
+            callbacks.onError.forEach(function(cb) {
+                cb(id);
+            });
+        });
+
+        callbacks.onConnection.forEach(function(cb) {
+            cb(id);
         });
     });
 
@@ -122,7 +143,7 @@ module.exports = function makeStreamRouter(app) {
         }
         if (frameData[id].color && frameData[id].depth && frameData[id].matrix) {
             // console.log('have color, depth, and matrix for id: ' + id);
-            onFrameCallbacks.forEach(function(cb) {
+            callbacks.onFrame.forEach(function(cb) {
                 cb(frameData[id].color, frameData[id].depth, frameData[id].matrix, id);
             });
             delete frameData[id];
@@ -130,11 +151,26 @@ module.exports = function makeStreamRouter(app) {
     }
 
     const onFrame = function(callback) {
-        onFrameCallbacks.push(callback);
+        callbacks.onFrame.push(callback);
+    };
+
+    const onConnection = function(callback) {
+        callbacks.onConnection.push(callback);
+    };
+
+    const onDisconnection = function(callback) {
+        callbacks.onDisconnection.push(callback);
+    };
+
+    const onError = function(callback) {
+        callbacks.onError.push(callback);
     };
 
     return {
-        onFrame: onFrame
+        onFrame: onFrame,
+        onConnection: onConnection,
+        onDisconnection: onDisconnection,
+        onError: onError
     };
 };
 

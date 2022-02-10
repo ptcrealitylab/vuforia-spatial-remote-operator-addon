@@ -27,7 +27,8 @@ class VideoServer {
             NOT_STARTED: 'NOT_STARTED',
             STARTED: 'STARTED',
             ENDING: 'ENDING',
-            ENDED: 'ENDED'
+            ENDED: 'ENDED',
+            DISCONNECTED: 'DISCONNECTED'
         });
         this.DIR_NAMES = Object.freeze({
             unprocessed_chunks: 'unprocessed_chunks',
@@ -36,6 +37,7 @@ class VideoServer {
         });
         this.processes = {};
         this.processStatuses = {};
+        this.processChunkCounts = {};
         this.poses = {};
         this.isRecording = {}; // boolean for each deviceId
         this.anythingReceived = {}; // boolean for each deviceId
@@ -290,16 +292,26 @@ class VideoServer {
         }
 
         if (typeof this.persistentInfo[deviceId] === 'undefined') {
-            this.persistentInfo[deviceId] = {}
+            this.persistentInfo[deviceId] = {};
         }
         if (typeof this.persistentInfo[deviceId][this.sessionId] === 'undefined') {
             this.persistentInfo[deviceId][this.sessionId] = {};
         }
 
+        if (typeof this.processChunkCounts[deviceId] === 'undefined') {
+            this.processChunkCounts[deviceId] = {};
+        }
+        if (typeof this.processChunkCounts[deviceId][this.sessionId] === 'undefined') {
+            this.processChunkCounts[deviceId][this.sessionId] = 0;
+        }
+
+        let index = this.processChunkCounts[deviceId][this.sessionId];
+
         // start color stream process
         // depth images are 1920x1080 lossy JPG images
         let chunkTimestamp = Date.now();
-        let colorOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'color', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.' + this.COLOR_FILETYPE);
+        let colorFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.COLOR_FILETYPE;
+        let colorOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'color', colorFilename);
         this.processes[deviceId][this.PROCESS.COLOR] = this.ffmpeg_image2mp4(colorOutputPath, 10, 'mjpeg', 1920, 1080, 25, 0.5);
         if (this.processes[deviceId][this.PROCESS.COLOR]) {
             this.processStatuses[deviceId][this.PROCESS.COLOR] = this.STATUS.STARTED;
@@ -307,10 +319,10 @@ class VideoServer {
 
         // start depth stream process
         // depth images are 256x144 lossless PNG buffers
-        let depthOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth', 'chunk_' + this.sessionId + '_' + chunkTimestamp + '.' + this.DEPTH_FILETYPE);
+        let depthFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.DEPTH_FILETYPE;
+        let depthOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth', depthFilename);
         this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 13, 1);
         // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144); // this version isn't working as reliably
-
         // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
         if (this.processes[deviceId][this.PROCESS.DEPTH]) {
             this.processStatuses[deviceId][this.PROCESS.DEPTH] = this.STATUS.STARTED;
@@ -327,14 +339,20 @@ class VideoServer {
         this.processStatuses[deviceId][this.PROCESS.POSE] = this.STATUS.STARTED;
         this.poses[deviceId] = [];
 
-        setTimeout(function() {
+        // process data and restart every 15 seconds (unless socket disconnected, just process data and stop)
+        setTimeout(() => {
             this.stopRecording(deviceId);
-            setTimeout(function() {
-                this.startRecording(deviceId);
-            }.bind(this), 100);
-        }.bind(this), this.SEGMENT_LENGTH);
+            if (this.processStatuses[deviceId][this.PROCESS.COLOR] !== this.STATUS.DISCONNECTED) {
+                setTimeout(() => {
+                    this.processChunkCounts[deviceId][this.sessionId] += 1;
+                    this.startRecording(deviceId);
+                }, 10);
+            }
+        }, this.SEGMENT_LENGTH);
     }
     stopRecording(deviceId) {
+        console.log('stop recording: ' + deviceId);
+
         this.isRecording[deviceId] = false;
 
         let colorProcess = this.processes[deviceId][this.PROCESS.COLOR];
@@ -349,7 +367,7 @@ class VideoServer {
             colorProcess.stdin.setEncoding('utf8');
             colorProcess.stdin.write('q');
             colorProcess.stdin.end();
-            colorStatus = this.STATUS.ENDING;
+            this.processStatuses[deviceId][this.PROCESS.COLOR] = this.STATUS.ENDING;
         }
 
         if (depthProcess !== 'undefined' && depthStatus === this.STATUS.STARTED) {
@@ -357,9 +375,11 @@ class VideoServer {
             depthProcess.stdin.setEncoding('utf8');
             depthProcess.stdin.write('q');
             depthProcess.stdin.end();
-            depthStatus = this.STATUS.ENDING;
+            this.processStatuses[deviceId][this.PROCESS.DEPTH] = this.STATUS.ENDING;
 
-            let poseOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', 'chunk_' + this.sessionId + '_' + Date.now() + '.json');
+            let index = this.processChunkCounts[deviceId][this.sessionId];
+            let poseFilename = 'chunk_' + this.sessionId + '_' + index + '_' + Date.now() + '.json';
+            let poseOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', poseFilename);
             fs.writeFileSync(poseOutputPath, JSON.stringify(this.poses[deviceId]));
             this.poses[deviceId] = [];
         }
@@ -369,8 +389,24 @@ class VideoServer {
             // poseProcess.stdin.setEncoding('utf8');
             // poseProcess.stdin.write('q');
             // poseProcess.stdin.end();
-            poseStatus = this.STATUS.ENDING;
+            this.processStatuses[deviceId][this.PROCESS.POSE] = this.STATUS.ENDING;
         }
+    }
+    onConnection(deviceId) {
+        console.log('on connection: ' + deviceId);
+    }
+    onDisconnection(deviceId) {
+        console.log('on disconnection: ' + deviceId); // only happens when app closes, not when stop sending data (toggle virtualizer off)
+
+        if (this.processStatuses[deviceId][this.PROCESS.COLOR] === this.STATUS.STARTED) {
+            this.stopRecording(deviceId);
+        }
+
+        this.processStatuses[deviceId][this.PROCESS.COLOR] = this.STATUS.DISCONNECTED;
+        this.processStatuses[deviceId][this.PROCESS.DEPTH] = this.STATUS.DISCONNECTED;
+        this.processStatuses[deviceId][this.PROCESS.POSE] = this.STATUS.DISCONNECTED;
+
+        this.anythingReceived[deviceId] = false; // reset this device so if it gets turned on again it'll restart
     }
     onFrame(rgb, depth, pose, deviceId) {
         if (!this.anythingReceived[deviceId]) {
