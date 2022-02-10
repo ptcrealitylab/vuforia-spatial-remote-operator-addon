@@ -41,7 +41,7 @@ class VideoServer {
         this.poses = {};
         this.isRecording = {}; // boolean for each deviceId
         this.anythingReceived = {}; // boolean for each deviceId
-        this.sessionId = this.uuidTimeShort(); // each time the server restarts, tag videos from this instance with a unique ID
+        this.sessionIds = {}; // each time a device connects, it will tag its videos with a uuidTimeShort random ID stored here
 
         this.COLOR_FILETYPE = 'mp4';
         this.DEPTH_FILETYPE = 'mp4';
@@ -275,6 +275,8 @@ class VideoServer {
         return filename;
     }
     startRecording(deviceId) {
+        const sessionId = this.sessionIds[deviceId];
+
         this.isRecording[deviceId] = true;
         this.processes[deviceId] = {};
         this.processStatuses[deviceId] = {};
@@ -294,23 +296,23 @@ class VideoServer {
         if (typeof this.persistentInfo[deviceId] === 'undefined') {
             this.persistentInfo[deviceId] = {};
         }
-        if (typeof this.persistentInfo[deviceId][this.sessionId] === 'undefined') {
-            this.persistentInfo[deviceId][this.sessionId] = {};
+        if (typeof this.persistentInfo[deviceId][sessionId] === 'undefined') {
+            this.persistentInfo[deviceId][sessionId] = {};
         }
 
         if (typeof this.processChunkCounts[deviceId] === 'undefined') {
             this.processChunkCounts[deviceId] = {};
         }
-        if (typeof this.processChunkCounts[deviceId][this.sessionId] === 'undefined') {
-            this.processChunkCounts[deviceId][this.sessionId] = 0;
+        if (typeof this.processChunkCounts[deviceId][sessionId] === 'undefined') {
+            this.processChunkCounts[deviceId][sessionId] = 0;
         }
 
-        let index = this.processChunkCounts[deviceId][this.sessionId];
+        let index = this.processChunkCounts[deviceId][sessionId];
 
         // start color stream process
         // depth images are 1920x1080 lossy JPG images
         let chunkTimestamp = Date.now();
-        let colorFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.COLOR_FILETYPE;
+        let colorFilename = 'chunk_' + sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.COLOR_FILETYPE;
         let colorOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'color', colorFilename);
         this.processes[deviceId][this.PROCESS.COLOR] = this.ffmpeg_image2mp4(colorOutputPath, 10, 'mjpeg', 1920, 1080, 25, 0.5);
         if (this.processes[deviceId][this.PROCESS.COLOR]) {
@@ -319,7 +321,7 @@ class VideoServer {
 
         // start depth stream process
         // depth images are 256x144 lossless PNG buffers
-        let depthFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.DEPTH_FILETYPE;
+        let depthFilename = 'chunk_' + sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.DEPTH_FILETYPE;
         let depthOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth', depthFilename);
         this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 13, 1);
         // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144); // this version isn't working as reliably
@@ -344,13 +346,15 @@ class VideoServer {
             this.stopRecording(deviceId);
             if (this.processStatuses[deviceId][this.PROCESS.COLOR] !== this.STATUS.DISCONNECTED) {
                 setTimeout(() => {
-                    this.processChunkCounts[deviceId][this.sessionId] += 1;
+                    this.processChunkCounts[deviceId][sessionId] += 1;
                     this.startRecording(deviceId);
                 }, 10);
             }
         }, this.SEGMENT_LENGTH);
     }
     stopRecording(deviceId) {
+        const sessionId = this.sessionIds[deviceId];
+
         console.log('stop recording: ' + deviceId);
 
         this.isRecording[deviceId] = false;
@@ -377,8 +381,8 @@ class VideoServer {
             depthProcess.stdin.end();
             this.processStatuses[deviceId][this.PROCESS.DEPTH] = this.STATUS.ENDING;
 
-            let index = this.processChunkCounts[deviceId][this.sessionId];
-            let poseFilename = 'chunk_' + this.sessionId + '_' + index + '_' + Date.now() + '.json';
+            let index = this.processChunkCounts[deviceId][sessionId];
+            let poseFilename = 'chunk_' + sessionId + '_' + index + '_' + Date.now() + '.json';
             let poseOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'pose', poseFilename);
             fs.writeFileSync(poseOutputPath, JSON.stringify(this.poses[deviceId]));
             this.poses[deviceId] = [];
@@ -410,6 +414,7 @@ class VideoServer {
     }
     onFrame(rgb, depth, pose, deviceId) {
         if (!this.anythingReceived[deviceId]) {
+            this.sessionIds[deviceId] = this.uuidTimeShort();
             this.startRecording(deviceId); // start recording the first time it receives a data packet
             this.anythingReceived[deviceId] = true;
         }
