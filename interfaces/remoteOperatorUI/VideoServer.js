@@ -197,11 +197,30 @@ class VideoServer {
             return;
         }
 
+        let tmpFiles = [];
+        if (fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
+            tmpFiles = fs.readdirSync(path.join(this.outputPath, deviceId, 'tmp'));
+            console.log(tmpFiles);
+        }
+
         let sessions = this.persistentInfo[deviceId];
         Object.keys(sessions).forEach(sessionId => {
             let s = sessions[sessionId];
             if (s.color && s.depth && s.pose) { return; }
             if (s.processed_chunks && s.processed_chunks.length > 0) {
+                let matchingFiles = tmpFiles.filter(filename => { return filename.includes(sessionId + '_done'); });
+                let tmpFilename = matchingFiles.length > 0 ? matchingFiles[0] : null;
+                if (tmpFilename) {
+                    let numberOfChunks = parseInt(tmpFilename.match(/_\d+.json/)[0].match(/\d+/)[0]) + 1;
+                    console.log(deviceId + ':' + sessionId + ' should have ' + numberOfChunks + ' chunks');
+                    if (s.processed_chunks.length !== numberOfChunks && s.unprocessed_chunks.length === numberOfChunks) {
+                        console.log('there are some unprocessed chunks not present in the processed chunks', s.processed_chunks.length, s.unprocessed_chunks.length);
+                        return; // skip concatenating this session
+                    }
+                }
+
+                console.log('time to concatenate!');
+
                 if (!s.color) { s.color = this.concatFiles(deviceId, sessionId, 'color', s.processed_chunks); }
                 if (!s.depth) { s.depth = this.concatFiles(deviceId, sessionId, 'depth', s.processed_chunks); }
                 if (!s.pose) { s.pose = this.concatPosesIfNeeded(deviceId, sessionId); }
@@ -411,6 +430,27 @@ class VideoServer {
         this.processStatuses[deviceId][this.PROCESS.POSE] = this.STATUS.DISCONNECTED;
 
         this.anythingReceived[deviceId] = false; // reset this device so if it gets turned on again it'll restart
+
+        let sessionId = this.sessionIds[deviceId];
+
+        setTimeout(() => { // wait for final video to finish processing
+            if (!fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
+                fs.mkdirSync(path.join(this.outputPath, deviceId, 'tmp'));
+            }
+            let tmpOutputPath = path.join(this.outputPath, deviceId, 'tmp', sessionId + '_done_' + this.processChunkCounts[deviceId][sessionId] + '.json');
+            fs.writeFileSync(tmpOutputPath, JSON.stringify({ success: true}));
+
+            // process chunks
+            this.evaluateAndRescaleVideosIfNeeded(deviceId, this.RESCALE_VIDEOS);
+
+            // try concatenating after a longer delay. if not all chunks have finished processing by then, ...
+            // ... the chunk count won't match up and it will skip concatenating for now
+            setTimeout(() => {
+                console.log('try to concat rescaled videos upon disconnect');
+                this.persistentInfo = this.buildPersistentInfo(); // recompile persistent info so session metadata contains new chunks
+                this.concatExisting(deviceId);
+            }, 1000 * this.processChunkCounts[deviceId][sessionId]); // delay 1 second per chunk we need to process, should give plenty of time
+        }, 5000);
     }
     onFrame(rgb, depth, pose, deviceId) {
         if (!this.anythingReceived[deviceId]) {
