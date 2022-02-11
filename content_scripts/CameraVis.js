@@ -504,10 +504,11 @@ void main() {
             return this.touchEventCatcher;
         }
 
-        // hit test threeJsScene to see if we hit any of the anchor threeJsGroups
-        // if we are, keep track of it so we can move it on pointermove. also give visual feedback
         onPointerDown(e) {
-            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY);
+            let objectsToCheck = Object.values(this.cameras).map(cameraVis => {
+                return cameraVis.phone;
+            });
+            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY, objectsToCheck);
 
             intersects.forEach((intersect) => {
                 if (intersect.object.name !== 'cameraVisCamera') {
