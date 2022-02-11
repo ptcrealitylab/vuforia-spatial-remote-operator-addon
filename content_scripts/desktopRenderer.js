@@ -8,6 +8,8 @@
 
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
  * For remote desktop operation: renders background graphics simulating the context streamed from a connected phone.
@@ -45,7 +47,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let isGlbLoaded = false;
 
     let gltf = null;
-    let staticModelMode = false;
+    let trueMaterial = null;
+    let staticModelMode = true;
 
     let videoPlayback = null;
 
@@ -166,10 +169,12 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             if (params.event.code === 'KeyT' && gltf) {
                 staticModelMode = !staticModelMode;
                 if (staticModelMode) {
-                    gltf.visible = true;
+                    showGltf();
+                    // gltf.visible = true;
                     console.log('show gtlf');
                 } else {
-                    gltf.visible = false;
+                    hideGltf();
+                    // gltf.visible = false;
                     console.log('hide gltf');
                 }
             }
@@ -178,6 +183,39 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 videoPlayback.handleKeyUp(params.event.code);
             }
         });
+    }
+
+    function showGltf() {
+        if (!gltf) { return; }
+        if (!trueMaterial) { return; }
+
+        if (gltf.children[0].geometry) {
+            gltf.children[0].material = trueMaterial;
+        } else {
+            gltf.children[0].children.forEach(child => {
+                child.material = trueMaterial;
+            });
+        }
+    }
+
+    function hideGltf() {
+        if (!gltf) { return; }
+
+        const meshMaterial = new THREE.MeshBasicMaterial( {
+            color: 0x888888,
+            transparent: true,
+            opacity: 0.3,
+            depthWrite: false,
+        });
+        if (gltf.children[0].geometry) {
+            trueMaterial = gltf.children[0].material;
+            gltf.children[0].material = meshMaterial;
+        } else {
+            gltf.children[0].children.forEach(child => {
+                trueMaterial = gltf.children[0].material;
+                child.material = meshMaterial;
+            });
+        }
     }
 
     /**
