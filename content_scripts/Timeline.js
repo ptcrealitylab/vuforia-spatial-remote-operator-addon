@@ -1,6 +1,14 @@
 createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
+    /**
+     * The Timeline is a fairly complex class that creates and renders the UI for a timeline with playback controls.
+     * It is designed to handle a source that provides both color and depth information as separate videos.
+     * If provided trackInfo from a VideoSource, calling timeline.load(trackInfo) will populate the timeline with a number
+     * of "tracks" and "segments". Each track represents a different device, and each segment is a single video from that device.
+     * When scrolling or playing, the timeline will play all videos invisibly, and trigger the onVideoFrame callback for each
+     * so that an external module can do something with the color and depth videos.
+     */
     class Timeline {
         constructor() {
             this.playheadTimestamp = Date.now();
@@ -44,19 +52,6 @@ createNameSpace('realityEditor.videoPlayback');
 
             this.playLoop(); // only after DOM is built can we start the loop
         }
-        // addPlaybackListeners() {
-        //     // TODO: how to handle video preview of multiple parallel tracks?
-        //     this.colorVideoPreview.addEventListener('timeupdate', () => {
-        //         let selectedSegments = this.getSelectedSegments();
-        //         selectedSegments.forEach(selected => {
-        //             // trigger the external callbacks for each video
-        //             this.callbacks.onVideoFrame.forEach(callback => {
-        //                 // TODO: associate a different video element with each track
-        //                 callback(this.colorVideoPreview, this.depthVideoPreview, selected.deviceId, selected.segmentId);
-        //             });
-        //         });
-        //     });
-        // }
         getSelectedSegments() {
             // key = deviceId, value = segmentId
             return Object.keys(this.selectedSegments).map(function(deviceId) {
