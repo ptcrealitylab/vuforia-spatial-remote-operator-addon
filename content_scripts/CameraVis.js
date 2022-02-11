@@ -3,7 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
-    const debug = true;
+    const debug = false;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;

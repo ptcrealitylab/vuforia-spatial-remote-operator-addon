@@ -401,7 +401,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
                 if (!threejsObject && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
                     const THREE = realityEditor.gui.threejsScene.THREE;
-                    threejsObject = new THREE.Mesh(new THREE.BoxGeometry(50,50,50), new THREE.MeshBasicMaterial({color:0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
+                    threejsObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({ color: 0x00ffff })); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
                     threejsObject.name = 'cameraTargetElement';
                     threejsObject.matrixAutoUpdate = false;
                     threejsObject.visible = false;

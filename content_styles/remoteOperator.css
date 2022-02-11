@@ -81,22 +81,22 @@ body > * {
     left: 0;
     top: 0;
     width: 120px;
-    height: 180px;
+    height: 100%;
 }
 
 #timelineTrackBox {
     position: absolute;
     left: calc(120px + 4px);
     top: 0;
-    width: calc(100vw - 2 * 20px - 120px - 60px - 2 * 4px);
-    height: 180px;
+    width: calc(100% - 120px - 60px - 2 * 4px);
+    height: 100%;
 }
 
 #timelinePlayhead {
     position: absolute;
     left: 10px;
     top: calc(-20px + 4px);
-    height: 200px;
+    height: calc(100% + 20px);
     width: 20px;
     cursor: pointer;
 }
@@ -123,9 +123,11 @@ body > * {
 #timelineTimestampDisplay {
     position: absolute;
     left: 0;
-    top: 0;
+    top: 10px;
     width: 100%;
+    text-align: center;
     height: 48px;
+    color: rgb(155,255,255);
 }
 
 /*.timelineVideoPreviewHidden {*/
@@ -197,10 +199,10 @@ body > * {
 
 #timelineControlsBox {
     position: absolute;
-    left: calc(100vw - 2 * 20px - 60px);
+    left: calc(100% - 60px);
     top: 0;
     width: 60px;
-    height: 180px;
+    height: 100%;
 }
 
 .timelineControlButton {
@@ -219,14 +221,15 @@ body > * {
     top: 5px;
 }
 
-#timelineSeekButton {
-    left: 5px;
-    top: calc(2 * 5px + (60px - 2 * 5px));
-}
+/*#timelineSeekButton {*/
+/*    left: 5px;*/
+/*    top: calc(2 * 5px + (60px - 2 * 5px));*/
+/*}*/
 
 #timelineSpeedButton {
     left: 5px;
-    top: calc(3 * 5px + 2 * (60px - 2 * 5px));
+    top: calc(2 * 5px + (60px - 2 * 5px));
+    /*top: calc(3 * 5px + 2 * (60px - 2 * 5px));*/
 }
 
 .hiddenTimeline {

@@ -12,6 +12,7 @@ createNameSpace('realityEditor.videoPlayback');
     class Timeline {
         constructor() {
             this.playheadTimestamp = Date.now();
+            this.MAX_SPEED = 256;
             this.playbackSpeed = 1;
             this.isPlaying = false;
             this.callbacks = {
@@ -27,6 +28,11 @@ createNameSpace('realityEditor.videoPlayback');
             this.videoElements = {};
 
             this.buildHTMLElements();
+
+            window.addEventListener('resize', () => {
+                this.onWindowResized()
+            });
+            this.onWindowResized();
         }
         loadTracks(trackInfo) {
             this.trackInfo = trackInfo;
@@ -80,6 +86,27 @@ createNameSpace('realityEditor.videoPlayback');
 
             videoPreviewContainer.appendChild(colorPreviewContainer);
             videoPreviewContainer.appendChild(depthPreviewContainer);
+        }
+        onWindowResized() {
+            let timelineContainer = document.getElementById('timelineContainer');
+
+            let maxWidth = window.innerWidth - 40;
+            let minWidth = (window.innerWidth * 0.7) - 40;
+            let maxHeight = 180;
+            let minHeight = 115; //derived from control button heights: 3 * 5 + 2 * (60 - 2 * 5);
+
+            // as window aspect ratio changes, scale timeline (centered horizontally on bottom of screen)
+            let windowAspect = window.innerWidth / window.innerHeight;
+            let excessRatio = Math.min(1, Math.max(0, windowAspect - 1.5));
+
+            // if excess is 0, maxWidth. if excess is 1, minWidth.
+            let newWidth = maxWidth - excessRatio * (maxWidth - minWidth);
+            let newHeight = maxHeight - excessRatio * (maxHeight - minHeight);
+
+            timelineContainer.style.width = newWidth + 'px';
+            timelineContainer.style.left = 0.5 * (window.innerWidth - newWidth) + 'px';
+            timelineContainer.style.height = newHeight + 'px';
+            timelineContainer.style.top = window.innerHeight - newHeight - 20 + 'px';
         }
         getVideoElement(trackId, colorOrDepth) {
             if (colorOrDepth !== 'color' && colorOrDepth !== 'depth') { console.warn('passing invalid colorOrDepth to getVideoElement', colorOrDepth); }
@@ -146,19 +173,19 @@ createNameSpace('realityEditor.videoPlayback');
             playButton.id = 'timelinePlayButton';
             playButton.src = '/addons/vuforia-spatial-remote-operator-addon/playButton.svg';
 
-            let seekButton = document.createElement('img');
-            seekButton.id = 'timelineSeekButton';
-            seekButton.src = '/addons/vuforia-spatial-remote-operator-addon/seekButton.svg';
+            // let seekButton = document.createElement('img');
+            // seekButton.id = 'timelineSeekButton';
+            // seekButton.src = '/addons/vuforia-spatial-remote-operator-addon/seekButton.svg';
 
             let speedButton = document.createElement('img');
             speedButton.id = 'timelineSpeedButton';
             speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_1x.svg';
 
-            [playButton, seekButton, speedButton].forEach(elt => {
+            [playButton, /*seekButton,*/ speedButton].forEach(elt => {
                 elt.classList.add('timelineControlButton');
                 rightBox.appendChild(elt);
             });
-            this.setupControlButtons(playButton, seekButton, speedButton);
+            this.setupControlButtons(playButton, /*seekButton,*/ speedButton);
 
             return container;
         }
@@ -445,7 +472,7 @@ createNameSpace('realityEditor.videoPlayback');
             let textfield = document.getElementById('timelineTimestampDisplay');
             textfield.innerText = this.getFormattedTime(relativeTime);
         }
-        setupControlButtons(playButton, seekButton, speedButton) {
+        setupControlButtons(playButton, /*seekButton,*/ speedButton) {
             playButton.addEventListener('pointerup', _e => {
                 this.togglePlayback();
             });
@@ -682,10 +709,10 @@ createNameSpace('realityEditor.videoPlayback');
         }
         multiplySpeed(factor = 2, allowLoop = true) {
             this.playbackSpeed *= factor;
-            if (this.playbackSpeed > 64) {
-                this.playbackSpeed = allowLoop ? 1 : 64;
+            if (this.playbackSpeed > this.MAX_SPEED) {
+                this.playbackSpeed = allowLoop ? 1 : this.MAX_SPEED;
             } else if (this.playbackSpeed < 1) {
-                this.playbackSpeed = allowLoop ? 64 : 1;
+                this.playbackSpeed = allowLoop ? this.MAX_SPEED : 1;
             }
 
             let speedButton = document.getElementById('timelineSpeedButton');
