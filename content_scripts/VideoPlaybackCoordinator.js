@@ -5,6 +5,7 @@ createNameSpace('realityEditor.videoPlayback');
         constructor() {
             this.displayPointClouds = true;
             this.canvasElements = {};
+            this.timelineVisibile = true;
         }
         load() {
             this.timeline = new realityEditor.videoPlayback.Timeline();
@@ -48,6 +49,17 @@ createNameSpace('realityEditor.videoPlayback');
                     this.hidePointCloud(cameraId);
                 }
             });
+
+            this.timelineVisibilityButton = document.createElement('img');
+            this.timelineVisibilityButton.id = 'timelineVisibilityButton';
+            this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/showTimelineButton.svg';
+            document.body.appendChild(this.timelineVisibilityButton);
+            this.timelineVisibilityButton.addEventListener('pointerup', _ev => {
+                this.toggleVisibility();
+            });
+            this.toggleVisibility(); // default to hidden
+
+            // hide timeline visibility toggle if there are no recorded clips
         }
         processPointCloud(deviceId, colorImageUrl, depthImageUrl, poseMatrix) {
             if (!this.displayPointClouds) {
@@ -92,7 +104,17 @@ createNameSpace('realityEditor.videoPlayback');
             this.displayPointClouds = !this.displayPointClouds;
         }
         toggleVisibility() {
-            this.timeline.toggleVisibility();
+            if (this.timelineVisibile) {
+                this.timelineVisibile = false;
+                this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/showTimelineButton.svg';
+                this.timelineVisibilityButton.classList.remove('timelineVisibilityButtonOpen');
+            } else {
+                this.timelineVisibile = true;
+                this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/hideTimelineButton.svg';
+                this.timelineVisibilityButton.classList.add('timelineVisibilityButtonOpen');
+            }
+
+            this.timeline.toggleVisibility(this.timelineVisibile);
         }
         handleKeyUp(code) {
             if (code === 'KeyY') {

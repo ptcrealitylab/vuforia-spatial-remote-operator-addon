@@ -486,7 +486,7 @@ createNameSpace('realityEditor.videoPlayback');
             video.id = id;
             video.classList.add('videoPreview');
             video.setAttribute('width', '256');
-            video.setAttribute('controls', 'controls'); // TODO: remove this after done debugging
+            // video.setAttribute('controls', 'controls');
             video.setAttribute('muted', 'muted');
             let source = document.createElement('source');
             video.appendChild(source);
@@ -700,8 +700,17 @@ createNameSpace('realityEditor.videoPlayback');
                 this.playVideoPlayback();
             }
         }
-        toggleVisibility() {
-            if (this.timelineContainer.classList.contains('hiddenTimeline')) {
+        toggleVisibility(isNowVisible) {
+            if (typeof isNowVisible === 'undefined') { // toggle if no value provided
+                if (this.timelineContainer.classList.contains('hiddenTimeline')) {
+                    this.timelineContainer.classList.remove('hiddenTimeline');
+                } else {
+                    this.timelineContainer.classList.add('hiddenTimeline');
+                }
+                return;
+            }
+
+            if (isNowVisible) {
                 this.timelineContainer.classList.remove('hiddenTimeline');
             } else {
                 this.timelineContainer.classList.add('hiddenTimeline');

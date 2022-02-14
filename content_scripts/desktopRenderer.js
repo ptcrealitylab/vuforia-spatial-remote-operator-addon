@@ -133,6 +133,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         });
 
+        // TODO: I think these can be removed, the model starts out in the right orientation now
         // add sliders to calibrate rotation and translation of model
         realityEditor.gui.settings.addSlider('Calibrate Rotation', '', 'rotationCalibration',  '../../../svg/cameraRotate.svg', 0, function(newValue) {
             console.log('rotation value = ' + newValue);
@@ -143,7 +144,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         realityEditor.gui.settings.addSlider('Calibrate Z', '', 'zCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
             console.log('z value = ' + newValue);
         });
-
 
         // create background canvas and supporting canvasses
 
