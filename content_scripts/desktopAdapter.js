@@ -395,6 +395,13 @@ window.DEBUG_DISABLE_DROPDOWNS = true;
      */
     function addSocketListeners() {
 
+        realityEditor.network.realtime.addDesktopSocketMessageListener('disconnect', function(_msgContent) {
+            console.log('Desktop Server Socket Disconnected: reload page');
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        });
+
         // @deprecated
         // todo: remove
         realityEditor.network.realtime.addDesktopSocketMessageListener('/matrix/visibleObjects', function(msgContent) {
@@ -474,6 +481,10 @@ window.DEBUG_DISABLE_DROPDOWNS = true;
                 return null;
             }
         }
+
+        realityEditor.network.realtime.addDesktopSocketMessageListener('reloadScreen', function(_msgContent) {
+            window.location.reload(); // reload screen when server restarts
+        });
 
         realityEditor.network.realtime.addDesktopSocketMessageListener('udpMessage', function(msgContent) {
 
