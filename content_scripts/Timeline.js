@@ -30,7 +30,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.buildHTMLElements();
 
             window.addEventListener('resize', () => {
-                this.onWindowResized()
+                this.onWindowResized();
             });
             this.onWindowResized();
         }
@@ -428,14 +428,14 @@ createNameSpace('realityEditor.videoPlayback');
 
                 let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
                 if (deviceHasSelectedSegment) {
-                    this.videoElements[deviceId].color.classList.remove('timelineInnerVideoNoSource');
-                    this.videoElements[deviceId].depth.classList.remove('timelineInnerVideoNoSource');
+                    this.getVideoElement(deviceId, 'color').classList.remove('timelineInnerVideoNoSource');
+                    this.getVideoElement(deviceId, 'depth').classList.remove('timelineInnerVideoNoSource');
                     if (this.selectedTrack === deviceId) {
                         videoPreviewContainer.classList.remove('timelineVideoPreviewNoSource');
                     }
                 } else {
-                    this.videoElements[deviceId].color.classList.add('timelineInnerVideoNoSource');
-                    this.videoElements[deviceId].depth.classList.add('timelineInnerVideoNoSource');
+                    this.getVideoElement(deviceId, 'color').classList.add('timelineInnerVideoNoSource');
+                    this.getVideoElement(deviceId, 'depth').classList.add('timelineInnerVideoNoSource');
                     if (this.selectedTrack === deviceId) {
                         videoPreviewContainer.classList.add('timelineVideoPreviewNoSource');
                     }

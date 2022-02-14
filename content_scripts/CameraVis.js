@@ -507,6 +507,8 @@ void main() {
                 this.cameras[id].loading['texture'] = false;
                 // window.latencies[textureKey].push(end - start);
                 URL.revokeObjectURL(textureUrl);
+
+                this.cameras[id].lastUpdate = Date.now();
             };
             textureImage.onerror = (e) => {
                 console.error(e);
