@@ -350,7 +350,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         segmentSelected(deviceId, segmentId, trackInfo, segment) {
             this.callbacks.onSegmentSelected.forEach(callback => {
-                callback(); // TODO: do we need this? if so, pass in deviceId and segmentId too
+                callback(deviceId, segmentId); // TODO: do we need this? if so, pass in deviceId and segmentId too
             });
 
             ['color', 'depth'].forEach(colorOrDepth => {
@@ -386,8 +386,8 @@ createNameSpace('realityEditor.videoPlayback');
             let segmentElement = document.getElementById(this.getSegmentElementId(deviceId, segmentId));
             segmentElement.classList.remove('timelineSegmentPlaying');
 
-            this.callbacks.onSegmentSelected.forEach(callback => {
-                callback();
+            this.callbacks.onSegmentDeselected.forEach(callback => {
+                callback(deviceId, segmentId);
             });
         }
         onTimeUpdated(deviceId, segmentId, timestamp) {

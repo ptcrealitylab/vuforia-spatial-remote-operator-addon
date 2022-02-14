@@ -37,11 +37,16 @@ createNameSpace('realityEditor.videoPlayback');
                     this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, closestPose);
                 }
             });
-            this.timeline.onSegmentSelected(() => {
+            this.timeline.onSegmentSelected((_deviceId, _segmentId) => {
                 console.log('segment selected');
             });
-            this.timeline.onSegmentDeselected(() => {
+            this.timeline.onSegmentDeselected((deviceId, _segmentId) => {
                 console.log('segment deselected');
+
+                if (typeof this.hidePointCloud !== 'undefined') {
+                    let cameraId = parseInt(deviceId.replace('device_', ''));
+                    this.hidePointCloud(cameraId);
+                }
             });
         }
         processPointCloud(deviceId, colorImageUrl, depthImageUrl, poseMatrix) {
@@ -79,6 +84,9 @@ createNameSpace('realityEditor.videoPlayback');
         }
         setPointCloudCallback(callback) {
             this.loadPointCloud = callback;
+        }
+        setHidePointCloudCallback(callback) {
+            this.hidePointCloud = callback;
         }
         togglePointClouds() {
             this.displayPointClouds = !this.displayPointClouds;

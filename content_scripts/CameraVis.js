@@ -539,12 +539,24 @@ void main() {
             // const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
             this.cameras[id].update(matrix);
 
-            let now = performance.now();
-            for (let camera of Object.values(this.cameras)) {
-                if (now - camera.lastUpdate > 2000) {
-                    camera.mesh.visible = false;
-                }
+            this.cameras[id].mesh.visible = true;
+
+            // let now = performance.now();
+            // for (let camera of Object.values(this.cameras)) {
+            //     if (now - camera.lastUpdate > 2000) {
+            //         camera.mesh.visible = false;
+            //     } else if (!camera.mesh.visible) {
+            //         camera.mesh.visible = true;
+            //     }
+            // }
+        }
+
+        hidePointCloud(id) {
+            if (!this.cameras[id]) {
+                console.log('No need to hide camera ' + id + ', it hasn\'t been created yet.');
             }
+            let camera = this.cameras[id];
+            camera.mesh.visible = false;
         }
 
         createCameraVis(id) {

@@ -123,6 +123,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                         videoPlayback = new realityEditor.videoPlayback.Coordinator();
                         videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
                         videoPlayback.load();
                         window.videoPlayback = videoPlayback;
                     });
