@@ -4,6 +4,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
     const debug = false;
+    const ZDEPTH = true;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -25,8 +26,10 @@ void main() {
   vUv = vec2(position.x / width, position.y / height);
 
   vec4 color = texture2D(mapDepth, vUv);
-  // float depth = (color.r + color.g / 256.0 + color.b / (256.0 * 256.0)) * 1000.0;
-
+  ${(!ZDEPTH) ? `
+  float depth = (color.r * 255.0 + color.g + color.b / 255.0) * 1000.0;
+  float z = depth - 0.05;
+  ` : `
   // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
   int r = int(color.r * 255.0);
   int g = int(color.g * 255.0);
@@ -55,11 +58,13 @@ void main() {
       ((b & (1 << 6)) << (20 - 6)) |
       ((r & (1 << 7)) << (21 - 7)) |
       ((g & (1 << 7)) << (22 - 7)) |
-      ((b & (1 << 7)) << (23 - 7)));
+      ((b & (1 << 7)) << (23 - 7))) *
+      (1000.0 / float(1 << (24 - 4)));
 
   // Projection code by @kcmic
 
-  float z = depth * (1000.0 / float(1 << (24 - 4))); // * 256.0 - 0.05; // Not exactly sure why it's this
+  float z = depth - 0.05;
+  `}
 
   vec4 pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
@@ -67,7 +72,7 @@ void main() {
     -z,
     1.0);
 
-  gl_PointSize = pointSizeBase + pointSize * z * depthScale;
+  gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
   gl_Position = projectionMatrix * modelViewMatrix * pos;
 }`;
 
@@ -259,8 +264,8 @@ void main() {
                     mapDepth: {value: this.textureDepth},
                     width: {value: width},
                     height: {value: height},
-                    depthScale: {value: 32 / (256 * 256)}, // roughly 256 / 1920
-                    pointSize: { value: 2 },
+                    depthScale: {value: 0.15 / 256}, // roughly 1 / 1920
+                    pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
                 fragmentShader,
