@@ -4,6 +4,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import { MeshBVH } from './three-mesh-bvh.module.js';
 
 (function(exports) {
+    const ZDEPTH = true;
+
     class OctTree {
         constructor({minX, maxX, minY, maxY, minZ, maxZ}) {
             this.minX = minX;
@@ -270,7 +272,7 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                     let z = minZ + res * (zi + 0.5);
                     for (let yi = 0; yi < subdivs; yi++) {
                         let y = minY + res * (yi + 0.5);
-                        if (this.doRaycast(x, y, z, res)) {
+                        if (this.doRaycastBox(x, y, z, res)) {
                             // let box = new THREE.Mesh(this.baseGeo, this.baseMat);
                             // box.position.set(x * 1000, y * 1000, z * 1000);
                             // box.scale.set(res / this.res, res / this.res, res / this.res);
@@ -303,7 +305,7 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
             return oct;
         }
 
-        doRaycast(x, y, z, res) {
+        doRaycastBox(x, y, z, res) {
             let box = new THREE.Box3();
             box.min.set(
                 x - res / 2,
@@ -344,7 +346,37 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                     let r = imageData[4 * (width * y + x) + 0];
                     let g = imageData[4 * (width * y + x) + 1];
                     let b = imageData[4 * (width * y + x) + 2];
-                    const depth = (r + g / 256.0 + b / (256.0 * 256.0)) * 1000.0;
+
+                    let depth;
+                    if (ZDEPTH) {
+                        depth = ((r & 1) |
+                            ((g & 1) << 1) |
+                            ((b & 1) << 2) |
+                            ((r & (1 << 1)) << (3 - 1)) |
+                            ((g & (1 << 1)) << (4 - 1)) |
+                            ((b & (1 << 1)) << (5 - 1)) |
+                            ((r & (1 << 2)) << (6 - 2)) |
+                            ((g & (1 << 2)) << (7 - 2)) |
+                            ((b & (1 << 2)) << (8 - 2)) |
+                            ((r & (1 << 3)) << (9 - 3)) |
+                            ((g & (1 << 3)) << (10 - 3)) |
+                            ((b & (1 << 3)) << (11 - 3)) |
+                            ((r & (1 << 4)) << (12 - 4)) |
+                            ((g & (1 << 4)) << (13 - 4)) |
+                            ((b & (1 << 4)) << (14 - 4)) |
+                            ((r & (1 << 5)) << (15 - 5)) |
+                            ((g & (1 << 5)) << (16 - 5)) |
+                            ((b & (1 << 5)) << (17 - 5)) |
+                            ((r & (1 << 6)) << (18 - 6)) |
+                            ((g & (1 << 6)) << (19 - 6)) |
+                            ((b & (1 << 6)) << (20 - 6)) |
+                            ((r & (1 << 7)) << (21 - 7)) |
+                            ((g & (1 << 7)) << (22 - 7)) |
+                            ((b & (1 << 7)) << (23 - 7))) * 1000 / (1 << 24 - 4);
+                    } else {
+                        depth = (r + g / 256.0 + b / (256.0 * 256.0)) * 1000.0;
+                    }
+
                     const z = depth - 0.01;
                     ray.x = -(x / width - 0.5) * z * XtoZ;
                     ray.y = -(y / height - 0.5) * z * YtoZ;
@@ -363,7 +395,7 @@ import { MeshBVH } from './three-mesh-bvh.module.js';
                     box.position.y = (Math.floor(box.position.y / bigRes) + 0.5) * bigRes;
                     box.position.z = (Math.floor(box.position.z / bigRes) + 0.5) * bigRes;
                     box.rotation.set(0, 0, 0);
-                    let known = this.doRaycast(
+                    let known = this.doRaycastBox(
                         box.position.x / 1000,
                         box.position.y / 1000,
                         box.position.z / 1000,
