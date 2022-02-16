@@ -102,8 +102,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         gltf.name = 'areaTargetMesh';
                         realityEditor.device.meshLine.inject();
 
-                        // let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
-                        // cameraVisCoordinator.connect();
+                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
+                        cameraVisCoordinator.connect();
 
                         let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
