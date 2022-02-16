@@ -298,9 +298,12 @@ void main() {
         }
 
         connectWsToMatrix(url) {
-            const ws = new WebSocket(url);
+            const ws = realityEditor.cloud.socket;
 
-            ws.addEventListener('message', async (msg) => {
+            ws.on('message', async (msg) => {
+                console.log('got....something', msg);
+                return;
+
                 const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                 const id = bytes[0];
                 // const pktType = bytes[1];
@@ -324,10 +327,14 @@ void main() {
         }
 
         connect() {
+            return;
             const connectWsToTexture = (url, textureKey, mimetype) => {
-                const ws = new WebSocket(url);
+                const ws = realityEditor.cloud.socket;
 
-                ws.addEventListener('message', async (msg) => {
+                ws.on('message', async (msg) => {
+                    console.log('got....something', msg);
+                    return;
+
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
                     if (!this.cameras[id]) {
