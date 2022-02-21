@@ -346,13 +346,13 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (threejsObject) {
             threejsObject.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
         }
-        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-cloud-edition/cameraPan.svg');
     }
     function rotateToggled() {
         if (threejsObject) {
             threejsObject.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
         }
-        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-cloud-edition/cameraRotate.svg');
     }
     function scaleToggled() {
         if (threejsObject) {
@@ -361,7 +361,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (!threejsObject.visible) {
             updateInteractionCursor(false);
         }
-        // updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
+        // updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-cloud-edition/cameraZoom.svg');
     }
     function updateInteractionCursor(visible, imageSrc) {
         interactionCursor.style.display = visible ? 'inline' : 'none';
