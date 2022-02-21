@@ -31,6 +31,7 @@ createNameSpace('realityEditor.device');
                 M: 77,
                 N: 78,
                 O: 79,
+                P: 80,
                 SHIFT: 16,
                 ALT: 18,
             });

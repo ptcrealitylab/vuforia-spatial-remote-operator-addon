@@ -183,7 +183,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         keyboard = new realityEditor.device.KeyboardListener();
 
-        if (DEBUG_DISABLE_DROPDOWNS) {
+        if (window.DEBUG_DISABLE_DROPDOWNS) {
             if (objectDropdown) {
                 if (objectDropdown.dom.style.display !== 'none') {
                     objectDropdown.dom.style.display = 'none';

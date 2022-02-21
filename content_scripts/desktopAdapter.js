@@ -13,7 +13,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
  * If the editor frontend is loaded on a desktop browser, re-maps some native functions, adjusts some CSS, and
  * waits for a connection from a mobile editor that will stream matrices here
  */
-const DEBUG_DISABLE_DROPDOWNS = false;
+window.DEBUG_DISABLE_DROPDOWNS = false;
 
 (function(exports) {
     // Automatically connect to all discovered reality zones
@@ -146,7 +146,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
 
         // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
 
-        if (!DEBUG_DISABLE_DROPDOWNS) {
+        if (!window.DEBUG_DISABLE_DROPDOWNS) {
             realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
                 if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
 
@@ -389,7 +389,7 @@ const DEBUG_DISABLE_DROPDOWNS = false;
         // ];
         // realityEditor.gui.ar.draw.rotateX = rotateX;
 
-        DEBUG_CLIENT_NAME = 'Remote Operator';
+        window.DEBUG_CLIENT_NAME = 'Remote Operator';
     }
 
     /**
