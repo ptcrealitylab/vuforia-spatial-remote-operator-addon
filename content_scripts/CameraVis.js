@@ -4,6 +4,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
     const debug = false;
+    const ZDEPTH = true;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -25,11 +26,45 @@ void main() {
   vUv = vec2(position.x / width, position.y / height);
 
   vec4 color = texture2D(mapDepth, vUv);
-  float depth = (color.r + color.g / 256.0 + color.b / (256.0 * 256.0)) * 1000.0;
+  ${(!ZDEPTH) ? `
+  float depth = (color.r * 255.0 + color.g + color.b / 255.0) * 1000.0;
+  float z = depth - 0.05;
+  ` : `
+  // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
+  int r = int(color.r * 255.0);
+  int g = int(color.g * 255.0);
+  int b = int(color.b * 255.0);
+
+  float depth = float((r & 1) |
+      ((g & 1) << 1) |
+      ((b & 1) << 2) |
+      ((r & (1 << 1)) << (3 - 1)) |
+      ((g & (1 << 1)) << (4 - 1)) |
+      ((b & (1 << 1)) << (5 - 1)) |
+      ((r & (1 << 2)) << (6 - 2)) |
+      ((g & (1 << 2)) << (7 - 2)) |
+      ((b & (1 << 2)) << (8 - 2)) |
+      ((r & (1 << 3)) << (9 - 3)) |
+      ((g & (1 << 3)) << (10 - 3)) |
+      ((b & (1 << 3)) << (11 - 3)) |
+      ((r & (1 << 4)) << (12 - 4)) |
+      ((g & (1 << 4)) << (13 - 4)) |
+      ((b & (1 << 4)) << (14 - 4)) |
+      ((r & (1 << 5)) << (15 - 5)) |
+      ((g & (1 << 5)) << (16 - 5)) |
+      ((b & (1 << 5)) << (17 - 5)) |
+      ((r & (1 << 6)) << (18 - 6)) |
+      ((g & (1 << 6)) << (19 - 6)) |
+      ((b & (1 << 6)) << (20 - 6)) |
+      ((r & (1 << 7)) << (21 - 7)) |
+      ((g & (1 << 7)) << (22 - 7)) |
+      ((b & (1 << 7)) << (23 - 7))) *
+      (1000.0 / float(1 << (24 - 4)));
 
   // Projection code by @kcmic
 
-  float z = depth * 256.0 - 0.05; // Not exactly sure why it's this
+  float z = depth - 0.05;
+  `}
 
   vec4 pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
@@ -229,7 +264,7 @@ void main() {
                     mapDepth: {value: this.textureDepth},
                     width: {value: width},
                     height: {value: height},
-                    depthScale: {value: 0.15}, // roughly 256 / 1920
+                    depthScale: {value: 0.15 / 256}, // roughly 1 / 1920
                     pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
@@ -488,10 +523,11 @@ void main() {
             return this.touchEventCatcher;
         }
 
-        // hit test threeJsScene to see if we hit any of the anchor threeJsGroups
-        // if we are, keep track of it so we can move it on pointermove. also give visual feedback
         onPointerDown(e) {
-            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY);
+            let objectsToCheck = Object.values(this.cameras).map(cameraVis => {
+                return cameraVis.phone;
+            });
+            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY, objectsToCheck);
 
             intersects.forEach((intersect) => {
                 if (intersect.object.name !== 'cameraVisCamera') {
