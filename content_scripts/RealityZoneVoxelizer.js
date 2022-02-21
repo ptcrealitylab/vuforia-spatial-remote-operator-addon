@@ -1,7 +1,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
-import * as THREE from '../../thirdPartyCode/three/three.module.js';
-import { MeshBVH } from './three-mesh-bvh.module.js';
+// import * as THREE from '../../thirdPartyCode/three/three.module.js';
+// import { MeshBVH } from './three-mesh-bvh.module.js';
 
 (function(exports) {
     const ZDEPTH = true;
