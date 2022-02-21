@@ -300,15 +300,16 @@ void main() {
         connectWsToMatrix(url) {
             const ws = realityEditor.cloud.socket;
 
-            ws.on('message', async (msg) => {
-                console.log('got....something', msg);
-                return;
+            ws.on('message', async (route, body, cbObj, bin) => {
+                if (body.id !== 'matrix') {
+                    return;
+                }
 
-                const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
+                const bytes = bin.data.slice(0, 1);
                 const id = bytes[0];
                 // const pktType = bytes[1];
                 // if (pktType === PKT_MATRIX) {
-                const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
+                const mat = new Float32Array(bin.data.slice(1, bin.data.length));
                 // }
                 if (!this.cameras[id]) {
                     this.createCameraVis(id);
@@ -327,15 +328,21 @@ void main() {
         }
 
         connect() {
-            return;
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = realityEditor.cloud.socket;
 
-                ws.on('message', async (msg) => {
-                    console.log('got....something', msg);
-                    return;
+                ws.on('message', async (route, body, cbObj, bin) => {
+                    if (body.id === 'depth' && textureKey !== 'textureDepth') {
+                        return;
+                    }
+                    if (body.id === 'color' && textureKey !== 'texture') {
+                        return;
+                    }
+                    if (body.id === 'matrix') {
+                        return;
+                    }
 
-                    const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
+                    const bytes = new Uint8Array(bin.data.slice(0, 1));
                     const id = bytes[0];
                     if (!this.cameras[id]) {
                         this.createCameraVis(id);
@@ -349,7 +356,7 @@ void main() {
                     //   const text = await msg.data.slice(2, msg.data.length).text();
                     //   const mat = JSON.parse(text);
                     // }
-                    const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
+                    const imageBlob = new Blob([bin.data.slice(1, bin.data.length).buffer], {type: mimetype});
                     const url = URL.createObjectURL(imageBlob);
                     const image = new Image();
 
