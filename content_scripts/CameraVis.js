@@ -1,7 +1,5 @@
 createNameSpace('realityEditor.device.cameraVis');
 
-import * as THREE from '../../thirdPartyCode/three/three.module.js';
-
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
@@ -107,6 +105,8 @@ void main() {
 
     class CameraVis {
         constructor(id, floorOffset) {
+            const THREE = realityEditor.gui.threejsScene.THREE;
+
             this.id = id;
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
@@ -175,6 +175,7 @@ void main() {
          * @return {THREE.Object3D} object containing all relevant meshes
          */
         clonePatch() {
+            const THREE = realityEditor.gui.threejsScene.THREE;
             const width = 640, height = 360;
 
             let patch = this.container.clone(false);
@@ -199,6 +200,7 @@ void main() {
         }
 
         setupDebugCubes() {
+            const THREE = realityEditor.gui.threejsScene.THREE;
             let debugDepth = new THREE.MeshBasicMaterial({
                 map: this.textureDepth,
             });
@@ -245,6 +247,7 @@ void main() {
         }
 
         setupPointCloud() {
+            const THREE = realityEditor.gui.threejsScene.THREE;
             const width = 640, height = 360;
 
             this.geometry = new THREE.BufferGeometry();
@@ -294,6 +297,7 @@ void main() {
         }
 
         setTime(time) {
+            const THREE = realityEditor.gui.threejsScene.THREE;
             this.time = time;
             if (this.matrices.length === 0) {
                 return;

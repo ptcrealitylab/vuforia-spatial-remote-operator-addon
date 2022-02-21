@@ -8,8 +8,6 @@
 
 createNameSpace('realityEditor.device.multiclientUI');
 
-import * as THREE from '../../thirdPartyCode/three/three.module.js';
-
 (function(exports) {
     let allConnectedCameras = {};
     let isCameraSubscriptionActive = false;
@@ -52,6 +50,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     }
 
     function update() {
+        const THREE = realityEditor.gui.threejsScene.THREE;
         // this remote operator's camera position already gets sent in desktopCamera.js
         // here we render boxes at the location of each other camera...
 
