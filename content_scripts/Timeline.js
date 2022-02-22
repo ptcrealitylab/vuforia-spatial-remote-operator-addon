@@ -107,6 +107,11 @@ createNameSpace('realityEditor.videoPlayback');
             timelineContainer.style.left = 0.5 * (window.innerWidth - newWidth) + 'px';
             timelineContainer.style.height = newHeight + 'px';
             timelineContainer.style.top = window.innerHeight - newHeight - 20 + 'px';
+
+            // move timeline playhead back to the same spot it was at
+            if (this.trackInfo) { // skip if we haven't loaded track info into timeline yet
+                this.movePlayheadToTime(this.playheadTimestamp);
+            }
         }
         getVideoElement(trackId, colorOrDepth) {
             if (colorOrDepth !== 'color' && colorOrDepth !== 'depth') { console.warn('passing invalid colorOrDepth to getVideoElement', colorOrDepth); }
