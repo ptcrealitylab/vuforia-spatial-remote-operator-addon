@@ -120,7 +120,7 @@ createNameSpace('realityEditor.videoPlayback');
             if (code === 'KeyY') {
                 this.toggleVisibility();
             } else if (code === 'KeyU') {
-                this.togglePointClouds();
+                // this.togglePointClouds(); // this isn't really useful at the moment, but maybe in future we want again
             } else if (code === 'Space') {
                 this.timeline.togglePlayback();
             } else if (code === 'Comma') {
