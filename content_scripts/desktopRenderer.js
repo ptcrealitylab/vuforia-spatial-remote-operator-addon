@@ -143,6 +143,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)'; // render behind three.js
         backgroundCanvas.style.transformOrigin = 'top left';
         backgroundCanvas.style.position = 'absolute';
+        backgroundCanvas.style.visibility = 'hidden';
         primaryBackgroundCanvas = document.createElement('canvas');
         secondaryBackgroundCanvas = document.createElement('canvas');
 
@@ -168,6 +169,21 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 }
             }
         });
+
+        realityEditor.gui.buttons.registerCallbackForButton(
+            'logic',
+            function onLogicMode() {
+                const logicCanvas = document.getElementById('canvas');
+                logicCanvas.style.pointerEvents = 'auto';
+            }
+        );
+        realityEditor.gui.buttons.registerCallbackForButton(
+            'gui',
+            function onGuiMode() {
+                const logicCanvas = document.getElementById('canvas');
+                logicCanvas.style.pointerEvents = 'none';
+            }
+        );
     }
 
     /**
