@@ -342,7 +342,7 @@ class VideoServer {
         // depth images are 256x144 lossless PNG buffers
         let depthFilename = 'chunk_' + sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.DEPTH_FILETYPE;
         let depthOutputPath = path.join(this.outputPath, deviceId, this.DIR_NAMES.unprocessed_chunks, 'depth', depthFilename);
-        this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 13, 1);
+        this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
         // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144); // this version isn't working as reliably
         // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
         if (this.processes[deviceId][this.PROCESS.DEPTH]) {
