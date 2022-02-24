@@ -61,6 +61,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         // when a new object is detected, check if we need to create a socket connection with its server
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
             if (isGlbLoaded) { return; } // only do this for the first world object detected
+            if (object.ip === '10.10.10.10' || object.ip === '10.10.10.20') { return; }
 
             let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId();
             let criteriaMet = primaryWorldId ? (objectKey === primaryWorldId) : (object.isWorldObject || object.type === 'world' );
