@@ -13,9 +13,10 @@ uniform sampler2D mapDepth;
 uniform float width;
 uniform float height;
 uniform float depthScale;
+uniform float glPosScale;
 
 uniform float pointSize;
-const float pointSizeBase = 3.0;
+const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
 
@@ -72,8 +73,9 @@ void main() {
     -z,
     1.0);
 
-  gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
   gl_Position = projectionMatrix * modelViewMatrix * pos;
+  // gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
+  gl_PointSize = pointSizeBase + pointSize * depth * depthScale + glPosScale / gl_Position.w;
 }`;
 
     const fragmentShader = `
@@ -83,7 +85,7 @@ varying vec2 vUv;
 
 void main() {
   vec4 color = texture2D(map, vUv);
-  gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
+  gl_FragColor = vec4(color.r, color.g, color.b, 0.4);
 }`;
 
     const solidFragmentShader = `
@@ -265,6 +267,8 @@ void main() {
                     width: {value: width},
                     height: {value: height},
                     depthScale: {value: 0.15 / 256}, // roughly 1 / 1920
+                    glPosScale: {value: 20000}, // 0.15 / 256}, // roughly 1 / 1920
+                    // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
