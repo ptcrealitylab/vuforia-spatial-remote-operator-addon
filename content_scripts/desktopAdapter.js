@@ -166,8 +166,6 @@ window.DEBUG_DISABLE_DROPDOWNS = true;
                             deviceDropdown.dom.style.display = '';
                         }
                     }
-                } else if (params.event.code === 'KeyP') {
-                    realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode();
                 }
             });
         } else {
@@ -192,8 +190,11 @@ window.DEBUG_DISABLE_DROPDOWNS = true;
                     realityEditor.device.editingState.syntheticPinchInfo = {
                         startX: touchPosition.x,
                         startY: touchPosition.y
-                    }
+                    };
                 }
+            } else if (code === keyboard.keyCodes.P) {
+                console.log('Key P pressed - toggle positioning mode');
+                realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode();
             }
         });
         keyboard.onKeyUp(function(code) {
