@@ -388,11 +388,10 @@ void main() {
                     return;
                 }
 
-                const bytes = bin.data.slice(0, 1);
-                const id = bytes[0];
+                const id = bin.data[0];
                 // const pktType = bytes[1];
                 // if (pktType === PKT_MATRIX) {
-                const mat = new Float32Array(bin.data.slice(1, bin.data.length));
+                const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
                 // }
                 if (!this.cameras[id]) {
                     this.createCameraVis(id);
