@@ -10,7 +10,7 @@ body > * {
 #canvas {
     background-color: transparent;
     transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0.1, 1);
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 #interactionCursor {
@@ -29,4 +29,8 @@ body > * {
     height: 30px;
     display: none;
     opacity: 0.3;
+}
+
+#mainThreejsCanvas {
+    pointer-events: auto !important;
 }
