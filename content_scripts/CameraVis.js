@@ -372,12 +372,11 @@ void main() {
             });
 
             this.onPointerDown = this.onPointerDown.bind(this);
-            this.updatePositioningMode = this.updatePositioningMode.bind(this);
-            this.getTouchEventCatcher();
 
-            realityEditor.gui.buttons.registerCallbackForButton(
-                'setting',
-                this.updatePositioningMode);
+            let threejsCanvas = document.getElementById('mainThreejsCanvas');
+            if (threejsCanvas) {
+                threejsCanvas.addEventListener('pointerdown', this.onPointerDown);
+            }
         }
 
         connectWsToMatrix(url) {
@@ -497,35 +496,6 @@ void main() {
             this.cameras[id].add();
         }
 
-        updatePositioningMode() {
-            if (!globalStates.settingsButtonState) {
-                this.getTouchEventCatcher().style.display = '';
-                this.getTouchEventCatcher().style.pointerEvents = 'auto';
-            } else {
-                this.getTouchEventCatcher().style.display = 'none';
-                this.getTouchEventCatcher().style.pointerEvents = 'none';
-            }
-        }
-
-        // ensures there's a div on top of everything that blocks touch events from reaching the tools when we're in this mode
-        getTouchEventCatcher() {
-            if (!this.touchEventCatcher) {
-                this.touchEventCatcher = document.createElement('div');
-                this.touchEventCatcher.style.position = 'absolute';
-                this.touchEventCatcher.style.left = '0';
-                this.touchEventCatcher.style.top = '0';
-                this.touchEventCatcher.style.width = '100vw';
-                this.touchEventCatcher.style.height = '100vh';
-                let zIndex = 2900; // above scene elements, below pocket and menus
-                this.touchEventCatcher.style.zIndex = zIndex;
-                this.touchEventCatcher.style.transform = 'matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,' + zIndex + ',1)';
-                document.body.appendChild(this.touchEventCatcher);
-
-                this.touchEventCatcher.addEventListener('pointerdown', this.onPointerDown);
-            }
-            return this.touchEventCatcher;
-        }
-
         onPointerDown(e) {
             let objectsToCheck = Object.values(this.cameras).map(cameraVis => {
                 return cameraVis.phone;
@@ -545,7 +515,6 @@ void main() {
                 e.stopPropagation();
             });
         }
-
     };
 
 })(realityEditor.device.cameraVis);
