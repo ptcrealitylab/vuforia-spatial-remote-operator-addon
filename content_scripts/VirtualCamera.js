@@ -14,7 +14,7 @@ createNameSpace('realityEditor.device');
     ];
 
     class VirtualCamera {
-        constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
+        constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, initialTargetPosition, isDemoVersion) {
             if (!cameraNode) { console.warn('cameraNode is undefined!'); }
 
             this.cameraNode = cameraNode;
@@ -28,6 +28,9 @@ createNameSpace('realityEditor.device');
                 this.position = [initialPosition[0], initialPosition[1], initialPosition[2]];
             }
             this.targetPosition = [0, 0, 0];
+            if (typeof initialTargetPosition !== 'undefined') {
+                this.targetPosition = [initialTargetPosition[0], initialTargetPosition[1], initialTargetPosition[2]];
+            }
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
             this.distanceToTarget = 1;

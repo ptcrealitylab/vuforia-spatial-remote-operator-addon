@@ -6,36 +6,37 @@ const VideoServer = require('./VideoServer.js');
 const path = require('path');
 const os = require('os');
 
+const ENABLE_VIDEO_RECORDING = false;
+
 module.exports.start = function start() {
     const app = express();
 
     const objectsPath = path.join(os.homedir(), 'Documents', 'spatialToolbox');
     const identityFolderName = '.identity';
 
-    // old path: in the addon
-    // const videoServer = new VideoServer(app, path.join(__dirname, 'videos'));
-
-    // new path: in the Documents/spatialToolbox/.identity
-    const videoServer = new VideoServer(path.join(objectsPath, identityFolderName, '/virtualizer_recordings'));
-
     app.use(cors());
     expressWs(app);
     const streamRouter = makeStreamRouter(app);
 
-    // trigger events in VideoServer whenever sockets connect, disconnect, or send data
-    streamRouter.onFrame((rgb, depth, pose, deviceId) => {
-        videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId); // TODO: remove device_ from name?
-    });
-    streamRouter.onConnection((deviceId) => {
-        videoServer.onConnection('device_' + deviceId);
-    });
-    streamRouter.onDisconnection((deviceId) => {
-        videoServer.onDisconnection('device_' + deviceId);
-    });
-    streamRouter.onError((deviceId) => {
-        console.log('on error: ' + deviceId); // haven't seen this trigger yet but probably good to also disconnect
-        videoServer.onDisconnection('device_' + deviceId);
-    });
+    if (ENABLE_VIDEO_RECORDING) {
+        // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
+        const videoServer = new VideoServer(path.join(objectsPath, identityFolderName, '/virtualizer_recordings'));
+
+        // trigger events in VideoServer whenever sockets connect, disconnect, or send data
+        streamRouter.onFrame((rgb, depth, pose, deviceId) => {
+            videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId); // TODO: remove device_ from name?
+        });
+        streamRouter.onConnection((deviceId) => {
+            videoServer.onConnection('device_' + deviceId);
+        });
+        streamRouter.onDisconnection((deviceId) => {
+            videoServer.onDisconnection('device_' + deviceId);
+        });
+        streamRouter.onError((deviceId) => {
+            console.log('on error: ' + deviceId); // haven't seen this trigger yet but probably good to also disconnect
+            videoServer.onDisconnection('device_' + deviceId);
+        });
+    }
 
     let allWebsockets = [];
     let sensorDescriptions = {};

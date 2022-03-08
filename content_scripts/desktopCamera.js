@@ -19,14 +19,16 @@ createNameSpace('realityEditor.device.desktopCamera');
         LAB_TABLE: [-1499.9648912671637, 8275.552791086136, 5140.3791620707225],
         KITCHEN: [-3127, 3732, -3493],
         BEDROOM: [1800, 7300, -5300],
-        LAB: [-1499.9648912671637, 8275.552791086136, 5140.3791620707225]
+        LAB: [-1499.9648912671637, 8275.552791086136, 5140.3791620707225],
+        LAB_DEMO: [6928.699462933748, 7410.334404062718, 7245.937994206512]
     });
     let INITIAL_TARGET_POSITIONS = Object.freeze({
         DESK: [583, -345, 2015], // [14, -180, 1611]
         LAB_TABLE: [-5142.168341070036, 924.9535037677615, -1269.0232578867729],
         KITCHEN: [-339, 988, -4633],
         BEDROOM: [0, 0, 0],
-        LAB: [0, 0, 0]
+        LAB: [0, 0, 0],
+        LAB_DEMO: [613.5423641012462, -502.4818016949596, -3439.258289729219]
     });
 
     var cameraTargetPosition = [0, 0, 0];
@@ -97,7 +99,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
+        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB_DEMO, INITIAL_TARGET_POSITIONS.LAB_DEMO, true);
 
         cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', undefined, undefined, virtualCamera.getTargetMatrix());
 
@@ -165,7 +167,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         // let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', invertedCoordinatesNode);
         let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', rotatedCoordinatesNode);
         let unityCameraNode = realityEditor.sceneGraph.getSceneNodeById(unityCameraNodeId);
-        unityCamera = new realityEditor.device.VirtualCamera(unityCameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
+        unityCamera = new realityEditor.device.VirtualCamera(unityCameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB_DEMO, INITIAL_TARGET_POSITIONS.LAB_DEMO, true);
 
         update();
 
@@ -393,29 +395,31 @@ createNameSpace('realityEditor.device.desktopCamera');
             try {
                 virtualCamera.update();
 
-                let worldId = realityEditor.worldObjects.getBestWorldObject().objectId;
+                let worldObject = realityEditor.worldObjects.getBestWorldObject();
+                if (worldObject) {
+                    let worldId = worldObject.objectId;
 
-                // render a cube at the virtual camera's target position
-                let sceneNode = realityEditor.sceneGraph.getSceneNodeById(cameraTargetElementId);
-                sceneNode.setLocalMatrix(virtualCamera.getTargetMatrix());
+                    // render a cube at the virtual camera's target position
+                    let sceneNode = realityEditor.sceneGraph.getSceneNodeById(cameraTargetElementId);
+                    sceneNode.setLocalMatrix(virtualCamera.getTargetMatrix());
 
-                if (!threejsObject && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
-                    const THREE = realityEditor.gui.threejsScene.THREE;
-                    threejsObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({ color: 0x00ffff })); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
-                    threejsObject.name = 'cameraTargetElement';
-                    threejsObject.matrixAutoUpdate = false;
-                    threejsObject.visible = false;
-                    realityEditor.gui.threejsScene.addToScene(threejsObject, {worldObjectId: worldId}); //{worldObjectId: areaTargetNode.id, occluded: true});
+                    if (!threejsObject && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
+                        const THREE = realityEditor.gui.threejsScene.THREE;
+                        threejsObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
+                        threejsObject.name = 'cameraTargetElement';
+                        threejsObject.matrixAutoUpdate = false;
+                        threejsObject.visible = false;
+                        realityEditor.gui.threejsScene.addToScene(threejsObject, {worldObjectId: worldId}); //{worldObjectId: areaTargetNode.id, occluded: true});
+                    }
+                    if (threejsObject) {
+                        realityEditor.gui.threejsScene.setMatrixFromArray(threejsObject.matrix, sceneNode.worldMatrix); //virtualCamera.getTargetMatrix());
+                    }
+
+                    unityCamera.update();
+
+                    let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+                    realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.worldMatrix);
                 }
-                if (threejsObject) {
-                    realityEditor.gui.threejsScene.setMatrixFromArray(threejsObject.matrix, sceneNode.worldMatrix); //virtualCamera.getTargetMatrix());
-                }
-
-                unityCamera.update();
-
-                let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-                realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.worldMatrix);
-
             } catch (e) {
                 console.warn('error updating Virtual Camera', e);
             }
