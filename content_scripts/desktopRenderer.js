@@ -46,6 +46,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     let gltf = null;
     let staticModelMode = false;
+    let realityZoneViewer = null;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -113,7 +114,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
 
-                        let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
+                        realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
                     });
@@ -167,6 +168,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     gltf.visible = false;
                     console.log('hide gltf');
                 }
+            }
+
+            if (params.event.code === 'KeyR' && realityZoneViewer) {
+                realityZoneViewer.resetHistory();
             }
         });
 
