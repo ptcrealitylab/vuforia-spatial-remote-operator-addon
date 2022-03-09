@@ -351,6 +351,7 @@ void main() {
                     this.visible = !this.visible;
                     for (let camera of Object.values(this.cameras)) {
                         camera.mesh.visible = this.visible;
+                        camera.mesh.__hidden = !this.visible;
                     }
                 } else if (code === this.keyboard.keyCodes.R) {
                     for (let camera of Object.values(this.cameras)) {
@@ -396,6 +397,10 @@ void main() {
 
                 let now = performance.now();
                 for (let camera of Object.values(this.cameras)) {
+                    if (camera.mesh.__hidden) {
+                        camera.mesh.visible = false;
+                        continue;
+                    }
                     if (now - camera.lastUpdate > 2000) {
                         camera.mesh.visible = false;
                     } else if (!camera.mesh.visible) {
