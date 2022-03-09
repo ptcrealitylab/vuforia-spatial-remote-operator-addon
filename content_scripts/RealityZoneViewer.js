@@ -9,6 +9,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.floorOffset = floorOffset;
             this.skelVisses = {};
             this.dataSource = new realityEditor.gui.ar.desktopRenderer.SocketDataSource();
+            this.lastDataTime = -1;
 
             this.draw = this.draw.bind(this);
             this.historyLineMeshes = [];
@@ -22,12 +23,16 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
         draw() {
             let skels = this.dataSource.poses;
-            this.drawSkels(skels);
+            if (this.dataSource.lastDataTime !== this.lastDataTime) {
+                this.drawSkels(skels);
+            }
 
             window.requestAnimationFrame(this.draw);
         }
 
         drawSkels(skels) {
+            this.lastDataTime = this.dataSource.lastDataTime;
+
             for (let id in this.skelVisses) {
                 this.skelVisses[id].updated = true;
             }
