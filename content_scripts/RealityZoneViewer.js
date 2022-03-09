@@ -1,5 +1,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 (function(exports) {
 
     exports.RealityZoneViewer = class RealityZoneViewer {
@@ -9,6 +11,12 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             this.dataSource = new realityEditor.gui.ar.desktopRenderer.SocketDataSource();
 
             this.draw = this.draw.bind(this);
+            this.historyLineMeshes = [];
+            this.historyLineContainer = new THREE.Group();
+            this.historyLineContainer.position.y = -floorOffset;
+            this.historyLineContainer.scale.set(1000, 1000, 1000);
+            realityEditor.gui.threejsScene.addToScene(this.historyLineContainer);
+
             window.rzv = this;
         }
 
@@ -44,7 +52,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     continue;
                 } else {
                     if (skel.joints.length === realityEditor.gui.ar.desktopRenderer.POSE_NET_JOINTS_LEN) {
-                        this.skelVisses[skel.id] = new realityEditor.gui.ar.desktopRenderer.PoseNetSkelVis(skel, this.floorOffset);
+                        this.skelVisses[skel.id] = new realityEditor.gui.ar.desktopRenderer.PoseNetSkelVis(skel, this.floorOffset, this.historyLineContainer);
                     } else {
                         console.warn('what are you giving the poor skel vis', skel);
                     }
@@ -54,12 +62,21 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 }
             }
             for (let id in this.skelVisses) {
-                if (!this.skelVisses[id].updated ||
-                    Date.now() - this.skelVisses[id].lastUpdate > 1500) {
+                const skelVis = this.skelVisses[id];
+                if (!skelVis.updated ||
+                    Date.now() - skelVis.lastUpdate > 1500) {
+                    this.historyLineMeshes.push(skelVis.historyMesh);
                     this.skelVisses[id].removeFromScene();
                     delete this.skelVisses[id];
                 }
             }
+        }
+
+        resetHistory() {
+            for (let lineMesh of this.historyLineMeshes) {
+                this.historyLineContainer.remove(lineMesh);
+            }
+            this.historyLineMeshes = [];
         }
     };
 
