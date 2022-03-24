@@ -122,7 +122,8 @@ void main() {
             this.container.add(this.phone);
 
             const geo = new THREE.BoxGeometry(100, 100, 80);
-            const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+console.log('id', id);
+            const color = `hsl(${((id / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';

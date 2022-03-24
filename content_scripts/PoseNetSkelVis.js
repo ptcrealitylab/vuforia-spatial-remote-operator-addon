@@ -98,11 +98,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         createHistoryLine(container) {
             this.historyLine = new realityEditor.device.meshLine.MeshLine();
             const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
-                color: this.ghost ? 0x777777 : 0x0077ff,
-                opacity: 0.4,
+                color: this.ghost ? 0x777777 : 0xffff00,
+                // opacity: 0.6,
                 lineWidth: 14,
                 // depthWrite: false,
-                transparent: true,
+                transparent: false,
                 side: THREE.DoubleSide,
             });
             this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);

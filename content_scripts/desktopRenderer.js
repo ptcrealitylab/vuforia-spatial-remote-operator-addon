@@ -173,6 +173,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             if (params.event.code === 'KeyR' && realityZoneViewer) {
                 realityZoneViewer.resetHistory();
             }
+
+            if (params.event.code === 'KeyE' && realityZoneViewer) {
+                realityZoneViewer.toggleHistory();
+            }
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(

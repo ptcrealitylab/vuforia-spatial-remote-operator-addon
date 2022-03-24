@@ -12,6 +12,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.lastDataTime = -1;
 
             this.draw = this.draw.bind(this);
+            this.historyLineMeshesVisible = false;
             this.historyLineMeshes = [];
             this.historyLineContainer = new THREE.Group();
             this.historyLineContainer.position.y = -floorOffset;
@@ -82,6 +83,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.historyLineContainer.remove(lineMesh);
             }
             this.historyLineMeshes = [];
+        }
+        toggleHistory() {
+            this.historyLineMeshesVisible = !this.historyLineMeshesVisible;
+            this.historyLineContainer.visible = this.historyLineMeshesVisible;
         }
     };
 
