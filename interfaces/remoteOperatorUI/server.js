@@ -6,7 +6,7 @@ const VideoServer = require('./VideoServer.js');
 const path = require('path');
 const os = require('os');
 
-const ENABLE_VIDEO_RECORDING = false;
+const ENABLE_VIDEO_RECORDING = true;
 
 module.exports.start = function start() {
     const app = express();
@@ -25,6 +25,12 @@ module.exports.start = function start() {
         // trigger events in VideoServer whenever sockets connect, disconnect, or send data
         streamRouter.onFrame((rgb, depth, pose, deviceId) => {
             videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId); // TODO: remove device_ from name?
+        });
+        streamRouter.onStartRecording((deviceId) => {
+            videoServer.startRecording('device_' + deviceId);
+        });
+        streamRouter.onStopRecording((deviceId) => {
+            videoServer.stopRecording('device_' + deviceId);
         });
         streamRouter.onConnection((deviceId) => {
             videoServer.onConnection('device_' + deviceId);
