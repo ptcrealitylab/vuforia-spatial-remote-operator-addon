@@ -270,6 +270,55 @@
     display: inline;
     top: -325px !important;
 }
+
 .timelineCalendarHidden {
+    display: none;
+}
+
+#timelineZoomBar {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+}
+
+#zoomSliderBackground {
+    position: relative;
+    width: 100px;
+    height: 20px;
+}
+
+#zoomSliderHandle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 15px;
+    top: 2px;
+    cursor: pointer;
+}
+
+.timelineScrollBarContainer {
+    position: absolute;
+    background-color: rgba(0,255,255,0.3);
+    border-radius: 5px;
+    height: 10px;
+}
+
+.timelineScrollBarHandle {
+    position: relative;
+    left: 0;
+    top: 0;
+    background-color: rgba(200,255,255,1.0);
+    border-radius: 5px;
+    height: 10px;
+    cursor: pointer;
+}
+
+#timelineScrollBar {
+    left: 10px;
+    bottom: 5px;
+    width: calc(100% - 20px);
+}
+
+.hiddenScrollBar {
     display: none;
 }
