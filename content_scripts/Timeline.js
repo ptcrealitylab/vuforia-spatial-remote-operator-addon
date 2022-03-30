@@ -59,6 +59,19 @@ createNameSpace('realityEditor.videoPlayback');
 
             this.playLoop(); // only after DOM is built can we start the loop
         }
+        resetZoomForRecordings() {
+            let minTime = this.trackInfo.metadata.minTime;
+            let maxTime = this.trackInfo.metadata.maxTime;
+            let dayLength = 1000 * 60 * 60 * 24;
+            let recordingStartDate = new Date(minTime);
+            recordingStartDate = new Date(recordingStartDate.getFullYear(), recordingStartDate.getMonth(), recordingStartDate.getDate());
+            let dayStartTime = recordingStartDate.getTime();
+            let recordingLengthPercent = 1.0 - (maxTime - minTime) / dayLength; // 1.0 because if it takes all day we shouldn't zoom at all
+            let recordingStartPosition = (minTime - dayStartTime) / dayLength;
+            // setTimeout(_ => {
+            this.setZoomAndPosition(recordingLengthPercent, recordingStartPosition);
+            // }, 1000);
+        }
         getSelectedSegments() {
             // key = deviceId, value = segmentId
             return Object.keys(this.selectedSegments).map(function(deviceId) {
@@ -246,26 +259,35 @@ createNameSpace('realityEditor.videoPlayback');
                     handle.style.left = pointerX - sliderLeft - handleWidth/2 + 'px';
                 }
 
-                let percentZoom = (parseFloat(handle.style.left) - handleWidth/2) / ((sliderRight - leftMargin) - (sliderLeft + leftMargin));
+                // we scale from linear to sqrt so that it zooms in faster when it is further zoomed out than when it is already zoomed in a lot
+                let linearZoom = (parseFloat(handle.style.left) - handleWidth/2) / ((sliderRight - leftMargin) - (sliderLeft + leftMargin));
+                let percentZoom = Math.pow(Math.max(0, linearZoom), 0.25);
                 let MAX_ZOOM = 1.0 - (1.0 / 24); // max zoom level is 24x (1 hour vs 1 day)
                 this.onZoomChanged(Math.max(0, Math.min(MAX_ZOOM, percentZoom)));
             });
             return container;
         }
-        onZoomChanged(zoomPercent) {
-            // console.log(zoomPercent);
+        onZoomChanged(zoomPercent, leftPercent) {
+            console.log(zoomPercent);
             let scrollBar = document.getElementById('timelineScrollBar');
             // make the zoom bar handle fill 1.0 - zoomPercent of the overall bar
             let handle = scrollBar.querySelector('.timelineScrollBarHandle');
             let previousLeft = parseFloat(handle.style.left) || 0; //handle.getClientRects()[0].left;
             let previousWidth = handle.getClientRects()[0].width;
             handle.style.width = (1.0 - zoomPercent) * 100 + '%';
-            // keep it centered at the same spot, unless it exceeds the bounds then constrain it
-            // TODO: zoom centered on the handle X position so that that the selected frame stays selected
+
             let newWidth = handle.getClientRects()[0].width;
-            let newLeft = previousLeft - (newWidth - previousWidth) / 2;
             let maxLeft = scrollBar.getClientRects()[0].width - newWidth;
-            handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
+
+            if (typeof leftPercent === 'undefined') {
+                // keep it centered at the same spot, unless it exceeds the bounds then constrain it
+                // TODO: zoom centered on the handle X position so that that the selected frame stays selected
+                let newLeft = previousLeft - (newWidth - previousWidth) / 2;
+                handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
+            } else {
+                let newLeft = leftPercent * scrollBar.getClientRects()[0].width;
+                handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
+            }
 
             let startPercent = (handle.getClientRects()[0].left - scrollBar.getClientRects()[0].left) / scrollBar.getClientRects()[0].width;
             let endPercent = (handle.getClientRects()[0].right - scrollBar.getClientRects()[0].left) / scrollBar.getClientRects()[0].width;
@@ -314,6 +336,29 @@ createNameSpace('realityEditor.videoPlayback');
         }
         onTimelineWindowChanged(zoomPercent, startPercent, endPercent) {
             console.log('timeline window changed: ', zoomPercent, startPercent, endPercent);
+            // TODO: update the relative position of each of the tracks
+
+            // let minTime = this.trackInfo.metadata.minTime;
+            // let maxTime = this.trackInfo.metadata.maxTime;
+            let dayLength = 1000 * 60 * 60 * 24;
+            let recordingStartDate = new Date(this.trackInfo.metadata.minTime); // TODO: more resilient way to get day selected from calendar
+            recordingStartDate = new Date(recordingStartDate.getFullYear(), recordingStartDate.getMonth(), recordingStartDate.getDate());
+            let dayStartTime = recordingStartDate.getTime();
+            // let recordingLengthPercent = 1.0 - (maxTime - minTime) / dayLength; // 1.0 because if it takes all day we shouldn't zoom at all
+            // let recordingStartPosition = (minTime - dayStartTime) / dayLength;
+
+            let minTimestamp = dayStartTime + startPercent * dayLength;
+            let maxTimestamp = dayStartTime + endPercent * dayLength;
+            this.updateTimelineBounds(minTimestamp, maxTimestamp);
+        }
+        setZoomAndPosition(zoomPercent, leftPercent) { // TODO: call this when the tracks first load, based on the min/max zoom of the tracks
+            // let scrollBar = document.getElementById('timelineScrollBar');
+            // let scrollHandle = scrollBar.querySelector('.timelineScrollBarHandle');
+            let zoomBar = document.getElementById('zoomSliderBackground');
+            let zoomHandle = document.getElementById('zoomSliderHandle');
+            let leftMargin = 15;
+            zoomHandle.style.left = leftMargin + zoomPercent * (zoomBar.getClientRects()[0].width - leftMargin*2) + 'px';
+            this.onZoomChanged(zoomPercent, leftPercent);
         }
         setupPlayhead() {
             let playheadElement = this.playhead;
@@ -609,8 +654,12 @@ createNameSpace('realityEditor.videoPlayback');
             calendarButton.addEventListener('pointerup', _e => {
                 if (!this.calendar) {
                     this.calendar = new realityEditor.videoPlayback.Calendar(this.timelineContainer);
-                    this.calendar.onDateSelected(function(dateObject) {
+                    this.calendar.onDateSelected(dateObject => {
+                        this.setZoomAndPosition(0, 0);
                         console.log('user selected this date: ', dateObject);
+                        let minTime = dateObject.getTime();
+                        let maxTime = dateObject.getTime() + (1000 * 60 * 60 * 24);
+                        this.updateTimelineBounds(minTime, maxTime);
                     });
                     this.calendar.selectToday();
                 }
@@ -622,6 +671,22 @@ createNameSpace('realityEditor.videoPlayback');
                     this.calendar.dom.classList.remove('timelineCalendarHidden');
                 }
             });
+        }
+        updateTimelineBounds(minTimestamp, maxTimestamp) {
+            this.trackInfo.metadata.minTime = minTimestamp;
+            this.trackInfo.metadata.maxTime = maxTimestamp;
+            let numTracks = Object.keys(this.trackInfo.tracks).length;
+            for (let i = 0; i < numTracks; i++) {
+                let thisTrackId = Object.keys(this.trackInfo.tracks)[i];
+                let trackInfo = this.trackInfo.tracks[thisTrackId];
+                let trackElement = document.getElementById(this.getTrackElementId(thisTrackId));
+                this.positionAndScaleTrack(trackElement, trackInfo, i, numTracks);
+                let segments = trackInfo.segments;
+                Object.keys(segments).forEach(segmentId => {
+                    let segmentElement = document.getElementById(this.getSegmentElementId(thisTrackId, segmentId));
+                    this.positionAndScaleSegment(segmentElement, thisTrackId, segmentId);
+                });
+            }
         }
         createVideoElement(id) {
             let video = document.createElement('video');
@@ -802,10 +867,10 @@ createNameSpace('realityEditor.videoPlayback');
             trackElement.style.height = heightPercent + '%';
         }
         positionAndScaleSegment(segmentElement, trackId, segmentId) {
-            console.log('position and scale segment:');
+            // console.log('position and scale segment:');
             let trackInfo = this.trackInfo.tracks[trackId];
             let segmentInfo = trackInfo.segments[segmentId];
-            console.log(segmentElement, segmentInfo, trackInfo);
+            // console.log(segmentElement, segmentInfo, trackInfo);
             let segmentDuration = segmentInfo.end - segmentInfo.start;
 
             let maxTime = this.trackInfo.metadata.maxTime; // Math.max(Date.now(), this.trackInfo.metadata.maxTime);
@@ -846,6 +911,7 @@ createNameSpace('realityEditor.videoPlayback');
             if (typeof isNowVisible === 'undefined') { // toggle if no value provided
                 if (this.timelineContainer.classList.contains('hiddenTimeline')) {
                     this.timelineContainer.classList.remove('hiddenTimeline');
+                    this.resetZoomForRecordings();
                 } else {
                     this.timelineContainer.classList.add('hiddenTimeline');
                 }
@@ -854,6 +920,7 @@ createNameSpace('realityEditor.videoPlayback');
 
             if (isNowVisible) {
                 this.timelineContainer.classList.remove('hiddenTimeline');
+                this.resetZoomForRecordings();
             } else {
                 this.timelineContainer.classList.add('hiddenTimeline');
             }
