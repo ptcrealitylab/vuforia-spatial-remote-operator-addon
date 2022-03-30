@@ -689,7 +689,7 @@ createNameSpace('realityEditor.device');
             trackElement.style.height = heightPercent + '%';
         }
         positionAndScaleSegment(segmentElement, segmentInfo, trackInfo) {
-            console.log('position and scale segment:');
+            // console.log('position and scale segment:');
             console.log(segmentElement, segmentInfo, trackInfo);
             let segmentDuration = segmentInfo.end - segmentInfo.start;
 
