@@ -26,6 +26,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.timeOffsets = {};
             this.pointerStart = null;
             this.videoElements = {};
+            this.calendar = null;
 
             this.buildHTMLElements();
 
@@ -160,6 +161,11 @@ createNameSpace('realityEditor.videoPlayback');
             timestampDisplay.innerText = this.getFormattedTime(new Date(0));
             leftBox.appendChild(timestampDisplay);
 
+            let calendarButton = document.createElement('img');
+            calendarButton.id = 'timelineCalendarButton';
+            calendarButton.src = '/addons/vuforia-spatial-remote-operator-addon/calendarButton.svg';
+            leftBox.appendChild(calendarButton);
+
             let playhead = document.createElement('img');
             playhead.id = 'timelinePlayhead';
             playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
@@ -190,7 +196,7 @@ createNameSpace('realityEditor.videoPlayback');
                 elt.classList.add('timelineControlButton');
                 rightBox.appendChild(elt);
             });
-            this.setupControlButtons(playButton, /*seekButton,*/ speedButton);
+            this.setupControlButtons(playButton, /*seekButton,*/ speedButton, calendarButton);
 
             return container;
         }
@@ -477,13 +483,29 @@ createNameSpace('realityEditor.videoPlayback');
             let textfield = document.getElementById('timelineTimestampDisplay');
             textfield.innerText = this.getFormattedTime(relativeTime);
         }
-        setupControlButtons(playButton, /*seekButton,*/ speedButton) {
+        setupControlButtons(playButton, /*seekButton,*/ speedButton, calendarButton) {
             playButton.addEventListener('pointerup', _e => {
                 this.togglePlayback();
             });
             // TODO: what does seek button do?
             speedButton.addEventListener('pointerup', _e => {
                 this.multiplySpeed(2.0, true);
+            });
+            calendarButton.addEventListener('pointerup', _e => {
+                if (!this.calendar) {
+                    this.calendar = new realityEditor.videoPlayback.Calendar(this.timelineContainer);
+                    this.calendar.onDateSelected(function(dateObject) {
+                        console.log('user selected this date: ', dateObject);
+                    });
+                    this.calendar.selectToday();
+                }
+                if (this.calendar.dom.classList.contains('timelineCalendarVisible')) {
+                    this.calendar.dom.classList.remove('timelineCalendarVisible');
+                    this.calendar.dom.classList.add('timelineCalendarHidden');
+                } else {
+                    this.calendar.dom.classList.add('timelineCalendarVisible');
+                    this.calendar.dom.classList.remove('timelineCalendarHidden');
+                }
             });
         }
         createVideoElement(id) {

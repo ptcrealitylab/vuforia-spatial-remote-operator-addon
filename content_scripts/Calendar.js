@@ -13,7 +13,7 @@ createNameSpace('realityEditor.videoPlayback');
                 month: null,
                 year: null,
                 day: null
-            }
+            };
             this.padding = 10;
             this.weekDayNames = ['Su', 'M', 'T', 'W', 'Th', 'F', 'Sa'];
             this.monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

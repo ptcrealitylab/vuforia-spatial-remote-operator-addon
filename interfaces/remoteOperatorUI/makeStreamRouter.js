@@ -124,19 +124,20 @@ module.exports = function makeStreamRouter(app) {
         matrixPool.push(ws);
     });
 
-    app.ws('/startRecording', function(ws, req) {
+    app.ws('/commands', function(ws, req) {
         const id = requestId(req);
-        console.log('start recording ' + id);
-        callbacks.onStartRecording.forEach(function(cb) {
-            cb(id);
-        });
-    });
-
-    app.ws('/stopRecording', function(ws, req) {
-        const id = requestId(req);
-        console.log('start recording ' + id);
-        callbacks.onStopRecording.forEach(function(cb) {
-            cb(id);
+        ws.on('message', function(msg, _isBinary) {
+            if (msg === 'startRecording') {
+                console.log('start recording (command) ' + id);
+                callbacks.onStartRecording.forEach(function(cb) {
+                    cb(id);
+                });
+            } else if (msg === 'stopRecording') {
+                console.log('stop recording (command) ' + id);
+                callbacks.onStopRecording.forEach(function(cb) {
+                    cb(id);
+                });
+            }
         });
     });
 
