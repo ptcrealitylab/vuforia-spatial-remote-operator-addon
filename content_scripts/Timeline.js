@@ -166,6 +166,10 @@ createNameSpace('realityEditor.videoPlayback');
             calendarButton.src = '/addons/vuforia-spatial-remote-operator-addon/calendarButton.svg';
             leftBox.appendChild(calendarButton);
 
+            let zoomBar = this.createZoomBar();
+            zoomBar.id = 'timelineZoomBar';
+            leftBox.appendChild(zoomBar);
+
             let playhead = document.createElement('img');
             playhead.id = 'timelinePlayhead';
             playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
@@ -179,6 +183,10 @@ createNameSpace('realityEditor.videoPlayback');
             centerBox.appendChild(videoPreviewContainer);
             // left = -68px is most left as possible
             // width = 480px for now, to show both, but should change to 240px eventually
+
+            let scrollBar = this.createScrollBar();
+            scrollBar.id = 'timelineScrollBar';
+            centerBox.appendChild(scrollBar);
 
             let playButton = document.createElement('img');
             playButton.id = 'timelinePlayButton';
@@ -199,6 +207,113 @@ createNameSpace('realityEditor.videoPlayback');
             this.setupControlButtons(playButton, /*seekButton,*/ speedButton, calendarButton);
 
             return container;
+        }
+        createZoomBar() {
+            let container = document.createElement('div');
+            let slider = document.createElement('img');
+            slider.id = 'zoomSliderBackground';
+            slider.src = '/addons/vuforia-spatial-remote-operator-addon/zoomSliderBackground.svg';
+            container.appendChild(slider);
+            let handle = document.createElement('img');
+            handle.id = 'zoomSliderHandle';
+            handle.src = '/addons/vuforia-spatial-remote-operator-addon/zoomSliderHandle.svg';
+            container.appendChild(handle);
+            let isDown = false;
+            handle.addEventListener('pointerdown', _e => {
+                isDown = true;
+            });
+            document.addEventListener('pointerup', _e => {
+                isDown = false;
+            });
+            document.addEventListener('pointercancel', _e => {
+                isDown = false;
+            });
+            document.addEventListener('pointermove', e => {
+                if (!isDown) { return; }
+                let pointerX = e.pageX;
+                let sliderLeft = slider.getClientRects()[0].left; // 34
+                let sliderRight = slider.getClientRects()[0].right;
+                let sliderWidth = slider.getClientRects()[0].width;
+                let leftMargin = 15;
+                let handleX = handle.getClientRects()[0].left; // 49 at min
+                let handleWidth = handle.getClientRects()[0].width;
+
+                if (pointerX < (sliderLeft + leftMargin)) {
+                    handle.style.left = leftMargin - handleWidth/2 + 'px';
+                } else if (pointerX > (sliderRight - leftMargin)) {
+                    handle.style.left = (sliderWidth - leftMargin - handleWidth/2) + 'px';
+                } else {
+                    handle.style.left = pointerX - sliderLeft - handleWidth/2 + 'px';
+                }
+
+                let percentZoom = (parseFloat(handle.style.left) - handleWidth/2) / ((sliderRight - leftMargin) - (sliderLeft + leftMargin));
+                let MAX_ZOOM = 1.0 - (1.0 / 24); // max zoom level is 24x (1 hour vs 1 day)
+                this.onZoomChanged(Math.max(0, Math.min(MAX_ZOOM, percentZoom)));
+            });
+            return container;
+        }
+        onZoomChanged(zoomPercent) {
+            // console.log(zoomPercent);
+            let scrollBar = document.getElementById('timelineScrollBar');
+            // make the zoom bar handle fill 1.0 - zoomPercent of the overall bar
+            let handle = scrollBar.querySelector('.timelineScrollBarHandle');
+            let previousLeft = parseFloat(handle.style.left) || 0; //handle.getClientRects()[0].left;
+            let previousWidth = handle.getClientRects()[0].width;
+            handle.style.width = (1.0 - zoomPercent) * 100 + '%';
+            // keep it centered at the same spot, unless it exceeds the bounds then constrain it
+            // TODO: zoom centered on the handle X position so that that the selected frame stays selected
+            let newWidth = handle.getClientRects()[0].width;
+            let newLeft = previousLeft - (newWidth - previousWidth) / 2;
+            let maxLeft = scrollBar.getClientRects()[0].width - newWidth;
+            handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
+
+            let startPercent = (handle.getClientRects()[0].left - scrollBar.getClientRects()[0].left) / scrollBar.getClientRects()[0].width;
+            let endPercent = (handle.getClientRects()[0].right - scrollBar.getClientRects()[0].left) / scrollBar.getClientRects()[0].width;
+            this.onTimelineWindowChanged(zoomPercent, startPercent, endPercent);
+        }
+        createScrollBar() {
+            let container = document.createElement('div');
+            let handle = document.createElement('div');
+            container.appendChild(handle);
+            // container.classList.add('hiddenScrollBar'); // TODO: add this after a few seconds of not interacting or hovering over the scrollable panel
+            container.classList.add('timelineScrollBarContainer');
+            handle.classList.add('timelineScrollBarHandle');
+            let isDown = false;
+            handle.addEventListener('pointerdown', _e => {
+                isDown = true;
+            });
+            document.addEventListener('pointerup', _e => {
+                isDown = false;
+            });
+            document.addEventListener('pointercancel', _e => {
+                isDown = false;
+            });
+            document.addEventListener('pointermove', e => {
+                if (!isDown) { return; }
+                let pointerX = e.pageX;
+                let sliderLeft = container.getClientRects()[0].left; // 34
+                let sliderRight = container.getClientRects()[0].right;
+                let sliderWidth = container.getClientRects()[0].width;
+                let handleX = handle.getClientRects()[0].left; // 49 at min
+                let handleWidth = handle.getClientRects()[0].width;
+
+                if (pointerX < sliderLeft + handleWidth/2) {
+                    handle.style.left = '0px';
+                } else if (pointerX > sliderRight - handleWidth/2) {
+                    handle.style.left = (sliderWidth - handleWidth) + 'px';
+                } else {
+                    handle.style.left = pointerX - sliderLeft - handleWidth/2 + 'px';
+                }
+
+                let startPercent = (handle.getClientRects()[0].left - container.getClientRects()[0].left) / container.getClientRects()[0].width;
+                let endPercent = (handle.getClientRects()[0].right - container.getClientRects()[0].left) / container.getClientRects()[0].width;
+                let zoomPercent = 1.0 - handle.getClientRects()[0].width / container.getClientRects()[0].width;
+                this.onTimelineWindowChanged(zoomPercent, startPercent, endPercent);
+            });
+            return container;
+        }
+        onTimelineWindowChanged(zoomPercent, startPercent, endPercent) {
+            console.log('timeline window changed: ', zoomPercent, startPercent, endPercent);
         }
         setupPlayhead() {
             let playheadElement = this.playhead;
