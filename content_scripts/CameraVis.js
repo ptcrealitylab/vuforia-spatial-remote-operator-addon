@@ -554,9 +554,12 @@ void main() {
         hidePointCloud(id) {
             if (!this.cameras[id]) {
                 console.log('No need to hide camera ' + id + ', it hasn\'t been created yet.');
+                return;
             }
             let camera = this.cameras[id];
-            camera.mesh.visible = false;
+            if (camera.mesh) {
+                camera.mesh.visible = false;
+            }
         }
 
         createCameraVis(id) {
