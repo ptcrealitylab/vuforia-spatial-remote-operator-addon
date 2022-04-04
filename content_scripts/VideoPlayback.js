@@ -318,15 +318,17 @@ createNameSpace('realityEditor.device');
                 let halfPlayheadWidth = 10;
                 playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
 
+                let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
+
                 // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
                 let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
                 if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
                     let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-                    let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                    let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
                     videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-68, previewRelativeX)) + 'px';
                 }
 
-                let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+                let playheadTimePercent = (playheadLeft + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
                 // console.log(playheadTimePercent);
 
                 let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
@@ -521,11 +523,13 @@ createNameSpace('realityEditor.device');
             // playheadElement.style.left = (timePercent * containerWidth) + leftMargin + halfPlayheadWidth + 'px';
             playheadElement.style.left = leftMargin - halfPlayheadWidth + (timePercent * (containerWidth  - halfPlayheadWidth - leftMargin - rightMargin)) + 'px';
 
+            let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
+
             // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
             if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
                 let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-                let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
                 videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-68, previewRelativeX)) + 'px';
             }
         }

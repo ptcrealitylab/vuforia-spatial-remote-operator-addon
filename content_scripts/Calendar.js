@@ -249,6 +249,17 @@ createNameSpace('realityEditor.videoPlayback');
             this.scrollToToday();
             this.selectDate(this.getDateElementForDay(this.selectedDate.day));
         }
+        selectDay(timestamp) {
+            this.unselectPreviousDate();
+            let thisDate = new Date(timestamp);
+            this.selectedDate = {
+                month: thisDate.getMonth(),
+                year: thisDate.getFullYear(),
+                day: thisDate.getDate() // use getDate. getDay returns index of weekday, e.g. Tues = 2
+            };
+            this.updateDomForMonth(this.selectedDate.month, this.selectedDate.year);
+            this.selectDate(this.getDateElementForDay(this.selectedDate.day));
+        }
         onDateSelected(callback) {
             this.callbacks.onDateSelected.push(callback);
         }

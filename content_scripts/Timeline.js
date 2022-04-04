@@ -27,7 +27,18 @@ createNameSpace('realityEditor.videoPlayback');
             this.pointerStart = null;
             this.videoElements = {};
             this.calendar = null;
+            this.DAY_LENGTH = 1000 * 60 * 60 * 24; // one day
 
+            let dateNow = new Date(Date.now());
+            let today = new Date(dateNow.getFullYear(), dateNow.getMonth(), dateNow.getDate());
+            this.dayBounds = {
+                min: today.getTime(),
+                max: today.getTime() + this.DAY_LENGTH
+            };
+            this.windowBounds = {
+                min: today.getTime(),
+                max: today.getTime() + this.DAY_LENGTH
+            };
             this.buildHTMLElements();
 
             window.addEventListener('resize', () => {
@@ -39,7 +50,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.trackInfo = trackInfo;
 
             // populate timeOffsets with default values
-            console.log('create default timeOffsets');
+            // console.log('create default timeOffsets');
             this.forEachSegment(null, (deviceId, segmentId, _trackInfo, _segmentInfo) => {
                 if (typeof this.timeOffsets[deviceId] === 'undefined') {
                     this.timeOffsets[deviceId] = {};
@@ -49,6 +60,16 @@ createNameSpace('realityEditor.videoPlayback');
                 }
             });
 
+            // change dayBounds and windowBounds based on most recent day that has any data
+            let mostRecentDate = this.getDateBounds(this.trackInfo.metadata.maxTime);
+            this.dayBounds = {
+                min: mostRecentDate.min,
+                max: mostRecentDate.max
+            };
+            this.windowBounds = {
+                min: mostRecentDate.min,
+                max: mostRecentDate.max
+            };
             this.setupPlayhead();
 
             // [x] create a track on the timeline for each pair of videos – vertically spaced per device – horizontally per timestamp
@@ -59,18 +80,21 @@ createNameSpace('realityEditor.videoPlayback');
 
             this.playLoop(); // only after DOM is built can we start the loop
         }
+        getDateBounds(timestampInDay) {
+            let dateObject = new Date(timestampInDay);
+            let tempDate = new Date(dateObject.getFullYear(), dateObject.getMonth(), dateObject.getDate());
+            return {
+                min: tempDate.getTime(),
+                max: tempDate.getTime() + this.DAY_LENGTH
+            };
+        }
         resetZoomForRecordings() {
-            let minTime = this.trackInfo.metadata.minTime;
-            let maxTime = this.trackInfo.metadata.maxTime;
-            let dayLength = 1000 * 60 * 60 * 24;
-            let recordingStartDate = new Date(minTime);
+            let recordingStartDate = new Date(this.dayBounds.min);
             recordingStartDate = new Date(recordingStartDate.getFullYear(), recordingStartDate.getMonth(), recordingStartDate.getDate());
             let dayStartTime = recordingStartDate.getTime();
-            let recordingLengthPercent = 1.0 - (maxTime - minTime) / dayLength; // 1.0 because if it takes all day we shouldn't zoom at all
-            let recordingStartPosition = (minTime - dayStartTime) / dayLength;
-            // setTimeout(_ => {
+            let recordingLengthPercent = 1.0 - (this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime) / this.DAY_LENGTH; // 1.0 because if it takes all day we shouldn't zoom at all
+            let recordingStartPosition = (this.trackInfo.metadata.minTime - dayStartTime) / this.DAY_LENGTH;
             this.setZoomAndPosition(recordingLengthPercent, recordingStartPosition);
-            // }, 1000);
         }
         getSelectedSegments() {
             // key = deviceId, value = segmentId
@@ -252,15 +276,15 @@ createNameSpace('realityEditor.videoPlayback');
                 let handleWidth = handle.getClientRects()[0].width;
 
                 if (pointerX < (sliderLeft + leftMargin)) {
-                    handle.style.left = leftMargin - handleWidth/2 + 'px';
+                    handle.style.left = leftMargin - (handleWidth / 2) + 'px';
                 } else if (pointerX > (sliderRight - leftMargin)) {
-                    handle.style.left = (sliderWidth - leftMargin - handleWidth/2) + 'px';
+                    handle.style.left = (sliderWidth - leftMargin - handleWidth / 2) + 'px';
                 } else {
-                    handle.style.left = pointerX - sliderLeft - handleWidth/2 + 'px';
+                    handle.style.left = pointerX - sliderLeft - (handleWidth / 2) + 'px';
                 }
 
                 // we scale from linear to sqrt so that it zooms in faster when it is further zoomed out than when it is already zoomed in a lot
-                let linearZoom = (parseFloat(handle.style.left) - handleWidth/2) / ((sliderRight - leftMargin) - (sliderLeft + leftMargin));
+                let linearZoom = (parseFloat(handle.style.left) - handleWidth / 2) / ((sliderRight - leftMargin) - (sliderLeft + leftMargin));
                 let percentZoom = Math.pow(Math.max(0, linearZoom), 0.25);
                 let MAX_ZOOM = 1.0 - (1.0 / 24); // max zoom level is 24x (1 hour vs 1 day)
                 this.onZoomChanged(Math.max(0, Math.min(MAX_ZOOM, percentZoom)));
@@ -268,7 +292,7 @@ createNameSpace('realityEditor.videoPlayback');
             return container;
         }
         onZoomChanged(zoomPercent, leftPercent) {
-            console.log(zoomPercent);
+            // console.log(zoomPercent);
             let scrollBar = document.getElementById('timelineScrollBar');
             // make the zoom bar handle fill 1.0 - zoomPercent of the overall bar
             let handle = scrollBar.querySelector('.timelineScrollBarHandle');
@@ -282,8 +306,44 @@ createNameSpace('realityEditor.videoPlayback');
             if (typeof leftPercent === 'undefined') {
                 // keep it centered at the same spot, unless it exceeds the bounds then constrain it
                 // TODO: zoom centered on the handle X position so that that the selected frame stays selected
-                let newLeft = previousLeft - (newWidth - previousWidth) / 2;
+                // let newLeft = previousLeft - (newWidth - previousWidth) / 2;
+                // handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
+
+                // TODO: keep the timeline playhead at the same timestamp and zoom around that
+                // TODO: UNLESS you are zooming out, its possible the scrollhead might need to slide to stay within the window? I'm not sure
+
+                let playheadTimestamp = this.playheadTimestamp;
+                let playheadX = 0;
+                let trackBox = document.getElementById('timelineTrackBox');
+                let containerLeft = trackBox.getClientRects()[0].left;
+                let containerWidth = trackBox.getClientRects()[0].width;
+                let playheadElement = document.getElementById('timelinePlayhead');
+                let leftMargin = 20;
+                let rightMargin = 20;
+                let halfPlayheadWidth = 10;
+                let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
+                let playheadTimePercentWindow = (playheadLeft + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+                let playheadTimePercent = (this.playheadTimestamp - this.dayBounds.min) / (this.dayBounds.max - this.dayBounds.min);
+                // let absoluteTime = this.dayBounds.min + playheadTimePercentDay * this.DAY_LENGTH;
+
+                // TODO: separate metadata time from window time from day length so we can perform these calculations
+                // let playheadTimePercent = (this.playheadTimestamp - this.trackInfo.metadata.minTime) / (this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime);
+                // console.log('timepercent = ' + playheadTimePercent);
+
+                // reposition the scrollbar handle left so that it would keep the playhead at the same spot.
+
+                let handleLeftPercent = (handle.getClientRects()[0].left - scrollBar.getClientRects()[0].left) / scrollBar.getClientRects()[0].width;
+                // let handleLeftPercent = (previousLeft + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+                // console.log('handlepercent = ' + handleLeftPercent);
+
+                // let newLeft = previousLeft - (newWidth - previousWidth) / 2;
+
+                // if previous leftPercent is 0, new leftPercent is 0
+                // move scrollbar handle to playheadTimePercent, then move it so playhead is playheadTimePercent within the handle width
+                let newLeft = (playheadTimePercent * scrollBar.getClientRects()[0].width) - (playheadTimePercentWindow * handle.getClientRects()[0].width);
+                // TODO: this is off if you scroll in halfway, move playhead sideways, then continue scrolling
                 handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
+
             } else {
                 let newLeft = leftPercent * scrollBar.getClientRects()[0].width;
                 handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
@@ -319,12 +379,12 @@ createNameSpace('realityEditor.videoPlayback');
                 let handleX = handle.getClientRects()[0].left; // 49 at min
                 let handleWidth = handle.getClientRects()[0].width;
 
-                if (pointerX < sliderLeft + handleWidth/2) {
+                if (pointerX < sliderLeft + handleWidth / 2) {
                     handle.style.left = '0px';
-                } else if (pointerX > sliderRight - handleWidth/2) {
+                } else if (pointerX > sliderRight - handleWidth / 2) {
                     handle.style.left = (sliderWidth - handleWidth) + 'px';
                 } else {
-                    handle.style.left = pointerX - sliderLeft - handleWidth/2 + 'px';
+                    handle.style.left = pointerX - sliderLeft - (handleWidth / 2) + 'px';
                 }
 
                 let startPercent = (handle.getClientRects()[0].left - container.getClientRects()[0].left) / container.getClientRects()[0].width;
@@ -335,21 +395,44 @@ createNameSpace('realityEditor.videoPlayback');
             return container;
         }
         onTimelineWindowChanged(zoomPercent, startPercent, endPercent) {
-            console.log('timeline window changed: ', zoomPercent, startPercent, endPercent);
-            // TODO: update the relative position of each of the tracks
+            // console.log('timeline window changed: ', zoomPercent, startPercent, endPercent);
 
             // let minTime = this.trackInfo.metadata.minTime;
             // let maxTime = this.trackInfo.metadata.maxTime;
-            let dayLength = 1000 * 60 * 60 * 24;
-            let recordingStartDate = new Date(this.trackInfo.metadata.minTime); // TODO: more resilient way to get day selected from calendar
-            recordingStartDate = new Date(recordingStartDate.getFullYear(), recordingStartDate.getMonth(), recordingStartDate.getDate());
-            let dayStartTime = recordingStartDate.getTime();
+            // let recordingStartDate = new Date(this.dayBounds.min); // TODO: more resilient way to get day selected from calendar
+            // recordingStartDate = new Date(recordingStartDate.getFullYear(), recordingStartDate.getMonth(), recordingStartDate.getDate());
+            // let dayStartTime = recordingStartDate.getTime();
             // let recordingLengthPercent = 1.0 - (maxTime - minTime) / dayLength; // 1.0 because if it takes all day we shouldn't zoom at all
             // let recordingStartPosition = (minTime - dayStartTime) / dayLength;
 
-            let minTimestamp = dayStartTime + startPercent * dayLength;
-            let maxTimestamp = dayStartTime + endPercent * dayLength;
+            // this.windowBounds.min = this.dayBounds.min + startPercent * this.DAY_LENGTH;
+            // this.windowBounds.max = this.dayBounds.max + endPercent * this.DAY_LENGTH;
+
+            // let minTimestamp = dayStartTime + startPercent * this.DAY_LENGTH;
+            // let maxTimestamp = dayStartTime + endPercent * this.DAY_LENGTH;
+
+            let minTimestamp = this.dayBounds.min + startPercent * this.DAY_LENGTH;
+            let maxTimestamp = this.dayBounds.min + endPercent * this.DAY_LENGTH;
             this.updateTimelineBounds(minTimestamp, maxTimestamp);
+
+            // update the playheadTimestamp to match whatever's underneath the playhead right now
+
+            let playheadTimestamp = this.playheadTimestamp;
+            let playheadX = 0;
+            let trackBox = document.getElementById('timelineTrackBox');
+            let containerLeft = trackBox.getClientRects()[0].left;
+            let containerWidth = trackBox.getClientRects()[0].width;
+            let playheadElement = document.getElementById('timelinePlayhead');
+            let leftMargin = 20;
+            let rightMargin = 20;
+            let halfPlayheadWidth = 10;
+            let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
+            let playheadTimePercentWindow = (playheadLeft + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+            let windowDuration = this.windowBounds.max - this.windowBounds.min;
+            let absoluteTimeWindow = this.windowBounds.min + playheadTimePercentWindow * windowDuration;
+            // this.playheadTimestamp = absoluteTimeWindow;
+            this.setPlayheadTimestamp(absoluteTimeWindow);
+            this.timeScrolledTo(absoluteTimeWindow, true);
         }
         setZoomAndPosition(zoomPercent, leftPercent) { // TODO: call this when the tracks first load, based on the min/max zoom of the tracks
             // let scrollBar = document.getElementById('timelineScrollBar');
@@ -390,7 +473,7 @@ createNameSpace('realityEditor.videoPlayback');
             });
 
             setTimeout(() => {
-                console.log('move playhead to beginning');
+                // console.log('move playhead to beginning');
                 this.setPlayheadTimestamp(this.trackInfo.metadata.minTime);
                 this.timeScrolledTo(this.trackInfo.metadata.minTime, true);
             }, 100);
@@ -456,30 +539,35 @@ createNameSpace('realityEditor.videoPlayback');
             let rightMargin = 20;
             let halfPlayheadWidth = 10;
             playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
-
+            let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
             // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
             if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
                 let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-                let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
                 videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-128, previewRelativeX)) + 'px';
             }
 
-            let playheadTimePercent = (parseInt(playheadElement.style.left) + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
-            let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
+            // let playheadTimePercentWindow = (this.playheadTimestamp - this.windowBounds.min) / (this.windowBounds.max - this.windowBounds.min);
+            let playheadTimePercentWindow = (playheadLeft + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+            let windowDuration = this.windowBounds.max - this.windowBounds.min;
+            let absoluteTimeWindow = this.windowBounds.min + playheadTimePercentWindow * windowDuration;
 
-            let absoluteTime = this.trackInfo.metadata.minTime + playheadTimePercent * duration;
-            this.setPlayheadTimestamp(absoluteTime);
-            this.timeScrolledTo(absoluteTime, true);
+            // let playheadTimePercentDay = (this.playheadTimestamp - this.dayBounds.min) / (this.dayBounds.max - this.dayBounds.min);
+            // let absoluteTime = this.dayBounds.min + playheadTimePercentDay * this.DAY_LENGTH;
+
+            // console.log('absoluteTime = ' + absoluteTimeWindow);
+            this.setPlayheadTimestamp(absoluteTimeWindow);
+            this.timeScrolledTo(absoluteTimeWindow, true);
         }
-        onPointerMoveSegment(e) {
+        onPointerMoveSegment(e) { // TODO: update metadata.maxTime/minTime
             let segmentElement = document.getElementById(this.getSegmentElementId(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId));
             if (!segmentElement) { return; }
 
             // calculate new X position to follow mouse, constrained to trackBox element
             let pointerX = e.pageX;
             let dx = pointerX - this.pointerStart.x;
-            console.log('dx = ' + dx);
+            // console.log('dx = ' + dx);
 
             let trackBox = document.getElementById('timelineTrackBox');
             // let containerLeft = trackBox.getClientRects()[0].left;
@@ -495,7 +583,7 @@ createNameSpace('realityEditor.videoPlayback');
                 dTime = this.trackInfo.metadata.maxTime - segmentInfo.end - this.initialTimeOffset;
             }
 
-            console.log('dTime = ' + dTime + ', initial = ' + this.initialTimeOffset + ', result = ' + (dTime + this.initialTimeOffset));
+            // console.log('dTime = ' + dTime + ', initial = ' + this.initialTimeOffset + ', result = ' + (dTime + this.initialTimeOffset));
             this.timeOffsets[this.interactingWithSegment.trackId][this.interactingWithSegment.segmentId] = (dTime + this.initialTimeOffset);
 
             this.positionAndScaleSegment(segmentElement, this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId);
@@ -535,12 +623,12 @@ createNameSpace('realityEditor.videoPlayback');
                         let videoDuration = videoElement.duration;
                         let intendedDuration = (segment.end - segment.start) / 1000;
                         segment.timeMultiplier = videoDuration / intendedDuration;
-                        console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
+                        // console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
                     }
                     videoElement.playbackRate = this.playbackSpeed * segment.timeMultiplier;
                 });
                 videoElement.load();
-                console.log('src = ' + videoSourceElement.src);
+                // console.log('src = ' + videoSourceElement.src);
             });
 
             // visually highlight the segments that are currently playing
@@ -552,7 +640,7 @@ createNameSpace('realityEditor.videoPlayback');
             }
         }
         segmentDeselected(deviceId, segmentId) {
-            console.log('deselected segment ' + segmentId + ' on track ' + deviceId);
+            // console.log('deselected segment ' + segmentId + ' on track ' + deviceId);
 
             let segmentElement = document.getElementById(this.getSegmentElementId(deviceId, segmentId));
             segmentElement.classList.remove('timelineSegmentPlaying');
@@ -622,24 +710,27 @@ createNameSpace('realityEditor.videoPlayback');
             let halfPlayheadWidth = 10;
 
             // calculate normalized time based on absolute timestamp
-            let duration = this.trackInfo.metadata.maxTime - this.trackInfo.metadata.minTime;
-            let timePercent = Math.max(0, Math.min(1, (timestamp - this.trackInfo.metadata.minTime) / duration));
+            let duration = this.windowBounds.max - this.windowBounds.min;
+            let timePercent = Math.max(0, Math.min(1, (timestamp - this.windowBounds.min) / duration));
 
             let playheadElement = document.getElementById('timelinePlayhead');
             // playheadElement.style.left = (timePercent * containerWidth) + leftMargin + halfPlayheadWidth + 'px';
             playheadElement.style.left = leftMargin - halfPlayheadWidth + (timePercent * (containerWidth  - halfPlayheadWidth - leftMargin - rightMargin)) + 'px';
 
+            let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
+
             // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
             if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
                 let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-                let previewRelativeX = parseInt(playheadElement.style.left) + halfPlayheadWidth - previewWidth / 2;
+                let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
                 videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-68, previewRelativeX)) + 'px';
             }
         }
-        setPlayheadTimestamp(timestamp) {
+        setPlayheadTimestamp(timestamp) { // TODO: zoom-out timeline or jump to different day if needed
             this.playheadTimestamp = timestamp;
-            let relativeTime = timestamp - this.trackInfo.metadata.minTime;
+            let relativeTime = timestamp - this.dayBounds.min;
+            // console.log('relative time = ' + relativeTime);
             let textfield = document.getElementById('timelineTimestampDisplay');
             textfield.innerText = this.getFormattedTime(relativeTime);
         }
@@ -656,12 +747,15 @@ createNameSpace('realityEditor.videoPlayback');
                     this.calendar = new realityEditor.videoPlayback.Calendar(this.timelineContainer);
                     this.calendar.onDateSelected(dateObject => {
                         this.setZoomAndPosition(0, 0);
-                        console.log('user selected this date: ', dateObject);
+                        // console.log('user selected this date: ', dateObject);
                         let minTime = dateObject.getTime();
-                        let maxTime = dateObject.getTime() + (1000 * 60 * 60 * 24);
+                        let maxTime = dateObject.getTime() + this.DAY_LENGTH;
+                        this.dayBounds.min = minTime;
+                        this.dayBounds.max = maxTime;
                         this.updateTimelineBounds(minTime, maxTime);
                     });
-                    this.calendar.selectToday();
+                    // this.calendar.selectToday();
+                    this.calendar.selectDay(this.dayBounds.min);
                 }
                 if (this.calendar.dom.classList.contains('timelineCalendarVisible')) {
                     this.calendar.dom.classList.remove('timelineCalendarVisible');
@@ -673,8 +767,10 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         updateTimelineBounds(minTimestamp, maxTimestamp) {
-            this.trackInfo.metadata.minTime = minTimestamp;
-            this.trackInfo.metadata.maxTime = maxTimestamp;
+            // this.dayBounds.min = minTimestamp;
+            // this.dayBounds.max = maxTimestamp;
+            this.windowBounds.min = minTimestamp;
+            this.windowBounds.max = maxTimestamp;
             let numTracks = Object.keys(this.trackInfo.tracks).length;
             for (let i = 0; i < numTracks; i++) {
                 let thisTrackId = Object.keys(this.trackInfo.tracks)[i];
@@ -755,7 +851,7 @@ createNameSpace('realityEditor.videoPlayback');
             // each segment gets a rectangle within that row
             for (let i = 0; i < numTracks; i++) {
                 let thisTrackId = Object.keys(this.trackInfo.tracks)[i];
-                console.log('creating elements for track: ' + thisTrackId);
+                // console.log('creating elements for track: ' + thisTrackId);
                 let trackElement = document.createElement('div');
                 trackElement.classList.add('timelineTrack');
                 trackElement.id = this.getTrackElementId(thisTrackId);
@@ -766,7 +862,7 @@ createNameSpace('realityEditor.videoPlayback');
 
                 let segments = trackInfo.segments;
                 Object.keys(segments).forEach(segmentId => {
-                    console.log('creating elements for segment ' + segmentId + ' in track ' + thisTrackId);
+                    // console.log('creating elements for segment ' + segmentId + ' in track ' + thisTrackId);
                     let segmentElement = document.createElement('div');
                     segmentElement.classList.add('timelineSegment');
                     segmentElement.id = this.getSegmentElementId(thisTrackId, segmentId);
@@ -774,7 +870,7 @@ createNameSpace('realityEditor.videoPlayback');
                     this.positionAndScaleSegment(segmentElement, thisTrackId, segmentId);
 
                     segmentElement.addEventListener('pointerdown', () => {
-                        console.log('segment down');
+                        // console.log('segment down');
                         this.selectSegment(thisTrackId, segmentId);
 
                         if (this.isPlaying) {
@@ -785,7 +881,7 @@ createNameSpace('realityEditor.videoPlayback');
 
                 // clicking on the track (row background) toggles it as the selected track 
                 trackElement.addEventListener('pointerdown', () => {
-                    console.log('track down');
+                    // console.log('track down');
                     if (this.selectedTrack === thisTrackId) {
                         if (!this.interactingWithSegment) {
                             this.deselectTrack(thisTrackId);
@@ -840,7 +936,7 @@ createNameSpace('realityEditor.videoPlayback');
             videoPreviewContainer.classList.add('timelineVideoPreviewNoTrack');
         }
         selectSegment(trackId, segmentId) {
-            console.log('select segment', trackId, segmentId);
+            // console.log('select segment', trackId, segmentId);
             if (this.interactingWithSegment) {
                 this.deselectSegment(this.interactingWithSegment.trackId, this.interactingWithSegment.segmentId);
             }
@@ -859,7 +955,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.interactingWithSegment = null;
         }
         positionAndScaleTrack(trackElement, trackInfo, index, numTracks) {
-            console.log('position and scale track:');
+            // console.log('position and scale track:');
             // console.log(trackElement, trackInfo, index, numTracks);
             let heightPercent = (80.0 / numTracks);
             let marginPercent = (20.0 / (numTracks + 1));
@@ -873,10 +969,10 @@ createNameSpace('realityEditor.videoPlayback');
             // console.log(segmentElement, segmentInfo, trackInfo);
             let segmentDuration = segmentInfo.end - segmentInfo.start;
 
-            let maxTime = this.trackInfo.metadata.maxTime; // Math.max(Date.now(), this.trackInfo.metadata.maxTime);
-            let trackDuration = maxTime - this.trackInfo.metadata.minTime;
+            let maxTime = this.windowBounds.max; // Math.max(Date.now(), this.trackInfo.metadata.maxTime);
+            let trackDuration = maxTime - this.windowBounds.min;
             let lengthPercent = segmentDuration / trackDuration * 100.0;
-            let startPercent = ((segmentInfo.start + this.timeOffsets[trackId][segmentId]) - this.trackInfo.metadata.minTime) / trackDuration * 100.0;
+            let startPercent = ((segmentInfo.start + this.timeOffsets[trackId][segmentId]) - this.windowBounds.min) / trackDuration * 100.0;
             segmentElement.style.width = lengthPercent + '%';
             segmentElement.style.left = startPercent + '%';
         }
@@ -901,8 +997,8 @@ createNameSpace('realityEditor.videoPlayback');
             if (this.isPlaying) {
                 this.pauseVideoPlayback();
             } else {
-                if (this.playheadTimestamp === this.trackInfo.metadata.maxTime) {
-                    this.playheadTimestamp = this.trackInfo.metadata.minTime;
+                if (this.playheadTimestamp === this.dayBounds.max) {
+                    this.playheadTimestamp = this.dayBounds.min;
                 }
                 this.playVideoPlayback();
             }
