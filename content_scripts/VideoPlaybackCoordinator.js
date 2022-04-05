@@ -12,6 +12,8 @@ createNameSpace('realityEditor.videoPlayback');
             this.videoSources = new realityEditor.videoPlayback.VideoSources((videoInfo, trackInfo) => {
                 console.log('Coordinator got videoInfo, trackInfo');
                 this.timeline.loadTracks(trackInfo);
+                let datesList = Object.keys(this.videoSources.getDatesWithVideos()).map(stringified => new Date(stringified));
+                this.timeline.setDatesWithVideos(datesList);
                 // TODO: make the VideoSources listen for newly uploaded videos, and when loaded, append to timeline
             });
             this.timeline.onVideoFrame((colorVideo, depthVideo, deviceId, segmentId) => {

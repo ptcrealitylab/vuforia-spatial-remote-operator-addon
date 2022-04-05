@@ -14,6 +14,7 @@ createNameSpace('realityEditor.videoPlayback');
                 year: null,
                 day: null
             };
+            this.highlightedDates = [];
             this.padding = 10;
             this.weekDayNames = ['Su', 'M', 'T', 'W', 'Th', 'F', 'Sa'];
             this.monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -162,7 +163,7 @@ createNameSpace('realityEditor.videoPlayback');
                 });
             }
 
-            // re-select a date if you scrolled the month since it was selected
+            // reset highlights, and re-select a date if you scrolled the month since it was selected
             if (this.selectedDate.month === this.dateWhenSelected.month &&
                 this.selectedDate.year === this.dateWhenSelected.year) {
                 Array.from(calDates.children).forEach((elt, i) => {
@@ -172,6 +173,12 @@ createNameSpace('realityEditor.videoPlayback');
                     }
                 });
             }
+
+            // reset highlights
+            Array.from(calDates.children).forEach((elt, i) => {
+                elt.classList.remove('highlightedDate');
+            });
+            this.highlightDates(this.highlightedDates);
         }
         selectDate(elt) {
             if (!elt) { return; }
@@ -216,6 +223,14 @@ createNameSpace('realityEditor.videoPlayback');
                 }
             });
             return match;
+        }
+        getDateElement(dateObject) {
+            let year = dateObject.getFullYear();
+            let month = dateObject.getMonth();
+            let day = dateObject.getDate();
+            if (this.selectedDate.year !== year) { return null; }
+            if (this.selectedDate.month !== month) { return null; }
+            return this.getDateElementForDay(day);
         }
         scrollMonth(increment) {
             this.selectedDate.month += increment;
@@ -262,6 +277,16 @@ createNameSpace('realityEditor.videoPlayback');
         }
         onDateSelected(callback) {
             this.callbacks.onDateSelected.push(callback);
+        }
+        highlightDates(datesList) {
+            this.highlightedDates = datesList;
+            datesList.forEach(dateObject => {
+                this.highlightDate(this.getDateElement(dateObject));
+            });
+        }
+        highlightDate(dateElement) {
+            if (!dateElement) { return; }
+            dateElement.classList.add('highlightedDate');
         }
     }
     exports.Calendar = Calendar;

@@ -197,6 +197,21 @@ createNameSpace('realityEditor.videoPlayback');
                 req.send();
             });
         }
+        getDatesWithVideos() {
+            let dates = {};
+            Object.keys(this.trackInfo.tracks).forEach(trackId => {
+                let track = this.trackInfo.tracks[trackId];
+                Object.keys(track.segments).forEach(segmentId => {
+                    let segment = track.segments[segmentId];
+                    let startDate = new Date(segment.start);
+                    // let endDate = new Date(segment.end);
+                    // TODO: what if startDate and endDate are on two different days? Ignore for now and just use startDate
+                    let day = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                    dates[day] = true;
+                });
+            });
+            return dates;
+        }
     }
 
     exports.VideoSources = VideoSources;
