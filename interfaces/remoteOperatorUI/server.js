@@ -37,7 +37,7 @@ module.exports.start = function start() {
         let playback = null;
         ws.on('message', (msgStr, _isBinary) => {
             
-            console.log('message received: ', msgStr);
+            //console.log('message received: ', msgStr);
             
             try{
                 const msg = JSON.parse(msgStr);
@@ -55,7 +55,6 @@ module.exports.start = function start() {
                     break;
                 
                 case '/update/urPose':
-                    console.log('/update/urPose');
                     doUpdateURPose(msg);
                     break;
                 }
@@ -70,7 +69,6 @@ module.exports.start = function start() {
             broadcast(ws, JSON.stringify(msg));
         }
         function doUpdateURPose(msg) {
-            console.log('doUpdateURPose');
             broadcast(ws, JSON.stringify(msg));
         }
 
