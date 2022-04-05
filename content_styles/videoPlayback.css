@@ -315,9 +315,9 @@
 }
 
 #timelineScrollBar {
-    left: 10px;
-    bottom: 5px;
-    width: calc(100% - 20px);
+    left: 20px;
+    bottom: 3px;
+    width: calc(100% - 2 * 20px);
 }
 
 .hiddenScrollBar {

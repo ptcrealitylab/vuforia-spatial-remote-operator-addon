@@ -287,7 +287,7 @@ createNameSpace('realityEditor.videoPlayback');
                 // we scale from linear to sqrt so that it zooms in faster when it is further zoomed out than when it is already zoomed in a lot
                 let linearZoom = (parseFloat(handle.style.left) - handleWidth / 2) / ((sliderRight - leftMargin) - (sliderLeft + leftMargin));
                 let percentZoom = Math.pow(Math.max(0, linearZoom), 0.25);
-                let MAX_ZOOM = 1.0 - (1.0 / 24); // max zoom level is 24x (1 hour vs 1 day)
+                let MAX_ZOOM = 1.0 - (1.0 / 48); // max zoom level is 48x (0.5hr vs 1 day)
                 this.onZoomChanged(Math.max(0, Math.min(MAX_ZOOM, percentZoom)));
             });
             return container;
