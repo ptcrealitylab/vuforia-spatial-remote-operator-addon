@@ -31,7 +31,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 let msg = JSON.parse(event.data);
 
                 if (msg.command === '/update/urPose') {
-                    console.log('ROBOT DATA: ', msg.robotData);
                     this.robotData = msg.robotData;
                 }
                 

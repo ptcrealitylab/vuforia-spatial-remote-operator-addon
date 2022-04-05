@@ -25,7 +25,17 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             this.hololensModel = new THREE.Group();
             this.container.add(this.hololensModel);
 
+            //this.URdummy = [];
             this.UR3EModel = new THREE.Group();
+            
+            this.UR3E_Base = [];
+            this.UR3E_shoulder = [];
+            this.UR3E_elbow = [];
+            this.UR3E_wrist1 = [];
+            this.UR3E_wrist2 = [];
+            this.UR3E_wrist3 = [];
+            this.UR3E_handE = [];
+            
             this.container.add(this.UR3EModel);
 
             this.humanoidModel = new THREE.Group();
@@ -35,14 +45,36 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             // Load UR3E model
             const fbxLoader = new FBXLoader();
             fbxLoader.load(
-                '/addons/vuforia-spatial-remote-operator-addon/UnityRobotics_RF3_s1.fbx',
+                '/addons/vuforia-spatial-remote-operator-addon/UR3.fbx',
                 (object) => {
 
                     console.log('Add UR3E', object);
                     this.UR3EModel.add(object);
                     object.rotation.z = - Math.PI / 2;
-                    object.scale.set(1000,1000,1000);
-                    object.position.x -= 1000;
+                    object.scale.set(8,8,8);
+                    //object.position.x -= 1000;
+
+                    const geometry = new THREE.BoxGeometry( 800, 800, 600 );
+                    const material1 = new THREE.MeshBasicMaterial( {color: '#00F2FF', transparent: true, opacity: 0.7, wireframe: false} );
+                    const cube1 = new THREE.Mesh( geometry, material1 );
+                    cube1.position.x -= 500;
+                    this.UR3EModel.add( cube1 );
+                    
+                    const material2 = new THREE.MeshBasicMaterial( {color: '#0000ff', transparent: true, opacity: 0.8, wireframe: true} );
+                    const cube2 = new THREE.Mesh( geometry, material2 );
+                    cube2.position.x -= 500;
+                    this.UR3EModel.add( cube2 );
+                    
+
+                    this.UR3E_Base = this.UR3EModel.getObjectByName('Base');
+                    this.UR3E_shoulder = this.UR3EModel.getObjectByName('Shoulder');
+                    this.UR3E_elbow = this.UR3EModel.getObjectByName('Elbow');
+                    this.UR3E_wrist1 = this.UR3EModel.getObjectByName('Wrist1');
+                    this.UR3E_wrist2 = this.UR3EModel.getObjectByName('Wrist2');
+                    this.UR3E_wrist3 = this.UR3EModel.getObjectByName('Wrist3');
+                    this.UR3E_handE = this.UR3EModel.getObjectByName('HandE');
+                    
+                    //this.UR3E_elbow.rotation.z = Math.PI/2;
                 },
                 (xhr) => {
                     console.log((xhr.loaded / xhr.total) * 100 + '% loaded')
@@ -51,6 +83,40 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     console.log(error)
                 }
             );
+            
+            /*
+
+            let mirurNode = realityEditor.sceneGraph.getSceneNodeById('MIRUR_ufva2zpinam');
+            let worldId = realityEditor.worldObjects.getBestWorldObject().objectId;
+            let worldNode = realityEditor.sceneGraph.getSceneNodeById(worldId);
+
+            console.log('MIRUR node: ', mirurNode);
+            
+            let mirurMatrix = mirurNode.getMatrixRelativeTo(worldNode);
+
+            console.log('MIRUR worldId: ', worldId);
+            console.log('MIRUR Matrix: ', mirurMatrix);
+            console.log('MIRUR objects: ', objects);
+
+            const geometry = new THREE.BoxGeometry( 50, 50, 50 );
+            const material = new THREE.MeshBasicMaterial( {color: '#FF00E7', transparent: true, opacity: 0.5} );
+            const cube = new THREE.Mesh( geometry, material );
+            this.container.add( cube );
+            
+            const material1 = new THREE.MeshBasicMaterial( {color: '#FF0000', transparent: true, opacity: 0.5} );
+            const cube1 = new THREE.Mesh( geometry, material1 );
+            cube1.position.z = 500;
+            this.container.add( cube1 );
+
+            const m = new THREE.Matrix4();
+            m.elements = mirurMatrix;
+            m.decompose(cube.position, cube.rotation, cube.scale);
+            
+            console.log('CUBE POSITION: ', cube.position);
+            
+            this.UR3EModel.position.set(cube.position.y, - cube.position.x, cube.position.z);
+            this.UR3EModel.rotation.set(cube.rotation.y, - cube.rotation.x, cube.rotation.z);*/
+
 
             /*
             const geometry = new THREE.SphereGeometry( 50, 32, 16 );
@@ -105,24 +171,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     console.log(error)
                 }
             );*/
-            
-            let mirurNode = realityEditor.sceneGraph.getSceneNodeById('MIRUR_ufva2zpinam');
-            let worldId = realityEditor.worldObjects.getBestWorldObject().objectId;
-            let worldNode = realityEditor.sceneGraph.getSceneNodeById(worldId);
-
-            let mirurMatrix = mirurNode.getMatrixRelativeTo(worldNode);
-            
-            console.log('MIRUR worldId: ', worldId);
-            console.log('MIRUR Matrix: ', mirurMatrix);
-
-            const geometry = new THREE.BoxGeometry( 100, 400, 200 );
-            const material = new THREE.MeshBasicMaterial( {color: 'cyan', transparent: true, opacity: 0.5} );
-            const cube = new THREE.Mesh( geometry, material );
-            this.container.add( cube );
-            
-            //cube.matrixAutoUpdate = false;
-            //cube.matrix.set(mirurMatrix);
-            //cube.updateMatrixWorld();
 
             this.draw = this.draw.bind(this);
             window.rzv = this;
@@ -145,13 +193,56 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         }
 
         unityToWorldRot(rotation){
-            return {x: - rotation.y, y: - rotation.x, z: rotation.z};
+            //return {x: - rotation.y, y: - rotation.x, z: rotation.z}; // Hololens rotation transformation from unity
+            return {x: rotation.x * Math.PI/180, y: - rotation.y * Math.PI/180, z: - rotation.z * Math.PI/180};
         }
         
         drawRobotPose(){
-            if (this.UR3EModel){
-                let robotData = this.dataSource.robotData;
+
+            let robotData = this.dataSource.robotData;
+            
+            //console.log('Checking Robot Data: ', robotData['UR3_position']);
+            
+            if (this.UR3EModel && robotData['UR3_position'] !== undefined){
                 
+                //let base_pos = this.unityToWorldPos(robotData['Base_position']);
+                
+                let UR3E_rot = this.unityToWorldRot(robotData['UR3_rotation']);
+                let base_rot = this.unityToWorldRot(robotData['Base_rotation']);
+                let shoulder_rot = this.unityToWorldRot(robotData['Shoulder_rotation']);
+                let elbow_rot = this.unityToWorldRot(robotData['Elbow_rotation']);
+                let wrist1_rot = this.unityToWorldRot(robotData['Wrist1_rotation']);
+                let wrist2_rot = this.unityToWorldRot(robotData['Wrist2_rotation']);
+                let wrist3_rot = this.unityToWorldRot(robotData['Wrist3_rotation']);
+                let handE_rot = this.unityToWorldRot(robotData['HandE_rotation']);
+
+                this.UR3E_Base.rotation.x = base_rot.x;
+                this.UR3E_Base.rotation.y = base_rot.y;
+                this.UR3E_Base.rotation.z = base_rot.z;
+                
+                this.UR3E_shoulder.rotation.x = shoulder_rot.x;
+                this.UR3E_shoulder.rotation.y = shoulder_rot.y;
+                this.UR3E_shoulder.rotation.z = shoulder_rot.z;
+
+                this.UR3E_elbow.rotation.x = elbow_rot.x;
+                this.UR3E_elbow.rotation.y = elbow_rot.y;
+                this.UR3E_elbow.rotation.z = elbow_rot.z;
+
+                this.UR3E_wrist1.rotation.x = wrist1_rot.x;
+                this.UR3E_wrist1.rotation.y = wrist1_rot.y;
+                this.UR3E_wrist1.rotation.z = wrist1_rot.z;
+
+                this.UR3E_wrist2.rotation.x = wrist2_rot.x;
+                this.UR3E_wrist2.rotation.y = wrist2_rot.y;
+                this.UR3E_wrist2.rotation.z = wrist2_rot.z;
+                
+                this.UR3E_wrist3.rotation.x = wrist3_rot.x;
+                this.UR3E_wrist3.rotation.y = wrist3_rot.y;
+                this.UR3E_wrist3.rotation.z = wrist3_rot.z;
+
+                this.UR3E_handE.rotation.x = handE_rot.x;
+                this.UR3E_handE.rotation.y = handE_rot.y;
+                this.UR3E_handE.rotation.z = handE_rot.z;
             }
         }
         
