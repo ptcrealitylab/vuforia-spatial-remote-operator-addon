@@ -6,6 +6,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.displayPointClouds = true;
             this.canvasElements = {};
             this.timelineVisibile = true;
+            this.POSE_FPS = 10; // if the recording FPS changes, this const needs to be updated to synchronize the playback
         }
         load() {
             this.timeline = new realityEditor.videoPlayback.Timeline();
@@ -26,16 +27,12 @@ createNameSpace('realityEditor.videoPlayback');
                 depthCtx.drawImage(depthVideo, 0, 0, 256, 144);
 
                 // robust way to get pose that matches actual video playback currentTime (independent of offset, viewport, etc)
-                let segmentInfo = this.videoSources.getSegmentInfo(deviceId, segmentId);
-                let videoTimePercent = colorVideo.currentTime / colorVideo.duration;
-                let firstPoseTime = segmentInfo.poses[0].time;
-                let lastPoseTime = segmentInfo.poses[segmentInfo.poses.length - 1].time;
-                let computedTime = firstPoseTime + videoTimePercent * (lastPoseTime - firstPoseTime);
+                // a 179.5 second video has 1795 poses, so use the (video timestamp * 10) as index to retrieve pose (10fps-dependent)
+                let closestPose = this.videoSources.getPoseAtIndex(deviceId, segmentId, Math.floor(colorVideo.currentTime * this.POSE_FPS));
 
                 let colorImageUrl = colorVideoCanvas.toDataURL('image/jpeg');
                 let depthImageUrl = depthVideoCanvas.toDataURL('image/png');
 
-                let closestPose = this.videoSources.getClosestPose(deviceId, segmentId, computedTime);
                 if (closestPose) {
                     this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, closestPose);
                 }

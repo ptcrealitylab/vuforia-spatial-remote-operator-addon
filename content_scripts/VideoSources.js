@@ -82,6 +82,22 @@ createNameSpace('realityEditor.videoPlayback');
         getSegmentInfo(deviceId, segmentId) {
             return this.getTrackInfo(deviceId).segments[segmentId];
         }
+        getPoseAtIndex(deviceId, segmentId, poseIndex) {
+            let segmentPoses = this.getSegmentInfo(deviceId, segmentId).poses;
+            let clampedIndex = Math.max(0, Math.min(segmentPoses.length - 1, poseIndex));
+            let poseBase64 = segmentPoses[clampedIndex].pose;
+            if (poseBase64) {
+                let byteCharacters = window.atob(poseBase64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                let matrix = new Float32Array(byteArray.buffer);
+                return matrix;
+            }
+            return null;
+        }
         getClosestPose(deviceId, segmentId, absoluteTime) {
             let segmentPoses = this.getSegmentInfo(deviceId, segmentId).poses;
             // find the pose that minimizes dt
