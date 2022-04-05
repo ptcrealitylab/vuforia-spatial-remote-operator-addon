@@ -27,6 +27,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.pointerStart = null;
             this.videoElements = {};
             this.calendar = null;
+            this.datesWithVideos = [];
             this.DAY_LENGTH = 1000 * 60 * 60 * 24; // one day
 
             let dateNow = new Date(Date.now());
@@ -744,6 +745,7 @@ createNameSpace('realityEditor.videoPlayback');
             calendarButton.addEventListener('pointerup', _e => {
                 if (!this.calendar) {
                     this.calendar = new realityEditor.videoPlayback.Calendar(this.timelineContainer);
+                    this.calendar.highlightDates(this.datesWithVideos);
                     this.calendar.onDateSelected(dateObject => {
                         this.setZoomAndPosition(0, 0);
                         // console.log('user selected this date: ', dateObject);
@@ -1042,6 +1044,9 @@ createNameSpace('realityEditor.videoPlayback');
 
             this.pauseVideoPlayback();
             this.playVideoPlayback();
+        }
+        setDatesWithVideos(datesList) {
+            this.datesWithVideos = datesList;
         }
     }
 
