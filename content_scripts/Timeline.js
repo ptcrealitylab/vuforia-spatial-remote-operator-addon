@@ -738,7 +738,6 @@ createNameSpace('realityEditor.videoPlayback');
             playButton.addEventListener('pointerup', _e => {
                 this.togglePlayback();
             });
-            // TODO: what does seek button do?
             speedButton.addEventListener('pointerup', _e => {
                 this.multiplySpeed(2.0, true);
             });
