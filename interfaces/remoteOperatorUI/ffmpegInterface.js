@@ -4,11 +4,8 @@ const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 // const VideoLib = require('node-video-lib');
 
-class ffmpegInterface {
-    constructor() {
-        console.log('FFMPEG installer:', ffmpeg.path, ffmpeg.version);
-    }
-    ffmpeg_image2mp4(output_path, framerate = 10, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) {
+module.exports = {
+    ffmpeg_image2mp4: (output_path, framerate = 10, input_vcodec = 'mjpeg', input_width = 1920, input_height = 1080, crf = 25, output_scale = 0.25) => {
         // let filePath = path.join(this.outputPath, output_name + '_' + Date.now() + '.mp4');
 
         let outputWidth = input_width * output_scale;
@@ -48,8 +45,8 @@ class ffmpegInterface {
         // });
 
         return process;
-    }
-    ffmpeg_image2losslessVideo(output_path, framerate = 10, input_vcodec = 'png', input_width = 256, input_height = 144) {
+    },
+    ffmpeg_image2losslessVideo: (output_path, framerate = 10, input_vcodec = 'png', input_width = 256, input_height = 144) => {
         // let outputWidth = input_width;
         // let outputHeight = input_height;
 
@@ -110,8 +107,8 @@ class ffmpegInterface {
         // });
 
         return process;
-    }
-    ffmpeg_concat_mp4s(output_path, file_list_path) {
+    },
+    ffmpeg_concat_mp4s: (output_path, file_list_path) => {
         // ffmpeg -f concat -safe 0 -i fileList.txt -c copy mergedVideo.mp4
         // we pass in a timestamp so we can use an identical one in the color and depth videos that match up
         let args = [
@@ -124,8 +121,8 @@ class ffmpegInterface {
 
         let process = cp.spawn(ffmpegPath, args);
         return process;
-    }
-    ffmpeg_adjust_length(output_path, input_path, newDuration) {
+    },
+    ffmpeg_adjust_length: (output_path, input_path, newDuration) => {
         let filesize = fs.statSync(input_path);
         console.log(filesize.size + ' bytes');
         if (filesize.size <= 48) {
@@ -165,6 +162,4 @@ class ffmpegInterface {
             }
         }.bind(this));
     }
-}
-
-module.exports = ffmpegInterface;
+};

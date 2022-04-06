@@ -3,50 +3,46 @@ const path = require('path');
 const ffmpegInterface = require('./ffmpegInterface');
 const VideoFileManager = require('./VideoFileManager');
 const VideoProcessManager = require('./VideoProcessManager');
+const constants = require('./videoConstants');
 
 // TODO: listen to when the ffmpeg process fully finishes writing data to disk, so that process can be killed/freed/etc
 
 class VideoServer {
     constructor(outputPath) {
         // configurable constants
-        this.SEGMENT_LENGTH = 15000;
-        this.RESCALE_VIDEOS = false; // disable to prevent lossy transformation
-        this.DEBUG_WRITE_IMAGES = false;
         this.outputPath = outputPath;
-        this.COLOR_FILETYPE = 'mp4';
-        this.DEPTH_FILETYPE = 'mp4';
 
-        this.ffmpegInterface = new ffmpegInterface();
-        this.fileManager = new VideoFileManager(outputPath, this.COLOR_FILETYPE, this.DEPTH_FILETYPE);
-        this.videoProcessManager = new VideoProcessManager(this.fileManager, this.ffmpegInterface);
-        this.videoProcessManager.setRecordingDoneCallback(this.onRecordingDone.bind(this));
+        VideoFileManager.initWithOutputPath(outputPath);
+        VideoFileManager.buildPersistentInfo();
+        VideoFileManager.savePersistentInfo();
+        VideoProcessManager.setRecordingDoneCallback(this.onRecordingDone.bind(this));
 
         console.log('Created a VideoServer with path: ' + this.outputPath);
 
         // this.checkPersistentInfoIntegrity();
 
-        Object.keys(this.fileManager.persistentInfo).forEach(deviceId => {
+        Object.keys(VideoFileManager.persistentInfo).forEach(deviceId => {
             this.concatExisting(deviceId);
         });
 
-        Object.keys(this.fileManager.persistentInfo).forEach(deviceId => {
-            this.evaluateAndRescaleVideosIfNeeded(deviceId, this.RESCALE_VIDEOS);
+        Object.keys(VideoFileManager.persistentInfo).forEach(deviceId => {
+            this.evaluateAndRescaleVideosIfNeeded(deviceId, constants.RESCALE_VIDEOS);
         });
     }
     startRecording(deviceId) {
-        this.videoProcessManager.startRecording(deviceId);
+        VideoProcessManager.startRecording(deviceId);
     }
     stopRecording(deviceId) {
-        this.videoProcessManager.stopRecording(deviceId);
+        VideoProcessManager.stopRecording(deviceId);
     }
     onConnection(deviceId) {
-        this.videoProcessManager.onConnection(deviceId);
+        VideoProcessManager.onConnection(deviceId);
     }
     onDisconnection(deviceId) {
-        this.videoProcessManager.onDisconnection(deviceId);
+        VideoProcessManager.onDisconnection(deviceId);
     }
     onFrame(rgb, depth, pose, deviceId) {
-        this.videoProcessManager.onFrame(rgb, depth, pose, deviceId);
+        VideoProcessManager.onFrame(rgb, depth, pose, deviceId);
     }
     onRecordingDone(deviceId, sessionId, lastChunkIndex) {
         setTimeout(() => { // wait for final video to finish processing
@@ -57,15 +53,16 @@ class VideoServer {
             fs.writeFileSync(tmpOutputPath, JSON.stringify({ success: true}));
 
             // process chunks
-            this.evaluateAndRescaleVideosIfNeeded(deviceId, this.RESCALE_VIDEOS);
+            this.evaluateAndRescaleVideosIfNeeded(deviceId, constants.RESCALE_VIDEOS);
 
             // try concatenating after a longer delay. if not all chunks have finished processing by then, ...
             // ... the chunk count won't match up and it will skip concatenating for now
+            // it will also reattempt each time you restart the server.
             setTimeout(() => {
                 console.log('try to concat rescaled videos upon disconnect');
-                this.fileManager.persistentInfo = this.fileManager.buildPersistentInfo(); // recompile persistent info so session metadata contains new chunks
+                VideoFileManager.buildPersistentInfo(); // recompile persistent info so session metadata contains new chunks
                 this.concatExisting(deviceId);
-            }, 1000 * (lastChunkIndex+1)); // delay 1 second per chunk we need to process, should give plenty of time
+            }, 1000 * (lastChunkIndex + 1)); // delay 1 second per chunk we need to process, should give plenty of time
         }, 5000);
     }
     concatExisting(deviceId) {
@@ -80,7 +77,7 @@ class VideoServer {
             console.log(tmpFiles);
         }
 
-        let sessions = this.fileManager.persistentInfo[deviceId];
+        let sessions = VideoFileManager.persistentInfo[deviceId];
         Object.keys(sessions).forEach(sessionId => {
             let s = sessions[sessionId];
             if (s.color && s.depth && s.pose) { return; }
@@ -98,19 +95,19 @@ class VideoServer {
 
                 console.log('time to concatenate!');
 
-                if (!s.color) { s.color = this.concatFiles(deviceId, sessionId, 'color', s.processed_chunks); }
-                if (!s.depth) { s.depth = this.concatFiles(deviceId, sessionId, 'depth', s.processed_chunks); }
+                if (!s.color) { s.color = this.concatFiles(deviceId, sessionId, constants.DIR_NAMES.color, s.processed_chunks); }
+                if (!s.depth) { s.depth = this.concatFiles(deviceId, sessionId, constants.DIR_NAMES.depth, s.processed_chunks); }
                 if (!s.pose) { s.pose = this.concatPosesIfNeeded(deviceId, sessionId); }
             }
         });
 
         console.log('UPDATED INFO:');
-        console.log(this.fileManager.persistentInfo);
-        this.fileManager.savePersistentInfo();
+        console.log(VideoFileManager.persistentInfo);
+        VideoFileManager.savePersistentInfo();
     }
     extractTimeInformation(fileList) { // TODO: we can probably just use the SEGMENT_LENGTH * fileList.length?
         let fileRecordingTimes = fileList.map(filename => parseInt(filename.match(/[0-9]{13,}/))); // extract timestamp
-        let firstTimestamp = Math.min(...fileRecordingTimes) - this.SEGMENT_LENGTH; // estimate, since this is at the end of the first video
+        let firstTimestamp = Math.min(...fileRecordingTimes) - constants.SEGMENT_LENGTH; // estimate, since this is at the end of the first video
         let lastTimestamp = Math.max(...fileRecordingTimes);
         return {
             start: firstTimestamp,
@@ -118,10 +115,10 @@ class VideoServer {
             duration: lastTimestamp - firstTimestamp
         };
     }
-    concatFiles(deviceId, sessionId, colorOrDepth = 'color', files) {
+    concatFiles(deviceId, sessionId, colorOrDepth = constants.DIR_NAMES.color, files) {
         let fileText = '';
         for (let i = 0; i < files.length; i++) {
-            fileText += 'file \'' + path.join(this.outputPath, deviceId, this.fileManager.DIR_NAMES.processed_chunks, colorOrDepth, files[i]) + '\'\n';
+            fileText += 'file \'' + path.join(this.outputPath, deviceId, constants.DIR_NAMES.processed_chunks, colorOrDepth, files[i]) + '\'\n';
         }
 
         let timeInfo = this.extractTimeInformation(files);
@@ -137,23 +134,23 @@ class VideoServer {
         }
         fs.writeFileSync(txtFilePath, fileText);
 
-        let filetype = (colorOrDepth === 'depth') ? this.DEPTH_FILETYPE : this.COLOR_FILETYPE;
+        let filetype = (colorOrDepth === constants.DIR_NAMES.depth) ? constants.DEPTH_FILETYPE : constants.COLOR_FILETYPE;
         let filename = 'device_' + deviceId + '_session_' + sessionId + '_start_' + timeInfo.start + '_end_' + timeInfo.end + '.' + filetype; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
-        let outputPath = path.join(this.outputPath, deviceId, this.fileManager.DIR_NAMES.session_videos, colorOrDepth, filename);
-        this.ffmpegInterface.ffmpeg_concat_mp4s(outputPath, txtFilePath);
+        let outputPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.session_videos, colorOrDepth, filename);
+        ffmpegInterface.ffmpeg_concat_mp4s(outputPath, txtFilePath);
 
         return filename;
     }
     concatPosesIfNeeded(deviceId, sessionId) {
         // check if output file exists for this device/session pair
         let filename = 'device_' + deviceId + '_session_' + sessionId + '.json'; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
-        let outputPath = path.join(this.outputPath, deviceId, this.fileManager.DIR_NAMES.session_videos, 'pose', filename);
+        let outputPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.session_videos, 'pose', filename);
         if (fs.existsSync(outputPath)) {
             return filename; // already exists, return early
         }
         console.log('we still need to process poses for ' + deviceId + ' (session ' + sessionId + ')');
         // load all chunks
-        let files = fs.readdirSync(path.join(this.outputPath, deviceId, this.fileManager.DIR_NAMES.unprocessed_chunks, 'pose'));
+        let files = fs.readdirSync(path.join(this.outputPath, deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose'));
         files = files.filter(filename => {
             return filename.includes(sessionId);
         });
@@ -161,7 +158,7 @@ class VideoServer {
 
         let poseData = [];
         files.forEach(filename => {
-            let filePath = path.join(this.outputPath, deviceId, this.fileManager.DIR_NAMES.unprocessed_chunks, 'pose', filename);
+            let filePath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose', filename);
             // poseData[filename] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
             poseData.push(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
         });
@@ -188,17 +185,17 @@ class VideoServer {
         return header;
     }
     evaluateAndRescaleVideosIfNeeded(deviceId, rescaleEnabled) {
-        let unprocessedPath = path.join(this.outputPath, deviceId, this.fileManager.DIR_NAMES.unprocessed_chunks);
-        let processedPath = path.join(this.outputPath, deviceId, this.fileManager.DIR_NAMES.processed_chunks);
+        let unprocessedPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.unprocessed_chunks);
+        let processedPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.processed_chunks);
 
         let fileMap = {
             color: {
-                processed: this.fileManager.getProcessedChunkFilePaths(deviceId, 'color'),
-                unprocessed: this.fileManager.getUnprocessedChunkFilePaths(deviceId, 'color')
+                processed: VideoFileManager.getProcessedChunkFilePaths(deviceId, constants.DIR_NAMES.color),
+                unprocessed: VideoFileManager.getUnprocessedChunkFilePaths(deviceId, constants.DIR_NAMES.color)
             },
             depth: {
-                processed: this.fileManager.getProcessedChunkFilePaths(deviceId, 'depth'),
-                unprocessed: this.fileManager.getUnprocessedChunkFilePaths(deviceId, 'depth')
+                processed: VideoFileManager.getProcessedChunkFilePaths(deviceId, constants.DIR_NAMES.depth),
+                unprocessed: VideoFileManager.getUnprocessedChunkFilePaths(deviceId, constants.DIR_NAMES.depth)
             }
         };
 
@@ -207,10 +204,10 @@ class VideoServer {
             fileMap[colorOrDepth].unprocessed.forEach(filename => {
                 let timestamp = filename.match(/[0-9]{13,}/);
                 if (!fileMap[colorOrDepth].processed.some(resizedFilename => resizedFilename.includes(timestamp))) {
-                    let colorFilename = filename.replace(/\.[^/.]+$/, '') + '.' + this.COLOR_FILETYPE;
-                    let depthFilename = filename.replace(/\.[^/.]+$/, '') + '.' + this.DEPTH_FILETYPE;
-                    let colorFilePath = path.join(unprocessedPath, 'color', colorFilename);
-                    let depthFilePath = path.join(unprocessedPath, 'depth', depthFilename);
+                    let colorFilename = filename.replace(/\.[^/.]+$/, '') + '.' + constants.COLOR_FILETYPE;
+                    let depthFilename = filename.replace(/\.[^/.]+$/, '') + '.' + constants.DEPTH_FILETYPE;
+                    let colorFilePath = path.join(unprocessedPath, constants.DIR_NAMES.color, colorFilename);
+                    let depthFilePath = path.join(unprocessedPath, constants.DIR_NAMES.depth, depthFilename);
                     if (fs.existsSync(colorFilePath) && fs.existsSync(depthFilePath)) {
                         let byteSizeColor = fs.statSync(colorFilePath).size;
                         let byteSizeDepth = fs.statSync(depthFilePath).size;
@@ -226,7 +223,7 @@ class VideoServer {
                 let inputPath = path.join(unprocessedPath, colorOrDepth, filename);
                 let outputPath = path.join(processedPath, colorOrDepth, filename);
                 if (rescaleEnabled) {
-                    this.ffmpegInterface.ffmpeg_adjust_length(outputPath, inputPath, this.SEGMENT_LENGTH / 1000);
+                    ffmpegInterface.ffmpeg_adjust_length(outputPath, inputPath, constants.SEGMENT_LENGTH / 1000);
                 } else {
                     fs.copyFileSync(inputPath, outputPath, fs.constants.COPYFILE_EXCL);
                 }
