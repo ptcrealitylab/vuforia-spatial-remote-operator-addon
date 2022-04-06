@@ -1,50 +1,50 @@
 const fs = require('fs');
 const path = require('path');
+const ffmpegInterface = require('./ffmpegInterface');
+const VideoFileManager = require('./VideoFileManager');
+const constants = require('./videoConstants');
 
-class VideoProcessManager {
-    constructor(fileManager, ffmpegInterface) {
-        this.connections = {};
-        this.fileManager = fileManager;
-        this.ffmpegInterface = ffmpegInterface;
-        this.callbacks = {
-            recordingDone: null
-        };
-    }
-    onConnection(deviceId) {
+let connections = {};
+let callbacks = {
+    recordingDone: null
+};
+
+module.exports = {
+    onConnection: (deviceId) => {
         console.log('-- on connection: ' + deviceId);
-        this.connections[deviceId] = new Connection(deviceId, this.fileManager, this.ffmpegInterface, this.callbacks);
-    }
-    onDisconnection(deviceId) {
+        connections[deviceId] = new Connection(deviceId, this.callbacks);
+    },
+    onDisconnection: (deviceId) => {
         console.log('-- on disconnection: ' + deviceId);
-        if (this.connections[deviceId]) {
-            this.connections[deviceId].stopRecording(true);
-            // ?? delete this.connections[deviceId] ??
+        if (connections[deviceId]) {
+            connections[deviceId].stopRecording(true);
+            // TODO: should we also delete this.connections[deviceId]?
         }
-    }
-    startRecording(deviceId) {
+    },
+    startRecording: (deviceId) => {
         console.log('-- start recording: ' + deviceId);
-        if (this.connections[deviceId]) {
-            this.connections[deviceId].startRecording();
+        if (connections[deviceId]) {
+            connections[deviceId].startRecording();
         }
-    }
-    stopRecording(deviceId) {
+    },
+    stopRecording: (deviceId) => {
         console.log('-- stop recording: ' + deviceId);
-        if (this.connections[deviceId]) {
-            this.connections[deviceId].stopRecording(false);
+        if (connections[deviceId]) {
+            connections[deviceId].stopRecording(false);
         }
-    }
-    onFrame(rgb, depth, pose, deviceId) {
-        if (this.connections[deviceId]) {
-            this.connections[deviceId].onFrame(rgb, depth, pose);
+    },
+    onFrame: (rgb, depth, pose, deviceId) => {
+        if (connections[deviceId]) {
+            connections[deviceId].onFrame(rgb, depth, pose);
         }
+    },
+    setRecordingDoneCallback: (callback) => {
+        callbacks.recordingDone = callback;
     }
-    setRecordingDoneCallback(callback) {
-        this.callbacks.recordingDone = callback;
-    }
-}
+};
 
 class Connection {
-    constructor(deviceId, fileManager, ffmpegInterface, callbacks) {
+    constructor(deviceId, callbacks) {
         this.deviceId = deviceId;
         this.sessionId = null;
         this.STATUS = Object.freeze({
@@ -67,9 +67,6 @@ class Connection {
         };
         this.poses = [];
         this.chunkCount = 0;
-        this.ffmpegInterface = ffmpegInterface;
-        this.fileManager = fileManager;
-        this.SEGMENT_LENGTH = 15000; // TODO: move to constants file
         this.callbacks = callbacks;
     }
     startRecording() {
@@ -85,11 +82,11 @@ class Connection {
             this.stopProcesses();
             if (this.processStatuses.color !== this.STATUS.DISCONNECTED &&
                 this.processStatuses.color !== this.STATUS.STOPPED) {
-                setTimeout(() => {
+                setTimeout(_ => {
                     this.recordNextChunk();
-                }, 10);
+                }, 10); // not sure if this delay is necessary between chunks but doesnt seem unreasonable
             }
-        }, this.SEGMENT_LENGTH);
+        }, constants.SEGMENT_LENGTH);
     }
     recordNextChunk() {
         this.chunkCount += 1;
@@ -102,11 +99,11 @@ class Connection {
             this.stopProcesses();
             if (this.processStatuses.color !== this.STATUS.DISCONNECTED &&
                 this.processStatuses.color !== this.STATUS.STOPPED) {
-                setTimeout(() => {
+                setTimeout(_ => {
                     this.recordNextChunk();
                 }, 10);
             }
-        }, this.SEGMENT_LENGTH);
+        }, constants.SEGMENT_LENGTH);
     }
     spawnProcesses() {
         let index = this.chunkCount; // this.processChunkCounts[deviceId][sessionId];
@@ -114,20 +111,20 @@ class Connection {
         // start color stream process
         // depth images are 1920x1080 lossy JPG images
         let chunkTimestamp = Date.now();
-        let colorFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.fileManager.COLOR_FILETYPE;
-        let colorOutputPath = path.join(this.fileManager.outputPath, this.deviceId, this.fileManager.DIR_NAMES.unprocessed_chunks, 'color', colorFilename);
-        this.processes.color = this.ffmpegInterface.ffmpeg_image2mp4(colorOutputPath, 10, 'mjpeg', 1920, 1080, 25, 0.5);
+        let colorFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + constants.COLOR_FILETYPE;
+        let colorOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, constants.DIR_NAMES.color, colorFilename);
+        this.processes.color = ffmpegInterface.ffmpeg_image2mp4(colorOutputPath, 10, 'mjpeg', 1920, 1080, 25, 0.5);
         if (this.processes.color) {
             this.processStatuses.color = this.STATUS.STARTED;
         }
 
         // start depth stream process
         // depth images are 256x144 lossless PNG buffers
-        let depthFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + this.fileManager.DEPTH_FILETYPE;
-        let depthOutputPath = path.join(this.fileManager.outputPath, this.deviceId, this.fileManager.DIR_NAMES.unprocessed_chunks, 'depth', depthFilename);
-        this.processes.depth = this.ffmpegInterface.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 13, 1);
-        // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144); // this version isn't working as reliably
-        // this.processes[deviceId][this.PROCESS.DEPTH] = this.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
+        let depthFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + constants.DEPTH_FILETYPE;
+        let depthOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, constants.DIR_NAMES.depth, depthFilename);
+        this.processes.depth = ffmpegInterface.ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 13, 1);
+        // this.processes[deviceId][this.PROCESS.DEPTH] = ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144); // this version isn't working as reliably
+        // this.processes[deviceId][this.PROCESS.DEPTH] = ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
         if (this.processes.depth) {
             this.processStatuses.depth = this.STATUS.STARTED;
         }
@@ -150,7 +147,7 @@ class Connection {
                 time: Date.now()
             });
         }
-        // TODO: include debug_write_images?
+        // TODO: include constants.DEBUG_WRITE_IMAGES code?
     }
     stopProcesses() {
         this.isRecording = false;
@@ -173,7 +170,7 @@ class Connection {
             // TODO: should this move to the processStatuses.pose block?
             let index = this.chunkCount;
             let poseFilename = 'chunk_' + this.sessionId + '_' + index + '_' + Date.now() + '.json';
-            let poseOutputPath = path.join(this.fileManager.outputPath, this.deviceId, this.fileManager.DIR_NAMES.unprocessed_chunks, 'pose', poseFilename);
+            let poseOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose', poseFilename);
             fs.writeFileSync(poseOutputPath, JSON.stringify(this.poses));
             this.poses = [];
         }
@@ -210,5 +207,3 @@ class Connection {
         return stampUuidTime;
     }
 }
-
-module.exports = VideoProcessManager;
