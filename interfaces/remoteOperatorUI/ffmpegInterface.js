@@ -1,6 +1,5 @@
 const fs = require('fs');
 const cp = require('child_process');
-const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const constants = require('./videoConstants');
 
