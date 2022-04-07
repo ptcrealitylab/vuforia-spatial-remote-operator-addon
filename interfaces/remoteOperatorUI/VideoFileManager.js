@@ -2,6 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const constants = require('./videoConstants');
 
+/**
+ * @fileOverview
+ * The VideoFileManager is initialized with an outputPath where all video recordings and their derivatives are stored,
+ * and contains a variety of utilities for reading and writing the files to a specific nested file structure,
+ * and to convert this into a json blob containing the file tree (the persistentInfo).
+ * All state is reconstructed from the file structure when the server restarts.
+ */
+
 let outputPath = null;
 let persistentInfo = null;
 
@@ -113,7 +121,9 @@ const deleteChunksForSession = (deviceId, sessionId) => {
             });
         });
     });
-    console.log('deleted ' + counter + ' leftover video chunk files for recorded video ' + sessionId);
+    if (counter > 0) {
+        console.log('deleted ' + counter + ' leftover video chunk files for recorded video ' + sessionId);
+    }
 };
 
 module.exports = {
