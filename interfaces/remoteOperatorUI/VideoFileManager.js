@@ -89,10 +89,31 @@ const getSessionIdFromFilename = (filename, prefix) => {
 };
 
 const getNestedFilePaths = (deviceId, dirName, colorOrDepth) => {
+    if (!outputPath) { console.warn('You never called initWithOutputPath on VideoFileManager'); }
+
     let dirPath = path.join(outputPath, deviceId, dirName, colorOrDepth);
     mkdirIfNeeded(dirPath, true);
     let filetype = '.' + ((colorOrDepth === constants.DIR_NAMES.depth) ? constants.DEPTH_FILETYPE : constants.COLOR_FILETYPE);
     return fs.readdirSync(dirPath).filter(filename => filename.includes(filetype));
+};
+
+const deleteChunksForSession = (deviceId, sessionId) => {
+    if (!outputPath) { console.warn('You never called initWithOutputPath on VideoFileManager'); }
+
+    let counter = 0;
+    [constants.DIR_NAMES.unprocessed_chunks, constants.DIR_NAMES.processed_chunks].forEach(dirName => {
+        [constants.DIR_NAMES.color, constants.DIR_NAMES.depth].forEach(colorOrDepth => {
+            getNestedFilePaths(deviceId, dirName, colorOrDepth).filter(path => {
+                return path.includes(sessionId);
+            }).map(filename => {
+                return path.join(outputPath, deviceId, dirName, colorOrDepth, filename);
+            }).forEach(chunkPath => {
+                fs.rmSync(chunkPath);
+                counter++;
+            });
+        });
+    });
+    console.log('deleted ' + counter + ' leftover video chunk files for recorded video ' + sessionId);
 };
 
 module.exports = {
@@ -102,6 +123,8 @@ module.exports = {
     },
     // we rebuild the json blob each time by parsing the filesystem, so this is stored mainly as a means for other systems to retrieve the data
     buildPersistentInfo: () => {
+        if (!outputPath) { console.warn('You never called initWithOutputPath on VideoFileManager'); }
+
         let info = {};
         // each folder in outputPath is a device
         // check that folder's session_videos, processed_chunks, and unprocessed_chunks to determine how many sessions there are and what state they're in
@@ -114,9 +137,11 @@ module.exports = {
         persistentInfo = info;
     },
     savePersistentInfo: () => {
+        if (!outputPath) { console.warn('You never called initWithOutputPath on VideoFileManager'); }
+
         let jsonPath = path.join(outputPath, 'videoInfo.json');
         fs.writeFileSync(jsonPath, JSON.stringify(persistentInfo, null, 4));
-        console.log('saved videoInfo');
+        console.log('saved recorded video metadata to ' + jsonPath);
     },
     getUnprocessedChunkFilePaths: (deviceId, colorOrDepth = constants.DIR_NAMES.color) => {
         return getNestedFilePaths(deviceId, constants.DIR_NAMES.unprocessed_chunks, colorOrDepth);
@@ -126,6 +151,16 @@ module.exports = {
     },
     getSessionFilePaths: (deviceId, colorOrDepth = constants.DIR_NAMES.color) => {
         return getNestedFilePaths(deviceId, constants.DIR_NAMES.session_videos, colorOrDepth);
+    },
+    deleteLeftoverChunks(deviceId) {
+        let colorSessionPaths = module.exports.getSessionFilePaths(deviceId, constants.DIR_NAMES.color);
+        let depthSessionPaths = module.exports.getSessionFilePaths(deviceId, constants.DIR_NAMES.depth);
+        colorSessionPaths.forEach(path => {
+            if (depthSessionPaths.includes(path)) {
+                let sessionId = getSessionIdFromFilename(path, 'session_');
+                deleteChunksForSession(deviceId, sessionId);
+            }
+        });
     },
     get outputPath() { return outputPath; },
     get persistentInfo() { return persistentInfo; }

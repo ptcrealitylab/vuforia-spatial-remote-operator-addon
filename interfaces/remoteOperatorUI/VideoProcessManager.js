@@ -12,7 +12,7 @@ let callbacks = {
 module.exports = {
     onConnection: (deviceId) => {
         console.log('-- on connection: ' + deviceId);
-        connections[deviceId] = new Connection(deviceId, this.callbacks);
+        connections[deviceId] = new Connection(deviceId, callbacks);
     },
     onDisconnection: (deviceId) => {
         console.log('-- on disconnection: ' + deviceId);

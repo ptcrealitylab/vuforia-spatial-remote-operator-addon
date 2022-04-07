@@ -11,13 +11,12 @@ class VideoServer {
     constructor(outputPath) {
         // configurable constants
         this.outputPath = outputPath;
+        console.log('Created a VideoServer with path: ' + this.outputPath);
 
         VideoFileManager.initWithOutputPath(outputPath);
         VideoFileManager.buildPersistentInfo();
         VideoFileManager.savePersistentInfo();
         VideoProcessManager.setRecordingDoneCallback(this.onRecordingDone.bind(this));
-
-        console.log('Created a VideoServer with path: ' + this.outputPath);
 
         // this.checkPersistentInfoIntegrity();
 
@@ -25,8 +24,13 @@ class VideoServer {
             this.concatExisting(deviceId);
         });
 
+        // this copies over 15 second chunks from unprocessed_chunks to processed_chunks
         Object.keys(VideoFileManager.persistentInfo).forEach(deviceId => {
             this.evaluateAndRescaleVideosIfNeeded(deviceId, constants.RESCALE_VIDEOS);
+        });
+
+        Object.keys(VideoFileManager.persistentInfo).forEach(deviceId => {
+            VideoFileManager.deleteLeftoverChunks(deviceId); // after chunks have been concatenated into a session video, we can delete them
         });
     }
     startRecording(deviceId) {
@@ -74,7 +78,7 @@ class VideoServer {
         let tmpFiles = [];
         if (fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
             tmpFiles = fs.readdirSync(path.join(this.outputPath, deviceId, 'tmp'));
-            console.log(tmpFiles);
+            // console.log(tmpFiles);
         }
 
         let sessions = VideoFileManager.persistentInfo[deviceId];
@@ -101,8 +105,6 @@ class VideoServer {
             }
         });
 
-        console.log('UPDATED INFO:');
-        console.log(VideoFileManager.persistentInfo);
         VideoFileManager.savePersistentInfo();
     }
     extractTimeInformation(fileList) { // TODO: we can probably just use the SEGMENT_LENGTH * fileList.length?
