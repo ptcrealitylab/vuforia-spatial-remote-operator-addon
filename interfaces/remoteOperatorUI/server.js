@@ -2,13 +2,47 @@ const cors = require('cors');
 const express = require('express');
 const expressWs = require('express-ws');
 const makeStreamRouter = require('./makeStreamRouter.js');
+const VideoServer = require('./VideoServer.js');
+const path = require('path');
+const os = require('os');
+
+const DEBUG_DISABLE_VIDEO_RECORDING = false;
 
 module.exports.start = function start() {
     const app = express();
 
+    const objectsPath = path.join(os.homedir(), 'Documents', 'spatialToolbox');
+    const identityFolderName = '.identity';
+
     app.use(cors());
     expressWs(app);
-    const _streamRouter = makeStreamRouter(app);
+    const streamRouter = makeStreamRouter(app);
+
+    if (!DEBUG_DISABLE_VIDEO_RECORDING) {
+        // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
+        const videoServer = new VideoServer(path.join(objectsPath, identityFolderName, '/virtualizer_recordings'));
+
+        // trigger events in VideoServer whenever sockets connect, disconnect, or send data
+        streamRouter.onFrame((rgb, depth, pose, deviceId) => {
+            videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId); // TODO: remove device_ from name?
+        });
+        streamRouter.onStartRecording((deviceId) => {
+            videoServer.startRecording('device_' + deviceId);
+        });
+        streamRouter.onStopRecording((deviceId) => {
+            videoServer.stopRecording('device_' + deviceId);
+        });
+        streamRouter.onConnection((deviceId) => {
+            videoServer.onConnection('device_' + deviceId);
+        });
+        streamRouter.onDisconnection((deviceId) => {
+            videoServer.onDisconnection('device_' + deviceId);
+        });
+        streamRouter.onError((deviceId) => {
+            console.log('on error: ' + deviceId); // haven't seen this trigger yet but probably good to also disconnect
+            videoServer.onDisconnection('device_' + deviceId);
+        });
+    }
 
     let allWebsockets = [];
     let sensorDescriptions = {};
@@ -35,8 +69,8 @@ module.exports.start = function start() {
 
         let playback = null;
         ws.on('message', (msgStr, _isBinary) => {
-            
-            try{
+
+            try {
                 const msg = JSON.parse(msgStr);
                 switch (msg.command) {
                 case '/update/humanPoses':
@@ -49,9 +83,9 @@ module.exports.start = function start() {
             } catch (error) {
                 console.warn('Could not parse message: ' , error);
             }
-            
+
         });
-        
+
         let cleared = false;
         function doUpdateHumanPoses(msg) {
             if (playback && !playback.running) {
