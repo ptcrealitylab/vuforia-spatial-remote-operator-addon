@@ -6,7 +6,7 @@ const VideoServer = require('./VideoServer.js');
 const path = require('path');
 const os = require('os');
 
-const ENABLE_VIDEO_RECORDING = true;
+const DEBUG_DISABLE_VIDEO_RECORDING = false;
 
 module.exports.start = function start() {
     const app = express();
@@ -18,7 +18,7 @@ module.exports.start = function start() {
     expressWs(app);
     const streamRouter = makeStreamRouter(app);
 
-    if (ENABLE_VIDEO_RECORDING) {
+    if (!DEBUG_DISABLE_VIDEO_RECORDING) {
         // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
         const videoServer = new VideoServer(path.join(objectsPath, identityFolderName, '/virtualizer_recordings'));
 

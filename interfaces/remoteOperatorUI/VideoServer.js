@@ -5,32 +5,53 @@ const VideoFileManager = require('./VideoFileManager');
 const VideoProcessManager = require('./VideoProcessManager');
 const constants = require('./videoConstants');
 
-// TODO: listen to when the ffmpeg process fully finishes writing data to disk, so that process can be killed/freed/etc
-
+/**
+ * @fileOverview
+ * The VideoServer handles logic to record point cloud videos captured by the streamRouter
+ * It passes messages to the VideoProcessManager (onConnection, onDisconnection, startRecording, stopRecording, onFrame)
+ * and it utilizes the VideoFileManager to save the recorded video chunks (and json poses) to a nested directory at the outputPath
+ *
+ * Recorded videos pass through three stages:
+ * 1. unprocessed_chunks: these are 15 second video segments created on a rolling basis while the video is recording
+ * 2. processed_chunks: when the video has stopped recording, chunks have an optional post-processing step and are copied here
+ * 3. session_videos: when all chunks have been processed, they are concatenated into a final video here
+ *
+ * RGB and depth videos are created with ffmpeg child processes. Parameters can be configured in videoConstants and ffmpegInterface.
+ * Poses are written to json files as a list of timestamped base64-encoded matrices.
+ *
+ * Metadata for all recordings can be accessed at localhost:8081/virtualizer_recordings
+ */
 class VideoServer {
     constructor(outputPath) {
-        // configurable constants
         this.outputPath = outputPath;
         console.log('Created a VideoServer with path: ' + this.outputPath);
 
         VideoFileManager.initWithOutputPath(outputPath);
+        // we rebuild/save the persistentInfo on server restart so that it doesn't get out-of-sync with filesystem state
         VideoFileManager.buildPersistentInfo();
         VideoFileManager.savePersistentInfo();
+
+        // the process manager is mostly self-sufficient at creating the recordings, but we need to know when it's done.
+        // it records in 15 second chunks, and when it's done we concatenate the chunks together
         VideoProcessManager.setRecordingDoneCallback(this.onRecordingDone.bind(this));
 
-        // this.checkPersistentInfoIntegrity();
-
+        // each time the server restarts, we check for chunks that were never concatenated and try to concat them into finished videos
+        // this way, if the server unexpectedly stops while the videos are processing, they can be recovered
         Object.keys(VideoFileManager.persistentInfo).forEach(deviceId => {
-            this.concatExisting(deviceId);
+            this.concatChunksIntoSessionVideo(deviceId);
         });
 
-        // this copies over 15 second chunks from unprocessed_chunks to processed_chunks
+        // this copies over chunk files from unprocessed_chunks to processed_chunks
+        // processed_chunks is a way to future-proof the system such that if we want to do any post-processing of the
+        // chunk files, we have a place to reliably do that before making the videos available to the system in a concatenated form
+        // for example, we can rescale each chunk to a certain length or re-encode them based on info we have only after all the chunks have been recorded
         Object.keys(VideoFileManager.persistentInfo).forEach(deviceId => {
-            this.evaluateAndRescaleVideosIfNeeded(deviceId, constants.RESCALE_VIDEOS);
+            this.processUnprocessedChunks(deviceId);
         });
 
+        // after chunks have been concatenated into a session video, we can delete them
         Object.keys(VideoFileManager.persistentInfo).forEach(deviceId => {
-            VideoFileManager.deleteLeftoverChunks(deviceId); // after chunks have been concatenated into a session video, we can delete them
+            VideoFileManager.deleteLeftoverChunks(deviceId);
         });
     }
     startRecording(deviceId) {
@@ -48,6 +69,7 @@ class VideoServer {
     onFrame(rgb, depth, pose, deviceId) {
         VideoProcessManager.onFrame(rgb, depth, pose, deviceId);
     }
+    // TODO: this could be optimized by listening for files to finish writing, rather than waiting a fixed time
     onRecordingDone(deviceId, sessionId, lastChunkIndex) {
         setTimeout(() => { // wait for final video to finish processing
             if (!fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
@@ -56,29 +78,28 @@ class VideoServer {
             let tmpOutputPath = path.join(this.outputPath, deviceId, 'tmp', sessionId + '_done_' + lastChunkIndex + '.json');
             fs.writeFileSync(tmpOutputPath, JSON.stringify({ success: true}));
 
-            // process chunks
-            this.evaluateAndRescaleVideosIfNeeded(deviceId, constants.RESCALE_VIDEOS);
+            this.processUnprocessedChunks(deviceId);
 
-            // try concatenating after a longer delay. if not all chunks have finished processing by then, ...
-            // ... the chunk count won't match up and it will skip concatenating for now
-            // it will also reattempt each time you restart the server.
+            // try concatenating after a longer delay. if not all chunks have finished processing by then...
+            // ...the chunk count won't match up and it will skip concatenating for now...
+            // ...it will reattempt each time you restart the server.
             setTimeout(() => {
-                console.log('try to concat rescaled videos upon disconnect');
+                console.log('try to concat rescaled videos after waiting awhile after recording stopped');
                 VideoFileManager.buildPersistentInfo(); // recompile persistent info so session metadata contains new chunks
-                this.concatExisting(deviceId);
+                this.concatChunksIntoSessionVideo(deviceId);
             }, 1000 * (lastChunkIndex + 1)); // delay 1 second per chunk we need to process, should give plenty of time
         }, 5000);
     }
-    concatExisting(deviceId) {
+    concatChunksIntoSessionVideo(deviceId) {
         if (!fs.existsSync(path.join(this.outputPath, deviceId))) {
             console.log('concat, dir doesnt exist', path.join(this.outputPath, deviceId));
             return;
         }
 
+        // we use a tmp text file as a lock to ensure that all of the unprocessed chunks are represented in the processed chunks
         let tmpFiles = [];
         if (fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
             tmpFiles = fs.readdirSync(path.join(this.outputPath, deviceId, 'tmp'));
-            // console.log(tmpFiles);
         }
 
         let sessions = VideoFileManager.persistentInfo[deviceId];
@@ -118,12 +139,11 @@ class VideoServer {
         };
     }
     concatFiles(deviceId, sessionId, colorOrDepth = constants.DIR_NAMES.color, files) {
+        // passing a list of videos into ffmpeg is most easily done with a txt file listing the files in a specific format
         let fileText = '';
         for (let i = 0; i < files.length; i++) {
             fileText += 'file \'' + path.join(this.outputPath, deviceId, constants.DIR_NAMES.processed_chunks, colorOrDepth, files[i]) + '\'\n';
         }
-
-        let timeInfo = this.extractTimeInformation(files);
 
         // write file list to txt file so it can be used by ffmpeg as input
         let txt_filename = colorOrDepth + '_filenames_' + sessionId + '.txt';
@@ -137,7 +157,9 @@ class VideoServer {
         fs.writeFileSync(txtFilePath, fileText);
 
         let filetype = (colorOrDepth === constants.DIR_NAMES.depth) ? constants.DEPTH_FILETYPE : constants.COLOR_FILETYPE;
-        let filename = 'device_' + deviceId + '_session_' + sessionId + '_start_' + timeInfo.start + '_end_' + timeInfo.end + '.' + filetype; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
+        // we store the video timestamp directly in its filename, so this info never gets lost
+        let timeInfo = this.extractTimeInformation(files);
+        let filename = 'device_' + deviceId + '_session_' + sessionId + '_start_' + timeInfo.start + '_end_' + timeInfo.end + '.' + filetype;
         let outputPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.session_videos, colorOrDepth, filename);
         ffmpegInterface.ffmpeg_concat_mp4s(outputPath, txtFilePath);
 
@@ -145,23 +167,24 @@ class VideoServer {
     }
     concatPosesIfNeeded(deviceId, sessionId) {
         // check if output file exists for this device/session pair
-        let filename = 'device_' + deviceId + '_session_' + sessionId + '.json'; // path.join(this.outputPath, output_name + '_' + timestamp + '.mp4');
+        let filename = 'device_' + deviceId + '_session_' + sessionId + '.json';
         let outputPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.session_videos, 'pose', filename);
         if (fs.existsSync(outputPath)) {
             return filename; // already exists, return early
         }
         console.log('we still need to process poses for ' + deviceId + ' (session ' + sessionId + ')');
-        // load all chunks
+
+        // load all pose chunks. each is a json file with a timestamped list of poses for 15 seconds of the video
         let files = fs.readdirSync(path.join(this.outputPath, deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose'));
         files = files.filter(filename => {
             return filename.includes(sessionId);
         });
         console.log('unprocessed pose chunks: ', files);
 
+        // the concatenated file contains a correctly-ordered array with all of the poses from each chunk's array
         let poseData = [];
         files.forEach(filename => {
             let filePath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose', filename);
-            // poseData[filename] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
             poseData.push(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
         });
         let flattened = poseData.flat();
@@ -169,27 +192,9 @@ class VideoServer {
 
         return filename;
     }
-    pose2pgm(pose, width = 8, height = 8) { // conforms to http://netpbm.sourceforge.net/doc/pgm.html
-        const CR = '\n';
-        let header = 'P2'; // required
-        header += CR; // add whitespace char
-        header += width;
-        header += CR; // add whitespace char
-        header += height;
-        header += CR; // add whitespace char
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                let i = y * width + x;
-                header += pose[i] + ' ';
-            }
-            header += CR;
-        }
-        return header;
-    }
-    evaluateAndRescaleVideosIfNeeded(deviceId, rescaleEnabled) {
+    processUnprocessedChunks(deviceId) {
         let unprocessedPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.unprocessed_chunks);
         let processedPath = path.join(this.outputPath, deviceId, constants.DIR_NAMES.processed_chunks);
-
         let fileMap = {
             color: {
                 processed: VideoFileManager.getProcessedChunkFilePaths(deviceId, constants.DIR_NAMES.color),
@@ -203,6 +208,8 @@ class VideoServer {
 
         Object.keys(fileMap).forEach(colorOrDepth => {
             let filesToScale = [];
+
+            // ignore any video chunks that are corrupted (~0 bytes), perhaps due to stopping recording before it wrote any frames
             fileMap[colorOrDepth].unprocessed.forEach(filename => {
                 let timestamp = filename.match(/[0-9]{13,}/);
                 if (!fileMap[colorOrDepth].processed.some(resizedFilename => resizedFilename.includes(timestamp))) {
@@ -221,27 +228,25 @@ class VideoServer {
                     }
                 }
             });
+
+            // note: why is ffmpeg_adjust_length part of the process? (sometimes?)
+            // the incoming image stream, while it approximates 10 fps, is not exactly that.
+            // so the resulting "15 second" chunks are sometimes 8 seconds, sometimes 10, etc.
+            // one way to fix this time warping is to rescale each chunk to be 15 seconds exactly.
+            // the other method (currently used) is to leave the chunks as-is, and correct it in the video playback system:
+            // use the timestamps stored in the filename, rather than the length of the video, during playback
+
+            // either copy the files directly to processed_chunks, or do some postprocessing (like ffmpeg_adjust_length)
             filesToScale.forEach(filename => {
                 let inputPath = path.join(unprocessedPath, colorOrDepth, filename);
                 let outputPath = path.join(processedPath, colorOrDepth, filename);
-                if (rescaleEnabled) {
+                if (constants.RESCALE_VIDEOS) {
                     ffmpegInterface.ffmpeg_adjust_length(outputPath, inputPath, constants.SEGMENT_LENGTH / 1000);
                 } else {
                     fs.copyFileSync(inputPath, outputPath, fs.constants.COPYFILE_EXCL);
                 }
             });
         });
-    }
-    /**
-     * Generates a random 8 character unique identifier using uppercase, lowercase, and numbers (e.g. "jzY3y338")
-     * @return {string}
-     */
-    uuidTimeShort() {
-        var dateUuidTime = new Date();
-        var abcUuidTime = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        var stampUuidTime = parseInt('' + dateUuidTime.getMilliseconds() + dateUuidTime.getMinutes() + dateUuidTime.getHours() + dateUuidTime.getDay()).toString(36);
-        while (stampUuidTime.length < 8) stampUuidTime = abcUuidTime.charAt(Math.floor(Math.random() * abcUuidTime.length)) + stampUuidTime;
-        return stampUuidTime;
     }
 }
 
