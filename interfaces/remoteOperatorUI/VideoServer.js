@@ -128,7 +128,7 @@ class VideoServer {
 
         VideoFileManager.savePersistentInfo();
     }
-    extractTimeInformation(fileList) { // TODO: we can probably just use the SEGMENT_LENGTH * fileList.length?
+    extractTimeInformation(fileList) { // we could also probably just use the SEGMENT_LENGTH * fileList.length, but this works too
         let fileRecordingTimes = fileList.map(filename => parseInt(filename.match(/[0-9]{13,}/))); // extract timestamp
         let firstTimestamp = Math.min(...fileRecordingTimes) - constants.SEGMENT_LENGTH; // estimate, since this is at the end of the first video
         let lastTimestamp = Math.max(...fileRecordingTimes);
@@ -229,7 +229,7 @@ class VideoServer {
                 }
             });
 
-            // note: why is ffmpeg_adjust_length part of the process? (sometimes?)
+            // note: why is ffmpeg_adjust_length (sometimes) part of the process:
             // the incoming image stream, while it approximates 10 fps, is not exactly that.
             // so the resulting "15 second" chunks are sometimes 8 seconds, sometimes 10, etc.
             // one way to fix this time warping is to rescale each chunk to be 15 seconds exactly.

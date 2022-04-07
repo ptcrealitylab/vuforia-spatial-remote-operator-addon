@@ -27,7 +27,5 @@ module.exports = Object.freeze({
     // disable to prevent lossy transformation, enable to stretch videos back to correct time length
     // (it's ok to be false, the video playback system can adjust for this)
     RESCALE_VIDEOS: false,
-    // write each color and depth frame to an image file while recording, useful for debugging if ffmpeg isn't working
-    DEBUG_WRITE_IMAGES: false,
     DEBUG_LOG_FFMPEG: false
 });

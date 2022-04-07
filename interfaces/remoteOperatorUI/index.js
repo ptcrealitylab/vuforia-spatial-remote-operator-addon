@@ -86,6 +86,7 @@ function startHTTPServer(localUIApp, port) {
     http.listen(port, function() {
         console.log('~~~ started remote operator on port ' + port);
 
+        // serves the camera poses that correspond to a recorded rgb+depth 3d video
         localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {
             let deviceId = req.params.deviceId;
             let filename = req.params.filename;
@@ -100,6 +101,7 @@ function startHTTPServer(localUIApp, port) {
             res.sendFile(jsonFilePath);
         });
 
+        // serves the color and depth video files in streaming format, if range headers are provided
         localUIApp.app.use('/virtualizer_recording/:deviceId/:colorOrDepth/:filename', function (req, res) {
             let deviceId = req.params.deviceId;
             let videoType = req.params.colorOrDepth;
@@ -113,8 +115,7 @@ function startHTTPServer(localUIApp, port) {
 
             const range = req.headers.range;
             if (!range) {
-                // res.status(400).send('Requires Range header');
-                res.sendFile(videoPath);
+                res.sendFile(videoPath); // send video normally if no range headers
                 return;
             }
 
@@ -141,17 +142,11 @@ function startHTTPServer(localUIApp, port) {
             videoStream.pipe(res);
         });
 
+        // serves the json file containing all of the file paths to the different 3d video recordings
         localUIApp.app.use('/virtualizer_recordings', function (req, res) {
             const jsonPath = path.join(objectsPath, identityFolderName, 'virtualizer_recordings', 'videoInfo.json');
-
-            let defaultInfo = {
-                mergedFiles: {
-                    color: {},
-                    depth: {}
-                }
-            };
             if (!fs.existsSync(jsonPath)) {
-                res.json(defaultInfo);
+                res.json({});
             } else {
                 res.json(JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8', flag: 'r' })));
             }
