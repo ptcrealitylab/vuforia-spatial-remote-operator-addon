@@ -86,8 +86,10 @@ class Connection {
         // fileManager setup persistent data and directories
 
         this.spawnProcesses();
-
-        // process data and restart every 15 seconds (unless socket disconnected, just process data and stop)
+        this.waitUntilNextChunk();
+    }
+    // restart every 15 seconds (unless socket disconnected, just process data and stop)
+    waitUntilNextChunk() {
         setTimeout(_ => {
             this.stopProcesses();
             if (this.processStatuses.color !== this.STATUS.DISCONNECTED &&
@@ -103,20 +105,10 @@ class Connection {
         this.isRecording = true;
 
         this.spawnProcesses();
-
-        // process data and restart every 15 seconds (unless socket disconnected, just process data and stop)
-        setTimeout(_ => {
-            this.stopProcesses();
-            if (this.processStatuses.color !== this.STATUS.DISCONNECTED &&
-                this.processStatuses.color !== this.STATUS.STOPPED) {
-                setTimeout(_ => {
-                    this.recordNextChunk();
-                }, 10);
-            }
-        }, constants.SEGMENT_LENGTH);
+        this.waitUntilNextChunk();
     }
     spawnProcesses() {
-        let index = this.chunkCount; // this.processChunkCounts[deviceId][sessionId];
+        let index = this.chunkCount;
 
         // start color stream process
         // depth images are 1920x1080 lossy JPG images
@@ -134,7 +126,6 @@ class Connection {
         let depthOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, constants.DIR_NAMES.depth, depthFilename);
         this.processes.depth = ffmpegInterface.ffmpeg_image2mp4(depthOutputPath, constants.RECORDING_FPS, 'png', 256, 144, constants.DEPTH_CRF, constants.DEPTH_SCALE);
         // this.processes[deviceId][this.PROCESS.DEPTH] = ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144); // this version isn't working as reliably
-        // this.processes[deviceId][this.PROCESS.DEPTH] = ffmpeg_image2mp4(depthOutputPath, 10, 'png', 256, 144, 0, 1);
         if (this.processes.depth) {
             this.processStatuses.depth = this.STATUS.STARTED;
         }
@@ -157,7 +148,6 @@ class Connection {
                 time: Date.now()
             });
         }
-        // TODO: include constants.DEBUG_WRITE_IMAGES code?
     }
     stopProcesses() {
         this.isRecording = false;
@@ -176,18 +166,18 @@ class Connection {
             this.processes.depth.stdin.write('q');
             this.processes.depth.stdin.end();
             this.processStatuses.depth = this.STATUS.ENDING;
-
-            // TODO: should this move to the processStatuses.pose block?
-            let index = this.chunkCount;
-            let poseFilename = 'chunk_' + this.sessionId + '_' + index + '_' + Date.now() + '.json';
-            let poseOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose', poseFilename);
-            fs.writeFileSync(poseOutputPath, JSON.stringify(this.poses));
-            this.poses = [];
         }
 
         if (this.processStatuses.pose === this.STATUS.STARTED) {
             console.log('end pose process');
             this.processStatuses.pose = this.STATUS.ENDING;
+
+            // immediately write the poses from memory to storage, and reset the poses in memory
+            let index = this.chunkCount;
+            let poseFilename = 'chunk_' + this.sessionId + '_' + index + '_' + Date.now() + '.json';
+            let poseOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose', poseFilename);
+            fs.writeFileSync(poseOutputPath, JSON.stringify(this.poses));
+            this.poses = [];
         }
     }
     stopRecording(didDisconnect) {

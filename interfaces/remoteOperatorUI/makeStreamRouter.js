@@ -37,14 +37,12 @@ module.exports = function makeStreamRouter(app) {
             }
             processFrame(id, msg, null, null);
         });
-        ws.on('close', function(event) {
-            console.log('ws.onclose ', event, id);
+        ws.on('close', function(_event) {
             callbacks.onDisconnection.forEach(function(cb) {
                 cb(id);
             });
         });
-        ws.on('error', function(event) {
-            console.log('ws.onerror', event, id);
+        ws.on('error', function(_event) {
             callbacks.onError.forEach(function(cb) {
                 cb(id);
             });

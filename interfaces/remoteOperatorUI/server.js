@@ -21,26 +21,27 @@ module.exports.start = function start() {
     if (!DEBUG_DISABLE_VIDEO_RECORDING) {
         // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
         const videoServer = new VideoServer(path.join(objectsPath, identityFolderName, '/virtualizer_recordings'));
+        const DEVICE_ID_PREFIX = 'device';
 
         // trigger events in VideoServer whenever sockets connect, disconnect, or send data
         streamRouter.onFrame((rgb, depth, pose, deviceId) => {
-            videoServer.onFrame(rgb, depth, pose, 'device_' + deviceId); // TODO: remove device_ from name?
+            videoServer.onFrame(rgb, depth, pose, DEVICE_ID_PREFIX + deviceId);
         });
         streamRouter.onStartRecording((deviceId) => {
-            videoServer.startRecording('device_' + deviceId);
+            videoServer.startRecording(DEVICE_ID_PREFIX + deviceId);
         });
         streamRouter.onStopRecording((deviceId) => {
-            videoServer.stopRecording('device_' + deviceId);
+            videoServer.stopRecording(DEVICE_ID_PREFIX + deviceId);
         });
         streamRouter.onConnection((deviceId) => {
-            videoServer.onConnection('device_' + deviceId);
+            videoServer.onConnection(DEVICE_ID_PREFIX + deviceId);
         });
         streamRouter.onDisconnection((deviceId) => {
-            videoServer.onDisconnection('device_' + deviceId);
+            videoServer.onDisconnection(DEVICE_ID_PREFIX + deviceId);
         });
         streamRouter.onError((deviceId) => {
             console.log('on error: ' + deviceId); // haven't seen this trigger yet but probably good to also disconnect
-            videoServer.onDisconnection('device_' + deviceId);
+            videoServer.onDisconnection(DEVICE_ID_PREFIX + deviceId);
         });
     }
 
