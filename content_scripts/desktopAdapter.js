@@ -166,8 +166,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                             deviceDropdown.dom.style.display = '';
                         }
                     }
-                } else if (params.event.code === 'KeyP') {
-                    realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode();
                 }
             });
         } else {
@@ -192,8 +190,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                     realityEditor.device.editingState.syntheticPinchInfo = {
                         startX: touchPosition.x,
                         startY: touchPosition.y
-                    }
+                    };
                 }
+            } else if (code === keyboard.keyCodes.P) {
+                console.log('Key P pressed - toggle positioning mode');
+                realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode();
             }
         });
         keyboard.onKeyUp(function(code) {
@@ -395,6 +396,13 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      */
     function addSocketListeners() {
 
+        realityEditor.network.realtime.addDesktopSocketMessageListener('disconnect', function(_msgContent) {
+            console.log('Desktop Server Socket Disconnected: reload page');
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        });
+
         // @deprecated
         // todo: remove
         realityEditor.network.realtime.addDesktopSocketMessageListener('/matrix/visibleObjects', function(msgContent) {
@@ -474,6 +482,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 return null;
             }
         }
+
+        realityEditor.network.realtime.addDesktopSocketMessageListener('reloadScreen', function(_msgContent) {
+            window.location.reload(); // reload screen when server restarts
+        });
 
         realityEditor.network.realtime.addDesktopSocketMessageListener('udpMessage', function(msgContent) {
 

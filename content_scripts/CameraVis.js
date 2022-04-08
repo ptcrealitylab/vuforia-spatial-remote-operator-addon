@@ -481,6 +481,99 @@ console.log('id', id);
             this.connectWsToMatrix(urlMatrix);
         }
 
+        loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
+            // const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
+            // const id = bytes[0];
+            let newlyCreated = false;
+            if (!this.cameras[id]) {
+                this.createCameraVis(id);
+                newlyCreated = true;
+            }
+            if (this.cameras[id].loading['texture'] || this.cameras[id].loading['textureDepth']) {
+                return;
+            }
+            this.cameras[id].loading['texture'] = true;
+            this.cameras[id].loading['textureDepth'] = true;
+            // const pktType = bytes[1];
+            // if (pktType === PKT_MATRIX) {
+            //   const text = await msg.data.slice(2, msg.data.length).text();
+            //   const mat = JSON.parse(text);
+            // }
+            // const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
+            // const url = URL.createObjectURL(imageBlob);
+            const textureImage = new Image();
+            const textureDepthImage = new Image();
+
+            // 1. Update Texture
+
+            let start = window.performance.now();
+            textureImage.onload = () => {
+                const tex = this.cameras[id]['texture'];
+                tex.dispose();
+                tex.image = textureImage;
+                tex.needsUpdate = true;
+                // let end = window.performance.now();
+                // We know that capture takes 30ms
+                // Transmission takes ??s
+                this.cameras[id].setTime(start + 40);
+                this.cameras[id].loading['texture'] = false;
+                // window.latencies[textureKey].push(end - start);
+                URL.revokeObjectURL(textureUrl);
+
+                this.cameras[id].lastUpdate = Date.now();
+            };
+            textureImage.onerror = (e) => {
+                console.error(e);
+            };
+            textureImage.src = textureUrl;
+
+            // 2. Update Depth Texture
+
+            textureDepthImage.onload = () => {
+                const tex = this.cameras[id]['textureDepth'];
+                tex.dispose();
+                tex.image = textureDepthImage;
+                tex.needsUpdate = true;
+                // let end = window.performance.now();
+                this.cameras[id].loading['textureDepth'] = false;
+                // window.latencies[textureKey].push(end - start);
+                URL.revokeObjectURL(textureDepthUrl);
+            };
+            textureDepthImage.onerror = (e) => {
+                console.error(e);
+            };
+            textureDepthImage.src = textureDepthUrl;
+
+            // 3. Update Matrix
+
+            if (!matrix) { return; }
+
+            // const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
+            this.cameras[id].update(matrix);
+
+            this.cameras[id].mesh.visible = true;
+
+            // let now = performance.now();
+            // for (let camera of Object.values(this.cameras)) {
+            //     if (now - camera.lastUpdate > 2000) {
+            //         camera.mesh.visible = false;
+            //     } else if (!camera.mesh.visible) {
+            //         camera.mesh.visible = true;
+            //     }
+            // }
+        }
+
+        hidePointCloud(id) {
+            if (!this.cameras[id]) {
+                console.log('No need to hide camera ' + id + ', it hasn\'t been created yet.');
+                return;
+            }
+            let camera = this.cameras[id];
+            if (camera.mesh) {
+                camera.mesh.visible = false;
+            }
+        }
+
         createCameraVis(id) {
             if (debug) {
                 console.log('new camera', id);
