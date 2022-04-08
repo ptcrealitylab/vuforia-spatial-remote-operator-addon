@@ -142,32 +142,18 @@ module.exports = {
         return process;
     },
     // takes a video and resamples the timestamps of each frame to make it last the specified duration (in seconds)
-    // currently relying on the VideoLib.MovieParser to get the length of the video file, which is a bit flaky,
-    // as such this method isn't currently used and the VideoLib is commented out to avoid installing that dependency
-    // (https://www.npmjs.com/package/node-video-lib)
     ffmpeg_adjust_length: (output_path, input_path, newDuration) => {
-        let filesize = fs.statSync(input_path);
-        console.log(filesize.size + ' bytes');
+        let filesize = fs.statSync(input_path); // size in bytes
         if (filesize.size <= 48) {
             console.warn('corrupted video has ~0 bytes, cant resize: ' + input_path);
             return;
         }
-        fs.open(input_path, 'r', function(err, fd) {
-            try {
-                // let movie = VideoLib.MovieParser.parse(fd);
-                // Work with movie
-                // console.log('Duration:', movie.relativeDuration());
-
-                // getVideoDurationInSeconds(input_path).then((duration) => {
-                // console.log('old duration = ' + duration);
-
-                let movieDuration = 10;
-
-                console.log('change duration:', output_path, input_path, newDuration);
+        fs.open(input_path, 'r', function(_err, _fd) {
+            module.exports.ffmpeg_get_duration(input_path, (currentDurationInSeconds) => {
+                console.log('change duration from ' + currentDurationInSeconds + 's to ' + newDuration + 's', input_path);
                 let args = [
-                    // '-f', filetype,
                     '-i', input_path,
-                    '-filter:v', 'setpts=' + newDuration / movieDuration /*movie.relativeDuration()*/ + '*PTS',
+                    '-filter:v', 'setpts=' + newDuration / currentDurationInSeconds + '*PTS',
                     output_path
                 ];
                 let process = cp.spawn(ffmpegPath, args);
@@ -178,15 +164,9 @@ module.exports = {
                         console.log('stderr data', data);
                     });
                 }
-                console.log('new file: ' + output_path);
-                return output_path;
-                // });
-            } catch (ex) {
-                console.error('Video Error: ' + input_path, ex);
-            } finally {
-                fs.closeSync(fd);
-            }
-        }.bind(this));
+                console.log('file with adjusted length: ' + output_path);
+            });
+        });
     },
     ffmpeg_get_duration(filepath, completionHandler) {
         let args = [ '-i', filepath ]; // this doesn't have an output path, but stderr will print info about the input video
@@ -219,7 +199,6 @@ module.exports = {
                 console.log('ffmpeg_get_duration exit');
             });
         }
-
         return process;
     }
 };
