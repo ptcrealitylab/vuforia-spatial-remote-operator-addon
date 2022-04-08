@@ -187,5 +187,39 @@ module.exports = {
                 fs.closeSync(fd);
             }
         }.bind(this));
+    },
+    ffmpeg_get_duration(filepath, completionHandler) {
+        let args = [ '-i', filepath ]; // this doesn't have an output path, but stderr will print info about the input video
+        // can also use ffprobe, just install @ffprobe-installer/ffprobe
+        let process = cp.spawn(ffmpegPath, args);
+
+        process.stderr.setEncoding('utf8');
+        process.stderr.on('data', function(data) {
+            if (constants.DEBUG_LOG_FFMPEG) {
+                console.log('ffmpeg_get_duration stderr data', data);
+            }
+            let matches = data.match(/Duration: \d\d:\d\d:\d\d.\d\d/);
+            if (!matches || matches.length === 0) { console.log('couldnt get duration of video'); return; }
+            let durationString = matches[0].replace(/^Duration: /, '');
+            // convert format, e.g. 00:01:03.60 => 63.6 seconds
+            let parts = durationString.split(':');
+            let seconds = parseFloat(parts[2]);
+            seconds += 60 * parseInt(parts[1]);
+            seconds += 60 * 60 * parseInt(parts[0]);
+            completionHandler(seconds);
+        });
+        if (constants.DEBUG_LOG_FFMPEG) {
+            process.stdout.on('data', function(data) {
+                console.log('ffmpeg_get_duration stdout data', data);
+            });
+            process.on('close', function () {
+                console.log('ffmpeg_get_duration finished');
+            });
+            process.on('exit', function () {
+                console.log('ffmpeg_get_duration exit');
+            });
+        }
+
+        return process;
     }
 };
