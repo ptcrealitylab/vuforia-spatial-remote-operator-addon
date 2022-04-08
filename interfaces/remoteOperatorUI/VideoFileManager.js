@@ -53,12 +53,6 @@ const parseDeviceDirectory = (devicePath) => {
             }
             info[sessionId].color = filepath;
 
-            // print the duration of the color video
-            // console.log('get video duration: ' + path.join(sessionVideosPath, constants.DIR_NAMES.color, filepath));
-            ffmpegInterface.ffmpeg_get_duration(path.join(sessionVideosPath, constants.DIR_NAMES.color, filepath), (seconds) => {
-                console.log(filepath + ' is ' + seconds + ' seconds long');
-            });
-
             if (fs.existsSync(path.join(sessionVideosPath, constants.DIR_NAMES.depth, filepath))) {
                 info[sessionId].depth = filepath;
             }
