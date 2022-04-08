@@ -47,8 +47,9 @@ module.exports = {
             //     console.log('stdout data', data);
             // });
             process.stderr.setEncoding('utf8');
-            process.stderr.on('data', function(data) {
+            process.stderr.on('data', function(data, err) {
                 console.log('stderr data', data);
+                console.warn(err);
             });
             // process.on('close', function() {
             //     console.log('finished');
