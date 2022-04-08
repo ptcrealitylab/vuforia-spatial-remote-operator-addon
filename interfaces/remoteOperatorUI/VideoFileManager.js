@@ -14,8 +14,6 @@ const utils = require('./utilities');
 let outputPath = null;
 let persistentInfo = null;
 
-// Private functions not exposed to other modules
-
 const createMissingDirs = (devicePath) => {
     utils.mkdirIfNeeded(devicePath);
     let dir = constants.DIR_NAMES;
@@ -125,6 +123,7 @@ module.exports = {
         outputPath = path;
         utils.mkdirIfNeeded(path, true);
     },
+    createMissingDirs: createMissingDirs,
     // we rebuild the json blob each time by parsing the filesystem, so this is stored mainly as a means for other systems to retrieve the data
     buildPersistentInfo: () => {
         if (!outputPath) { console.warn('You never called initWithOutputPath on VideoFileManager'); }

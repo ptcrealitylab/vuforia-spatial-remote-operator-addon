@@ -56,6 +56,7 @@ class VideoServer {
         });
     }
     startRecording(deviceId) {
+        VideoFileManager.createMissingDirs(path.join(this.outputPath, deviceId));
         VideoProcessManager.startRecording(deviceId);
     }
     stopRecording(deviceId) {
