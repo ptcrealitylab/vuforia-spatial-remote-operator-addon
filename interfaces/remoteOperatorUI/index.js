@@ -80,7 +80,7 @@ function startHTTPServer(localUIApp, port) {
     const http = require('http').Server(localUIApp.app);
     const io = require('socket.io')(http);
 
-    const objectsPath = path.join(os.homedir(), 'Documents', 'spatialToolbox');
+    const objectsPath = server.getObjectsPath();
     const identityFolderName = '.identity';
 
     http.listen(port, function() {

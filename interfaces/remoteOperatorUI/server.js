@@ -5,13 +5,13 @@ const makeStreamRouter = require('./makeStreamRouter.js');
 const VideoServer = require('./VideoServer.js');
 const path = require('path');
 const os = require('os');
+const server = require('@libraries/hardwareInterfaces');
 
 const DEBUG_DISABLE_VIDEO_RECORDING = false;
 
 module.exports.start = function start() {
     const app = express();
 
-    const objectsPath = path.join(os.homedir(), 'Documents', 'spatialToolbox');
     const identityFolderName = '.identity';
 
     app.use(cors());
@@ -20,7 +20,7 @@ module.exports.start = function start() {
 
     if (!DEBUG_DISABLE_VIDEO_RECORDING) {
         // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
-        const videoServer = new VideoServer(path.join(objectsPath, identityFolderName, '/virtualizer_recordings'));
+        const videoServer = new VideoServer(path.join(server.getObjectsPath(), identityFolderName, '/virtualizer_recordings'));
         const DEVICE_ID_PREFIX = 'device';
 
         // trigger events in VideoServer whenever sockets connect, disconnect, or send data
