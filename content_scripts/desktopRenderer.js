@@ -45,8 +45,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     let isGlbLoaded = false;
 
     let gltf = null;
+    let trueMaterial = null;
     let staticModelMode = false;
     let realityZoneViewer = null;
+    let videoPlayback = null;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -117,6 +119,11 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
+                        videoPlayback = new realityEditor.videoPlayback.Coordinator();
+                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.load();
+                        window.videoPlayback = videoPlayback;
                     });
                 }
 
@@ -124,6 +131,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             }
         });
 
+        // TODO: I think these can be removed, the model starts out in the right orientation now
         // add sliders to calibrate rotation and translation of model
         realityEditor.gui.settings.addSlider('Calibrate Rotation', '', 'rotationCalibration',  '../../../svg/cameraRotate.svg', 0, function(newValue) {
             console.log('rotation value = ' + newValue);
@@ -134,7 +142,6 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         realityEditor.gui.settings.addSlider('Calibrate Z', '', 'zCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
             console.log('z value = ' + newValue);
         });
-
 
         // create background canvas and supporting canvasses
 
@@ -162,10 +169,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             if (params.event.code === 'KeyT' && gltf) {
                 staticModelMode = !staticModelMode;
                 if (staticModelMode) {
-                    gltf.visible = true;
+                    showGltf();
                     console.log('show gtlf');
                 } else {
-                    gltf.visible = false;
+                    hideGltf();
                     console.log('hide gltf');
                 }
             }
@@ -176,6 +183,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
             if (params.event.code === 'KeyE' && realityZoneViewer) {
                 realityZoneViewer.toggleHistory();
+            }
+
+            if (videoPlayback) {
+                videoPlayback.handleKeyUp(params.event.code);
             }
         });
 
@@ -193,6 +204,39 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 logicCanvas.style.pointerEvents = 'none';
             }
         );
+    }
+
+    function showGltf() {
+        if (!gltf) { return; }
+        if (!trueMaterial) { return; }
+
+        if (gltf.children[0].geometry) {
+            gltf.children[0].material = trueMaterial;
+        } else {
+            gltf.children[0].children.forEach(child => {
+                child.material = trueMaterial;
+            });
+        }
+    }
+
+    function hideGltf() {
+        if (!gltf) { return; }
+
+        const meshMaterial = new THREE.MeshBasicMaterial( {
+            color: 0x888888,
+            transparent: true,
+            opacity: 0.3,
+            depthWrite: false,
+        });
+        if (gltf.children[0].geometry) {
+            trueMaterial = gltf.children[0].material;
+            gltf.children[0].material = meshMaterial;
+        } else {
+            gltf.children[0].children.forEach(child => {
+                trueMaterial = gltf.children[0].material;
+                child.material = meshMaterial;
+            });
+        }
     }
 
     /**
