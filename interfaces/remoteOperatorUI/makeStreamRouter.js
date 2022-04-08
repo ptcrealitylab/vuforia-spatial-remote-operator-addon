@@ -16,6 +16,14 @@ module.exports = function makeStreamRouter(app) {
     let colorPool = [];
     let depthPool = [];
     let matrixPool = [];
+    let callbacks = {
+        onFrame: [],
+        onStartRecording: [],
+        onStopRecording: [],
+        onConnection: [],
+        onDisconnection: [],
+        onError: []
+    };
     app.ws('/colorProvider', function(ws, req) {
         console.log('new colorPro ws');
         const id = requestId(req);
@@ -27,6 +35,21 @@ module.exports = function makeStreamRouter(app) {
                 }
                 ws.send(msgWithId);
             }
+            processFrame(id, msg, null, null);
+        });
+        ws.on('close', function(_event) {
+            callbacks.onDisconnection.forEach(function(cb) {
+                cb(id);
+            });
+        });
+        ws.on('error', function(_event) {
+            callbacks.onError.forEach(function(cb) {
+                cb(id);
+            });
+        });
+
+        callbacks.onConnection.forEach(function(cb) {
+            cb(id);
         });
     });
 
@@ -41,6 +64,7 @@ module.exports = function makeStreamRouter(app) {
                 }
                 ws.send(msgWithId);
             }
+            processFrame(id, null, msg, null);
         });
     });
 
@@ -79,6 +103,7 @@ module.exports = function makeStreamRouter(app) {
             for (const ws of matrixPool) {
                 ws.send(msgWithId);
             }
+            processFrame(id, null, null, msg);
         });
     });
 
@@ -97,7 +122,82 @@ module.exports = function makeStreamRouter(app) {
         matrixPool.push(ws);
     });
 
+    app.ws('/commands', function(ws, req) {
+        const id = requestId(req);
+        ws.on('message', function(msg, _isBinary) {
+            if (msg === 'startRecording') {
+                console.log('start recording (command) ' + id);
+                callbacks.onStartRecording.forEach(function(cb) {
+                    cb(id);
+                });
+            } else if (msg === 'stopRecording') {
+                console.log('stop recording (command) ' + id);
+                callbacks.onStopRecording.forEach(function(cb) {
+                    cb(id);
+                });
+            }
+        });
+    });
+
+    let frameData = {};
+    function processFrame(id, color, depth, matrix) {
+        if (typeof frameData[id] === 'undefined') {
+            frameData[id] = {
+                color: null,
+                depth: null,
+                matrix: null
+            };
+            return;
+        }
+        if (color) {
+            frameData[id].color = color;
+        }
+        if (depth) {
+            frameData[id].depth = depth;
+        }
+        if (matrix) {
+            frameData[id].matrix = matrix;
+        }
+        if (frameData[id].color && frameData[id].depth && frameData[id].matrix) {
+            // console.log('have color, depth, and matrix for id: ' + id);
+            callbacks.onFrame.forEach(function(cb) {
+                cb(frameData[id].color, frameData[id].depth, frameData[id].matrix, id);
+            });
+            delete frameData[id];
+        }
+    }
+
+    const onFrame = function(callback) {
+        callbacks.onFrame.push(callback);
+    };
+
+    const onStartRecording = function(callback) {
+        callbacks.onStartRecording.push(callback);
+    };
+
+    const onStopRecording = function(callback) {
+        callbacks.onStopRecording.push(callback);
+    };
+
+    const onConnection = function(callback) {
+        callbacks.onConnection.push(callback);
+    };
+
+    const onDisconnection = function(callback) {
+        callbacks.onDisconnection.push(callback);
+    };
+
+    const onError = function(callback) {
+        callbacks.onError.push(callback);
+    };
+
     return {
+        onFrame: onFrame,
+        onStartRecording: onStartRecording,
+        onStopRecording: onStopRecording,
+        onConnection: onConnection,
+        onDisconnection: onDisconnection,
+        onError: onError
     };
 };
 

@@ -2,13 +2,48 @@ const cors = require('cors');
 const express = require('express');
 const expressWs = require('express-ws');
 const makeStreamRouter = require('./makeStreamRouter.js');
+const VideoServer = require('./VideoServer.js');
+const path = require('path');
+const os = require('os');
+const server = require('@libraries/hardwareInterfaces');
+
+const DEBUG_DISABLE_VIDEO_RECORDING = false;
 
 module.exports.start = function start() {
     const app = express();
 
+    const identityFolderName = '.identity';
+
     app.use(cors());
     expressWs(app);
-    const _streamRouter = makeStreamRouter(app);
+    const streamRouter = makeStreamRouter(app);
+
+    if (!DEBUG_DISABLE_VIDEO_RECORDING) {
+        // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
+        const videoServer = new VideoServer(path.join(server.getObjectsPath(), identityFolderName, '/virtualizer_recordings'));
+        const DEVICE_ID_PREFIX = 'device';
+
+        // trigger events in VideoServer whenever sockets connect, disconnect, or send data
+        streamRouter.onFrame((rgb, depth, pose, deviceId) => {
+            videoServer.onFrame(rgb, depth, pose, DEVICE_ID_PREFIX + deviceId);
+        });
+        streamRouter.onStartRecording((deviceId) => {
+            videoServer.startRecording(DEVICE_ID_PREFIX + deviceId);
+        });
+        streamRouter.onStopRecording((deviceId) => {
+            videoServer.stopRecording(DEVICE_ID_PREFIX + deviceId);
+        });
+        streamRouter.onConnection((deviceId) => {
+            videoServer.onConnection(DEVICE_ID_PREFIX + deviceId);
+        });
+        streamRouter.onDisconnection((deviceId) => {
+            videoServer.onDisconnection(DEVICE_ID_PREFIX + deviceId);
+        });
+        streamRouter.onError((deviceId) => {
+            console.log('on error: ' + deviceId); // haven't seen this trigger yet but probably good to also disconnect
+            videoServer.onDisconnection(DEVICE_ID_PREFIX + deviceId);
+        });
+    }
 
     let allWebsockets = [];
     let sensorDescriptions = {};
@@ -35,8 +70,8 @@ module.exports.start = function start() {
 
         let playback = null;
         ws.on('message', (msgStr, _isBinary) => {
-            
-            try{
+
+            try {
                 const msg = JSON.parse(msgStr);
                 switch (msg.command) {
                 case '/update/humanPoses':
@@ -49,9 +84,9 @@ module.exports.start = function start() {
             } catch (error) {
                 console.warn('Could not parse message: ' , error);
             }
-            
+
         });
-        
+
         let cleared = false;
         function doUpdateHumanPoses(msg) {
             if (playback && !playback.running) {
