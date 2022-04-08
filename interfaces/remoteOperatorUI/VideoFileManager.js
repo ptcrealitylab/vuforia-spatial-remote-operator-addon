@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const constants = require('./videoConstants');
-const ffmpegInterface = require('./ffmpegInterface');
+const utils = require('./utilities');
 
 /**
  * @fileOverview
@@ -16,16 +16,8 @@ let persistentInfo = null;
 
 // Private functions not exposed to other modules
 
-const mkdirIfNeeded = (path, recursive) => { // helper function since we do this so often
-    let options = recursive ? {recursive: true} : undefined;
-    if (!fs.existsSync(path)) {
-        fs.mkdirSync(path, options);
-        console.log('VideoFileManager created directory: ' + path);
-    }
-};
-
 const createMissingDirs = (devicePath) => {
-    mkdirIfNeeded(devicePath);
+    utils.mkdirIfNeeded(devicePath);
     let dir = constants.DIR_NAMES;
 
     let sessionVideosPath = path.join(devicePath, dir.session_videos);
@@ -33,9 +25,9 @@ const createMissingDirs = (devicePath) => {
     let processedChunksPath = path.join(devicePath, dir.processed_chunks);
 
     [dir.color, dir.depth, dir.pose].forEach(name => {
-        mkdirIfNeeded(path.join(sessionVideosPath, name), true);
-        mkdirIfNeeded(path.join(unprocessedChunksPath, name), true);
-        mkdirIfNeeded(path.join(processedChunksPath, name), true);
+        utils.mkdirIfNeeded(path.join(sessionVideosPath, name), true);
+        utils.mkdirIfNeeded(path.join(unprocessedChunksPath, name), true);
+        utils.mkdirIfNeeded(path.join(processedChunksPath, name), true);
     });
 };
 
@@ -102,7 +94,7 @@ const getNestedFilePaths = (deviceId, dirName, colorOrDepth) => {
     if (!outputPath) { console.warn('You never called initWithOutputPath on VideoFileManager'); }
 
     let dirPath = path.join(outputPath, deviceId, dirName, colorOrDepth);
-    mkdirIfNeeded(dirPath, true);
+    utils.mkdirIfNeeded(dirPath, true);
     let filetype = '.' + ((colorOrDepth === constants.DIR_NAMES.depth) ? constants.DEPTH_FILETYPE : constants.COLOR_FILETYPE);
     return fs.readdirSync(dirPath).filter(filename => filename.includes(filetype));
 };
@@ -131,7 +123,7 @@ const deleteChunksForSession = (deviceId, sessionId) => {
 module.exports = {
     initWithOutputPath: (path) => {
         outputPath = path;
-        mkdirIfNeeded(path, true);
+        utils.mkdirIfNeeded(path, true);
     },
     // we rebuild the json blob each time by parsing the filesystem, so this is stored mainly as a means for other systems to retrieve the data
     buildPersistentInfo: () => {

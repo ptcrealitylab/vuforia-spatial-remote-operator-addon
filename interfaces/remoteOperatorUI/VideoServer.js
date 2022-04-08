@@ -4,6 +4,7 @@ const ffmpegInterface = require('./ffmpegInterface');
 const VideoFileManager = require('./VideoFileManager');
 const VideoProcessManager = require('./VideoProcessManager');
 const constants = require('./videoConstants');
+const utils = require('./utilities');
 
 /**
  * @fileOverview
@@ -72,9 +73,7 @@ class VideoServer {
     // TODO: this could be optimized by listening for files to finish writing, rather than waiting a fixed time
     onRecordingDone(deviceId, sessionId, lastChunkIndex) {
         setTimeout(() => { // wait for final video to finish processing
-            if (!fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
-                fs.mkdirSync(path.join(this.outputPath, deviceId, 'tmp'));
-            }
+            utils.mkdirIfNeeded(path.join(this.outputPath, deviceId, 'tmp'));
             let tmpOutputPath = path.join(this.outputPath, deviceId, 'tmp', sessionId + '_done_' + lastChunkIndex + '.json');
             fs.writeFileSync(tmpOutputPath, JSON.stringify({ success: true}));
 
@@ -147,9 +146,7 @@ class VideoServer {
 
         // write file list to txt file so it can be used by ffmpeg as input
         let txt_filename = colorOrDepth + '_filenames_' + sessionId + '.txt';
-        if (!fs.existsSync(path.join(this.outputPath, deviceId, 'tmp'))) {
-            fs.mkdirSync(path.join(this.outputPath, deviceId, 'tmp'));
-        }
+        utils.mkdirIfNeeded(path.join(this.outputPath, deviceId, 'tmp'));
         let txtFilePath = path.join(this.outputPath, deviceId, 'tmp', txt_filename);
         if (fs.existsSync(txtFilePath)) {
             fs.unlinkSync(txtFilePath);
