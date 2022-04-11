@@ -362,8 +362,12 @@ createNameSpace('realityEditor.videoPlayback');
             container.classList.add('timelineScrollBarContainer');
             handle.classList.add('timelineScrollBarHandle');
             let isDown = false;
-            handle.addEventListener('pointerdown', _e => {
+            let pointerOffset = 0;
+            handle.addEventListener('pointerdown', e => {
                 isDown = true;
+                let handleX = handle.getClientRects()[0].left; // 49 at min
+                let handleWidth = handle.getClientRects()[0].width;
+                pointerOffset = e.pageX - (handleX + handleWidth / 2);
             });
             document.addEventListener('pointerup', _e => {
                 isDown = false;
@@ -385,7 +389,7 @@ createNameSpace('realityEditor.videoPlayback');
                 } else if (pointerX > sliderRight - handleWidth / 2) {
                     handle.style.left = (sliderWidth - handleWidth) + 'px';
                 } else {
-                    handle.style.left = pointerX - sliderLeft - (handleWidth / 2) + 'px';
+                    handle.style.left = (pointerX - pointerOffset) - (sliderLeft + handleWidth / 2) + 'px';
                 }
 
                 let startPercent = (handle.getClientRects()[0].left - container.getClientRects()[0].left) / container.getClientRects()[0].width;
