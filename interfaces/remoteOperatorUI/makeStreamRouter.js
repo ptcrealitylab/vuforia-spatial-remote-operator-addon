@@ -18,8 +18,6 @@ module.exports = function makeStreamRouter(app) {
     let matrixPool = [];
     let callbacks = {
         onFrame: [],
-        onStartRecording: [],
-        onStopRecording: [],
         onConnection: [],
         onDisconnection: [],
         onError: []
@@ -122,23 +120,6 @@ module.exports = function makeStreamRouter(app) {
         matrixPool.push(ws);
     });
 
-    app.ws('/commands', function(ws, req) {
-        const id = requestId(req);
-        ws.on('message', function(msg, _isBinary) {
-            if (msg === 'startRecording') {
-                console.log('start recording (command) ' + id);
-                callbacks.onStartRecording.forEach(function(cb) {
-                    cb(id);
-                });
-            } else if (msg === 'stopRecording') {
-                console.log('stop recording (command) ' + id);
-                callbacks.onStopRecording.forEach(function(cb) {
-                    cb(id);
-                });
-            }
-        });
-    });
-
     let frameData = {};
     function processFrame(id, color, depth, matrix) {
         if (typeof frameData[id] === 'undefined') {
@@ -171,14 +152,6 @@ module.exports = function makeStreamRouter(app) {
         callbacks.onFrame.push(callback);
     };
 
-    const onStartRecording = function(callback) {
-        callbacks.onStartRecording.push(callback);
-    };
-
-    const onStopRecording = function(callback) {
-        callbacks.onStopRecording.push(callback);
-    };
-
     const onConnection = function(callback) {
         callbacks.onConnection.push(callback);
     };
@@ -193,8 +166,6 @@ module.exports = function makeStreamRouter(app) {
 
     return {
         onFrame: onFrame,
-        onStartRecording: onStartRecording,
-        onStopRecording: onStopRecording,
         onConnection: onConnection,
         onDisconnection: onDisconnection,
         onError: onError
