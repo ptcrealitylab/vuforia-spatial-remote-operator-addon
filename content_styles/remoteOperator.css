@@ -34,3 +34,7 @@ body > * {
 #mainThreejsCanvas {
     pointer-events: auto !important;
 }
+
+.blockIconTinted {
+    background-color: rgba(100,255,255,0.25) !important; /*on remote operator, override background to have more contrast*/
+}
