@@ -181,9 +181,10 @@ class Connection {
         }
     }
     stopRecording(didDisconnect) {
-        if (this.isRecording) {
-            this.stopProcesses();
-        }
+        if (!this.isRecording) { return; }
+
+        this.stopProcesses();
+
         if (didDisconnect) {
             this.processStatuses.color = this.STATUS.DISCONNECTED;
             this.processStatuses.depth = this.STATUS.DISCONNECTED;
