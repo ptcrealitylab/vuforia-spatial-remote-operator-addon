@@ -15,7 +15,7 @@ let outputPath = null;
 let persistentInfo = null;
 
 const createMissingDirs = (devicePath) => {
-    utils.mkdirIfNeeded(devicePath);
+    utils.mkdirIfNeeded(devicePath, true);
     let dir = constants.DIR_NAMES;
 
     let sessionVideosPath = path.join(devicePath, dir.session_videos);
