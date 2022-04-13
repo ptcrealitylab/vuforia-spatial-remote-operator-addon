@@ -13,25 +13,19 @@ module.exports.start = function start() {
     const app = express();
 
     const identityFolderName = '.identity';
+    const DEVICE_ID_PREFIX = 'device';
 
     app.use(cors());
     expressWs(app);
     const streamRouter = makeStreamRouter(app);
 
+    // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
+    let videoServer = null;
     if (!DEBUG_DISABLE_VIDEO_RECORDING) {
-        // rgb+depth videos are stored in the Documents/spatialToolbox/.identity/virtualizer_recordings
-        const videoServer = new VideoServer(path.join(server.getObjectsPath(), identityFolderName, '/virtualizer_recordings'));
-        const DEVICE_ID_PREFIX = 'device';
-
+        videoServer = new VideoServer(path.join(server.getObjectsPath(), identityFolderName, '/virtualizer_recordings'));
         // trigger events in VideoServer whenever sockets connect, disconnect, or send data
         streamRouter.onFrame((rgb, depth, pose, deviceId) => {
             videoServer.onFrame(rgb, depth, pose, DEVICE_ID_PREFIX + deviceId);
-        });
-        streamRouter.onStartRecording((deviceId) => {
-            videoServer.startRecording(DEVICE_ID_PREFIX + deviceId);
-        });
-        streamRouter.onStopRecording((deviceId) => {
-            videoServer.stopRecording(DEVICE_ID_PREFIX + deviceId);
         });
         streamRouter.onConnection((deviceId) => {
             videoServer.onConnection(DEVICE_ID_PREFIX + deviceId);
@@ -59,10 +53,15 @@ module.exports.start = function start() {
 
     let activeSkels = {};
 
-    app.ws('/', (ws) => {
+    function requestId(req) {
+        return parseInt(req.ip.split(/\./g)[3]);
+    }
+
+    app.ws('/', (ws, req) => {
         console.log('an attempt /');
         allWebsockets.push(ws);
         let wsId = '' + (Math.random() * 9999);
+        let deviceId = requestId(req);
 
         ws.addEventListener('close', () => {
             allWebsockets = allWebsockets.filter(a => a !== ws);
@@ -80,9 +79,19 @@ module.exports.start = function start() {
                 case '/update/sensorDescription':
                     doUpdateSensorDescription(msg);
                     break;
+                case '/videoRecording/start':
+                    if (videoServer) {
+                        videoServer.startRecording(DEVICE_ID_PREFIX + deviceId);
+                    }
+                    break;
+                case '/videoRecording/stop':
+                    if (videoServer) {
+                        videoServer.stopRecording(DEVICE_ID_PREFIX + deviceId);
+                    }
+                    break;
                 }
             } catch (error) {
-                console.warn('Could not parse message: ' , error);
+                console.warn('Could not parse message: ', error);
             }
 
         });
