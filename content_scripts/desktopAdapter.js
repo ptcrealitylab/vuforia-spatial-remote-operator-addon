@@ -206,6 +206,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             }
         });
 
+        realityEditor.gui.setupMenuBar();
+
         update();
     }
 
