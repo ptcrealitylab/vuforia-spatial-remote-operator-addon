@@ -49,7 +49,6 @@ createNameSpace('realityEditor.device.desktopCamera');
     let requestAnimationFrame = window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
     let virtualCamera;
-    let keyboard;
 
     let unityCamera;
 
@@ -186,35 +185,20 @@ createNameSpace('realityEditor.device.desktopCamera');
             unityCamera.reset();
         });
 
-        keyboard = new realityEditor.device.KeyboardListener();
-
-        if (window.DEBUG_DISABLE_DROPDOWNS) {
+        realityEditor.gui.getMenuBar().addCallbackToItem('Unity Virtualizers', (value) => {
             if (objectDropdown) {
-                if (objectDropdown.dom.style.display !== 'none') {
+                if (value && !window.DEBUG_DISABLE_DROPDOWNS) {
+                    objectDropdown.dom.style.display = '';
+                } else {
                     objectDropdown.dom.style.display = 'none';
                 }
             }
-        } else {
-            keyboard.onKeyUp(function (code) {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+        });
 
-                // reset when escape pressed
-                if (code === keyboard.keyCodes.V) {
-                    if (objectDropdown) {
-                        if (objectDropdown.dom.style.display !== 'none') {
-                            objectDropdown.dom.style.display = 'none';
-                        } else {
-                            objectDropdown.dom.style.display = '';
-                        }
-                    }
-                }
-
-                if (code === keyboard.keyCodes.O) {
-                    virtualCamera.idleOrbitting = !virtualCamera.idleOrbitting;
-                    unityCamera.idleOrbitting = virtualCamera.idleOrbitting;
-                }
-            }.bind(this));
-        }
+        realityEditor.gui.getMenuBar().addCallbackToItem('Orbit Camera', (value) => {
+            virtualCamera.idleOrbitting = value;
+            unityCamera.idleOrbitting = value;
+        });
 
         if (DEBUG_SHOW_LOGGER) {
             closestObjectLog = document.createElement('div');
