@@ -240,6 +240,8 @@ createNameSpace('realityEditor.device.desktopCamera');
 
             objectDropdown.addSelectable('origin', 'World Origin');
 
+            objectDropdown.dom.style.display = 'none'; // defaults to hidden
+
             Object.keys(objects).forEach(function(objectKey) {
                 tryAddingObjectToDropdown(objectKey);
             });

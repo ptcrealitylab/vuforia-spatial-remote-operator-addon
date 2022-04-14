@@ -657,6 +657,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
             zoneDropdown = new realityEditor.gui.dropdown.Dropdown('zoneDropdown', textStates, {left: '30px', top: '30px'}, document.body, true, onZoneSelectionChanged, onZoneExpandedChanged);
 
+            zoneDropdown.dom.style.display = 'none';
         }
     }
 
