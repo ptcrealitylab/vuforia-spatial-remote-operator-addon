@@ -343,33 +343,34 @@ console.log('id', id);
             this.visible = true;
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
-            this.keyboard = new realityEditor.device.KeyboardListener();
 
-            this.keyboard.onKeyUp((code) => {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+            realityEditor.gui.getMenuBar().addCallbackToItem('Point Clouds', (_value) => {
+                this.visible = !this.visible;
+                for (let camera of Object.values(this.cameras)) {
+                    camera.mesh.visible = this.visible;
+                    camera.mesh.__hidden = !this.visible;
+                }
+            });
 
-                if (code === this.keyboard.keyCodes.M) {
-                    this.visible = !this.visible;
-                    for (let camera of Object.values(this.cameras)) {
-                        camera.mesh.visible = this.visible;
-                        camera.mesh.__hidden = !this.visible;
-                    }
-                } else if (code === this.keyboard.keyCodes.R) {
-                    for (let camera of Object.values(this.cameras)) {
-                        camera.historyPoints = [];
-                        camera.historyLine.setPoints(camera.historyPoints);
-                    }
-                } else if (code === this.keyboard.keyCodes.N) {
-                    this.spaghettiVisible = !this.spaghettiVisible;
-                    for (let camera of Object.values(this.cameras)) {
-                        camera.historyMesh.visible = this.spaghettiVisible;
-                    }
-                } else if (code === this.keyboard.keyCodes.P) {
-                    for (let camera of Object.values(this.cameras)) {
-                        let patch = camera.clonePatch();
-                        realityEditor.gui.threejsScene.addToScene(patch);
-                        this.patches.push(patch);
-                    }
+            realityEditor.gui.getMenuBar().addCallbackToItem('Reset Paths', () => {
+                for (let camera of Object.values(this.cameras)) {
+                    camera.historyPoints = [];
+                    camera.historyLine.setPoints(camera.historyPoints);
+                }
+            });
+
+            realityEditor.gui.getMenuBar().addCallbackToItem('Spaghetti Map', (_value) => {
+                this.spaghettiVisible = !this.spaghettiVisible;
+                for (let camera of Object.values(this.cameras)) {
+                    camera.historyMesh.visible = this.spaghettiVisible;
+                }
+            });
+
+            realityEditor.gui.getMenuBar().addCallbackToItem('Clone Patch', (_value) => {
+                for (let camera of Object.values(this.cameras)) {
+                    let patch = camera.clonePatch();
+                    realityEditor.gui.threejsScene.addToScene(patch);
+                    this.patches.push(patch);
                 }
             });
 
