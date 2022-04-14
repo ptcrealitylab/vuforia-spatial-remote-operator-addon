@@ -1,15 +1,80 @@
 createNameSpace('realityEditor.gui');
 
 (function(exports) {
+    const keyboard = new realityEditor.device.KeyboardListener();
+    const getShortcutDisplay = (keyCodeName) => {
+        if (keyCodeName === 'BACKSPACE') {
+            return '⌫';
+        } else if (keyCodeName === 'TAB') {
+            return '⇥';
+        } else if (keyCodeName === 'ENTER') {
+            return '⏎';
+        } else if (keyCodeName === 'SHIFT') {
+            return '⇪';
+        } else if (keyCodeName === 'CTRL') {
+            return '⌃';
+        } else if (keyCodeName === 'ALT') {
+            return '⌥';
+        } else if (keyCodeName === 'ESCAPE') {
+            return 'Esc';
+        } else if (keyCodeName === 'UP') {
+            return '↑';
+        } else if (keyCodeName === 'DOWN') {
+            return '↓';
+        } else if (keyCodeName === 'LEFT') {
+            return '←';
+        } else if (keyCodeName === 'RIGHT') {
+            return '→';
+        } else if (keyCodeName.match(/^_\d$/)) {
+            return keyCodeName[1]; // convert '_0' to '0', '_9' to '9'
+        } else if (keyCodeName === 'SEMICOLON') {
+            return ';';
+        } else if (keyCodeName === 'EQUALS') {
+            return '=';
+        } else if (keyCodeName === 'COMMA') {
+            return ',';
+        } else if (keyCodeName === 'DASH') {
+            return '-';
+        } else if (keyCodeName === 'PERIOD') {
+            return '.';
+        } else if (keyCodeName === 'FORWARD_SLASH') {
+            return '/';
+        } else if (keyCodeName === 'OPEN_BRACKET') {
+            return '[';
+        } else if (keyCodeName === 'BACK_SLASH') {
+            return '\\';
+        } else if (keyCodeName === 'CLOSE_BRACKET') {
+            return ']';
+        } else if (keyCodeName === 'SINGLE_QUOTE') {
+            return '\'';
+        }
+        return keyCodeName;
+    };
+
     class MenuBar {
         constructor() {
             this.menus = [];
             this.openMenu = null;
             this.buildDom();
+            this.setupKeyboard();
         }
         buildDom() {
             this.domElement = document.createElement('div');
             this.domElement.classList.add('desktopMenuBar');
+        }
+        setupKeyboard() {
+            keyboard.onKeyDown((code) => {
+                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+                // check with each of the menu items, whether this triggers anything
+                this.menus.forEach(menu => {
+                    menu.items.forEach(item => {
+                        if (typeof item.onKeyDown === 'function') {
+                            item.onKeyDown(code);
+                        }
+                    });
+                });
+            });
         }
         addMenu(menu) {
             this.menus.push(menu);
@@ -18,7 +83,7 @@ createNameSpace('realityEditor.gui');
         }
         onMenuTitleClicked(menu) {
             if (menu.isOpen) {
-                if (this.openMenu) {
+                if (this.openMenu && this.openMenu !== menu) {
                     this.openMenu.closeDropdown();
                 }
                 this.openMenu = menu;
@@ -34,6 +99,20 @@ createNameSpace('realityEditor.gui');
             }
             menu.addItem(item);
             this.redraw();
+        }
+        // Note: assumes items in different menus don't have duplicate names
+        addCallbackToItem(itemName, callback) {
+            let match = false;
+            this.menus.forEach(menu => {
+                if (match) { return; } // only add to the first match
+                let item = menu.items.find(item => {
+                    return item.text === itemName;
+                });
+                if (item) {
+                    item.addCallback(callback);
+                    match = true;
+                }
+            });
         }
         redraw() {
             // build DOM element for menu bar
@@ -82,6 +161,7 @@ createNameSpace('realityEditor.gui');
             this.items.push(menuItem);
             let dropdown = this.domElement.querySelector('.desktopMenuBarMenuDropdown');
             dropdown.appendChild(menuItem.domElement);
+            menuItem.parent = this;
         }
         redraw(index) {
             if (typeof index !== 'undefined') { this.menuIndex = index; }
@@ -109,17 +189,107 @@ createNameSpace('realityEditor.gui');
     class MenuItem {
         constructor(text, options, onClick) {
             this.text = text;
-            this.onClick = onClick;
-            this.options = options; // shortcutKey, toggle?
+            this.callbacks = [];
+            if (onClick) {
+                this.addCallback(onClick);
+            }
+            // shortcutKey: 'M', toggle: true, defaultVal: true, disabled: true
+            // note: shortcutKey should be an entry in the KeyboardListener's keyCodes
+            this.options = options || {};
             this.buildDom();
+            this.parent = null;
         }
         buildDom() {
             this.domElement = document.createElement('div');
             this.domElement.classList.add('desktopMenuBarItem');
-            this.domElement.innerText = this.text;
+
+            let textElement = document.createElement('div');
+            textElement.classList.add('desktopMenuBarItemText');
+            textElement.innerText = this.text;
+
+            if (this.options.toggle) {
+                let checkmark = document.createElement('div');
+                checkmark.classList.add('desktopMenuBarItemCheckmark');
+                checkmark.innerText = '✓';
+
+                textElement.classList.add('desktopMenuBarItemTextToggle');
+
+                if (!this.options.defaultVal) {
+                    checkmark.classList.add('desktopMenuBarItemCheckmarkHidden');
+                }
+                this.domElement.appendChild(checkmark);
+            }
+
+            this.domElement.appendChild(textElement);
+
+            // shortcutKey: 'M', toggle: true, defaultVal: true, disabled: true
+            if (this.options.shortcutKey) {
+                let shortcut = document.createElement('div');
+                shortcut.classList.add('desktopMenuBarItemShortcut');
+                shortcut.innerText = getShortcutDisplay(this.options.shortcutKey);
+                this.domElement.appendChild(shortcut);
+                // add keyboard listener in a clean way
+
+                // TODO: add a displayKey vs an enumKey (e.g. for 1-9, can't use numbers as keys so we spell them out)
+                let thisKeyCode = keyboard.keyCodes[this.options.shortcutKey];
+                this.onKeyDown = function(code) {
+                    if (code === thisKeyCode) {
+                        let succeeded = this.triggerItem();
+                        if (succeeded) {
+                            console.log('triggered shortcut: ' + this.text);
+                        }
+                    }
+                };
+            }
+
+            if (this.options.disabled) {
+                this.disable();
+            }
+
+            this.domElement.addEventListener('pointerup', () => {
+                let succeeded = this.triggerItem();
+                if (succeeded) {
+                    this.parent.closeDropdown();
+                }
+            });
+        }
+        triggerItem() {
+            if (this.domElement.classList.contains('desktopMenuBarItemDisabled')) {
+                return false;
+            }
+            let toggled = this.options.toggle ? this.switchToggle() : undefined;
+            this.callbacks.forEach(cb => {
+                cb(toggled);
+            });
+            return true;
+        }
+        switchToggle() {
+            if (!this.options.toggle) { return; }
+            let checkmark = this.domElement.querySelector('.desktopMenuBarItemCheckmark');
+
+            if (checkmark.classList.contains('desktopMenuBarItemCheckmarkHidden')) {
+                checkmark.classList.remove('desktopMenuBarItemCheckmarkHidden');
+                return true;
+            } else {
+                checkmark.classList.add('desktopMenuBarItemCheckmarkHidden');
+                return false;
+            }
+        }
+        disable() {
+            this.domElement.classList.add('desktopMenuBarItemDisabled');
+            let checkmark = this.domElement.querySelector('.desktopMenuBarItemCheckmark');
+            checkmark.classList.add('desktopMenuBarItemCheckmarkDisabled');
+        }
+        enable() {
+            this.domElement.classList.remove('desktopMenuBarItemDisabled');
+            let checkmark = this.domElement.querySelector('.desktopMenuBarItemCheckmark');
+            checkmark.classList.remove('desktopMenuBarItemCheckmarkDisabled');
         }
         redraw() {
             // update state
+        }
+        addCallback(callback) {
+            this.callbacks.push(callback);
         }
     }
 

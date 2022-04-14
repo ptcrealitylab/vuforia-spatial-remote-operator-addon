@@ -147,7 +147,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             pointerPosition.x = e.clientX;
             pointerPosition.y = e.clientY;
 
-            if (interactionCursor.style.display !== 'none') {
+            if (interactionCursor && interactionCursor.style.display !== 'none') {
                 interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
                 interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
             }
@@ -179,6 +179,12 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         createObjectSelectionDropdown();
+
+        realityEditor.gui.getMenuBar().addCallbackToItem('Reset Camera Position', () => {
+            console.log('reset camera position');
+            virtualCamera.reset();
+            unityCamera.reset();
+        });
 
         keyboard = new realityEditor.device.KeyboardListener();
 
