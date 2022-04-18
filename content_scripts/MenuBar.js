@@ -2,54 +2,6 @@ createNameSpace('realityEditor.gui');
 
 (function(exports) {
     const keyboard = new realityEditor.device.KeyboardListener();
-    const getShortcutDisplay = (keyCodeName) => { // what character to display in the help text, vs the keyCode enum key
-        if (keyCodeName === 'BACKSPACE') {
-            return '⌫';
-        } else if (keyCodeName === 'TAB') {
-            return '⇥';
-        } else if (keyCodeName === 'ENTER') {
-            return '⏎';
-        } else if (keyCodeName === 'SHIFT') {
-            return '⇪';
-        } else if (keyCodeName === 'CTRL') {
-            return '⌃';
-        } else if (keyCodeName === 'ALT') {
-            return '⌥';
-        } else if (keyCodeName === 'ESCAPE') {
-            return 'Esc';
-        } else if (keyCodeName === 'UP') {
-            return '↑';
-        } else if (keyCodeName === 'DOWN') {
-            return '↓';
-        } else if (keyCodeName === 'LEFT') {
-            return '←';
-        } else if (keyCodeName === 'RIGHT') {
-            return '→';
-        } else if (keyCodeName.match(/^_\d$/)) {
-            return keyCodeName[1]; // convert '_0' to '0', '_9' to '9'
-        } else if (keyCodeName === 'SEMICOLON') {
-            return ';';
-        } else if (keyCodeName === 'EQUALS') {
-            return '=';
-        } else if (keyCodeName === 'COMMA') {
-            return ',';
-        } else if (keyCodeName === 'DASH') {
-            return '-';
-        } else if (keyCodeName === 'PERIOD') {
-            return '.';
-        } else if (keyCodeName === 'FORWARD_SLASH') {
-            return '/';
-        } else if (keyCodeName === 'OPEN_BRACKET') {
-            return '[';
-        } else if (keyCodeName === 'BACK_SLASH') {
-            return '\\';
-        } else if (keyCodeName === 'CLOSE_BRACKET') {
-            return ']';
-        } else if (keyCodeName === 'SINGLE_QUOTE') {
-            return '\'';
-        }
-        return keyCodeName;
-    };
 
     class MenuBar {
         constructor() {
@@ -131,12 +83,10 @@ createNameSpace('realityEditor.gui');
             return match;
         }
         redraw() {
-            // build DOM element for menu bar
-            // add DOM element for each menu
+            // tell each menu to redraw
             this.menus.forEach((menu, index) => {
                 menu.redraw(index);
             });
-            // tell each menu to redraw
         }
     }
 
@@ -193,12 +143,9 @@ createNameSpace('realityEditor.gui');
                 title.classList.remove('desktopMenuBarMenuTitleOpen');
             }
 
-            // add DOM element for each item
             this.items.forEach((item, itemIndex) => {
                 item.redraw(itemIndex);
             });
-            // build DOM element for menu
-            // update DOM to fit the number of elements, and the open/close state
         }
     }
 
@@ -209,7 +156,7 @@ createNameSpace('realityEditor.gui');
             if (onClick) {
                 this.addCallback(onClick);
             }
-            // shortcutKey: 'M', toggle: true, defaultVal: true, disabled: true
+            // options include: { shortcutKey: 'M', toggle: true, defaultVal: true, disabled: true }
             // note: shortcutKey should be an entry in the KeyboardListener's keyCodes
             this.options = options || {};
             this.buildDom();
@@ -244,9 +191,7 @@ createNameSpace('realityEditor.gui');
                 shortcut.classList.add('desktopMenuBarItemShortcut');
                 shortcut.innerText = getShortcutDisplay(this.options.shortcutKey);
                 this.domElement.appendChild(shortcut);
-                // add keyboard listener in a clean way
 
-                // TODO: add a displayKey vs an enumKey (e.g. for 1-9, can't use numbers as keys so we spell them out)
                 let thisKeyCode = keyboard.keyCodes[this.options.shortcutKey];
                 this.onKeyDown = function(code) {
                     if (code === thisKeyCode) {
@@ -306,12 +251,63 @@ createNameSpace('realityEditor.gui');
             }
         }
         redraw() {
-            // update state
+            // currently not used, but can be used to update UI each time menu opens, closes, or contents change
         }
         addCallback(callback) {
             this.callbacks.push(callback);
         }
     }
+
+    // when adding a keyboard shortcut, conform to the naming of the keyboard.keyCodes enum
+    // this function maps those names to human-readable shortcut keys to display in the menu
+    const getShortcutDisplay = (keyCodeName) => {
+        if (keyCodeName === 'BACKSPACE') {
+            return '⌫';
+        } else if (keyCodeName === 'TAB') {
+            return '⇥';
+        } else if (keyCodeName === 'ENTER') {
+            return '⏎';
+        } else if (keyCodeName === 'SHIFT') {
+            return '⇪';
+        } else if (keyCodeName === 'CTRL') {
+            return '⌃';
+        } else if (keyCodeName === 'ALT') {
+            return '⌥';
+        } else if (keyCodeName === 'ESCAPE') {
+            return 'Esc';
+        } else if (keyCodeName === 'UP') {
+            return '↑';
+        } else if (keyCodeName === 'DOWN') {
+            return '↓';
+        } else if (keyCodeName === 'LEFT') {
+            return '←';
+        } else if (keyCodeName === 'RIGHT') {
+            return '→';
+        } else if (keyCodeName.match(/^_\d$/)) {
+            return keyCodeName[1]; // convert '_0' to '0', '_9' to '9'
+        } else if (keyCodeName === 'SEMICOLON') {
+            return ';';
+        } else if (keyCodeName === 'EQUALS') {
+            return '=';
+        } else if (keyCodeName === 'COMMA') {
+            return ',';
+        } else if (keyCodeName === 'DASH') {
+            return '-';
+        } else if (keyCodeName === 'PERIOD') {
+            return '.';
+        } else if (keyCodeName === 'FORWARD_SLASH') {
+            return '/';
+        } else if (keyCodeName === 'OPEN_BRACKET') {
+            return '[';
+        } else if (keyCodeName === 'BACK_SLASH') {
+            return '\\';
+        } else if (keyCodeName === 'CLOSE_BRACKET') {
+            return ']';
+        } else if (keyCodeName === 'SINGLE_QUOTE') {
+            return '\'';
+        }
+        return keyCodeName;
+    };
 
     exports.MenuBar = MenuBar;
     exports.Menu = Menu;
