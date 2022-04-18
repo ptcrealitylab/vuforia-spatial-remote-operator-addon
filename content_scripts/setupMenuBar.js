@@ -73,6 +73,7 @@ createNameSpace('realityEditor.gui');
         menuBar.addItemToMenu(MENU.Camera, resetCamera);
 
         const gettingStarted = new MenuItem(ITEM.GettingStarted, null, () => {
+            // TODO: build a better Getting Started / Help experience
             window.open('https://spatialtoolbox.vuforia.com/', '_blank');
         });
         menuBar.addItemToMenu(MENU.Help, gettingStarted);
