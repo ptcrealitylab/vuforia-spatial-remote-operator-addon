@@ -490,12 +490,11 @@ console.log('id', id);
             this.cameras[id].add();
 
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
-            realityEditor.gui.getMenuBar().setItemEnabled('Point Clouds', true);
-            realityEditor.gui.getMenuBar().setItemEnabled('Spaghetti Map', true);
-            realityEditor.gui.getMenuBar().setItemEnabled('Spaghetti Map', true);
-            realityEditor.gui.getMenuBar().setItemEnabled('Reset Paths', true);
-            realityEditor.gui.getMenuBar().setItemEnabled('Toggle Paths', true);
-            realityEditor.gui.getMenuBar().setItemEnabled('Clone Patch', true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
         }
 
         onPointerDown(e) {
