@@ -113,6 +113,17 @@
     color: rgb(155,255,255);
 }
 
+#timelineDateDisplay {
+    position: absolute;
+    left: 0;
+    top: 30px;
+    font-size: 11px;
+    width: 100%;
+    text-align: center;
+    height: 48px;
+    color: rgb(155,255,255);
+}
+
 #timelineCalendarButton {
     position: absolute;
     left: calc((120px - 48px)/2);
@@ -302,6 +313,7 @@
     background-color: rgba(0,255,255,0.3);
     border-radius: 5px;
     height: 10px;
+    /*transition: opacity 0.5s ease-in-out;*/
 }
 
 .timelineScrollBarHandle {
@@ -312,6 +324,20 @@
     border-radius: 5px;
     height: 10px;
     cursor: pointer;
+}
+
+.timelineScrollBarFadeout {
+    opacity: 0;
+    animation: scrollbarFadeout 0.5s;
+}
+
+@keyframes scrollbarFadeout {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
 }
 
 #timelineScrollBar {

@@ -223,7 +223,11 @@ createNameSpace('realityEditor.videoPlayback');
                     // let endDate = new Date(segment.end);
                     // TODO: what if startDate and endDate are on two different days? Ignore for now and just use startDate
                     let day = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-                    dates[day] = true;
+                    if (typeof dates[day] === 'undefined') {
+                        dates[day] = [{ segmentId: segmentId, startTime: segment.start, endTime: segment.end }];
+                    } else {
+                        dates[day].push({ segmentId: segmentId, startTime: segment.start, endTime: segment.end  });
+                    }
                 });
             });
             return dates;

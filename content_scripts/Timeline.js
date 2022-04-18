@@ -28,6 +28,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.videoElements = {};
             this.calendar = null;
             this.datesWithVideos = [];
+            this.segmentsByDate = {};
             this.DAY_LENGTH = 1000 * 60 * 60 * 24; // one day
 
             let dateNow = new Date(Date.now());
@@ -77,8 +78,6 @@ createNameSpace('realityEditor.videoPlayback');
             this.createVideoTracks();
             this.playheadTimestamp = this.trackInfo.metadata.minTime;
 
-            // this.addPlaybackListeners();
-
             this.playLoop(); // only after DOM is built can we start the loop
         }
         getDateBounds(timestampInDay) {
@@ -89,7 +88,7 @@ createNameSpace('realityEditor.videoPlayback');
                 max: tempDate.getTime() + this.DAY_LENGTH
             };
         }
-        resetZoomForRecordings() {
+        resetZoomForRecordings() { // deprecated, this shows ALL videos not the current day
             let recordingStartDate = new Date(this.dayBounds.min);
             recordingStartDate = new Date(recordingStartDate.getFullYear(), recordingStartDate.getMonth(), recordingStartDate.getDate());
             let dayStartTime = recordingStartDate.getTime();
@@ -199,6 +198,11 @@ createNameSpace('realityEditor.videoPlayback');
             timestampDisplay.innerText = this.getFormattedTime(new Date(0));
             leftBox.appendChild(timestampDisplay);
 
+            let dateDisplay = document.createElement('div');
+            dateDisplay.id = 'timelineDateDisplay';
+            dateDisplay.innerText = this.getFormattedDate(Date.now());
+            leftBox.appendChild(dateDisplay);
+
             let calendarButton = document.createElement('img');
             calendarButton.id = 'timelineCalendarButton';
             calendarButton.src = '/addons/vuforia-spatial-remote-operator-addon/calendarButton.svg';
@@ -300,6 +304,12 @@ createNameSpace('realityEditor.videoPlayback');
             let previousLeft = parseFloat(handle.style.left) || 0; //handle.getClientRects()[0].left;
             let previousWidth = handle.getClientRects()[0].width;
             handle.style.width = (1.0 - zoomPercent) * 100 + '%';
+
+            if (zoomPercent < 0.01) {
+                scrollBar.classList.add('timelineScrollBarFadeout');
+            } else {
+                scrollBar.classList.remove('timelineScrollBarFadeout');
+            }
 
             let newWidth = handle.getClientRects()[0].width;
             let maxLeft = scrollBar.getClientRects()[0].width - newWidth;
@@ -440,8 +450,6 @@ createNameSpace('realityEditor.videoPlayback');
             this.timeScrolledTo(absoluteTimeWindow, true);
         }
         setZoomAndPosition(zoomPercent, leftPercent) { // TODO: call this when the tracks first load, based on the min/max zoom of the tracks
-            // let scrollBar = document.getElementById('timelineScrollBar');
-            // let scrollHandle = scrollBar.querySelector('.timelineScrollBarHandle');
             let zoomBar = document.getElementById('zoomSliderBackground');
             let zoomHandle = document.getElementById('zoomSliderHandle');
             let leftMargin = 15;
@@ -738,6 +746,8 @@ createNameSpace('realityEditor.videoPlayback');
             // console.log('relative time = ' + relativeTime);
             let textfield = document.getElementById('timelineTimestampDisplay');
             textfield.innerText = this.getFormattedTime(relativeTime);
+            let dateTextfield = document.getElementById('timelineDateDisplay');
+            dateTextfield.innerText = this.getFormattedDate(timestamp);
         }
         setupControlButtons(playButton, /*seekButton,*/ speedButton, calendarButton) {
             playButton.addEventListener('pointerup', _e => {
@@ -751,13 +761,7 @@ createNameSpace('realityEditor.videoPlayback');
                     this.calendar = new realityEditor.videoPlayback.Calendar(this.timelineContainer);
                     this.calendar.highlightDates(this.datesWithVideos);
                     this.calendar.onDateSelected(dateObject => {
-                        this.setZoomAndPosition(0, 0);
-                        // console.log('user selected this date: ', dateObject);
-                        let minTime = dateObject.getTime();
-                        let maxTime = dateObject.getTime() + this.DAY_LENGTH;
-                        this.dayBounds.min = minTime;
-                        this.dayBounds.max = maxTime;
-                        this.updateTimelineBounds(minTime, maxTime);
+                        this.showDataForDate(dateObject, true);
                     });
                     // this.calendar.selectToday();
                     this.calendar.selectDay(this.dayBounds.min);
@@ -770,6 +774,28 @@ createNameSpace('realityEditor.videoPlayback');
                     this.calendar.dom.classList.remove('timelineCalendarHidden');
                 }
             });
+        }
+        showDataForDate(dateObject, zoomToFitData) {
+            console.log('user selected this date: ', dateObject);
+            let minTime = dateObject.getTime();
+            let maxTime = dateObject.getTime() + this.DAY_LENGTH;
+            this.dayBounds.min = minTime;
+            this.dayBounds.max = maxTime;
+            let segmentsWithinDate = this.segmentsByDate[dateObject];
+            if (zoomToFitData && segmentsWithinDate && segmentsWithinDate.length > 0) {
+                let sortedSegments = this.segmentsByDate[dateObject].map(elt => elt).sort((a, b) => a.startTime - b.startTime);
+                console.log('segmentsWithinDate', segmentsWithinDate);
+                let windowMin = Math.max(this.dayBounds.min, sortedSegments[0].startTime - 500); // give 0.5 second margin
+                let windowMax = Math.min(this.dayBounds.max, sortedSegments[sortedSegments.length - 1].endTime + 500);
+                this.updateTimelineBounds(windowMin, windowMax);
+                let windowLength = windowMax - windowMin;
+                let zoomPercent = 1.0 - windowLength / this.DAY_LENGTH;
+                let leftPercent = (windowMin - this.dayBounds.min) / this.DAY_LENGTH;
+                this.setZoomAndPosition(zoomPercent, leftPercent);
+            } else {
+                this.setZoomAndPosition(0, 0);
+                this.updateTimelineBounds(minTime, maxTime);
+            }
         }
         updateTimelineBounds(minTimestamp, maxTimestamp) {
             // this.dayBounds.min = minTimestamp;
@@ -983,11 +1009,23 @@ createNameSpace('realityEditor.videoPlayback');
         }
         getFormattedTime(relativeTimestamp) {
             let timeSeconds = relativeTimestamp / 1000;
+            let amOrPm = 'AM';
             let hours = Math.floor((timeSeconds / (60 * 60)) % 24);
             let minutes = Math.floor((timeSeconds / 60) % 60);
             let seconds = Math.floor(timeSeconds % 60);
+            if (hours === 0) {
+                hours = 12;
+            } else if (hours > 12) {
+                hours -= 12;
+                amOrPm = 'PM';
+            }
             const zeroPad = (num, places) => String(num).padStart(places, '0');
-            return zeroPad(hours, 2) + ':' + zeroPad(minutes, 2) + ':' + zeroPad(seconds, 2);
+            return zeroPad(hours, 2) + ':' + zeroPad(minutes, 2) + ':' + zeroPad(seconds, 2) + ' ' + amOrPm;
+        }
+        getFormattedDate(timestamp) { // Format: 'Mon, Apr 18, 2022'
+            return new Date(timestamp).toLocaleDateString('en-us', {
+                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+            });
         }
         onVideoFrame(callback) {
             this.callbacks.onVideoFrame.push(callback);
@@ -1012,7 +1050,7 @@ createNameSpace('realityEditor.videoPlayback');
             if (typeof isNowVisible === 'undefined') { // toggle if no value provided
                 if (this.timelineContainer.classList.contains('hiddenTimeline')) {
                     this.timelineContainer.classList.remove('hiddenTimeline');
-                    this.resetZoomForRecordings();
+                    // this.resetZoomForRecordings();
                 } else {
                     this.timelineContainer.classList.add('hiddenTimeline');
                 }
@@ -1021,7 +1059,13 @@ createNameSpace('realityEditor.videoPlayback');
 
             if (isNowVisible) {
                 this.timelineContainer.classList.remove('hiddenTimeline');
-                this.resetZoomForRecordings();
+                // this.resetZoomForRecordings();
+
+                // zoom to show the most recent date on the timeline
+                let mostRecentDate = this.datesWithVideos.sort((a, b) => {
+                    return a.getTime() - b.getTime();
+                })[this.datesWithVideos.length - 1];
+                this.showDataForDate(mostRecentDate, true);
             } else {
                 this.timelineContainer.classList.add('hiddenTimeline');
             }
@@ -1050,7 +1094,25 @@ createNameSpace('realityEditor.videoPlayback');
             this.playVideoPlayback();
         }
         setDatesWithVideos(datesList) {
-            this.datesWithVideos = datesList;
+            this.datesWithVideos = Object.keys(datesList).map(stringifiedDate => new Date(stringifiedDate));
+            this.segmentsByDate = datesList;
+
+            if (this.timelineContainer.classList.contains('hiddenTimeline')) {
+                return;
+            }
+
+            if (Object.keys(datesList).length === 0) {
+                this.resetZoomForRecordings();
+                return;
+            }
+
+            // zoom to show the most recent date on the timeline
+            let dates = Object.keys(datesList);
+            console.log('dates', dates);
+            let mostRecentDate = this.datesWithVideos.sort((a, b) => {
+                return a.getTime() - b.getTime();
+            })[this.datesWithVideos.length - 1];
+            this.showDataForDate(mostRecentDate, true);
         }
     }
 
