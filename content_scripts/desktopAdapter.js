@@ -144,12 +144,12 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
 
-        realityEditor.gui.getMenuBar().addCallbackToItem('Surface Anchors', (value) => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
             realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode(value);
         });
 
         if (!window.DEBUG_DISABLE_DROPDOWNS) {
-            realityEditor.gui.getMenuBar().addCallbackToItem('Unity Virtualizers', (value) => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UnityVirtualizers, (value) => {
                 if (zoneDropdown) {
                     if (value) {
                         zoneDropdown.dom.style.display = '';

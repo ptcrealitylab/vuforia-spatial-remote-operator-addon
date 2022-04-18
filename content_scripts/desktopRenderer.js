@@ -156,7 +156,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        realityEditor.gui.getMenuBar().addCallbackToItem('Model Texture', (value) => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelTexture, (value) => {
             if (!gltf) { return; }
             staticModelMode = value;
             if (staticModelMode) {
@@ -168,12 +168,12 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             }
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem('Reset Paths', () => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
             if (!realityZoneViewer) { return; }
             realityZoneViewer.resetHistory();
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem('Toggle Paths', (_value) => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (_value) => {
             if (!realityZoneViewer) { return; }
             realityZoneViewer.toggleHistory();
         });

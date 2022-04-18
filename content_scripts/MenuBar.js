@@ -2,7 +2,7 @@ createNameSpace('realityEditor.gui');
 
 (function(exports) {
     const keyboard = new realityEditor.device.KeyboardListener();
-    const getShortcutDisplay = (keyCodeName) => {
+    const getShortcutDisplay = (keyCodeName) => { // what character to display in the help text, vs the keyCode enum key
         if (keyCodeName === 'BACKSPACE') {
             return '⌫';
         } else if (keyCodeName === 'TAB') {
@@ -102,17 +102,33 @@ createNameSpace('realityEditor.gui');
         }
         // Note: assumes items in different menus don't have duplicate names
         addCallbackToItem(itemName, callback) {
-            let match = false;
+            let item = this.getItemByName(itemName);
+            if (item) {
+                item.addCallback(callback);
+            }
+        }
+        setItemEnabled(itemName, enabled) {
+            let item = this.getItemByName(itemName);
+            if (item) {
+                if (enabled) {
+                    item.enable();
+                } else {
+                    item.disable();
+                }
+            }
+        }
+        getItemByName(itemName) {
+            let match = null;
             this.menus.forEach(menu => {
                 if (match) { return; } // only add to the first match
                 let item = menu.items.find(item => {
                     return item.text === itemName;
                 });
                 if (item) {
-                    item.addCallback(callback);
-                    match = true;
+                    match = item;
                 }
             });
+            return match;
         }
         redraw() {
             // build DOM element for menu bar
@@ -278,12 +294,16 @@ createNameSpace('realityEditor.gui');
         disable() {
             this.domElement.classList.add('desktopMenuBarItemDisabled');
             let checkmark = this.domElement.querySelector('.desktopMenuBarItemCheckmark');
-            checkmark.classList.add('desktopMenuBarItemCheckmarkDisabled');
+            if (checkmark) {
+                checkmark.classList.add('desktopMenuBarItemCheckmarkDisabled');
+            }
         }
         enable() {
             this.domElement.classList.remove('desktopMenuBarItemDisabled');
             let checkmark = this.domElement.querySelector('.desktopMenuBarItemCheckmark');
-            checkmark.classList.remove('desktopMenuBarItemCheckmarkDisabled');
+            if (checkmark) {
+                checkmark.classList.remove('desktopMenuBarItemCheckmarkDisabled');
+            }
         }
         redraw() {
             // update state
@@ -293,24 +313,7 @@ createNameSpace('realityEditor.gui');
         }
     }
 
-    // class MenuItemToggle {
-    //     constructor(text, onToggleOn, onToggleOff, shortcutKey) {
-    //         this.text = text;
-    //         this.onToggleOn = onToggleOn;
-    //         this.onToggleOff = onToggleOff;
-    //     }
-    // }
-
     exports.MenuBar = MenuBar;
-    // exports = {
-    //     addMenu: (menu) => {
-    //
-    //     },
-    //     addItemToMenu: (menuName, item) => {
-    //
-    //     }
-    // };
     exports.Menu = Menu;
     exports.MenuItem = MenuItem;
-    // exports.MenuItemToggle;
 })(realityEditor.gui);

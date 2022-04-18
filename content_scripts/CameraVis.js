@@ -344,7 +344,7 @@ console.log('id', id);
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
 
-            realityEditor.gui.getMenuBar().addCallbackToItem('Point Clouds', (_value) => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (_value) => {
                 this.visible = !this.visible;
                 for (let camera of Object.values(this.cameras)) {
                     camera.mesh.visible = this.visible;
@@ -352,21 +352,21 @@ console.log('id', id);
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem('Reset Paths', () => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
                 for (let camera of Object.values(this.cameras)) {
                     camera.historyPoints = [];
                     camera.historyLine.setPoints(camera.historyPoints);
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem('Spaghetti Map', (_value) => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SpaghettiMap, (_value) => {
                 this.spaghettiVisible = !this.spaghettiVisible;
                 for (let camera of Object.values(this.cameras)) {
                     camera.historyMesh.visible = this.spaghettiVisible;
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem('Clone Patch', (_value) => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, (_value) => {
                 for (let camera of Object.values(this.cameras)) {
                     let patch = camera.clonePatch();
                     realityEditor.gui.threejsScene.addToScene(patch);
@@ -488,6 +488,14 @@ console.log('id', id);
             }
             this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
+
+            // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
+            realityEditor.gui.getMenuBar().setItemEnabled('Point Clouds', true);
+            realityEditor.gui.getMenuBar().setItemEnabled('Spaghetti Map', true);
+            realityEditor.gui.getMenuBar().setItemEnabled('Spaghetti Map', true);
+            realityEditor.gui.getMenuBar().setItemEnabled('Reset Paths', true);
+            realityEditor.gui.getMenuBar().setItemEnabled('Toggle Paths', true);
+            realityEditor.gui.getMenuBar().setItemEnabled('Clone Patch', true);
         }
 
         onPointerDown(e) {

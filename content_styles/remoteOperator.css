@@ -128,7 +128,7 @@ body > * {
 }
 
 .desktopMenuBarItemCheckmarkDisabled {
-    visibility: hidden;
+    opacity: 0.5;
 }
 
 .desktopMenuBarItemShortcut {
