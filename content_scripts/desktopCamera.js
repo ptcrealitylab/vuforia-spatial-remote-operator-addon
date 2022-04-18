@@ -179,13 +179,13 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         createObjectSelectionDropdown();
 
-        realityEditor.gui.getMenuBar().addCallbackToItem('Reset Camera Position', () => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetCameraPosition, () => {
             console.log('reset camera position');
             virtualCamera.reset();
             unityCamera.reset();
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem('Unity Virtualizers', (value) => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UnityVirtualizers, (value) => {
             if (objectDropdown) {
                 if (value && !window.DEBUG_DISABLE_DROPDOWNS) {
                     objectDropdown.dom.style.display = '';
@@ -195,7 +195,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             }
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem('Orbit Camera', (value) => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.OrbitCamera, (value) => {
             virtualCamera.idleOrbitting = value;
             unityCamera.idleOrbitting = value;
         });
