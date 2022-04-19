@@ -1,6 +1,7 @@
 createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
+    const DEVICE_ID_PREFIX = 'device'; // should match DEVICE_ID_PREFIX in backend recording system
     class Coordinator {
         constructor() {
             this.displayPointClouds = true;
@@ -45,7 +46,7 @@ createNameSpace('realityEditor.videoPlayback');
                 console.log('segment deselected');
 
                 if (typeof this.hidePointCloud !== 'undefined') {
-                    let cameraId = parseInt(deviceId.replace('device_', ''));
+                    let cameraId = parseInt(deviceId.replace(DEVICE_ID_PREFIX, ''));
                     this.hidePointCloud(cameraId);
                 }
             });
@@ -66,7 +67,7 @@ createNameSpace('realityEditor.videoPlayback');
                 return;
             }
             if (typeof this.loadPointCloud !== 'undefined') {
-                let cameraId = parseInt(deviceId.replace('device_', ''));
+                let cameraId = parseInt(deviceId.replace(DEVICE_ID_PREFIX, '')) + 255; // go outside the range of camera ids
                 this.loadPointCloud(cameraId, colorImageUrl, depthImageUrl, poseMatrix);
             }
         }
