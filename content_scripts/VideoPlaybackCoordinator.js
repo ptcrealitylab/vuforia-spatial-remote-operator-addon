@@ -104,8 +104,8 @@ createNameSpace('realityEditor.videoPlayback');
         togglePointClouds() {
             this.displayPointClouds = !this.displayPointClouds;
         }
-        toggleVisibility() {
-            if (this.timelineVisibile) {
+        toggleVisibility(toggled) {
+            if (this.timelineVisibile || (typeof toggled !== 'undefined' && !toggled)) {
                 this.timelineVisibile = false;
                 this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/showTimelineButton.svg';
                 this.timelineVisibilityButton.classList.remove('timelineVisibilityButtonOpen');
