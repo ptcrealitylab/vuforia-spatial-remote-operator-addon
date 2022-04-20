@@ -9,6 +9,7 @@ createNameSpace('realityEditor.gui');
         History: 'History',
         Help: 'Help'
     });
+    exports.MENU = MENU;
 
     const ITEM = Object.freeze({
         PointClouds: 'Point Clouds',
