@@ -42,10 +42,7 @@ createNameSpace('realityEditor.device.desktopStats');
     	isVisible = true;
 
 	    update(); // start update loop
-
-        setTimeout(function () {
-            hide();
-        }, 1000);
+        hide(); // default hidden
     }
 
     function update() {
