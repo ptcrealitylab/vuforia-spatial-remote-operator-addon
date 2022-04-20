@@ -124,6 +124,14 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
                         videoPlayback.load();
                         window.videoPlayback = videoPlayback;
+
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                            // } else if (params.event.code === 'KeyY') {
+                            videoPlayback.toggleVisibility(toggled);
+                            // } else if (params.event.code === 'KeyU') {
+                            //     videoPlayback.togglePointClouds();
+                            // }
+                        });
                     });
                 }
 
@@ -167,10 +175,10 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             if (!gltf) { return; }
             staticModelMode = value;
             if (staticModelMode) {
-                gltf.visible = true;
+                showGltf();
                 console.log('show gtlf');
             } else {
-                gltf.visible = false;
+                hideGltf();
                 console.log('hide gltf');
             }
         });
@@ -217,7 +225,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
     function hideGltf() {
         if (!gltf) { return; }
 
-        const meshMaterial = new THREE.MeshBasicMaterial( {
+        const meshMaterial = new realityEditor.gui.threejsScene.THREE.MeshBasicMaterial( {
             color: 0x888888,
             transparent: true,
             opacity: 0.3,

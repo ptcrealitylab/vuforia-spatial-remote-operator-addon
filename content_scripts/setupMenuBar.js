@@ -16,6 +16,7 @@ createNameSpace('realityEditor.gui');
         ModelTexture: 'Model Texture',
         UnityVirtualizers: 'Unity Virtualizers',
         SurfaceAnchors: 'Surface Anchors',
+        VideoPlayback: 'VideoPlayback',
         ResetPaths: 'Reset Paths',
         TogglePaths: 'Toggle Paths',
         ClonePatch: 'Clone Patch',
@@ -56,6 +57,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleSurfaceAnchors = new MenuItem(ITEM.SurfaceAnchors, { shortcutKey: 'SEMICOLON', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleSurfaceAnchors);
+
+        const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'Y', toggle: true, defaultVal: false }, null); // other module can attach a callback later
+        menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
 
         const resetRzvHistory = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, resetRzvHistory);
