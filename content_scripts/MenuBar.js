@@ -272,7 +272,7 @@ createNameSpace('realityEditor.gui');
         } else if (keyCodeName === 'CTRL') {
             return '⌃';
         } else if (keyCodeName === 'ALT') {
-            return '⌥';
+            return '⎇';
         } else if (keyCodeName === 'ESCAPE') {
             return 'Esc';
         } else if (keyCodeName === 'UP') {

@@ -27,7 +27,7 @@ createNameSpace('realityEditor.gui');
 
     // sets up the initial contents of the menuBar
     // other modules can add more to it by calling getMenuBar().addItemToMenu(menuName, menuItem)
-    exports.setupMenuBar = () => {
+    const setupMenuBar = () => {
         const MenuBar = realityEditor.gui.MenuBar;
         const Menu = realityEditor.gui.Menu;
         const MenuItem = realityEditor.gui.MenuItem;
@@ -81,10 +81,18 @@ createNameSpace('realityEditor.gui');
         document.body.appendChild(menuBar.domElement);
     };
 
-    exports.getMenuBar = () => { // use this to access the shared MenuBar instance
+    const getMenuBar = () => { // use this to access the shared MenuBar instance
         if (!menuBar) {
-            this.setupMenuBar();
+            try {
+                this.setupMenuBar();
+            } catch (e) {
+                console.warn(e);
+            }
         }
         return menuBar;
     };
+
+    exports.setupMenuBar = setupMenuBar;
+    exports.getMenuBar = getMenuBar;
+
 })(realityEditor.gui);
