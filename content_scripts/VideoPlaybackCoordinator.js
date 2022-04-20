@@ -2,6 +2,7 @@ createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
     const DEVICE_ID_PREFIX = 'device'; // should match DEVICE_ID_PREFIX in backend recording system
+    let menuItemsAdded = false;
     class Coordinator {
         constructor() {
             this.displayPointClouds = true;
@@ -58,7 +59,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.timelineVisibilityButton.addEventListener('pointerup', _ev => {
                 this.toggleVisibility();
             });
-            this.toggleVisibility(); // default to hidden
+            this.toggleVisibility(false); // default to hidden
 
             // hide timeline visibility toggle if there are no recorded clips
         }
@@ -113,6 +114,25 @@ createNameSpace('realityEditor.videoPlayback');
                 this.timelineVisibile = true;
                 this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/hideTimelineButton.svg';
                 this.timelineVisibilityButton.classList.add('timelineVisibilityButtonOpen');
+
+                if (!menuItemsAdded) {
+                    menuItemsAdded = true;
+                    // set up keyboard shortcuts
+                    let togglePlayback = new realityEditor.gui.MenuItem('Toggle Playback', { shortcutKey: 'SPACE', toggle: true, defaultVal: false}, (_toggled) => {
+                        this.timeline.togglePlayback();
+                    });
+                    realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.History, togglePlayback);
+
+                    let slower = new realityEditor.gui.MenuItem('Slower', { shortcutKey: 'COMMA' }, () => {
+                        this.timeline.multiplySpeed(0.5, false);
+                    });
+                    realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.History, slower);
+
+                    let faster = new realityEditor.gui.MenuItem('Faster', { shortcutKey: 'PERIOD' }, () => {
+                        this.timeline.multiplySpeed(2.0, false);
+                    });
+                    realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.History, faster);
+                }
             }
 
             this.timeline.toggleVisibility(this.timelineVisibile);
