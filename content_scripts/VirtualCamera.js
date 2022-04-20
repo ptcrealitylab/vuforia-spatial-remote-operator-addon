@@ -143,15 +143,6 @@ createNameSpace('realityEditor.device');
                     this.mouseInput.last.y = event.pageY;
                 }
             }.bind(this));
-
-            this.keyboard.onKeyUp(function(code) {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-                // reset when escape pressed
-                if (code === this.keyboard.keyCodes.ESCAPE) {
-                    this.reset();
-                }
-            }.bind(this));
         }
         reset() {
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];

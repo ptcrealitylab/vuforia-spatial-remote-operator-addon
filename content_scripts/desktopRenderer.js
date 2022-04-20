@@ -163,31 +163,26 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-            if (params.event.code === 'KeyT' && gltf) {
-                staticModelMode = !staticModelMode;
-                if (staticModelMode) {
-                    showGltf();
-                    console.log('show gtlf');
-                } else {
-                    hideGltf();
-                    console.log('hide gltf');
-                }
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelTexture, (value) => {
+            if (!gltf) { return; }
+            staticModelMode = value;
+            if (staticModelMode) {
+                gltf.visible = true;
+                console.log('show gtlf');
+            } else {
+                gltf.visible = false;
+                console.log('hide gltf');
             }
+        });
 
-            if (params.event.code === 'KeyR' && realityZoneViewer) {
-                realityZoneViewer.resetHistory();
-            }
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
+            if (!realityZoneViewer) { return; }
+            realityZoneViewer.resetHistory();
+        });
 
-            if (params.event.code === 'KeyE' && realityZoneViewer) {
-                realityZoneViewer.toggleHistory();
-            }
-
-            if (videoPlayback) {
-                videoPlayback.handleKeyUp(params.event.code);
-            }
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (_value) => {
+            if (!realityZoneViewer) { return; }
+            realityZoneViewer.toggleHistory();
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(

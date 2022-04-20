@@ -104,6 +104,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         restyleForDesktop();
         modifyGlobalNamespace();
+        realityEditor.gui.setupMenuBar();
 
         // TODO realtime interactions between remote operator and AR clients need to be re-tested and possibly fixed
         setTimeout(function() {
@@ -143,28 +144,27 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
 
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
+            realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode(value);
+        });
+
         if (!window.DEBUG_DISABLE_DROPDOWNS) {
-            realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-                if (params.event.code === 'KeyV') {
-
-                    if (zoneDropdown) {
-                        if (zoneDropdown.dom.style.display !== 'none') {
-                            zoneDropdown.dom.style.display = 'none';
-                            realityEditor.device.desktopStats.hide(); // also toggle stats
-                        } else {
-                            zoneDropdown.dom.style.display = '';
-                            realityEditor.device.desktopStats.show();
-                        }
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UnityVirtualizers, (value) => {
+                if (zoneDropdown) {
+                    if (value) {
+                        zoneDropdown.dom.style.display = '';
+                        realityEditor.device.desktopStats.show();
+                    } else {
+                        zoneDropdown.dom.style.display = 'none';
+                        realityEditor.device.desktopStats.hide(); // also toggle stats
                     }
+                }
 
-                    if (deviceDropdown) {
-                        if (deviceDropdown.dom.style.display !== 'none') {
-                            deviceDropdown.dom.style.display = 'none';
-                        } else {
-                            deviceDropdown.dom.style.display = '';
-                        }
+                if (deviceDropdown) {
+                    if (value) {
+                        deviceDropdown.dom.style.display = '';
+                    } else {
+                        deviceDropdown.dom.style.display = 'none';
                     }
                 }
             });
@@ -182,7 +182,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         keyboard.onKeyDown(function(code) {
             if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
 
-            // reset when escape pressed
+            // if hold press S while dragging an element, scales it
             if (code === keyboard.keyCodes.S) {
                 let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
 
@@ -200,7 +200,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         keyboard.onKeyUp(function(code) {
             if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
 
-            // reset when escape pressed
             if (code === keyboard.keyCodes.S) {
                 realityEditor.device.editingState.syntheticPinchInfo = null;
                 globalCanvas.hasContent = true; // force the canvas to be cleared
@@ -672,6 +671,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
             zoneDropdown = new realityEditor.gui.dropdown.Dropdown('zoneDropdown', textStates, {left: '30px', top: '30px'}, document.body, true, onZoneSelectionChanged, onZoneExpandedChanged);
 
+            zoneDropdown.dom.style.display = 'none';
         }
     }
 
