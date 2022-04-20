@@ -74,7 +74,7 @@ class VideoServer {
     // TODO: this could be optimized by listening for files to finish writing, rather than waiting a fixed time
     onRecordingDone(deviceId, sessionId, lastChunkIndex) {
         setTimeout(() => { // wait for final video to finish processing
-            utils.mkdirIfNeeded(path.join(this.outputPath, deviceId, 'tmp'));
+            utils.mkdirIfNeeded(path.join(this.outputPath, deviceId, 'tmp'), true);
             let tmpOutputPath = path.join(this.outputPath, deviceId, 'tmp', sessionId + '_done_' + lastChunkIndex + '.json');
             fs.writeFileSync(tmpOutputPath, JSON.stringify({ success: true}));
 
@@ -147,7 +147,7 @@ class VideoServer {
 
         // write file list to txt file so it can be used by ffmpeg as input
         let txt_filename = colorOrDepth + '_filenames_' + sessionId + '.txt';
-        utils.mkdirIfNeeded(path.join(this.outputPath, deviceId, 'tmp'));
+        utils.mkdirIfNeeded(path.join(this.outputPath, deviceId, 'tmp'), true);
         let txtFilePath = path.join(this.outputPath, deviceId, 'tmp', txt_filename);
         if (fs.existsSync(txtFilePath)) {
             fs.unlinkSync(txtFilePath);
