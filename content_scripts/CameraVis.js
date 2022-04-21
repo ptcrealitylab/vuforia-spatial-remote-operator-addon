@@ -447,7 +447,7 @@ void main() {
                     //   const mat = JSON.parse(text);
                     // }
                     const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
-                    const url = URL.createObjectURL(imageBlob);
+                    const imageUrl = URL.createObjectURL(imageBlob);
                     const image = new Image();
 
                     let start = window.performance.now();
@@ -477,12 +477,12 @@ void main() {
                         }
                         this.cameras[id].loading[textureKey] = false;
                         // window.latencies[textureKey].push(end - start);
-                        URL.revokeObjectURL(url);
+                        URL.revokeObjectURL(imageUrl);
                     };
                     image.onerror = (e) => {
                         console.error(e);
                     };
-                    image.src = url;
+                    image.src = imageUrl;
                 });
             };
 
