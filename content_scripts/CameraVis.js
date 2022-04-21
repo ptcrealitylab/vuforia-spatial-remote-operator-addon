@@ -146,9 +146,11 @@ void main() {
 
             this.texture = new THREE.Texture();
             this.texture.minFilter = THREE.NearestFilter;
+            this.texture.magFilter = THREE.NearestFilter;
 
             this.textureDepth = new THREE.Texture();
             this.textureDepth.minFilter = THREE.NearestFilter;
+            this.textureDepth.magFilter = THREE.NearestFilter;
 
             this.material = null;
             this.mesh = null;
