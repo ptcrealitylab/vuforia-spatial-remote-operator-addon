@@ -5,6 +5,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
+    const FLATSHADER = true;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -19,6 +20,7 @@ uniform float pointSize;
 const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
+varying vec4 pos;
 
 const float XtoZ = 1920.0 / 1448.24976; // width over focal length
 const float YtoZ = 1080.0 / 1448.24976;
@@ -64,10 +66,10 @@ void main() {
 
   // Projection code by @kcmic
 
-  float z = depth - 0.05;
+  float z = depth - 1.0;
   `}
 
-  vec4 pos = vec4(
+  pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
     (position.y / height - 0.5) * z * YtoZ,
     -z,
@@ -92,10 +94,14 @@ void main() {
 uniform sampler2D map;
 
 varying vec2 vUv;
+varying vec4 pos;
 
 void main() {
+  vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
+  float alpha = abs(dot(normalize(pos.xyz), normal));
   vec4 color = texture2D(map, vUv);
-  gl_FragColor = vec4(color.r, color.g, color.b, 1.0);
+
+  gl_FragColor = vec4(color.rgb, alpha);
 }`;
 
     function setMatrixFromArray(matrix, array) {
@@ -250,16 +256,20 @@ console.log('id', id);
         setupPointCloud() {
             const width = 640, height = 360;
 
-            this.geometry = new THREE.BufferGeometry();
+            if (FLATSHADER) {
+                this.geometry = new THREE.PlaneBufferGeometry(width, height, width / 5, height / 5);
+                this.geometry.translate(width / 2, height / 2);
+            } else {
+                this.geometry = new THREE.BufferGeometry();
+                const vertices = new Float32Array(width * height * 3);
 
-            const vertices = new Float32Array(width * height * 3);
+                for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j ++) {
+                    vertices[i] = j % width;
+                    vertices[i + 1] = Math.floor(j / width);
+                }
 
-            for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j ++) {
-                vertices[i] = j % width;
-                vertices[i + 1] = Math.floor(j / width);
+                this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             }
-
-            this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
             this.material = new THREE.ShaderMaterial({
                 uniforms: {
@@ -273,13 +283,17 @@ console.log('id', id);
                     pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
-                fragmentShader,
+                fragmentShader: FLATSHADER ? solidFragmentShader : fragmentShader,
                 // blending: THREE.AdditiveBlending,
                 // depthTest: false, depthWrite: false,
                 transparent: true
             });
 
-            this.mesh = new THREE.Points(this.geometry, this.material);
+            if (FLATSHADER) {
+                this.mesh = new THREE.Mesh(this.geometry, this.material);
+            } else {
+                this.mesh = new THREE.Points(this.geometry, this.material);
+            }
             this.mesh.scale.set(-1, 1, -1);
             this.mesh.frustumCulled = false;
             this.phone.add(this.mesh);
