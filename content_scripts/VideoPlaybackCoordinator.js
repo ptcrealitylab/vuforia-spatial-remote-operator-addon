@@ -11,16 +11,43 @@ createNameSpace('realityEditor.videoPlayback');
             this.POSE_FPS = 10; // if the recording FPS changes, this const needs to be updated to synchronize the playback
         }
         load() {
-            this.timeline = new realityEditor.videoPlayback.Timeline();
-            this.videoSources = new realityEditor.videoPlayback.VideoSources((videoInfo, trackInfo) => {
-                console.log('Coordinator got videoInfo, trackInfo');
-                this.timeline.loadTracks(trackInfo);
+            let playback = realityEditor.videoPlayback;
+            // this.timeline = new playback.Timeline();
+            this.timelineController = new playback.TimelineController();
+            // this.timelineModel = new playback.TimelineModel();
+            this.database = new playback.TimelineDatabase();
+            this.videoSources = new playback.VideoSources((videoInfo, trackInfo) => {
+                console.log('Coordinator got videoInfo, trackInfo', trackInfo);
+                for (const [trackId, trackData] of Object.entries(trackInfo.tracks)) {
+                    // create new DataTrack() and add to database
+                    console.log(trackId, trackData);
+                    let track = new playback.DataTrack(trackId, playback.TRACK_TYPES.VIDEO_3D);
+                    for (const [segmentId, segmentData] of Object.entries(trackData.segments)) {
+                        let segment = new playback.DataSegment(segmentId, playback.TRACK_TYPES.VIDEO_3D, segmentData.start, segmentData.end);
+                        let colorVideo = new playback.DataPiece('colorVideo', playback.DATA_PIECE_TYPES.VIDEO_URL);
+                        colorVideo.setVideoUrl(segmentData.colorVideo); // TODO: set absolute URL
+                        let depthVideo = new playback.DataPiece('depthVideo', playback.DATA_PIECE_TYPES.VIDEO_URL);
+                        depthVideo.setVideoUrl(segmentData.depthVideo); // TODO: set absolute URL
+                        let poses = new playback.DataPiece('poses', playback.DATA_PIECE_TYPES.TIME_SERIES);
+                        poses.setTimeSeriesData(segmentData.poses);
+                        segment.addDataPiece(colorVideo);
+                        segment.addDataPiece(depthVideo);
+                        segment.addDataPiece(poses);
+                        track.addSegment(segment);
+                    }
+                    this.database.addTrack(track);
+                }
+                console.log(this.database);
+
+                // this.timeline.loadTracks(trackInfo);
+                this.timelineController.setDatabase(this.database);
+
                 // let datesList = Object.keys(this.videoSources.getDatesWithVideos()).map(stringified => new Date(stringified));
-                let datesList = this.videoSources.getDatesWithVideos();
-                this.timeline.setDatesWithVideos(datesList);
+                // let datesList = this.videoSources.getDatesWithVideos();
+                // this.timeline.setDatesWithVideos(datesList);
                 // TODO: make the VideoSources listen for newly uploaded videos, and when loaded, append to timeline
             });
-            this.timeline.onVideoFrame((colorVideo, depthVideo, deviceId, segmentId) => {
+            this.timelineController.onVideoFrame((colorVideo, depthVideo, deviceId, segmentId) => {
                 let colorVideoCanvas = this.getCanvasElement(deviceId, 'color');
                 let depthVideoCanvas = this.getCanvasElement(deviceId, 'depth');
 
@@ -40,17 +67,17 @@ createNameSpace('realityEditor.videoPlayback');
                     this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, closestPose);
                 }
             });
-            this.timeline.onSegmentSelected((_deviceId, _segmentId) => {
-                console.log('segment selected');
-            });
-            this.timeline.onSegmentDeselected((deviceId, _segmentId) => {
-                console.log('segment deselected');
-
-                if (typeof this.hidePointCloud !== 'undefined') {
-                    let cameraId = parseInt(deviceId.replace(DEVICE_ID_PREFIX, ''));
-                    this.hidePointCloud(cameraId);
-                }
-            });
+            // this.timeline.onSegmentSelected((_deviceId, _segmentId) => {
+            //     console.log('segment selected');
+            // });
+            // this.timeline.onSegmentDeselected((deviceId, _segmentId) => {
+            //     console.log('segment deselected');
+            //
+            //     if (typeof this.hidePointCloud !== 'undefined') {
+            //         let cameraId = parseInt(deviceId.replace(DEVICE_ID_PREFIX, ''));
+            //         this.hidePointCloud(cameraId);
+            //     }
+            // });
 
             this.timelineVisibilityButton = document.createElement('img');
             this.timelineVisibilityButton.id = 'timelineVisibilityButton';
@@ -118,37 +145,24 @@ createNameSpace('realityEditor.videoPlayback');
                 if (!menuItemsAdded) {
                     menuItemsAdded = true;
                     // set up keyboard shortcuts
-                    let togglePlayback = new realityEditor.gui.MenuItem('Toggle Playback', { shortcutKey: 'SPACE', toggle: true, defaultVal: false}, (_toggled) => {
-                        this.timeline.togglePlayback();
+                    let togglePlayback = new realityEditor.gui.MenuItem('Toggle Playback', { shortcutKey: 'SPACE', toggle: true, defaultVal: false}, (toggled) => {
+                        this.timelineController.togglePlayback(toggled);
                     });
                     realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.History, togglePlayback);
 
                     let slower = new realityEditor.gui.MenuItem('Slower', { shortcutKey: 'COMMA' }, () => {
-                        this.timeline.multiplySpeed(0.5, false);
+                        this.timelineController.multiplySpeed(0.5, false);
                     });
                     realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.History, slower);
 
                     let faster = new realityEditor.gui.MenuItem('Faster', { shortcutKey: 'PERIOD' }, () => {
-                        this.timeline.multiplySpeed(2.0, false);
+                        this.timelineController.multiplySpeed(2.0, false);
                     });
                     realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.History, faster);
                 }
             }
 
-            this.timeline.toggleVisibility(this.timelineVisibile);
-        }
-        handleKeyUp(code) {
-            if (code === 'KeyY') {
-                this.toggleVisibility();
-            } else if (code === 'KeyU') {
-                // this.togglePointClouds(); // this isn't really useful at the moment, but maybe in future we want again
-            } else if (code === 'Space') {
-                this.timeline.togglePlayback();
-            } else if (code === 'Comma') {
-                this.timeline.multiplySpeed(0.5, false);
-            } else if (code === 'Period') {
-                this.timeline.multiplySpeed(2.0, false);
-            }
+            this.timelineController.toggleVisibility(this.timelineVisibile);
         }
     }
     exports.Coordinator = Coordinator;
