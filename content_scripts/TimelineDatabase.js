@@ -44,6 +44,34 @@ createNameSpace('realityEditor.videoPlayback');
                 end: maxEnd
             };
         }
+        getFilteredData(minTimestamp, maxTimestamp) {
+            if (typeof minTimestamp !== 'number' || typeof maxTimestamp !== 'number') {
+                return this.tracks;
+            }
+
+            let filteredDatabase = {
+                tracks: {}
+            };
+            for (const [trackId, track] of Object.entries(this.tracks)) {
+                let includeTrack = false;
+                let segmentsToInclude = [];
+                for (const [_segmentId, segment] of Object.entries(track.segments)) {
+                    let includeSegment = segment.start >= minTimestamp && segment.end <= maxTimestamp;
+                    if (includeSegment) {
+                        includeTrack = true;
+                        segmentsToInclude.push(segment);
+                    }
+                }
+
+                if (includeTrack) {
+                    filteredDatabase.tracks[trackId] = new DataTrack(trackId, track.type);
+                    segmentsToInclude.forEach(segment => {
+                        filteredDatabase.tracks[trackId].addSegment(segment);
+                    });
+                }
+            }
+            return filteredDatabase;
+        }
     }
 
     class DataTrack {
@@ -118,9 +146,17 @@ createNameSpace('realityEditor.videoPlayback');
     }
 
     class DataView {
-        constructor(start, end) {
+        constructor(database) {
+            this.start = null;
+            this.end = null;
+            this.database = database;
+            this.filteredDatabase = database;
+        }
+        processTimeBounds(start, end) {
             this.start = start;
             this.end = end;
+            // filter the database, keeping only pointers to segments within the data range
+            this.filteredDatabase = this.database.getFilteredData(start, end);
         }
     }
 

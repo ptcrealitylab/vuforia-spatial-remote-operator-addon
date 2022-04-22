@@ -83,14 +83,46 @@ createNameSpace('realityEditor.videoPlayback');
             console.log(data); // the tracks that were loaded. triggers again if more data loaded?
         }
         handleDataViewUpdated(dataView) {
-            console.log(dataView); // which date is selected, can be used to filter the database
+            console.log('displayTracks, dataViewUpdated', dataView); // which date is selected, can be used to filter the database
+            let simplifiedTracks = this.generateSimplifiedTracks(dataView);
+
+            this.view.render({
+                tracks: simplifiedTracks,
+                tracksFullUpdate: true
+            });
+        }
+        generateSimplifiedTracks(dataView) {
+            if (!dataView || !dataView.filteredDatabase) { return {}; }
+            // process filtered tracks into just the info needed by the view
+            let simplifiedTracks = {};
+            for (const [trackId, track] of Object.entries(dataView.filteredDatabase.tracks)) {
+                simplifiedTracks[trackId] = {
+                    id: trackId,
+                    type: track.type,
+                    segments: {}
+                };
+                for (const [segmentId, segment] of Object.entries(track.segments)) {
+                    simplifiedTracks[trackId].segments[segmentId] = {
+                        id: segmentId,
+                        type: segment.type,
+                        // start: segment.start,
+                        // end: segment.end
+                        start: this.model.getTimestampAsPercent(segment.start),
+                        end: this.model.getTimestampAsPercent(segment.end)
+                    };
+                }
+            }
+            return simplifiedTracks;
         }
         handleWindowUpdated(window) {
-            console.log(window); // the withoutZoom and current .min and .max timestamp on the visible timeline window
+            console.log('displayTracks, windowUpdated', window); // the withoutZoom and current .min and .max timestamp on the visible timeline window
 
             this.view.render({
                 zoomPercent: window.getZoomPercent(),
-                scrollLeftPercent: window.getScrollLeftPercent()
+                scrollLeftPercent: window.getScrollLeftPercent(),
+                tracks: this.generateSimplifiedTracks(this.model.currentDataView),
+                // tracksFullUpdate: true
+                // we don't include tracksFullUpdate, since all the view needs to do is move the current segments based on the new window
             });
         }
         handleTimestampUpdated(timestamp) {

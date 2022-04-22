@@ -5,7 +5,7 @@ createNameSpace('realityEditor.videoPlayback');
     class TimelineModel {
         constructor() {
             this.database = null;
-            this.currentView = new realityEditor.videoPlayback.DataView();
+            this.currentDataView = null;
             this.selectedDate = null;
             this.currentTimestamp = null;
             this.isPlaying = false;
@@ -13,6 +13,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.timelineWindow = new realityEditor.videoPlayback.TimelineWindow();
             this.timelineWindow.onWithoutZoomUpdated(window => {
                 this.handleWindowUpdated(window, true);
+                this.updateDataView(window.bounds.withoutZoom.min, window.bounds.withoutZoom.max);
             });
             this.timelineWindow.onCurrentWindowUpdated(window => {
                 this.handleWindowUpdated(window, false);
@@ -41,8 +42,20 @@ createNameSpace('realityEditor.videoPlayback');
         }
         setDatabase(database) {
             this.database = database;
+            this.currentDataView = new realityEditor.videoPlayback.DataView(database);
             this.callbacks.onDataLoaded.forEach(cb => {
                 cb('todo add data here');
+            });
+        }
+        updateDataView(minTimestamp, maxTimestamp) {
+            if (!this.database) { return; }
+
+            // updates the currentDataView.filteredDatabase
+            this.currentDataView.processTimeBounds(minTimestamp, maxTimestamp);
+            // console.log('filteredDatabase', this.currentDataView.filteredDatabase);
+
+            this.callbacks.onDataViewUpdated.forEach(cb => {
+                cb(this.currentDataView);
             });
         }
         setTimestamp(newTimestamp, triggerCallbacks) {
@@ -64,6 +77,13 @@ createNameSpace('realityEditor.videoPlayback');
                 max = this.timelineWindow.bounds.withoutZoom.max;
             }
             return (this.currentTimestamp - min) / (max - min);
+        }
+        getTimestampAsPercent(timestamp) {
+            let bounds = this.timelineWindow.bounds;
+            return {
+                withoutZoom: (timestamp - bounds.withoutZoom.min) / (bounds.withoutZoom.max - bounds.withoutZoom.min),
+                currentWindow: (timestamp - bounds.current.min) / (bounds.current.max - bounds.current.min)
+            };
         }
         setTimestampFromPositionInWindow(percentInWindow) {
             let min = this.timelineWindow.bounds.current.min;
