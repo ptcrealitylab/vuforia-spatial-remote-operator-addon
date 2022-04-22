@@ -31,8 +31,18 @@ createNameSpace('realityEditor.videoPlayback');
                 cb(this);
             });
         }
-        getZoomPercent() {
-            return (this.bounds.current.max - this.bounds.current.min) / (this.bounds.withoutZoom.max - this.bounds.withoutZoom.min);
+        setCurrentFromPercent(minPercent, maxPercent) {
+            let fullLength = this.bounds.withoutZoom.max - this.bounds.withoutZoom.min;
+            this.bounds.current.min = this.bounds.withoutZoom.min + minPercent * fullLength;
+            this.bounds.current.max = this.bounds.withoutZoom.min + maxPercent * fullLength;
+            // TODO: do we trigger callbacks??
+
+            this.callbacks.onCurrentWindowUpdated.forEach(cb => {
+                cb(this);
+            });
+        }
+        getZoomPercent() { // 0 if not zoomed at all (see 100%), 1 if current window is 0% of the withoutZoom window
+            return 1.0 - (this.bounds.current.max - this.bounds.current.min) / (this.bounds.withoutZoom.max - this.bounds.withoutZoom.min);
         }
         getScrollLeftPercent() {
             return (this.bounds.current.min - this.bounds.withoutZoom.min) / (this.bounds.withoutZoom.max - this.bounds.withoutZoom.min);

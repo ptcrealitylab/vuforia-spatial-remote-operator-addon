@@ -2,7 +2,7 @@ createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
     class Calendar {
-        constructor(parent) {
+        constructor(parent, initiallyVisible) {
             this.dateNow = new Date(Date.now());
             this.selectedDate = {
                 month: this.dateNow.getMonth(),
@@ -24,6 +24,9 @@ createNameSpace('realityEditor.videoPlayback');
             };
             // do this after initializing state
             this.buildDom();
+            if (!initiallyVisible) {
+                this.hide();
+            }
             parent.appendChild(this.dom);
 
             this.updateDomForMonth(this.selectedDate.month, this.selectedDate.year);
@@ -287,6 +290,14 @@ createNameSpace('realityEditor.videoPlayback');
         highlightDate(dateElement) {
             if (!dateElement) { return; }
             dateElement.classList.add('highlightedDate');
+        }
+        show() {
+            this.dom.classList.add('timelineCalendarVisible');
+            this.dom.classList.remove('timelineCalendarHidden');
+        }
+        hide() {
+            this.dom.classList.remove('timelineCalendarVisible');
+            this.dom.classList.add('timelineCalendarHidden');
         }
     }
     exports.Calendar = Calendar;
