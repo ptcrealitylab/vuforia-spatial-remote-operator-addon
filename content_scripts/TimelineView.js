@@ -1,6 +1,8 @@
 createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
+    const ZOOM_EXPONENT = 0.5;
+    const MAX_ZOOM_FACTOR = 96; // 24 hours -> 15 minutes
 
     class TimelineView {
         constructor(parent) {
@@ -50,7 +52,7 @@ createNameSpace('realityEditor.videoPlayback');
         createTimelineElement() {
             let container = document.createElement('div');
             container.id = 'timelineContainer';
-            // container has a left box to hold the layer visibility toggles, a center box for the timeline, and a right box for playback controls
+            // container has a left box to hold date/time, a center box for the timeline, and a right box for playback controls
             let leftBox = document.createElement('div');
             let centerBox = document.createElement('div');
             let rightBox = document.createElement('div');
@@ -62,9 +64,15 @@ createNameSpace('realityEditor.videoPlayback');
             centerBox.id = 'timelineTrackBox';
             rightBox.id = 'timelineControlsBox';
 
+            // extra div added to box with slightly different dimensions, to hide the horizontal overflow
             let centerScrollBox = document.createElement('div');
             centerScrollBox.id = 'timelineTrackScrollBox';
             centerBox.appendChild(centerScrollBox);
+
+            // the element that will actually hold the data tracks and segments
+            let timelineTracksContainer = document.createElement('div');
+            timelineTracksContainer.id = 'timelineTracksContainer';
+            centerScrollBox.appendChild(timelineTracksContainer);
 
             let timestampDisplay = document.createElement('div');
             timestampDisplay.id = 'timelineTimestampDisplay';
@@ -171,8 +179,8 @@ createNameSpace('realityEditor.videoPlayback');
 
                 // we scale from linear to sqrt so that it zooms in faster when it is further zoomed out than when it is already zoomed in a lot
                 let linearZoom = (parseFloat(handle.style.left) - handleWidth / 2) / ((sliderRight - leftMargin) - (sliderLeft + leftMargin));
-                let percentZoom = Math.pow(Math.max(0, linearZoom), 0.25);
-                let MAX_ZOOM = 1.0 - (1.0 / 48); // max zoom level is 48x (0.5hr vs 1 day)
+                let percentZoom = Math.pow(Math.max(0, linearZoom), ZOOM_EXPONENT);
+                let MAX_ZOOM = 1.0 - (1.0 / MAX_ZOOM_FACTOR); // max zoom level is 96x (15 minutes vs 1 day)
 
                 // trigger callbacks to respond to the updated GUI
                 this.callbacks.onZoomHandleChanged.forEach(cb => {
@@ -187,12 +195,15 @@ createNameSpace('realityEditor.videoPlayback');
             // make the zoom bar handle fill 1.0 - zoomPercent of the overall bar
             let scrollBar = document.getElementById('timelineScrollBar');
             let handle = scrollBar.querySelector('.timelineScrollBarHandle');
+            let playheadDot = document.getElementById('timelinePlayheadDot');
             handle.style.width = (1.0 - zoomPercent) * 100 + '%';
 
             if (zoomPercent < 0.01) {
                 scrollBar.classList.add('timelineScrollBarFadeout');
+                playheadDot.classList.add('timelineScrollBarFadeout');
             } else {
                 scrollBar.classList.remove('timelineScrollBarFadeout');
+                playheadDot.classList.remove('timelineScrollBarFadeout');
             }
 
             let newWidth = handle.getClientRects()[0].width;
@@ -299,6 +310,9 @@ createNameSpace('realityEditor.videoPlayback');
                 this.playheadClickedDown = true;
                 playheadElement.classList.add('timelinePlayheadSelected');
 
+                let playheadDot = document.getElementById('timelinePlayheadDot');
+                playheadDot.classList.add('timelinePlayheadSelected');
+
                 let videoPreview = document.getElementById('timelineVideoPreviewContainer');
                 videoPreview.classList.add('timelineVideoPreviewSelected');
 
@@ -327,6 +341,9 @@ createNameSpace('realityEditor.videoPlayback');
             this.playheadClickedDown = false;
             let playheadElement = document.getElementById('timelinePlayhead');
             playheadElement.classList.remove('timelinePlayheadSelected');
+
+            let playheadDot = document.getElementById('timelinePlayheadDot');
+            playheadDot.classList.remove('timelinePlayheadSelected');
 
             let videoPreview = document.getElementById('timelineVideoPreviewContainer');
             videoPreview.classList.remove('timelineVideoPreviewSelected');
@@ -385,7 +402,7 @@ createNameSpace('realityEditor.videoPlayback');
         /**
          * Update the GUI in response to new data from the model/controller
          * @param {{playheadTimePercent: number, timestamp: number, zoomPercent: number, scrollLeftPercent: number,
-         * isPlaying: boolean, playbackSpeed: number}} props
+         * isPlaying: boolean, playbackSpeed: number, tracks: {}}} props
          */
         render(props) {
             if (typeof props.playheadTimePercent !== 'undefined') {
@@ -408,6 +425,12 @@ createNameSpace('realityEditor.videoPlayback');
             }
             if (typeof props.playbackSpeed !== 'undefined') {
                 this.displayPlaybackSpeed(props.playbackSpeed);
+            }
+            // TODO: add a more optimized pathway if we know the filtered database hasn't changed
+            // e.g. (no new tracks/segments, just repositioning them within the changing window)
+            if (typeof props.tracks !== 'undefined') {
+                let fullUpdate = props.tracksFullUpdate;
+                this.displayTracks(props.tracks, fullUpdate);
             }
         }
         displayPlayhead(percentInWindow) {
@@ -477,7 +500,7 @@ createNameSpace('realityEditor.videoPlayback');
             let handleWidth = handle.getClientRects()[0].width;
 
             // percentZoom = Math.pow(Math.max(0, linearZoom), 0.25)
-            let linearZoom = Math.pow(zoomPercent, 1.0 / 0.25);
+            let linearZoom = Math.pow(zoomPercent, 1.0 / ZOOM_EXPONENT);
             let handleLeft = linearZoom * ((sliderRight - leftMargin) - (sliderLeft + leftMargin)) + (handleWidth / 2);
             handle.style.left = handleLeft + 'px';
         }
@@ -538,6 +561,160 @@ createNameSpace('realityEditor.videoPlayback');
             return new Date(timestamp).toLocaleDateString('en-us', {
                 weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
             });
+        }
+        displayTracks(tracks, fullUpdate) {
+            console.log('displayTracks: ' + !!fullUpdate, tracks);
+            let numTracks = Object.keys(tracks).length;
+            let container = document.getElementById('timelineTracksContainer');
+            let tracksToUpdate = {};
+
+            if (!fullUpdate) { // we're guaranteed to have the same tracks as before in this use-case
+                tracksToUpdate = tracks;
+                // compute a quick checksum to ensure we have the right data to update
+                let childrenChecksum = Array.from(container.children).map(elt => elt.id).reduce((a, b) => a + b, '');
+                let tracksChecksum = Object.keys(tracks).map(id => this.getTrackElementId(id)).reduce((a, b) => a + b, '');
+                if (childrenChecksum !== tracksChecksum) {
+                    console.warn('tracks needs a full update before we can do a quick update');
+                    return;
+                }
+            } else { // do this when changing dates, to add and remove tracks as needed
+                let tracksToRemove = [];
+                let tracksToAdd = {};
+                Array.from(container.children).forEach(trackElement => {
+                    // check if any of the tracks' ids match this element
+                    let keep = Object.keys(tracks).map(trackId => this.getTrackElementId(trackId)).includes(trackElement.id);
+                    if (!keep) {
+                        tracksToRemove.push(trackElement);
+                    }
+                });
+                console.log('tracks to remove', tracksToRemove);
+                tracksToRemove.forEach(trackElement => {
+                    trackElement.parentElement.removeChild(trackElement);
+                });
+
+                Object.keys(tracks).forEach(trackId => {
+                    let elementId = this.getTrackElementId(trackId);
+                    if (container.querySelector('#' + elementId)) {
+                        tracksToUpdate[trackId] = tracks[trackId];
+                    } else {
+                        tracksToAdd[trackId] = tracks[trackId];
+                    }
+                });
+
+                console.log('tracksToAdd', tracksToAdd);
+                console.log('tracksToUpdate', tracksToUpdate);
+
+                Object.entries(tracksToAdd).forEach(([trackId, track]) => {
+                    let index = Object.keys(tracks).indexOf(trackId); // get a consistent index across both for-each loops
+                    console.log('creating elements for track: ' + trackId);
+                    let trackElement = document.createElement('div');
+                    trackElement.classList.add('timelineTrack');
+                    trackElement.id = this.getTrackElementId(trackId);
+                    container.appendChild(trackElement);
+                    this.positionAndScaleTrack(trackElement, track, index, numTracks);
+
+                    Object.entries(track.segments).forEach(([segmentId, segment]) => {
+                        let segmentElement = document.createElement('div');
+                        segmentElement.classList.add('timelineSegment');
+                        segmentElement.id = this.getSegmentElementId(trackId, segmentId);
+                        trackElement.appendChild(segmentElement);
+                        // this.positionAndScaleSegment(segmentElement, thisTrackId, segmentId);
+                        this.positionAndScaleSegment(segmentElement, segment);
+                    });
+                });
+            }
+
+            Object.entries(tracksToUpdate).forEach(([trackId, track]) => {
+                let index = Object.keys(tracks).indexOf(trackId); // get a consistent index across both for-each loops
+                let elementId = this.getTrackElementId(trackId);
+                let trackElement = document.getElementById(elementId);
+                this.positionAndScaleTrack(trackElement, track, index, numTracks);
+
+                let segmentsToUpdate = {};
+
+                if (!fullUpdate) {
+                    segmentsToUpdate = track.segments;
+                    // compute a quick checksum to ensure we have the right data to update
+                    let childrenChecksum = Array.from(trackElement.children).map(elt => elt.id).reduce((a, b) => a + b, '');
+                    let segmentsChecksum = Object.keys(track.segments).map(id => this.getSegmentElementId(trackId, id)).reduce((a, b) => a + b, '');
+                    if (childrenChecksum !== segmentsChecksum) {
+                        console.warn('segments needs a full update before we can do a quick update');
+                        return;
+                    }
+                } else {
+                    let segmentsToRemove = [];
+                    Array.from(trackElement.children).forEach(segmentElement => {
+                        // check if any of the tracks' ids match this element
+                        let keep = Object.keys(track.segments).map(segmentId => this.getSegmentElementId(trackId, segmentId)).includes(segmentElement.id);
+                        if (!keep) {
+                            segmentsToRemove.push(segmentElement);
+                        }
+                    });
+                    console.log('segments to remove', segmentsToRemove);
+                    segmentsToRemove.forEach(segmentElement => {
+                        segmentElement.parentElement.removeChild(segmentElement);
+                    });
+
+                    let segmentsToAdd = {};
+                    Object.keys(track.segments).forEach(segmentId => {
+                        let elementId = this.getSegmentElementId(trackId, segmentId);
+                        if (container.querySelector('#' + elementId)) {
+                            segmentsToUpdate[segmentId] = track.segments[segmentId];
+                        } else {
+                            segmentsToAdd[segmentId] = track.segments[segmentId];
+                        }
+                    });
+                    console.log('segmentsToAdd', segmentsToAdd);
+                    console.log('segmentsToUpdate', segmentsToUpdate);
+
+                    Object.entries(segmentsToAdd).forEach(([segmentId, segment]) => {
+                        let segmentElement = document.createElement('div');
+                        segmentElement.classList.add('timelineSegment');
+                        segmentElement.id = this.getSegmentElementId(trackId, segmentId);
+                        trackElement.appendChild(segmentElement);
+                        // this.positionAndScaleSegment(segmentElement, thisTrackId, segmentId);
+                        this.positionAndScaleSegment(segmentElement, segment);
+                    });
+                }
+
+                Object.entries(segmentsToUpdate).forEach(([segmentId, segment]) => {
+                    // let index = Object.keys(tracks).indexOf(trackId); // get a consistent index across both for-each loops
+                    let elementId = this.getSegmentElementId(trackId, segmentId);
+                    let segmentElement = document.getElementById(elementId);
+                    this.positionAndScaleSegment(segmentElement, segment);
+                });
+            });
+        }
+        positionAndScaleTrack(trackElement, track, index, numTracks) {
+            // TODO: color-code based on track.type
+            let heightPercent = (80.0 / numTracks);
+            let marginPercent = (20.0 / (numTracks + 1));
+            trackElement.style.top = ((marginPercent * (index + 1)) + (heightPercent * index)) + '%';
+            trackElement.style.height = heightPercent + '%';
+        }
+        positionAndScaleSegment(segmentElement, segment) { //, trackId, segmentId) {
+            // let trackInfo = this.trackInfo.tracks[trackId];
+            // let segmentInfo = trackInfo.segments[segmentId];
+            // let segmentDuration = segmentInfo.end - segmentInfo.start;
+
+            // let durationPercentWithoutZoom = segment.end.withoutZoom - segment.start.withoutZoom;
+            let durationPercentCurrentWindow = segment.end.currentWindow - segment.start.currentWindow;
+
+            // let maxTime = this.windowBounds.max; // Math.max(Date.now(), this.trackInfo.metadata.maxTime);
+            // let trackDuration = maxTime - this.windowBounds.min;
+            // let lengthPercent = segmentDuration / trackDuration * 100.0;
+            // let startPercent = ((segmentInfo.start + this.timeOffsets[trackId][segmentId]) - this.windowBounds.min) / trackDuration * 100.0;
+            // segmentElement.style.width = lengthPercent + '%';
+            // segmentElement.style.left = startPercent + '%';
+
+            segmentElement.style.width = Math.max(0.1, (durationPercentCurrentWindow * 100)) + '%';
+            segmentElement.style.left = (segment.start.currentWindow * 100) + '%';
+        }
+        getTrackElementId(trackId) {
+            return 'timelineTrack_' + trackId;
+        }
+        getSegmentElementId(trackId, segmentId) {
+            return 'timelineSegment_' + trackId + '_' + segmentId;
         }
         show() {
             this.timelineContainer.classList.remove('hiddenTimeline');

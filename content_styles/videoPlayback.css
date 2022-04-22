@@ -84,6 +84,14 @@
     overflow: hidden;
 }
 
+#timelineTracksContainer {
+    position: absolute;
+    left: 0;
+    top: 30px;
+    width: 100%;
+    height: calc(100% - 30px);
+}
+
 #timelinePlayhead {
     position: absolute;
     left: 10px;
@@ -93,14 +101,19 @@
     cursor: pointer;
 }
 
+#timelinePlayhead:hover {
+    filter: brightness(120%) saturate(60%);
+    -webkit-filter: brightness(120%) saturate(60%);
+}
+
 .timelinePlayheadPlaying {
     filter: hue-rotate(-60deg) saturate(400%);
     -webkit-filter: hue-rotate(-120deg) saturate(400%);
 }
 
 .timelinePlayheadSelected {
-    filter: hue-rotate(-120deg) saturate(400%);
-    -webkit-filter: hue-rotate(-120deg) saturate(400%);
+    filter: hue-rotate(-120deg) saturate(400%) !important;
+    -webkit-filter: hue-rotate(-120deg) saturate(400%) !important;
 }
 
 #timelinePlayheadDot {
@@ -112,6 +125,7 @@
     border-radius: 5px;
     background-color: rgba(0, 255, 255, 1.0); /* rgba(255, 210, 0, 1.0); */
     z-index: 1; /* go in front of the scroll bar */
+    pointer-events: none;
 }
 
 #timelineVideoPreviewContainer {
@@ -185,13 +199,13 @@
     border-radius: 7px;
     left: 20px;
     width: calc(100% - 2 * 20px);
-    cursor: pointer;
+    /*cursor: pointer;*/
     overflow: hidden;
 }
 
-.timelineTrack:hover {
-    background-color: rgba(0,255,255, 0.2);
-}
+/*.timelineTrack:hover {*/
+/*    background-color: rgba(0,255,255, 0.2);*/
+/*}*/
 
 .selectedTrack {
     background-color: rgba(0,255,255, 0.2);
@@ -208,11 +222,11 @@
     z-index: 100;
 }
 
-.timelineSegment:hover {
-    /*background-color: rgba(0,255,255, 0.7);*/
-    /*border: 2px solid white;*/
-    box-shadow: 0 0 5px black;
-}
+/*.timelineSegment:hover {*/
+/*    !*background-color: rgba(0,255,255, 0.7);*!*/
+/*    !*border: 2px solid white;*!*/
+/*    box-shadow: 0 0 5px black;*/
+/*}*/
 
 .timelineSegmentPlaying {
     background-color: rgba(150, 255, 255, 0.9);
