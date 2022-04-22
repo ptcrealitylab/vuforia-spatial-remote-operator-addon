@@ -13,38 +13,34 @@ createNameSpace('realityEditor.videoPlayback');
             this.model.onDataViewUpdated(this.handleDataViewUpdated.bind(this));
             this.model.onWindowUpdated(this.handleWindowUpdated.bind(this));
             this.model.onTimestampUpdated(this.handleTimestampUpdated.bind(this));
+            this.model.onPlaybackToggled(this.handlePlaybackToggled.bind(this));
+            this.model.onSpeedUpdated(this.handleSpeedUpdated.bind(this));
 
             this.view = new realityEditor.videoPlayback.TimelineView(document.body);
 
+            this.setupCalendarView();
             this.setupUserInteractions();
         }
+        setupCalendarView() {
+            this.calendar = new realityEditor.videoPlayback.Calendar(this.view.timelineContainer, false);
+            this.calendar.onDateSelected(this.handleCalendarDateSelected.bind(this));
+            this.calendar.selectDay(Date.now()); // TODO: do this when timeline visibility toggled, too
+            // TODO: calendar.highlightDates(datesWithVideos)
+        }
         setupUserInteractions() {
-            this.view.playButton.addEventListener('pointerup', _e => {
-                // toggle playback
+            this.view.playButton.addEventListener('pointerup', e => {
+                // TODO: better way to retrieve button state?
+                let isPlayButton = e.currentTarget.src.includes('playButton.svg');
+                this.togglePlayback(isPlayButton);
             });
             this.view.speedButton.addEventListener('pointerup', _e => {
-                // multiply speed by 2
+                this.multiplySpeed(2, true);
             });
             this.view.calendarButton.addEventListener('pointerup', _e => {
-                // present the calendar
-                if (!this.calendar) {
-                    this.calendar = new realityEditor.videoPlayback.Calendar(this.view.timelineContainer);
-                    this.calendar.onDateSelected(this.handleCalendarDateSelected.bind(this));
-                    // TODO: re-enable calendar functionality (highlight dates, select date to set dataview)
-                    /*
-                    this.calendar.highlightDates(this.datesWithVideos);
-                    this.calendar.onDateSelected(dateObject => {
-                        this.showDataForDate(dateObject, true);
-                    });
-                    this.calendar.selectDay(this.dayBounds.min);
-                    */
-                }
                 if (this.calendar.dom.classList.contains('timelineCalendarVisible')) {
-                    this.calendar.dom.classList.remove('timelineCalendarVisible');
-                    this.calendar.dom.classList.add('timelineCalendarHidden');
+                    this.calendar.hide();
                 } else {
-                    this.calendar.dom.classList.add('timelineCalendarVisible');
-                    this.calendar.dom.classList.remove('timelineCalendarHidden');
+                    this.calendar.show();
                 }
             });
             this.view.onZoomHandleChanged(percentZoom => {
@@ -59,10 +55,8 @@ createNameSpace('realityEditor.videoPlayback');
             // this.view.zoomHandle.addEventListener('pointerup', _e => { });
             this.view.onPlayheadSelected(_ => {
                 // stop video playback if needed
-                // if (this.isPlaying) {
-                //     this.pauseVideoPlayback();
-                // }
                 console.log('onPlayheadSelected');
+                this.togglePlayback(false);
             });
             this.view.onPlayheadChanged(positionInWindow => {
                 // calculate timestamp, update video frame
@@ -75,6 +69,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.view.onScrollbarChanged((zoomPercent, leftPercent, rightPercent) => {
                 // calculate timeline window
                 console.log('onScrollbarChanged', zoomPercent, leftPercent, rightPercent);
+                this.model.adjustCurrentWindow(leftPercent, rightPercent);
             });
         }
         handleCalendarDateSelected(dateObject) {
@@ -99,24 +94,35 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         handleTimestampUpdated(timestamp) {
-            console.log(timestamp); // what timestamp of data is selected
-            // this.view.displayTime(timestamp);
             let percentInWindow = this.model.getPlayheadTimePercent(true);
-            // this.view.setPlayheadByPercent(percentInWindow);
+            let percentInDay = this.model.getPlayheadTimePercent(false);
+            // console.log(timestamp, percentInWindow); // what timestamp of data is selected
 
             this.view.render({
                 playheadTimePercent: percentInWindow,
+                playheadWithoutZoomPercent: percentInDay,
                 timestamp: timestamp
             });
         }
         onVideoFrame(callback) {
             this.callbacks.onVideoFrame.push(callback);
         }
-        togglePlayback(_toggled) {
-            // toggle playback
+        togglePlayback(toggled) {
+            this.model.togglePlayback(toggled);
         }
-        multiplySpeed(_factor = 2, _allowLoop = true) {
+        multiplySpeed(factor = 2, allowLoop = true) {
             // update the playback speed, which subsequently re-renders the view (button image)
+            this.model.multiplySpeed(factor, allowLoop);
+        }
+        handlePlaybackToggled(isPlaying) {
+            this.view.render({
+                isPlaying: isPlaying
+            });
+        }
+        handleSpeedUpdated(playbackSpeed) {
+            this.view.render({
+                playbackSpeed: playbackSpeed
+            });
         }
         toggleVisibility(isNowVisible) {
             // toggle timeline visibility

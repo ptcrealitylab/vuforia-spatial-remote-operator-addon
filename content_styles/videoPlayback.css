@@ -75,6 +75,15 @@
     height: 100%;
 }
 
+#timelineTrackScrollBox {
+    position: absolute;
+    left: 0;
+    top: -30px;
+    width: 100%;
+    height: calc(100% + 30px);
+    overflow: hidden;
+}
+
 #timelinePlayhead {
     position: absolute;
     left: 10px;
@@ -92,6 +101,17 @@
 .timelinePlayheadSelected {
     filter: hue-rotate(-120deg) saturate(400%);
     -webkit-filter: hue-rotate(-120deg) saturate(400%);
+}
+
+#timelinePlayheadDot {
+    position: absolute;
+    left: 20px;
+    bottom: 3px;
+    height: 10px;
+    width: 10px;
+    border-radius: 5px;
+    background-color: rgba(0, 255, 255, 1.0); /* rgba(255, 210, 0, 1.0); */
+    z-index: 1; /* go in front of the scroll bar */
 }
 
 #timelineVideoPreviewContainer {

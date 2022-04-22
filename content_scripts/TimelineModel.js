@@ -1,7 +1,7 @@
 createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
-
+    const MAX_SPEED = 256;
     class TimelineModel {
         constructor() {
             this.database = null;
@@ -9,20 +9,31 @@ createNameSpace('realityEditor.videoPlayback');
             this.selectedDate = null;
             this.currentTimestamp = null;
             this.isPlaying = false;
+            this.playbackSpeed = 1;
             this.timelineWindow = new realityEditor.videoPlayback.TimelineWindow();
-            this.timelineWindow.onWithoutZoomUpdated(this.handleWindowUpdated.bind(this));
+            this.timelineWindow.onWithoutZoomUpdated(window => {
+                this.handleWindowUpdated(window, true);
+            });
+            this.timelineWindow.onCurrentWindowUpdated(window => {
+                this.handleWindowUpdated(window, false);
+            });
             this.callbacks = {
                 onDataLoaded: [],
                 onDataViewUpdated: [],
                 onWindowUpdated: [],
-                onTimestampUpdated: []
+                onTimestampUpdated: [],
+                onPlaybackToggled: [],
+                onSpeedUpdated: []
             };
+            this.playbackInterval = null;
+            this.lastUpdate = null;
         }
-        handleWindowUpdated(window) {
+        handleWindowUpdated(window, resetPlayhead) {
             // TODO: update data view
             console.log('new bounds', window.bounds);
             // update the timestamp based on its percent position and the new date
-            this.setTimestamp(window.bounds.current.min, true);
+            let playheadTime = resetPlayhead ? window.bounds.current.min : this.currentTimestamp;
+            this.setTimestamp(playheadTime, true);
 
             this.callbacks.onWindowUpdated.forEach(cb => {
                 cb(window);
@@ -35,7 +46,7 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         setTimestamp(newTimestamp, triggerCallbacks) {
-            if (this.currentTimestamp === newTimestamp) { return; } // don't update if no change
+            // if (this.currentTimestamp === newTimestamp) { return; } // don't update if no change
             this.currentTimestamp = newTimestamp;
             if (triggerCallbacks) {
                 this.callbacks.onTimestampUpdated.forEach(cb => {
@@ -60,6 +71,56 @@ createNameSpace('realityEditor.videoPlayback');
             let current = min + (max - min) * percentInWindow;
             this.setTimestamp(current, true);
         }
+        adjustCurrentWindow(leftPercent, rightPercent) {
+            this.timelineWindow.setCurrentFromPercent(leftPercent, rightPercent);
+        }
+        togglePlayback(toggled) {
+            if (this.isPlaying === toggled) { return; }
+            this.isPlaying = toggled;
+
+            if (this.isPlaying) {
+                if (!this.playbackInterval) {
+                    this.lastUpdate = Date.now();
+                    this.playbackInterval = setInterval(() => {
+                        let now = Date.now();
+                        let dt = now - this.lastUpdate;
+                        this.lastUpdate = now;
+                        this.playbackLoop(dt);
+                    }, 16);
+                }
+            } else if (this.playbackInterval) {
+                clearInterval(this.playbackInterval);
+                this.playbackInterval = null;
+            }
+
+            // TODO: play videos, begin data processing, etc
+            this.callbacks.onPlaybackToggled.forEach(cb => {
+                cb(this.isPlaying);
+            });
+        }
+        playbackLoop(dt) {
+            // update the timestamp based on time passed and process any data segments
+            let newTime = this.currentTimestamp + dt * this.playbackSpeed;
+            if (newTime > this.timelineWindow.bounds.withoutZoom.max) {
+                newTime = this.timelineWindow.bounds.withoutZoom.max;
+                this.togglePlayback(false);
+            }
+            this.setTimestamp(newTime, true);
+        }
+        multiplySpeed(factor, allowLoop) {
+            this.playbackSpeed *= factor;
+            if (this.playbackSpeed > MAX_SPEED) {
+                this.playbackSpeed = allowLoop ? 1 : MAX_SPEED;
+            } else if (this.playbackSpeed < 1) {
+                this.playbackSpeed = allowLoop ? MAX_SPEED : 1;
+            }
+            this.callbacks.onSpeedUpdated.forEach(cb => {
+                cb(this.playbackSpeed);
+            });
+        }
+        /*
+        Callback Subscription Methods
+        */
         onDataLoaded(callback) {
             this.callbacks.onDataLoaded.push(callback);
         }
@@ -71,6 +132,12 @@ createNameSpace('realityEditor.videoPlayback');
         }
         onTimestampUpdated(callback) {
             this.callbacks.onTimestampUpdated.push(callback);
+        }
+        onPlaybackToggled(callback) {
+            this.callbacks.onPlaybackToggled.push(callback);
+        }
+        onSpeedUpdated(callback) {
+            this.callbacks.onSpeedUpdated.push(callback);
         }
     }
 

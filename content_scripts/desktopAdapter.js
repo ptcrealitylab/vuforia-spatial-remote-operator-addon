@@ -398,7 +398,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         realityEditor.network.realtime.addDesktopSocketMessageListener('disconnect', function(_msgContent) {
             console.log('Desktop Server Socket Disconnected: reload page');
             setTimeout(() => {
-                window.location.reload();
+                // window.location.reload();
             }, 3000);
         });
 
@@ -483,7 +483,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         }
 
         realityEditor.network.realtime.addDesktopSocketMessageListener('reloadScreen', function(_msgContent) {
-            window.location.reload(); // reload screen when server restarts
+            // window.location.reload(); // reload screen when server restarts
         });
 
         realityEditor.network.realtime.addDesktopSocketMessageListener('udpMessage', function(msgContent) {
@@ -907,7 +907,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // Zone connections to restore background image
         const zoneSocketIPs = realityEditor.network.realtime.getSocketIPsForSet('realityZones');
         window.localStorage.setItem('realityEditor.desktopAdapter.savedZoneSocketIPs', JSON.stringify(zoneSocketIPs));
-        window.location.reload();
+        // window.location.reload();
     }
 
     function getPrimaryWorldId() {

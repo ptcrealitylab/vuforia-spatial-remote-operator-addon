@@ -62,6 +62,10 @@ createNameSpace('realityEditor.videoPlayback');
             centerBox.id = 'timelineTrackBox';
             rightBox.id = 'timelineControlsBox';
 
+            let centerScrollBox = document.createElement('div');
+            centerScrollBox.id = 'timelineTrackScrollBox';
+            centerBox.appendChild(centerScrollBox);
+
             let timestampDisplay = document.createElement('div');
             timestampDisplay.id = 'timelineTimestampDisplay';
             timestampDisplay.innerText = this.getFormattedTime(new Date(0));
@@ -85,20 +89,24 @@ createNameSpace('realityEditor.videoPlayback');
             let playhead = document.createElement('img');
             playhead.id = 'timelinePlayhead';
             playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
-            centerBox.appendChild(playhead);
+            centerScrollBox.appendChild(playhead);
             this.playhead = playhead;
+
+            let playheadDot = document.createElement('div');
+            playheadDot.id = 'timelinePlayheadDot';
+            centerScrollBox.appendChild(playheadDot);
 
             let videoPreviewContainer = document.createElement('div');
             videoPreviewContainer.id = 'timelineVideoPreviewContainer';
             videoPreviewContainer.classList.add('timelineBox');
             videoPreviewContainer.classList.add('timelineVideoPreviewNoTrack'); // need to click on timeline to select
-            centerBox.appendChild(videoPreviewContainer);
+            centerScrollBox.appendChild(videoPreviewContainer);
             // left = -68px is most left as possible
             // width = 480px for now, to show both, but should change to 240px eventually
 
             let scrollBar = this.createScrollBar();
             scrollBar.id = 'timelineScrollBar';
-            centerBox.appendChild(scrollBar);
+            centerScrollBox.appendChild(scrollBar);
 
             let playButton = document.createElement('img');
             playButton.id = 'timelinePlayButton';
@@ -175,7 +183,7 @@ createNameSpace('realityEditor.videoPlayback');
             });
             return container;
         }
-        onZoomChanged(zoomPercent, playheadTimePercent, scrollbarLeftPercent) {
+        onZoomChanged(zoomPercent, playheadTimePercent, scrollbarLeftPercent) { // TODO: make use of render functions to simplify
             // make the zoom bar handle fill 1.0 - zoomPercent of the overall bar
             let scrollBar = document.getElementById('timelineScrollBar');
             let handle = scrollBar.querySelector('.timelineScrollBarHandle');
@@ -376,11 +384,15 @@ createNameSpace('realityEditor.videoPlayback');
 
         /**
          * Update the GUI in response to new data from the model/controller
-         * @param {{playheadTimePercent: number, timestamp: number, zoomPercent: number, scrollLeftPercent: number}} props
+         * @param {{playheadTimePercent: number, timestamp: number, zoomPercent: number, scrollLeftPercent: number,
+         * isPlaying: boolean, playbackSpeed: number}} props
          */
         render(props) {
             if (typeof props.playheadTimePercent !== 'undefined') {
                 this.displayPlayhead(props.playheadTimePercent);
+            }
+            if (typeof props.playheadWithoutZoomPercent !== 'undefined') {
+                this.displayPlayheadDot(props.playheadWithoutZoomPercent);
             }
             if (typeof props.timestamp !== 'undefined') {
                 this.displayTime(props.timestamp);
@@ -390,6 +402,12 @@ createNameSpace('realityEditor.videoPlayback');
                 if (typeof props.scrollLeftPercent !== 'undefined') {
                     this.displayScroll(props.scrollLeftPercent, props.zoomPercent);
                 }
+            }
+            if (typeof props.isPlaying !== 'undefined') {
+                this.displayIsPlaying(props.isPlaying);
+            }
+            if (typeof props.playbackSpeed !== 'undefined') {
+                this.displayPlaybackSpeed(props.playbackSpeed);
             }
         }
         displayPlayhead(percentInWindow) {
@@ -420,6 +438,23 @@ createNameSpace('realityEditor.videoPlayback');
             // }
             */
         }
+        displayPlayheadDot(percentInDay) {
+            // put a little dot on the scrollbar showing the currentWindow-agnostic position of the playhead
+            let playheadDot = document.getElementById('timelinePlayheadDot');
+            // let scrollBar = document.getElementById('timelineScrollBar');
+            let trackBox = document.getElementById('timelineTrackBox');
+            let containerWidth = trackBox.getClientRects()[0].width;
+            let leftMargin = 20;
+            let rightMargin = 20;
+            let halfPlayheadWidth = 10;
+            let halfDotWidth = 5;
+
+            playheadDot.style.left = (leftMargin - halfDotWidth) + percentInDay * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin) + 'px';
+
+            // handle.style.width = (1.0 - zoomPercent) * 100 + '%';
+            // handle.style.left = scrollLeftPercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin) + 'px';
+
+        }
         displayTime(timestamp) {
             // let timezoneOffsetMs = new Date().getTimezoneOffset() * 60 * 1000; // getTimezoneOffset() returns minutes
             // let localTime = timestamp - timezoneOffsetMs;
@@ -433,10 +468,68 @@ createNameSpace('realityEditor.videoPlayback');
         displayZoom(zoomPercent) {
             // TODO: move zoom handle based on zoom percent
             console.log('render zoom', zoomPercent);
+
+            let slider = document.getElementById('zoomSliderBackground');
+            let handle = document.getElementById('zoomSliderHandle');
+            let leftMargin = 15;
+            let sliderLeft = slider.getClientRects()[0].left;
+            let sliderRight = slider.getClientRects()[0].right;
+            let handleWidth = handle.getClientRects()[0].width;
+
+            // percentZoom = Math.pow(Math.max(0, linearZoom), 0.25)
+            let linearZoom = Math.pow(zoomPercent, 1.0 / 0.25);
+            let handleLeft = linearZoom * ((sliderRight - leftMargin) - (sliderLeft + leftMargin)) + (handleWidth / 2);
+            handle.style.left = handleLeft + 'px';
         }
         displayScroll(scrollLeftPercent, zoomPercent) {
             // TODO: move scrollbar based on scroll and zoom percent
             console.log('render scrollbar', scrollLeftPercent, zoomPercent);
+
+            // make the zoom bar handle fill 1.0 - zoomPercent of the overall bar
+            let scrollBar = document.getElementById('timelineScrollBar');
+            let handle = scrollBar.querySelector('.timelineScrollBarHandle');
+            let trackBox = document.getElementById('timelineTrackBox');
+            let containerWidth = trackBox.getClientRects()[0].width;
+            let leftMargin = 20;
+            let rightMargin = 20;
+            let halfPlayheadWidth = 10;
+
+            handle.style.width = (1.0 - zoomPercent) * 100 + '%';
+            handle.style.left = scrollLeftPercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin) + 'px';
+
+            if (zoomPercent < 0.01) {
+                scrollBar.classList.add('timelineScrollBarFadeout');
+            } else {
+                scrollBar.classList.remove('timelineScrollBarFadeout');
+            }
+        }
+        displayIsPlaying(isPlaying) {
+            let playButton = document.getElementById('timelinePlayButton');
+            let playheadElement = document.getElementById('timelinePlayhead');
+            let playheadDot = document.getElementById('timelinePlayheadDot');
+            if (isPlaying) {
+                playButton.src = '/addons/vuforia-spatial-remote-operator-addon/pauseButton.svg';
+                playheadElement.classList.add('timelinePlayheadPlaying');
+                playheadDot.classList.add('timelinePlayheadPlaying');
+            } else {
+                playButton.src = '/addons/vuforia-spatial-remote-operator-addon/playButton.svg';
+                playheadElement.classList.remove('timelinePlayheadPlaying');
+                playheadDot.classList.remove('timelinePlayheadPlaying');
+            }
+
+            // TODO: does this happen here? probably not - probably in controller
+            // this.forEachTrack((deviceId, _trackInfo) => {
+            //     this.getVideoElement(deviceId, 'color').play();
+            //     this.getVideoElement(deviceId, 'depth').play();
+            // });
+        }
+        displayPlaybackSpeed(playbackSpeed) {
+            let supportedSpeeds = [1, 2, 4, 8, 16, 32, 64, 128, 256]; // TODO: support more? programmatically?
+            if (!supportedSpeeds.includes(playbackSpeed)) {
+                console.warn('no SVG button for playback speed ' + playbackSpeed);
+            }
+            let speedButton = document.getElementById('timelineSpeedButton');
+            speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_' + playbackSpeed + 'x.svg';
         }
         getFormattedTime(relativeTimestamp) {
             return new Date(relativeTimestamp).toLocaleTimeString();
