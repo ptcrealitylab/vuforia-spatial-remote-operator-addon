@@ -13,6 +13,7 @@ createNameSpace('realityEditor.gui');
     const ITEM = Object.freeze({
         PointClouds: 'Point Clouds',
         SpaghettiMap: 'Spaghetti Map',
+        ModelVisibility: 'Model Visibility',
         ModelTexture: 'Model Texture',
         UnityVirtualizers: 'Unity Virtualizers',
         SurfaceAnchors: 'Surface Anchors',
@@ -21,7 +22,7 @@ createNameSpace('realityEditor.gui');
         ClonePatch: 'Clone Patch',
         OrbitCamera: 'Orbit Camera',
         ResetCameraPosition: 'Reset Camera Position',
-        GettingStarted: 'Getting Started'
+        GettingStarted: 'Getting Started',
     });
     exports.ITEM = ITEM;
 
@@ -48,7 +49,10 @@ createNameSpace('realityEditor.gui');
         const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
 
-        const toggleModelTexture = new MenuItem(ITEM.ModelTexture, { shortcutKey: 'T', toggle: true, defaultVal: true }, null); // other module can attach a callback later
+        const toggleModelVisibility = new MenuItem(ITEM.ModelVisibility, { shortcutKey: 'T', toggle: true, defaultVal: true }, null); // other module can attach a callback later
+        menuBar.addItemToMenu(MENU.View, toggleModelVisibility);
+
+        const toggleModelTexture = new MenuItem(ITEM.ModelTexture, { shortcutKey: 'Y', toggle: true, defaultVal: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleModelTexture);
 
         const toggleUnityVirtualizers = new MenuItem(ITEM.UnityVirtualizers, { shortcutKey: 'V', toggle: true, defaultVal: false }, null); // other module can attach a callback later
