@@ -8,6 +8,8 @@
 
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
  * For remote desktop operation: renders background graphics simulating the context streamed from a connected phone.
@@ -103,6 +105,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
                         gltf = createdMesh;
                         gltf.name = 'areaTargetMesh';
+
+                        const greyMaterial = new THREE.MeshBasicMaterial({
+                            color: 0x777777,
+                            wireframe: true,
+                        });
+
+                        gltf.traverse(obj => {
+                            if (obj.type === 'Mesh' && obj.material) {
+                                obj.oldMaterial = greyMaterial;
+                            }
+                        });
+
                         realityEditor.device.meshLine.inject();
 
                         let realityZoneVoxelizer;
@@ -156,7 +170,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelTexture, (value) => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelVisibility, (value) => {
             if (!gltf) { return; }
             staticModelMode = value;
             if (staticModelMode) {
@@ -166,6 +180,19 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 gltf.visible = false;
                 console.log('hide gltf');
             }
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelTexture, () => {
+            if (!gltf) {
+                return;
+            }
+            gltf.traverse(obj => {
+                if (obj.type === 'Mesh' && obj.material) {
+                    let tmp = obj.material;
+                    obj.material = obj.oldMaterial;
+                    obj.oldMaterial = tmp;
+                }
+            });
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
