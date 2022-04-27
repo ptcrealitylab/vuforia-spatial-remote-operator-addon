@@ -357,8 +357,8 @@ void main() {
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (_value) => {
-                this.visible = !this.visible;
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
+                this.visible = toggled;
                 for (let camera of Object.values(this.cameras)) {
                     camera.mesh.visible = this.visible;
                     camera.mesh.__hidden = !this.visible;
@@ -372,14 +372,14 @@ void main() {
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SpaghettiMap, (_value) => {
-                this.spaghettiVisible = !this.spaghettiVisible;
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SpaghettiMap, (toggled) => {
+                this.spaghettiVisible = toggled;
                 for (let camera of Object.values(this.cameras)) {
                     camera.historyMesh.visible = this.spaghettiVisible;
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, (_value) => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, () => {
                 for (let camera of Object.values(this.cameras)) {
                     let patch = camera.clonePatch();
                     realityEditor.gui.threejsScene.addToScene(patch);

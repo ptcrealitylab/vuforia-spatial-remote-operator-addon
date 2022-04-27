@@ -84,9 +84,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
             this.historyLineMeshes = [];
         }
-        toggleHistory() {
-            this.historyLineMeshesVisible = !this.historyLineMeshesVisible;
-            this.historyLineContainer.visible = this.historyLineMeshesVisible;
+        toggleHistory(newState) {
+            if (typeof newState !== 'undefined') {
+                this.historyLineMeshesVisible = newState;
+                this.historyLineContainer.visible = newState;
+            } else {
+                this.historyLineMeshesVisible = !this.historyLineMeshesVisible;
+                this.historyLineContainer.visible = this.historyLineMeshesVisible;
+            }
         }
     };
 
