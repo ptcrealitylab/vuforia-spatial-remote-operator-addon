@@ -46,7 +46,7 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.View, togglePointClouds);
 
-        const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
+        const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: true, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
 
         const toggleModelVisibility = new MenuItem(ITEM.ModelVisibility, { shortcutKey: 'T', toggle: true, defaultVal: true }, null); // other module can attach a callback later
