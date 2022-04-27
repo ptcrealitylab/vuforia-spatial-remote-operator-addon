@@ -15,6 +15,9 @@ createNameSpace('realityEditor.videoPlayback');
             this.model.onTimestampUpdated(this.handleTimestampUpdated.bind(this));
             this.model.onPlaybackToggled(this.handlePlaybackToggled.bind(this));
             this.model.onSpeedUpdated(this.handleSpeedUpdated.bind(this));
+            this.model.onSegmentSelected(this.handleSegmentSelected.bind(this));
+            this.model.onSegmentDeselected(this.handleSegmentDeselected.bind(this));
+            this.model.onSegmentData(this.handleSegmentData.bind(this));
 
             this.view = new realityEditor.videoPlayback.TimelineView(document.body);
 
@@ -46,7 +49,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.view.onZoomHandleChanged(percentZoom => {
                 // onZoomChanged(percentZoom)
                 // --> as a result, updates window which re-renders the view
-                console.log('onZoomHandleChanged', percentZoom);
+                // console.log('onZoomHandleChanged', percentZoom);
                 let playheadTimePercent = this.model.getPlayheadTimePercent();
                 this.view.onZoomChanged(percentZoom, playheadTimePercent);
             });
@@ -55,20 +58,20 @@ createNameSpace('realityEditor.videoPlayback');
             // this.view.zoomHandle.addEventListener('pointerup', _e => { });
             this.view.onPlayheadSelected(_ => {
                 // stop video playback if needed
-                console.log('onPlayheadSelected');
+                // console.log('onPlayheadSelected');
                 this.togglePlayback(false);
             });
             this.view.onPlayheadChanged(positionInWindow => {
                 // calculate timestamp, update video frame
                 // --> as a result, setPlayheadTimestamp which re-renders the view
-                console.log('onPlayheadChanged', positionInWindow);
+                // console.log('onPlayheadChanged', positionInWindow);
                 this.model.setTimestampFromPositionInWindow(positionInWindow);
                 // todo: determine which data tracks / segments / pieces use this time, and process them
             });
             // potentially add onTrackSelected / onSegmentSelected
             this.view.onScrollbarChanged((zoomPercent, leftPercent, rightPercent) => {
                 // calculate timeline window
-                console.log('onScrollbarChanged', zoomPercent, leftPercent, rightPercent);
+                // console.log('onScrollbarChanged', zoomPercent, leftPercent, rightPercent);
                 this.model.adjustCurrentWindow(leftPercent, rightPercent);
             });
         }
@@ -171,6 +174,41 @@ createNameSpace('realityEditor.videoPlayback');
             } else {
                 this.view.hide();
             }
+        }
+        handleSegmentSelected(selectedSegment) {
+            console.log('selected segment', selectedSegment);
+            this.renderSelectedSegments();
+        }
+        handleSegmentDeselected(deselectedSegment) {
+            console.log('deselected segment', deselectedSegment);
+            this.renderSelectedSegments();
+        }
+        renderSelectedSegments() {
+            // get the set of video segments and re-render
+            let videoSegments = this.model.selectedSegments.filter(segment => segment.type === 'VIDEO_3D');
+            let videoElements = videoSegments.map(segment => {
+                return [
+                    { id: segment.id + '_color', src: segment.dataPieces.colorVideo.videoUrl },
+                    { id: segment.id + '_depth', src: segment.dataPieces.depthVideo.videoUrl },
+                ];
+            }).flat();
+
+            this.view.render({
+                videoElements: videoElements
+            });
+        }
+        handleSegmentData(segment, timestamp, _data) {
+            if (segment.type === 'VIDEO_3D') {
+                console.log('processing a 3d video segment', segment, timestamp);
+                let cameraPoseMatrix = segment.dataPieces.poses.getClosestData(timestamp);
+                let colorVideoUrl = segment.dataPieces.colorVideo.videoUrl;
+                let depthVideoUrl = segment.dataPieces.depthVideo.videoUrl;
+                let timePercent = segment.getTimestampAsPercent(timestamp);
+                this.callbacks.onVideoFrame.forEach(cb => {
+                    cb(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
+                });
+            }
+            // TODO: process other data types (IoT, Human Pose) and trigger other callbacks
         }
     }
 

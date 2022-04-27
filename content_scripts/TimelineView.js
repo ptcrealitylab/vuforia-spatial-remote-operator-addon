@@ -432,6 +432,16 @@ createNameSpace('realityEditor.videoPlayback');
                 let fullUpdate = props.tracksFullUpdate;
                 this.displayTracks(props.tracks, fullUpdate);
             }
+            if (typeof props.videoElements !== 'undefined') {
+                this.displayVideoElements(props.videoElements);
+            }
+        }
+
+        /**
+         * @param {{id: string, src: string}[]} videoElements
+         */
+        displayVideoElements(videoElements) {
+            console.log('display videoElements', videoElements);
         }
         displayPlayhead(percentInWindow) {
             // calculate and set playheadLeft
@@ -490,7 +500,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         displayZoom(zoomPercent) {
             // TODO: move zoom handle based on zoom percent
-            console.log('render zoom', zoomPercent);
+            // console.log('render zoom', zoomPercent);
 
             let slider = document.getElementById('zoomSliderBackground');
             let handle = document.getElementById('zoomSliderHandle');
@@ -506,7 +516,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         displayScroll(scrollLeftPercent, zoomPercent) {
             // TODO: move scrollbar based on scroll and zoom percent
-            console.log('render scrollbar', scrollLeftPercent, zoomPercent);
+            // console.log('render scrollbar', scrollLeftPercent, zoomPercent);
 
             // make the zoom bar handle fill 1.0 - zoomPercent of the overall bar
             let scrollBar = document.getElementById('timelineScrollBar');

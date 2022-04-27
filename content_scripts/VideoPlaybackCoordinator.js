@@ -29,7 +29,9 @@ createNameSpace('realityEditor.videoPlayback');
                         let depthVideo = new playback.DataPiece('depthVideo', playback.DATA_PIECE_TYPES.VIDEO_URL);
                         depthVideo.setVideoUrl(segmentData.depthVideo); // TODO: set absolute URL
                         let poses = new playback.DataPiece('poses', playback.DATA_PIECE_TYPES.TIME_SERIES);
-                        poses.setTimeSeriesData(segmentData.poses);
+                        poses.setTimeSeriesData(segmentData.poses.map(elt => {
+                            return {data: elt.pose, time: elt.time};
+                        }));
                         segment.addDataPiece(colorVideo);
                         segment.addDataPiece(depthVideo);
                         segment.addDataPiece(poses);
@@ -47,6 +49,11 @@ createNameSpace('realityEditor.videoPlayback');
                 // this.timeline.setDatesWithVideos(datesList);
                 // TODO: make the VideoSources listen for newly uploaded videos, and when loaded, append to timeline
             });
+            this.timelineController.onVideoFrame((colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix) => {
+                console.log(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
+            });
+            // TODO: re-enable rendering
+            /*
             this.timelineController.onVideoFrame((colorVideo, depthVideo, deviceId, segmentId) => {
                 let colorVideoCanvas = this.getCanvasElement(deviceId, 'color');
                 let depthVideoCanvas = this.getCanvasElement(deviceId, 'depth');
@@ -67,17 +74,7 @@ createNameSpace('realityEditor.videoPlayback');
                     this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, closestPose);
                 }
             });
-            // this.timeline.onSegmentSelected((_deviceId, _segmentId) => {
-            //     console.log('segment selected');
-            // });
-            // this.timeline.onSegmentDeselected((deviceId, _segmentId) => {
-            //     console.log('segment deselected');
-            //
-            //     if (typeof this.hidePointCloud !== 'undefined') {
-            //         let cameraId = parseInt(deviceId.replace(DEVICE_ID_PREFIX, ''));
-            //         this.hidePointCloud(cameraId);
-            //     }
-            // });
+            */
 
             this.timelineVisibilityButton = document.createElement('img');
             this.timelineVisibilityButton.id = 'timelineVisibilityButton';
