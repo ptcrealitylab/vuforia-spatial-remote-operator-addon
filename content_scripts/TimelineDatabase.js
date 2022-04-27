@@ -89,6 +89,7 @@ createNameSpace('realityEditor.videoPlayback');
                 return;
             }
             this.segments[segment.id] = segment;
+            segment.trackId = this.id;
             console.log('added ' + segment.id + ' to track ' + this.id);
         }
         getBounds() {
@@ -123,7 +124,11 @@ createNameSpace('realityEditor.videoPlayback');
         }
         addDataPiece(dataPiece) {
             this.dataPieces[dataPiece.id] = dataPiece;
+            dataPiece.segmentId = this.id;
             console.log('added ' + dataPiece.id + ' to segment ' + this.id);
+        }
+        getTimestampAsPercent(timestamp) {
+            return (timestamp - this.start) / (this.end - this.start);
         }
     }
 
@@ -141,7 +146,30 @@ createNameSpace('realityEditor.videoPlayback');
         }
         setTimeSeriesData(data) {
             if (this.type !== DATA_PIECE_TYPES.TIME_SERIES) { return; }
+            if (data.length > 0) {
+                let valid = typeof data[0].data !== 'undefined' && typeof data[0].time !== 'undefined';
+                if (!valid) {
+                    console.warn('A TIME_SERIES DataPiece needs the format [{data: _, time: _}, ...]', data[0]);
+                    return;
+                }
+            }
             this.timeSeriesData = data;
+        }
+        getClosestData(timestamp) {
+            if (this.type !== DATA_PIECE_TYPES.TIME_SERIES) { return null; }
+            // TODO: store newer and older so that in future we can have option to interpolate
+            // let min_older_dt = Date.now();
+            // let min_newer_dt = Date.now();
+            let min_dt = Date.now(); // initialize with ~Infinity
+            let closestEntry = null;
+            this.timeSeriesData.forEach(entry => {
+                let dt = timestamp - entry.time;
+                if (Math.abs(dt) < min_dt) {
+                    min_dt = Math.abs(dt);
+                    closestEntry = entry;
+                }
+            });
+            return closestEntry;
         }
     }
 
@@ -158,6 +186,27 @@ createNameSpace('realityEditor.videoPlayback');
             // filter the database, keeping only pointers to segments within the data range
             this.filteredDatabase = this.database.getFilteredData(start, end);
         }
+        processTimestamp(timestamp) {
+            if (!this.filteredDatabase) { return []; }
+            let currentSegments = [];
+            for (const [trackId, track] of Object.entries(this.filteredDatabase.tracks)) {
+                for (const [segmentId, segment] of Object.entries(track.segments)) {
+                    if (segment.start <= timestamp && segment.end >= timestamp) {
+                        currentSegments.push(segment);
+                    }
+                }
+            }
+            return currentSegments;
+        }
+        // getTrack(trackId) {
+        //     if (!this.filteredDatabase) { return null; }
+        //     return this.filteredDatabase.tracks[trackId];
+        // }
+        // getSegment(trackId, segmentId) {
+        //     let track = this.getTrack(trackId);
+        //     if (!track) { return null; }
+        //     return track.segments[segmentId];
+        // }
     }
 
     exports.TimelineDatabase = TimelineDatabase;

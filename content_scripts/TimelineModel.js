@@ -24,10 +24,14 @@ createNameSpace('realityEditor.videoPlayback');
                 onWindowUpdated: [],
                 onTimestampUpdated: [],
                 onPlaybackToggled: [],
-                onSpeedUpdated: []
+                onSpeedUpdated: [],
+                onSegmentSelected: [],
+                onSegmentDeselected: [],
+                onSegmentData: []
             };
             this.playbackInterval = null;
             this.lastUpdate = null;
+            this.selectedSegments = [];
         }
         handleWindowUpdated(window, resetPlayhead) {
             // TODO: update data view
@@ -66,6 +70,53 @@ createNameSpace('realityEditor.videoPlayback');
                     cb(this.currentTimestamp);
                 });
             }
+
+            // determine if there are any overlapping segments
+            if (!this.currentDataView) { return; }
+
+            let currentSegments = this.currentDataView.processTimestamp(newTimestamp);
+            // console.log(currentSegments);
+            currentSegments.forEach(segment => {
+                let relativeTime = newTimestamp - segment.start;
+                let dataPieces = segment.dataPieces;
+                if (segment.type === 'VIDEO_3D') {
+                    let colorVideo = dataPieces.colorVideo; // VIDEO_URL
+                    let depthVideo = dataPieces.depthVideo; // VIDEO_URL
+                    let poses = dataPieces.poses; // TIME_SERIES
+                }
+            });
+
+            // trigger events based on difference between currentSegments and previous selectedSegments
+            // let newlySelected = [];
+            // let newlyDeselected = [];
+            let selectedIds = currentSegments.map(segment => segment.id);
+            let previousIds = this.selectedSegments.map(segment => segment.id);
+            currentSegments.forEach(segment => {
+                let id = segment.id;
+                if (!previousIds.includes(id)) {
+                    // console.log('new selected segment', id);
+                    this.callbacks.onSegmentSelected.forEach(cb => {
+                        cb(segment);
+                    });
+                }
+            });
+            this.selectedSegments.forEach(segment => {
+                let id = segment.id;
+                if (!selectedIds.includes(id)) {
+                    // console.log('deselected segment', id);
+                    this.callbacks.onSegmentDeselected.forEach(cb => {
+                        cb(segment);
+                    });
+                }
+            });
+
+            currentSegments.forEach(segment => {
+                this.callbacks.onSegmentData.forEach(cb => {
+                    cb(segment, newTimestamp, segment.dataPieces); // TODO: process dataPieces here?
+                });
+            });
+
+            this.selectedSegments = currentSegments;
         }
         getPlayheadTimePercent(inWindow) {
             let min, max;
@@ -158,6 +209,15 @@ createNameSpace('realityEditor.videoPlayback');
         }
         onSpeedUpdated(callback) {
             this.callbacks.onSpeedUpdated.push(callback);
+        }
+        onSegmentSelected(callback) {
+            this.callbacks.onSegmentSelected.push(callback);
+        }
+        onSegmentDeselected(callback) {
+            this.callbacks.onSegmentSelected.push(callback);
+        }
+        onSegmentData(callback) {
+            this.callbacks.onSegmentData.push(callback);
         }
     }
 
