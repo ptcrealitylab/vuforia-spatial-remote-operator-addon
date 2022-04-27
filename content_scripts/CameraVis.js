@@ -98,7 +98,7 @@ varying vec4 pos;
 
 void main() {
   float depth = -pos.z;
-  float alphaDepth = clamp(5.0 - depth / 1000.0, 0.0, 1.0);
+  float alphaDepth = clamp(10.0 - 2.0 * depth / 1000.0, 0.0, 1.0);
   vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
   float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth;
   vec4 color = texture2D(map, vUv);
