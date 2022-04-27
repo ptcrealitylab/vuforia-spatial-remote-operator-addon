@@ -200,9 +200,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             realityZoneViewer.resetHistory();
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (_value) => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (toggled) => {
             if (!realityZoneViewer) { return; }
-            realityZoneViewer.toggleHistory();
+            realityZoneViewer.toggleHistory(toggled);
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(
