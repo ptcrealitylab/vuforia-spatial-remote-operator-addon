@@ -1,7 +1,8 @@
 createNameSpace('realityEditor.device.meshLine');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 realityEditor.device.meshLine.inject = function() {
-    const THREE = realityEditor.gui.threejsScene.THREE;
     'use strict';
 
     class MeshLine extends THREE.BufferGeometry {
