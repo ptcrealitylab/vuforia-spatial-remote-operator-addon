@@ -14,6 +14,8 @@ createNameSpace('realityEditor.device.desktopCamera');
  */
 
 (function() {
+    const DEBUG = false;
+
     let INITIAL_CAMERA_POSITIONS = Object.freeze({
         DESK: [757, 1410, -956], // [330, 3751, -1575]; //[735, -1575, -162]; //[1000, -500, 500];
         LAB_TABLE: [-1499.9648912671637, 8275.552791086136, 5140.3791620707225],
@@ -325,12 +327,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         // console.log(isExpanded);
     }
 
-    function logMessage(text) {
-        if (DEBUG_SHOW_LOGGER) {
-            closestObjectLog.innerText = text;
-        }
-    }
-
     // messageButtonIcon.src = '/addons/spatialCommunication/bw-message.svg';
 
     function panToggled() {
@@ -409,7 +405,9 @@ createNameSpace('realityEditor.device.desktopCamera');
                 realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.worldMatrix);
 
             } catch (e) {
-                console.warn('error updating Virtual Camera', e);
+                if (DEBUG) {
+                    console.warn('error updating Virtual Camera', e);
+                }
             }
         }
 
