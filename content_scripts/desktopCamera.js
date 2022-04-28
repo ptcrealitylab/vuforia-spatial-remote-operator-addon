@@ -148,10 +148,15 @@ createNameSpace('realityEditor.device.desktopCamera');
             pointerPosition.x = e.clientX;
             pointerPosition.y = e.clientY;
 
-            if (interactionCursor && interactionCursor.style.display !== 'none') {
-                interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width/2) + 'px';
-                interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height/2) + 'px';
+            if (!interactionCursor || interactionCursor.style.display === 'none') {
+                return;
             }
+            let rects = interactionCursor.getClientRects();
+            if (rects.length === 0) {
+                return;
+            }
+            interactionCursor.style.left = (pointerPosition.x - rects[0].width / 2) + 'px';
+            interactionCursor.style.top = (pointerPosition.y - rects[0].height / 2) + 'px';
         });
 
         let invertedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('INVERTED_COORDINATES', undefined, undefined, [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
