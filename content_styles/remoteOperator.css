@@ -34,3 +34,97 @@ body > * {
 #mainThreejsCanvas {
     pointer-events: auto !important;
 }
+
+.blockIconTinted {
+    background-color: rgba(100,255,255,0.25) !important; /*on remote operator, override background to have more contrast*/
+}
+
+.desktopMenuBar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 30px;
+    background-color: rgba(0,0,0, 0.9);
+    color: lightgray;
+    transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 3000, 1);
+}
+
+.desktopMenuBarMenu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100px;
+}
+
+.desktopMenuBarMenuTitle {
+    height: 30px;
+    text-align: left;
+    line-height: 30px;
+    padding-left: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.desktopMenuBarMenuTitle:hover {
+    background-color: rgba(255,255,255, 0.1);
+}
+
+.desktopMenuBarMenuTitleOpen {
+    background-color: rgba(255,255,255, 0.2) !important;
+}
+
+.desktopMenuBarMenuDropdown {
+    /* TODO: how to best adapth width of menubar to comfortably fit contents? (not an issue now, but may want to) */
+    width: 250px;
+    background-color: rgba(0,0,0, 0.9);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.hiddenDropdown {
+    display: none;
+}
+
+.desktopMenuBarItem {
+    width: 100%;
+    padding-left: 10px;
+    height: 30px;
+    cursor: pointer;
+    line-height: 30px;
+}
+
+.desktopMenuBarItem:hover {
+    background-color: rgba(255,255,255, 0.1);
+}
+
+.desktopMenuBarItemTextToggle {
+    padding-left: 20px;
+}
+
+.desktopMenuBarItemDisabled {
+    cursor: not-allowed;
+    color: gray;
+}
+
+.desktopMenuBarItemCheckmark {
+    position: absolute;
+    left: 10px;
+    top: 0;
+}
+
+.desktopMenuBarItemCheckmarkHidden {
+    visibility: hidden;
+}
+
+.desktopMenuBarItemCheckmarkDisabled {
+    opacity: 0.5;
+}
+
+.desktopMenuBarItemShortcut {
+    position: absolute;
+    right: 15px;
+    top: 0;
+    width: 30px;
+    text-align: center;
+}
