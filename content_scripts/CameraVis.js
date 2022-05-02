@@ -553,6 +553,7 @@ void main() {
             this.cameras[id].update(matrix);
 
             this.cameras[id].mesh.visible = true;
+            this.cameras[id].mesh.__hidden = false;
 
             // let now = performance.now();
             // for (let camera of Object.values(this.cameras)) {
@@ -572,6 +573,7 @@ void main() {
             let camera = this.cameras[id];
             if (camera.mesh) {
                 camera.mesh.visible = false;
+                camera.mesh.__hidden = true;
             }
         }
 

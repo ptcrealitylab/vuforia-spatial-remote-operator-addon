@@ -24,6 +24,7 @@
     top: 0;
     transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1000, 1);
     z-index: 1000;
+    background-color: rgba(0,255,255,0.5);
 }
 
 .videoPreviewContainer {
@@ -78,18 +79,27 @@
 #timelineTrackScrollBox {
     position: absolute;
     left: 0;
-    top: -30px;
+    top: -300px;
     width: 100%;
-    height: calc(100% + 30px);
+    height: calc(100% + 300px);
     overflow: hidden;
+    pointer-events: none;
+}
+
+#timelineTrackScrollBoxInner {
+    position: absolute;
+    left: 0;
+    top: 300px;
+    width: 100%;
+    height: calc(100% - 300px);
+    pointer-events: auto;
 }
 
 #timelineTracksContainer {
     position: absolute;
     left: 0;
-    top: 30px;
     width: 100%;
-    height: calc(100% - 30px);
+    height: calc(100% - 10px);
 }
 
 #timelinePlayhead {
@@ -134,7 +144,9 @@
     top: -168px;
     width: 256px;
     height: 144px;
-    display: none;
+    /*display: none;*/
+    transform-origin: left bottom;
+    transform: scale(0.6);
 }
 
 #timelineTimestampDisplay {

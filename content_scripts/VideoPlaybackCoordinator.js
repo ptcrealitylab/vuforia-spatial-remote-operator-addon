@@ -49,12 +49,14 @@ createNameSpace('realityEditor.videoPlayback');
                 // this.timeline.setDatesWithVideos(datesList);
                 // TODO: make the VideoSources listen for newly uploaded videos, and when loaded, append to timeline
             });
-            this.timelineController.onVideoFrame((colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix) => {
-                console.log(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
+            this.timelineController.onDataFrame((colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrixBase64) => {
+                // console.log('onDataFrame', colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
+                this.mostRecentPose = this.getPoseMatrixFromData(cameraPoseMatrixBase64);
+                this.mostRecentPoseTimePercent = timePercent;
+                // console.log('pose at time ' + 100 * timePercent + '% is ' + JSON.stringify(this.mostRecentPose));
             });
-            // TODO: re-enable rendering
-            /*
-            this.timelineController.onVideoFrame((colorVideo, depthVideo, deviceId, segmentId) => {
+            this.timelineController.onVideoFrame((colorVideo, depthVideo, segment) => {
+                let deviceId = segment.trackId;
                 let colorVideoCanvas = this.getCanvasElement(deviceId, 'color');
                 let depthVideoCanvas = this.getCanvasElement(deviceId, 'depth');
 
@@ -63,18 +65,34 @@ createNameSpace('realityEditor.videoPlayback');
                 colorCtx.drawImage(colorVideo, 0, 0, 960, 540);
                 depthCtx.drawImage(depthVideo, 0, 0, 256, 144);
 
+                let videoTimePercent = colorVideo.currentTime / colorVideo.duration;
+                let poseTimePercent = this.mostRecentPoseTimePercent;
+                console.log('Drift = ' + Math.abs(poseTimePercent - videoTimePercent) * 100 + '%');
+
+                // console.log('received video frame ' + colorVideo.currentTime + ' (' + 100 * videoTimePercent + '%)');
                 // robust way to get pose that matches actual video playback currentTime (independent of offset, viewport, etc)
                 // a 179.5 second video has 1795 poses, so use the (video timestamp * 10) as index to retrieve pose (10fps-dependent)
-                let closestPose = this.videoSources.getPoseAtIndex(deviceId, segmentId, Math.floor(colorVideo.currentTime * this.POSE_FPS));
-
+                // let closestPose = this.videoSources.getPoseAtIndex(deviceId, segmentId, Math.floor(colorVideo.currentTime * this.POSE_FPS));
+                let closestPoseBase64 = segment.dataPieces.poses.getDataAtIndex(Math.floor(colorVideo.currentTime * this.POSE_FPS));
+                let closestPoseMatrix = this.getPoseMatrixFromData(closestPoseBase64);
+                
                 let colorImageUrl = colorVideoCanvas.toDataURL('image/jpeg');
                 let depthImageUrl = depthVideoCanvas.toDataURL('image/png');
 
-                if (closestPose) {
-                    this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, closestPose);
+                // if (this.mostRecentPose) {
+                //     this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, this.mostRecentPose);
+                // }
+
+                if (closestPoseMatrix) {
+                    this.processPointCloud(deviceId, colorImageUrl, depthImageUrl, closestPoseMatrix);
                 }
             });
-            */
+            this.timelineController.onSegmentDeselected(segment => {
+                if (typeof this.hidePointCloud === 'function') {
+                    let cameraId = parseInt(segment.trackId.replace(DEVICE_ID_PREFIX, '')) + 255; // go outside the range of camera ids
+                    this.hidePointCloud(cameraId);
+                }
+            });
 
             this.timelineVisibilityButton = document.createElement('img');
             this.timelineVisibilityButton.id = 'timelineVisibilityButton';
@@ -86,6 +104,21 @@ createNameSpace('realityEditor.videoPlayback');
             this.toggleVisibility(false); // default to hidden
 
             // hide timeline visibility toggle if there are no recorded clips
+        }
+        getPoseMatrixFromData(poseBase64) {
+            // let segmentPoses = this.getSegmentInfo(deviceId, segmentId).poses;
+            // let clampedIndex = Math.max(0, Math.min(segmentPoses.length - 1, poseIndex));
+            // let poseBase64 = segmentPoses[clampedIndex].pose;
+            if (!poseBase64) { return null; }
+            
+            let byteCharacters = window.atob(poseBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            let matrix = new Float32Array(byteArray.buffer);
+            return matrix;
         }
         processPointCloud(deviceId, colorImageUrl, depthImageUrl, poseMatrix) {
             if (!this.displayPointClouds) {

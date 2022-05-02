@@ -5,7 +5,9 @@ createNameSpace('realityEditor.videoPlayback');
     class TimelineController {
         constructor() {
             this.callbacks = {
-                onVideoFrame: []
+                onVideoFrame: [],
+                onDataFrame: [],
+                onSegmentDeselected: []
             };
 
             this.model = new realityEditor.videoPlayback.TimelineModel();
@@ -34,7 +36,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.view.playButton.addEventListener('pointerup', e => {
                 // TODO: better way to retrieve button state?
                 let isPlayButton = e.currentTarget.src.includes('playButton.svg');
-                this.togglePlayback(isPlayButton);
+                this.model.togglePlayback(isPlayButton);
             });
             this.view.speedButton.addEventListener('pointerup', _e => {
                 this.multiplySpeed(2, true);
@@ -59,7 +61,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.view.onPlayheadSelected(_ => {
                 // stop video playback if needed
                 // console.log('onPlayheadSelected');
-                this.togglePlayback(false);
+                this.model.togglePlayback(false);
             });
             this.view.onPlayheadChanged(positionInWindow => {
                 // calculate timestamp, update video frame
@@ -67,12 +69,65 @@ createNameSpace('realityEditor.videoPlayback');
                 // console.log('onPlayheadChanged', positionInWindow);
                 this.model.setTimestampFromPositionInWindow(positionInWindow);
                 // todo: determine which data tracks / segments / pieces use this time, and process them
+
+                // update the currentTime of each of the selected videos
+                // we do this specifically in response to user interaction because..
+                // if timestamp changes just due to time passing, the video will already play and update
+                
+                if (this.model.selectedSegments.length === 0) { return; }
+
+                // console.log('set currentTime of each video');
+                this.model.selectedSegments.forEach(segment => {
+                    let currentTime = (segment.timeMultiplier || 1) * (this.model.currentTimestamp - segment.start) / 1000;
+
+                    let videoElements = this.view.getVideoElementsForTrack(segment.trackId);
+                    if (videoElements.color && videoElements.depth) {
+                        videoElements.color.currentTime = currentTime;
+                        videoElements.depth.currentTime = currentTime;
+                    }
+                });
             });
             // potentially add onTrackSelected / onSegmentSelected
             this.view.onScrollbarChanged((zoomPercent, leftPercent, rightPercent) => {
                 // calculate timeline window
                 // console.log('onScrollbarChanged', zoomPercent, leftPercent, rightPercent);
                 this.model.adjustCurrentWindow(leftPercent, rightPercent);
+            });
+            this.view.onVideoElementAdded(videoElement => {
+                let videoSegments = this.model.selectedSegments.filter(segment => segment.type === 'VIDEO_3D');
+                let isColor = videoElement.id.includes('color');
+                let isDepth = videoElement.id.includes('depth');
+                if (!isColor && !isDepth) {
+                    console.warn('unable to parse segment id from video element - not color or depth');
+                }
+                // let segmentId = videoElement.src.split('_session_')[1].split('_start_')[0];
+                let segmentId = videoElement.querySelector('source').src.split('_session_')[1].split('_start_')[0];
+
+                // let segmentId = isColor ? videoElement.id.split('_color')[0] : videoElement.id.split('_depth')[0];
+                let matchingSegment = videoSegments.find(segment => segment.id === segmentId);
+                console.log('found segment for video ' + videoElement.id, matchingSegment);
+
+                videoElement.addEventListener('loadedmetadata', _e => {
+                    console.log('videoElement loaded metadata');
+                    if (typeof matchingSegment.timeMultiplier === 'undefined') {
+                        let videoDuration = videoElement.duration;
+                        let intendedDuration = (matchingSegment.end - matchingSegment.start) / 1000;
+                        matchingSegment.timeMultiplier = videoDuration / intendedDuration;
+                        // console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
+                    }
+                    videoElement.playbackRate = this.model.playbackSpeed * matchingSegment.timeMultiplier;
+                });
+                
+                if (isColor) {
+                    console.log('add timeupdate listener');
+                    videoElement.addEventListener('timeupdate', _e => {
+                        // console.log('timeupdate');
+                        let videoElements = this.view.getVideoElementsForTrack(matchingSegment.trackId);
+                        this.callbacks.onVideoFrame.forEach(cb => {
+                            cb(videoElements.color, videoElements.depth, matchingSegment);
+                        });
+                    });
+                }
             });
         }
         handleCalendarDateSelected(dateObject) {
@@ -86,7 +141,7 @@ createNameSpace('realityEditor.videoPlayback');
             console.log(data); // the tracks that were loaded. triggers again if more data loaded?
         }
         handleDataViewUpdated(dataView) {
-            console.log('displayTracks, dataViewUpdated', dataView); // which date is selected, can be used to filter the database
+            // console.log('displayTracks, dataViewUpdated', dataView); // which date is selected, can be used to filter the database
             let simplifiedTracks = this.generateSimplifiedTracks(dataView);
 
             this.view.render({
@@ -118,7 +173,7 @@ createNameSpace('realityEditor.videoPlayback');
             return simplifiedTracks;
         }
         handleWindowUpdated(window) {
-            console.log('displayTracks, windowUpdated', window); // the withoutZoom and current .min and .max timestamp on the visible timeline window
+            // console.log('displayTracks, windowUpdated', window); // the withoutZoom and current .min and .max timestamp on the visible timeline window
 
             this.view.render({
                 zoomPercent: window.getZoomPercent(),
@@ -142,21 +197,49 @@ createNameSpace('realityEditor.videoPlayback');
         onVideoFrame(callback) {
             this.callbacks.onVideoFrame.push(callback);
         }
-        togglePlayback(toggled) {
-            this.model.togglePlayback(toggled);
+        onDataFrame(callback) {
+            this.callbacks.onDataFrame.push(callback);
+        }
+        onSegmentDeselected(callback) {
+            this.callbacks.onSegmentDeselected.push(callback);
         }
         multiplySpeed(factor = 2, allowLoop = true) {
             // update the playback speed, which subsequently re-renders the view (button image)
             this.model.multiplySpeed(factor, allowLoop);
         }
         handlePlaybackToggled(isPlaying) {
+            console.log('handle playback toggled');
             this.view.render({
                 isPlaying: isPlaying
+            });
+            // play each of the videos in the view
+            let tracks = this.generateSimplifiedTracks(this.model.currentDataView);
+            Object.keys(tracks).forEach(trackId => {
+                let videoElements = this.view.getVideoElementsForTrack(trackId);
+                if (videoElements.color && videoElements.depth) {
+                    if (isPlaying) {
+                        console.log('play videos');
+                        videoElements.color.play();
+                        videoElements.depth.play();
+                    } else {
+                        console.log('pause videos');
+                        videoElements.color.pause();
+                        videoElements.depth.pause();
+                    }
+                }
             });
         }
         handleSpeedUpdated(playbackSpeed) {
             this.view.render({
                 playbackSpeed: playbackSpeed
+            });
+
+            this.model.selectedSegments.forEach(segment => {
+                let colorVideo = this.view.getVideoElement(segment.id + '_color', segment.trackId);
+                let depthVideo = this.view.getVideoElement(segment.id + '_depth', segment.trackId);
+                [colorVideo, depthVideo].forEach(video => {
+                    video.playbackRate = playbackSpeed * (segment.timeMultiplier || 1)
+                });
             });
         }
         toggleVisibility(isNowVisible) {
@@ -182,14 +265,18 @@ createNameSpace('realityEditor.videoPlayback');
         handleSegmentDeselected(deselectedSegment) {
             console.log('deselected segment', deselectedSegment);
             this.renderSelectedSegments();
+
+            this.callbacks.onSegmentDeselected.forEach(cb => {
+                cb(deselectedSegment);
+            });
         }
         renderSelectedSegments() {
             // get the set of video segments and re-render
             let videoSegments = this.model.selectedSegments.filter(segment => segment.type === 'VIDEO_3D');
             let videoElements = videoSegments.map(segment => {
                 return [
-                    { id: segment.id + '_color', src: segment.dataPieces.colorVideo.videoUrl },
-                    { id: segment.id + '_depth', src: segment.dataPieces.depthVideo.videoUrl },
+                    { videoId: segment.id + '_color', trackId: segment.trackId, src: segment.dataPieces.colorVideo.videoUrl },
+                    { videoId: segment.id + '_depth', trackId: segment.trackId, src: segment.dataPieces.depthVideo.videoUrl },
                 ];
             }).flat();
 
@@ -199,12 +286,15 @@ createNameSpace('realityEditor.videoPlayback');
         }
         handleSegmentData(segment, timestamp, _data) {
             if (segment.type === 'VIDEO_3D') {
-                console.log('processing a 3d video segment', segment, timestamp);
-                let cameraPoseMatrix = segment.dataPieces.poses.getClosestData(timestamp);
+                // console.log('processing a 3d video segment', segment, timestamp);
+                let cameraPoseMatrix = segment.dataPieces.poses.getClosestData(timestamp).data;
                 let colorVideoUrl = segment.dataPieces.colorVideo.videoUrl;
                 let depthVideoUrl = segment.dataPieces.depthVideo.videoUrl;
                 let timePercent = segment.getTimestampAsPercent(timestamp);
-                this.callbacks.onVideoFrame.forEach(cb => {
+                // this.callbacks.onVideoFrame.forEach(cb => {
+                //     cb(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
+                // });
+                this.callbacks.onDataFrame.forEach(cb => {
                     cb(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
                 });
             }

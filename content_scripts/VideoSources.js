@@ -27,9 +27,9 @@ createNameSpace('realityEditor.videoPlayback');
             let trackIndex = 0;
 
             Object.keys(videoInfo).forEach(deviceId => {
-                console.log('loading track for device: ' + deviceId);
+                // console.log('loading track for device: ' + deviceId);
                 Object.keys(videoInfo[deviceId]).forEach(sessionId => {
-                    console.log('loading ' + deviceId + ' session ' + sessionId);
+                    // console.log('loading ' + deviceId + ' session ' + sessionId);
                     let sessionInfo = videoInfo[deviceId][sessionId];
                     if (typeof sessionInfo.color === 'undefined' || typeof sessionInfo.depth === 'undefined') {
                         return; // skip entries that don't have both videos
