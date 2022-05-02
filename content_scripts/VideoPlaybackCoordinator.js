@@ -56,6 +56,10 @@ createNameSpace('realityEditor.videoPlayback');
                 // console.log('pose at time ' + 100 * timePercent + '% is ' + JSON.stringify(this.mostRecentPose));
             });
             this.timelineController.onVideoFrame((colorVideo, depthVideo, segment) => {
+                if (!this.timelineController.model.selectedSegments.map(segment => segment.id).includes(segment.id)) {
+                    console.log('dont process video frame for deselected segment');
+                    return;
+                }
                 let deviceId = segment.trackId;
                 let colorVideoCanvas = this.getCanvasElement(deviceId, 'color');
                 let depthVideoCanvas = this.getCanvasElement(deviceId, 'depth');
@@ -176,7 +180,7 @@ createNameSpace('realityEditor.videoPlayback');
                     menuItemsAdded = true;
                     // set up keyboard shortcuts
                     let togglePlayback = new realityEditor.gui.MenuItem('Toggle Playback', { shortcutKey: 'SPACE', toggle: true, defaultVal: false}, (toggled) => {
-                        this.timelineController.togglePlayback(toggled);
+                        this.timelineController.model.togglePlayback(toggled);
                     });
                     realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.History, togglePlayback);
 

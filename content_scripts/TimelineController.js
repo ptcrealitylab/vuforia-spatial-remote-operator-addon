@@ -217,14 +217,17 @@ createNameSpace('realityEditor.videoPlayback');
             Object.keys(tracks).forEach(trackId => {
                 let videoElements = this.view.getVideoElementsForTrack(trackId);
                 if (videoElements.color && videoElements.depth) {
-                    if (isPlaying) {
-                        console.log('play videos');
-                        videoElements.color.play();
-                        videoElements.depth.play();
-                    } else {
-                        console.log('pause videos');
-                        videoElements.color.pause();
-                        videoElements.depth.pause();
+                    let selectedSegments = this.model.selectedSegments;
+                    if (selectedSegments.map(segment => segment.trackId).includes(trackId)) {
+                        if (isPlaying) {
+                            console.log('play videos');
+                            videoElements.color.play();
+                            videoElements.depth.play();
+                        } else {
+                            console.log('pause videos');
+                            videoElements.color.pause();
+                            videoElements.depth.pause();
+                        }
                     }
                 }
             });
@@ -294,6 +297,15 @@ createNameSpace('realityEditor.videoPlayback');
                 // this.callbacks.onVideoFrame.forEach(cb => {
                 //     cb(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
                 // });
+                
+                // get the color and depth video and set the currentTime
+                // let currentTime = (segment.timeMultiplier || 1) * (this.model.currentTimestamp - segment.start) / 1000;
+                // let videoElements = this.view.getVideoElementsForTrack(segment.trackId);
+                // if (videoElements.color && videoElements.depth) {
+                //     videoElements.color.currentTime = currentTime;
+                //     videoElements.depth.currentTime = currentTime;
+                // }
+                
                 this.callbacks.onDataFrame.forEach(cb => {
                     cb(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
                 });
