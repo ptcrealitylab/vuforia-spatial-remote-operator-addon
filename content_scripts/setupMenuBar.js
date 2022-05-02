@@ -89,7 +89,7 @@ createNameSpace('realityEditor.gui');
     const getMenuBar = () => { // use this to access the shared MenuBar instance
         if (!menuBar) {
             try {
-                this.setupMenuBar();
+                setupMenuBar();
             } catch (e) {
                 console.warn(e);
             }

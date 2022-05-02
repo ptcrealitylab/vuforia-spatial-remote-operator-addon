@@ -35,7 +35,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         handleWindowUpdated(window, resetPlayhead) {
             // TODO: update data view
-            console.log('new bounds', window.bounds);
+            // console.log('new bounds', window.bounds);
             // update the timestamp based on its percent position and the new date
             let playheadTime = resetPlayhead ? window.bounds.current.min : this.currentTimestamp;
             this.setTimestamp(playheadTime, true);
@@ -74,8 +74,10 @@ createNameSpace('realityEditor.videoPlayback');
             // determine if there are any overlapping segments
             if (!this.currentDataView) { return; }
 
+            let previousSegments = JSON.parse(JSON.stringify(this.selectedSegments));
             let currentSegments = this.currentDataView.processTimestamp(newTimestamp);
-            // console.log(currentSegments);
+            this.selectedSegments = currentSegments;
+
             currentSegments.forEach(segment => {
                 let relativeTime = newTimestamp - segment.start;
                 let dataPieces = segment.dataPieces;
@@ -90,7 +92,7 @@ createNameSpace('realityEditor.videoPlayback');
             // let newlySelected = [];
             // let newlyDeselected = [];
             let selectedIds = currentSegments.map(segment => segment.id);
-            let previousIds = this.selectedSegments.map(segment => segment.id);
+            let previousIds = previousSegments.map(segment => segment.id);
             currentSegments.forEach(segment => {
                 let id = segment.id;
                 if (!previousIds.includes(id)) {
@@ -100,7 +102,7 @@ createNameSpace('realityEditor.videoPlayback');
                     });
                 }
             });
-            this.selectedSegments.forEach(segment => {
+            previousSegments.forEach(segment => {
                 let id = segment.id;
                 if (!selectedIds.includes(id)) {
                     // console.log('deselected segment', id);
@@ -115,8 +117,6 @@ createNameSpace('realityEditor.videoPlayback');
                     cb(segment, newTimestamp, segment.dataPieces); // TODO: process dataPieces here?
                 });
             });
-
-            this.selectedSegments = currentSegments;
         }
         getPlayheadTimePercent(inWindow) {
             let min, max;
@@ -214,7 +214,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.callbacks.onSegmentSelected.push(callback);
         }
         onSegmentDeselected(callback) {
-            this.callbacks.onSegmentSelected.push(callback);
+            this.callbacks.onSegmentDeselected.push(callback);
         }
         onSegmentData(callback) {
             this.callbacks.onSegmentData.push(callback);

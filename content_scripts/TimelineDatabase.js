@@ -20,13 +20,13 @@ createNameSpace('realityEditor.videoPlayback');
         }
         addTrack(track) {
             this.tracks[track.id] = track;
-            console.log('added ' + track.id + ' to database');
+            // console.log('added ' + track.id + ' to database');
         }
-        applyDataView(start, end) {
-            let filteredTracks = JSON.parse(JSON.stringify(this.tracks));
-            console.log(filteredTracks);
-            return filteredTracks;
-        }
+        // applyDataView(start, end) {
+        //     let filteredTracks = JSON.parse(JSON.stringify(this.tracks));
+        //     // console.log(filteredTracks);
+        //     return filteredTracks;
+        // }
         getBounds() {
             let minStart = null;
             let maxEnd = null;
@@ -90,7 +90,7 @@ createNameSpace('realityEditor.videoPlayback');
             }
             this.segments[segment.id] = segment;
             segment.trackId = this.id;
-            console.log('added ' + segment.id + ' to track ' + this.id);
+            // console.log('added ' + segment.id + ' to track ' + this.id);
         }
         getBounds() {
             // compute the min/max of segments' starts/ends
@@ -125,7 +125,7 @@ createNameSpace('realityEditor.videoPlayback');
         addDataPiece(dataPiece) {
             this.dataPieces[dataPiece.id] = dataPiece;
             dataPiece.segmentId = this.id;
-            console.log('added ' + dataPiece.id + ' to segment ' + this.id);
+            // console.log('added ' + dataPiece.id + ' to segment ' + this.id);
         }
         getTimestampAsPercent(timestamp) {
             return (timestamp - this.start) / (this.end - this.start);
@@ -170,6 +170,12 @@ createNameSpace('realityEditor.videoPlayback');
                 }
             });
             return closestEntry;
+        }
+        getDataAtIndex(index) {
+            if (this.type !== DATA_PIECE_TYPES.TIME_SERIES) { return null; }
+
+            let clampedIndex = Math.max(0, Math.min(this.timeSeriesData.length - 1, index));
+            return this.timeSeriesData[clampedIndex].data;
         }
     }
 

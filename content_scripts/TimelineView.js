@@ -13,8 +13,10 @@ createNameSpace('realityEditor.videoPlayback');
                 onZoomHandleChanged: [],
                 onPlayheadSelected: [],
                 onPlayheadChanged: [],
-                onScrollbarChanged: []
+                onScrollbarChanged: [],
+                onVideoElementAdded: []
             };
+            this.videoElements = {};
             this.buildDomElement(parent);
         }
         onZoomHandleChanged(callback) {
@@ -68,11 +70,15 @@ createNameSpace('realityEditor.videoPlayback');
             let centerScrollBox = document.createElement('div');
             centerScrollBox.id = 'timelineTrackScrollBox';
             centerBox.appendChild(centerScrollBox);
+            
+            let innerScrollBox = document.createElement('div');
+            innerScrollBox.id = 'timelineTrackScrollBoxInner';
+            centerScrollBox.appendChild(innerScrollBox);
 
             // the element that will actually hold the data tracks and segments
             let timelineTracksContainer = document.createElement('div');
             timelineTracksContainer.id = 'timelineTracksContainer';
-            centerScrollBox.appendChild(timelineTracksContainer);
+            innerScrollBox.appendChild(timelineTracksContainer);
 
             let timestampDisplay = document.createElement('div');
             timestampDisplay.id = 'timelineTimestampDisplay';
@@ -97,24 +103,24 @@ createNameSpace('realityEditor.videoPlayback');
             let playhead = document.createElement('img');
             playhead.id = 'timelinePlayhead';
             playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
-            centerScrollBox.appendChild(playhead);
+            innerScrollBox.appendChild(playhead);
             this.playhead = playhead;
 
             let playheadDot = document.createElement('div');
             playheadDot.id = 'timelinePlayheadDot';
-            centerScrollBox.appendChild(playheadDot);
+            innerScrollBox.appendChild(playheadDot);
 
             let videoPreviewContainer = document.createElement('div');
             videoPreviewContainer.id = 'timelineVideoPreviewContainer';
             videoPreviewContainer.classList.add('timelineBox');
             videoPreviewContainer.classList.add('timelineVideoPreviewNoTrack'); // need to click on timeline to select
-            centerScrollBox.appendChild(videoPreviewContainer);
+            innerScrollBox.appendChild(videoPreviewContainer);
             // left = -68px is most left as possible
             // width = 480px for now, to show both, but should change to 240px eventually
 
             let scrollBar = this.createScrollBar();
             scrollBar.id = 'timelineScrollBar';
-            centerScrollBox.appendChild(scrollBar);
+            innerScrollBox.appendChild(scrollBar);
 
             let playButton = document.createElement('img');
             playButton.id = 'timelinePlayButton';
@@ -438,10 +444,102 @@ createNameSpace('realityEditor.videoPlayback');
         }
 
         /**
-         * @param {{id: string, src: string}[]} videoElements
+         * @param {{videoId: string, trackId: string, src: string}[]} videoElements
          */
         displayVideoElements(videoElements) {
             console.log('display videoElements', videoElements);
+            // hide video preview if no elements in array
+            if (videoElements.length === 0) {
+                let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+                videoPreviewContainer.classList.add('timelineVideoPreviewNoTrack');
+                let colorContainer = document.getElementById('timelineColorPreviewContainer');
+                while (colorContainer.firstChild) {
+                    colorContainer.removeChild(colorContainer.firstChild);
+                }
+            }
+
+            videoElements.forEach(info => {
+                let segment = { end: 1, start: 0 };
+                let segmentDuration = (segment.end - segment.start) / 1000;
+                let videoElement = this.getVideoElement(info.videoId, info.trackId, info.src, segmentDuration);
+                console.log('display element', videoElement);
+                
+                if (info.videoId.includes('_color')) {
+                    let colorContainer = document.getElementById('timelineColorPreviewContainer');
+                    while (colorContainer.firstChild) {
+                        colorContainer.removeChild(colorContainer.firstChild);
+                    }
+                    colorContainer.appendChild(videoElement);
+                    let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+                    videoPreviewContainer.classList.remove('timelineVideoPreviewNoTrack');
+                    console.log('videoElement added to video preview container');
+                }
+            });
+        }
+        getVideoElement(id, trackId, src, _intendedDuration) {
+            let colorOrDepth = id.includes('_color') ? 'color' : (id.includes('_depth') ? 'depth' : null);
+
+            if (typeof this.videoElements[trackId] === 'undefined') {
+                this.videoElements[trackId] = {
+                    color: null,
+                    depth: null
+                };
+            }
+
+            let videoElement = this.videoElements[trackId][colorOrDepth];
+
+            if (!videoElement) {
+                console.log('create new video element for ' + id);
+                videoElement = this.createVideoElement(colorOrDepth + '_video_' + trackId);
+
+                let videoSource = videoElement.querySelector('source');
+                if (!colorOrDepth) {
+                    console.warn('video id doesnt contain color or depth');
+                }
+                if (colorOrDepth === 'color') {
+                    this.videoElements[trackId].color = videoElement;
+                } else if (colorOrDepth === 'depth') {
+                    this.videoElements[trackId].depth = videoElement;
+                }
+                let filename = src.replace(/^.*[\\\/]/, '');
+                videoSource.src = '/virtualizer_recording/' + trackId + '/' + colorOrDepth + '/' + filename;
+                videoElement.load();
+                this.callbacks.onVideoElementAdded.forEach(cb => {
+                    cb(videoElement);
+                });
+            } else if (typeof src !== 'undefined') {
+                let filename = src.replace(/^.*[\\\/]/, '');
+                if (!videoElement.querySelector('source').src.includes(filename)) {
+                    videoElement.querySelector('source').src = '/virtualizer_recording/' + trackId + '/' + colorOrDepth + '/' + filename;
+                    videoElement.load();
+                    this.callbacks.onVideoElementAdded.forEach(cb => {
+                        cb(videoElement);
+                    });
+                }
+                console.log('reuse video element for ' + id);
+            }
+            return videoElement;
+        }
+        getVideoElementsForTrack(trackId) {
+            if (!this.videoElements[trackId]) { return { color: null, depth: null }; }
+            return {
+                color: this.videoElements[trackId].color,
+                depth: this.videoElements[trackId].depth
+            };
+        }
+        createVideoElement(id) {
+            let video = document.createElement('video');
+            video.id = id;
+            video.classList.add('videoPreview');
+            video.setAttribute('width', '256');
+            // video.setAttribute('controls', 'controls');
+            video.setAttribute('muted', 'muted');
+            let source = document.createElement('source');
+            video.appendChild(source);
+            return video;
+        }
+        onVideoElementAdded(callback) {
+            this.callbacks.onVideoElementAdded.push(callback);
         }
         displayPlayhead(percentInWindow) {
             // calculate and set playheadLeft
@@ -573,7 +671,7 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         displayTracks(tracks, fullUpdate) {
-            console.log('displayTracks: ' + !!fullUpdate, tracks);
+            // console.log('displayTracks: ' + !!fullUpdate, tracks);
             let numTracks = Object.keys(tracks).length;
             let container = document.getElementById('timelineTracksContainer');
             let tracksToUpdate = {};
