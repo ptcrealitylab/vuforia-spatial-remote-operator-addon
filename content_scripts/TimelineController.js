@@ -23,7 +23,6 @@ createNameSpace('realityEditor.videoPlayback');
 
             this.view = new realityEditor.videoPlayback.TimelineView(document.body);
 
-            this.setupCalendarView();
             this.setupUserInteractions();
         }
         setupCalendarView() {
@@ -131,14 +130,51 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         handleCalendarDateSelected(dateObject) {
+            this.model.togglePlayback(false);
+            this.calendar.hide();
+
             console.log('calendar date selected: ', dateObject);
             this.model.timelineWindow.setWithoutZoomFromDate(dateObject);
+            
+            // figure out how much of the day is using any data
+            let minPercent = 1;
+            let maxPercent = 0;
+            let dayMin = this.model.timelineWindow.bounds.withoutZoom.min;
+            let dayMax = this.model.timelineWindow.bounds.withoutZoom.max;
+            let dayLength = dayMax - dayMin;
+            let tracks = this.model.database.getFilteredData(dayMin, dayMax).tracks;
+            for (const [_trackId, track] of Object.entries(tracks)) {
+                let bounds = track.getBounds();
+                minPercent = Math.min(minPercent, (bounds.start - dayMin) / dayLength);
+                maxPercent = Math.max(maxPercent, (bounds.end - dayMin) / dayLength);
+            }
+
+            // skip rescaling window if we don't have any tracks to scale it by
+            if (!(minPercent === 1 && maxPercent === 0)) {
+                this.model.timelineWindow.setCurrentFromPercent(Math.max(0, minPercent - 0.01), Math.min(1, maxPercent + 0.01));
+            }
+
+            this.model.setTimestamp(Math.max(0, dayMin + minPercent * dayLength), true);
         }
         setDatabase(database) {
             this.model.setDatabase(database);
         }
-        handleDataLoaded(data) {
-            console.log(data); // the tracks that were loaded. triggers again if more data loaded?
+        handleDataLoaded() {
+            console.log('data loaded into timeline');
+
+            console.log('ben handleDataLoaded');
+            if (!this.calendar) {
+                console.log('ben setupCalendarView');
+                try {
+                    this.setupCalendarView();
+                } catch (e) {
+                    console.warn('ben error setting up calendar view', e);
+                }
+            }
+            
+            // triggers when data finishes loading
+            console.log('ben highlightDates');
+            this.calendar.highlightDates(this.model.database.getDatesWithData());
         }
         handleDataViewUpdated(dataView) {
             // console.log('displayTracks, dataViewUpdated', dataView); // which date is selected, can be used to filter the database
@@ -250,13 +286,17 @@ createNameSpace('realityEditor.videoPlayback');
             if (isNowVisible) {
                 this.view.show();
 
-                // TODO - zoom to show the most recent date on the timeline
-                /*
-                let mostRecentDate = this.datesWithVideos.sort((a, b) => {
+                // zoom to show the most recent date on the timeline
+                let datesWithVideos = this.model.database.getDatesWithData();
+                let mostRecentDate = datesWithVideos.sort((a, b) => {
                     return a.getTime() - b.getTime();
-                })[this.datesWithVideos.length - 1];
-                this.showDataForDate(mostRecentDate, true);
-                 */
+                })[datesWithVideos.length - 1];
+                // this.showDataForDate(mostRecentDate, true);
+
+                console.log('timeline shown - show most recent date');
+                let fullDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), mostRecentDate.getDate());
+                this.handleCalendarDateSelected(fullDate);
+                
             } else {
                 this.view.hide();
             }
