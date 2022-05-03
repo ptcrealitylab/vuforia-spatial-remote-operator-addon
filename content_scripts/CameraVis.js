@@ -91,16 +91,32 @@ void main() {
 }`;
 
     const solidFragmentShader = `
+// color texture
 uniform sampler2D map;
-
+// uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
 varying vec4 pos;
 
 void main() {
+  // Depth in millimeters
   float depth = -pos.z;
+
+  // Fade out beginning at 4.5 meters and be gone after 5.0
   float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+
+  // Normal vector of the depth mesh based on pos
+  // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
   vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
+
+  // pos.xyz is the ray looking out from the camera to this pixel
+  // dot of pos.xyz and the normal is to what extent this pixel is flat
+  // relative to the camera (alternatively, how much it's pointing at the
+  // camera)
+  // alphaDepth is thrown in here to incorporate the depth-based fade
   float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth;
+
+  // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
 
   gl_FragColor = vec4(color.rgb, alpha);
