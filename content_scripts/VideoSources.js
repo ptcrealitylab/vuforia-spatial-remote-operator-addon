@@ -6,7 +6,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.onDataLoaded = onDataLoaded;
             this.loadAvailableVideos().then(info => {
                 this.videoInfo = info;
-                if (this.videoInfo && Object.keys(this.videoInfo).length > 0) {
+                if (this.videoInfo) {
                     this.createTrackInfo(this.videoInfo);
                 }
             }).catch(error => {

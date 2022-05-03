@@ -3,6 +3,13 @@ createNameSpace('realityEditor.videoPlayback');
 (function (exports) {
     const ZOOM_EXPONENT = 0.5;
     const MAX_ZOOM_FACTOR = 96; // 24 hours -> 15 minutes
+    const PLAYHEAD_WIDTH = 20;
+    const TRACK_CONTAINER_MARGIN = 20;
+    const VIDEO_PREVIEW_CONTAINER_OFFSET = 160;
+    const PLAYHEAD_DOT_WIDTH = 10;
+    const ZOOM_BAR_MARGIN = 15;
+    const SUPPORTED_SPEEDS = [1, 2, 4, 8, 16, 32, 64, 128, 256]; // TODO: support more? programmatically? have these SVGs
+    const TRACK_HEIGHT_PERCENT = 80.0; // other 20% of container is split across margins between them
 
     class TimelineView {
         constructor(parent) {
@@ -532,9 +539,9 @@ createNameSpace('realityEditor.videoPlayback');
             // calculate and set playheadLeft
             let trackBox = document.getElementById('timelineTrackBox');
             let containerWidth = trackBox.getClientRects()[0].width;
-            let halfPlayheadWidth = 10;
-            let leftMargin = 20;
-            let rightMargin = 20;
+            let halfPlayheadWidth = PLAYHEAD_WIDTH / 2;
+            let leftMargin = TRACK_CONTAINER_MARGIN;
+            let rightMargin = TRACK_CONTAINER_MARGIN;
             let playheadLeft = (percentInWindow * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin)) - (halfPlayheadWidth - leftMargin);
             let playheadElement = document.getElementById('timelinePlayhead');
             playheadElement.style.left = playheadLeft + 'px';
@@ -547,7 +554,9 @@ createNameSpace('realityEditor.videoPlayback');
                 let previewWidth = videoPreviewContainer.getClientRects()[0].width;
                 let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
                 let timelineTracksRight = document.getElementById('timelineTracksContainer').getClientRects()[0].right;
-                videoPreviewContainer.style.left = Math.min((timelineTracksRight - previewWidth) - 160, Math.max(0, previewRelativeX)) + 'px';
+                let clampMin = 0;
+                let clampMax = (timelineTracksRight - previewWidth) - VIDEO_PREVIEW_CONTAINER_OFFSET;
+                videoPreviewContainer.style.left = Math.min(clampMax, Math.max(clampMin, previewRelativeX)) + 'px';
             }
         }
         displayPlayheadDot(percentInDay) {
@@ -556,10 +565,10 @@ createNameSpace('realityEditor.videoPlayback');
             // let scrollBar = document.getElementById('timelineScrollBar');
             let trackBox = document.getElementById('timelineTrackBox');
             let containerWidth = trackBox.getClientRects()[0].width;
-            let leftMargin = 20;
-            let rightMargin = 20;
-            let halfPlayheadWidth = 10;
-            let halfDotWidth = 5;
+            let leftMargin = TRACK_CONTAINER_MARGIN;
+            let rightMargin = TRACK_CONTAINER_MARGIN;
+            let halfPlayheadWidth = PLAYHEAD_WIDTH / 2;
+            let halfDotWidth = PLAYHEAD_DOT_WIDTH / 2;
 
             playheadDot.style.left = (leftMargin - halfDotWidth) + percentInDay * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin) + 'px';
 
@@ -583,7 +592,7 @@ createNameSpace('realityEditor.videoPlayback');
 
             let slider = document.getElementById('zoomSliderBackground');
             let handle = document.getElementById('zoomSliderHandle');
-            let leftMargin = 15;
+            let leftMargin = ZOOM_BAR_MARGIN;
             let sliderLeft = slider.getClientRects()[0].left;
             let sliderRight = slider.getClientRects()[0].right;
             let handleWidth = handle.getClientRects()[0].width;
@@ -602,9 +611,9 @@ createNameSpace('realityEditor.videoPlayback');
             let handle = scrollBar.querySelector('.timelineScrollBarHandle');
             let trackBox = document.getElementById('timelineTrackBox');
             let containerWidth = trackBox.getClientRects()[0].width;
-            let leftMargin = 20;
-            let rightMargin = 20;
-            let halfPlayheadWidth = 10;
+            let leftMargin = TRACK_CONTAINER_MARGIN;
+            let rightMargin = TRACK_CONTAINER_MARGIN;
+            let halfPlayheadWidth = PLAYHEAD_WIDTH / 2;
 
             handle.style.width = (1.0 - zoomPercent) * 100 + '%';
             handle.style.left = scrollLeftPercent * (containerWidth - halfPlayheadWidth - leftMargin - rightMargin) + 'px';
@@ -628,16 +637,9 @@ createNameSpace('realityEditor.videoPlayback');
                 playheadElement.classList.remove('timelinePlayheadPlaying');
                 playheadDot.classList.remove('timelinePlayheadPlaying');
             }
-
-            // TODO: does this happen here? probably not - probably in controller
-            // this.forEachTrack((deviceId, _trackInfo) => {
-            //     this.getVideoElement(deviceId, 'color').play();
-            //     this.getVideoElement(deviceId, 'depth').play();
-            // });
         }
         displayPlaybackSpeed(playbackSpeed) {
-            let supportedSpeeds = [1, 2, 4, 8, 16, 32, 64, 128, 256]; // TODO: support more? programmatically?
-            if (!supportedSpeeds.includes(playbackSpeed)) {
+            if (!SUPPORTED_SPEEDS.includes(playbackSpeed)) {
                 console.warn('no SVG button for playback speed ' + playbackSpeed);
             }
             let speedButton = document.getElementById('timelineSpeedButton');
@@ -652,7 +654,7 @@ createNameSpace('realityEditor.videoPlayback');
             });
         }
         displayTracks(tracks, fullUpdate) {
-            // console.log('displayTracks: ' + !!fullUpdate, tracks);
+            console.log('displayTracks: ' + !!fullUpdate, tracks);
             let numTracks = Object.keys(tracks).length;
             let container = document.getElementById('timelineTracksContainer');
             let tracksToUpdate = {};
@@ -776,8 +778,8 @@ createNameSpace('realityEditor.videoPlayback');
         }
         positionAndScaleTrack(trackElement, track, index, numTracks) {
             // TODO: color-code based on track.type
-            let heightPercent = (80.0 / numTracks);
-            let marginPercent = (20.0 / (numTracks + 1));
+            let heightPercent = (TRACK_HEIGHT_PERCENT / numTracks);
+            let marginPercent = ((100.0 - TRACK_HEIGHT_PERCENT) / (numTracks + 1)); // there are one more margins than tracks
             trackElement.style.top = ((marginPercent * (index + 1)) + (heightPercent * index)) + '%';
             trackElement.style.height = heightPercent + '%';
         }
