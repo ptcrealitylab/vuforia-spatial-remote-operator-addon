@@ -5,6 +5,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
+    const FLATSHADER = true;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -19,6 +20,7 @@ uniform float pointSize;
 const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
+varying vec4 pos;
 
 const float XtoZ = 1920.0 / 1448.24976; // width over focal length
 const float YtoZ = 1080.0 / 1448.24976;
@@ -64,10 +66,10 @@ void main() {
 
   // Projection code by @kcmic
 
-  float z = depth - 0.05;
+  float z = depth - 1.0;
   `}
 
-  vec4 pos = vec4(
+  pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
     (position.y / height - 0.5) * z * YtoZ,
     -z,
@@ -89,13 +91,35 @@ void main() {
 }`;
 
     const solidFragmentShader = `
+// color texture
 uniform sampler2D map;
-
+// uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
+varying vec4 pos;
 
 void main() {
+  // Depth in millimeters
+  float depth = -pos.z;
+
+  // Fade out beginning at 4.5 meters and be gone after 5.0
+  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+
+  // Normal vector of the depth mesh based on pos
+  // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
+  vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
+
+  // pos.xyz is the ray looking out from the camera to this pixel
+  // dot of pos.xyz and the normal is to what extent this pixel is flat
+  // relative to the camera (alternatively, how much it's pointing at the
+  // camera)
+  // alphaDepth is thrown in here to incorporate the depth-based fade
+  float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth;
+
+  // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
-  gl_FragColor = vec4(color.r, color.g, color.b, 1.0);
+
+  gl_FragColor = vec4(color.rgb, alpha);
 }`;
 
     function setMatrixFromArray(matrix, array) {
@@ -122,7 +146,6 @@ void main() {
             this.container.add(this.phone);
 
             const geo = new THREE.BoxGeometry(100, 100, 80);
-            console.log('id', id);
             const color = `hsl(${((id / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
@@ -141,9 +164,11 @@ void main() {
 
             this.texture = new THREE.Texture();
             this.texture.minFilter = THREE.NearestFilter;
+            this.texture.magFilter = THREE.NearestFilter;
 
             this.textureDepth = new THREE.Texture();
             this.textureDepth.minFilter = THREE.NearestFilter;
+            this.textureDepth.magFilter = THREE.NearestFilter;
 
             this.material = null;
             this.mesh = null;
@@ -227,8 +252,6 @@ void main() {
         }
 
         addColorCube(i) {
-            const THREE = realityEditor.gui.threejsScene.THREE;
-
             if (!this.debugColorCube) {
                 let debugColor = new THREE.MeshBasicMaterial({
                     map: this.texture,
@@ -250,16 +273,20 @@ void main() {
         setupPointCloud() {
             const width = 640, height = 360;
 
-            this.geometry = new THREE.BufferGeometry();
+            if (FLATSHADER) {
+                this.geometry = new THREE.PlaneBufferGeometry(width, height, width / 5, height / 5);
+                this.geometry.translate(width / 2, height / 2);
+            } else {
+                this.geometry = new THREE.BufferGeometry();
+                const vertices = new Float32Array(width * height * 3);
 
-            const vertices = new Float32Array(width * height * 3);
+                for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j ++) {
+                    vertices[i] = j % width;
+                    vertices[i + 1] = Math.floor(j / width);
+                }
 
-            for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j ++) {
-                vertices[i] = j % width;
-                vertices[i + 1] = Math.floor(j / width);
+                this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             }
-
-            this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
             this.material = new THREE.ShaderMaterial({
                 uniforms: {
@@ -273,13 +300,17 @@ void main() {
                     pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
-                fragmentShader,
+                fragmentShader: FLATSHADER ? solidFragmentShader : fragmentShader,
                 // blending: THREE.AdditiveBlending,
                 // depthTest: false, depthWrite: false,
                 transparent: true
             });
 
-            this.mesh = new THREE.Points(this.geometry, this.material);
+            if (FLATSHADER) {
+                this.mesh = new THREE.Mesh(this.geometry, this.material);
+            } else {
+                this.mesh = new THREE.Points(this.geometry, this.material);
+            }
             this.mesh.scale.set(-1, 1, -1);
             this.mesh.frustumCulled = false;
             this.phone.add(this.mesh);
@@ -344,8 +375,8 @@ void main() {
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (_value) => {
-                this.visible = !this.visible;
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
+                this.visible = toggled;
                 for (let camera of Object.values(this.cameras)) {
                     camera.mesh.visible = this.visible;
                     camera.mesh.__hidden = !this.visible;
@@ -359,14 +390,14 @@ void main() {
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SpaghettiMap, (_value) => {
-                this.spaghettiVisible = !this.spaghettiVisible;
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SpaghettiMap, (toggled) => {
+                this.spaghettiVisible = toggled;
                 for (let camera of Object.values(this.cameras)) {
                     camera.historyMesh.visible = this.spaghettiVisible;
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, (_value) => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, () => {
                 for (let camera of Object.values(this.cameras)) {
                     let patch = camera.clonePatch();
                     realityEditor.gui.threejsScene.addToScene(patch);
@@ -434,7 +465,7 @@ void main() {
                     //   const mat = JSON.parse(text);
                     // }
                     const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
-                    const url = URL.createObjectURL(imageBlob);
+                    const imageUrl = URL.createObjectURL(imageBlob);
                     const image = new Image();
 
                     let start = window.performance.now();
@@ -464,12 +495,12 @@ void main() {
                         }
                         this.cameras[id].loading[textureKey] = false;
                         // window.latencies[textureKey].push(end - start);
-                        URL.revokeObjectURL(url);
+                        URL.revokeObjectURL(imageUrl);
                     };
                     image.onerror = (e) => {
                         console.error(e);
                     };
-                    image.src = url;
+                    image.src = imageUrl;
                 });
             };
 
