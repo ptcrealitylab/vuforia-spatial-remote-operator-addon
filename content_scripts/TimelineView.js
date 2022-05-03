@@ -378,27 +378,9 @@ createNameSpace('realityEditor.videoPlayback');
             playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
             let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
             // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
-            let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-            if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
-                let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-                let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
-                videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-128, previewRelativeX)) + 'px';
-            }
-
+            this.displayPlayheadVideoPreview(playheadLeft, halfPlayheadWidth);
+            
             let playheadTimePercentWindow = (playheadLeft + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
-
-            // TODO: do the calculations from percent -> absolute timestamp in the controller or model
-            /*
-            let windowDuration = this.windowBounds.max - this.windowBounds.min;
-            let absoluteTimeWindow = this.windowBounds.min + playheadTimePercentWindow * windowDuration;
-             */
-
-            // console.log('absoluteTime = ' + absoluteTimeWindow);
-            // TODO: controller / model needs to trigger these eventually to re-render timestamp and render the video
-            /*
-            this.setPlayheadTimestamp(absoluteTimeWindow);
-            this.timeScrolledTo(absoluteTimeWindow, true);
-            */
 
             this.callbacks.onPlayheadChanged.forEach(cb => {
                 cb(playheadTimePercentWindow);
@@ -411,6 +393,11 @@ createNameSpace('realityEditor.videoPlayback');
          * isPlaying: boolean, playbackSpeed: number, tracks: {}}} props
          */
         render(props) {
+            // don't render if the timeline view is hidden
+            if (this.timelineContainer.classList.contains('hiddenTimeline')) {
+                return;
+            }
+
             if (typeof props.playheadTimePercent !== 'undefined') {
                 this.displayPlayhead(props.playheadTimePercent);
             }
@@ -552,22 +539,16 @@ createNameSpace('realityEditor.videoPlayback');
             let playheadElement = document.getElementById('timelinePlayhead');
             playheadElement.style.left = playheadLeft + 'px';
 
-            // TODO: update video preview container too? are we keeping that?
-            /*
-            // // calculate new X position to follow mouse, constrained to trackBox element
-            // let containerLeft = trackBox.getClientRects()[0].left;
-            //
-            // let relativeX = pointerX - containerLeft;
-            // playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
-            // let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
-            // // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
-            // let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-            // if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
-            //     let previewWidth = videoPreviewContainer.getClientRects()[0].width;
-            //     let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
-            //     videoPreviewContainer.style.left = Math.min((window.innerWidth - previewWidth) - 160, Math.max(-128, previewRelativeX)) + 'px';
-            // }
-            */
+            this.displayPlayheadVideoPreview(playheadLeft, halfPlayheadWidth);
+        }
+        displayPlayheadVideoPreview(playheadLeft, halfPlayheadWidth) {
+            let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
+            if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
+                let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+                let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
+                let timelineTracksRight = document.getElementById('timelineTracksContainer').getClientRects()[0].right;
+                videoPreviewContainer.style.left = Math.min((timelineTracksRight - previewWidth) - 160, Math.max(0, previewRelativeX)) + 'px';
+            }
         }
         displayPlayheadDot(percentInDay) {
             // put a little dot on the scrollbar showing the currentWindow-agnostic position of the playhead

@@ -193,7 +193,8 @@
 }
 
 .timelineVideoPreviewNoTrack {
-    display: none !important;
+    /*display: none !important;*/
+    visibility: hidden;
 }
 
 .timelineVideoPreviewNoSource {

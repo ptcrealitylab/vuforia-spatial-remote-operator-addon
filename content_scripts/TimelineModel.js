@@ -48,7 +48,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.database = database;
             this.currentDataView = new realityEditor.videoPlayback.DataView(database);
             this.callbacks.onDataLoaded.forEach(cb => {
-                cb('todo add data here');
+                cb();
             });
         }
         updateDataView(minTimestamp, maxTimestamp) {

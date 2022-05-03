@@ -72,6 +72,19 @@ createNameSpace('realityEditor.videoPlayback');
             }
             return filteredDatabase;
         }
+        getDatesWithData() {
+            let dates = [];
+            for (const [_trackId, track] of Object.entries(this.tracks)) {
+                // let bounds = track.getBounds();
+                for (const [_segmentId, segment] of Object.entries(track.segments)) {
+                    let date = new Date(segment.start); // TODO: don't assume only lasts one day
+                    if (!dates.map(date => JSON.stringify(date)).includes(JSON.stringify(date))) {
+                        dates.push(date);
+                    }
+                }
+            }
+            return dates;
+        }
     }
 
     class DataTrack {
