@@ -284,6 +284,10 @@ createNameSpace('realityEditor.videoPlayback');
         toggleVisibility(isNowVisible) {
             // toggle timeline visibility
             if (isNowVisible) {
+                if (!this.model.database) {
+                    console.warn('timeline database is null, cant show timeline yet...');
+                    return;
+                }
                 this.view.show();
 
                 // zoom to show the most recent date on the timeline
@@ -291,12 +295,14 @@ createNameSpace('realityEditor.videoPlayback');
                 let mostRecentDate = datesWithVideos.sort((a, b) => {
                     return a.getTime() - b.getTime();
                 })[datesWithVideos.length - 1];
-                // this.showDataForDate(mostRecentDate, true);
 
                 console.log('timeline shown - show most recent date');
+                if (!mostRecentDate) {
+                    mostRecentDate = new Date();
+                }
                 let fullDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), mostRecentDate.getDate());
                 this.handleCalendarDateSelected(fullDate);
-                
+
             } else {
                 this.view.hide();
             }

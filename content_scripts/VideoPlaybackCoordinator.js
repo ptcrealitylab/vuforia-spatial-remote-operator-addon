@@ -98,16 +98,7 @@ createNameSpace('realityEditor.videoPlayback');
                 }
             });
 
-            this.timelineVisibilityButton = document.createElement('img');
-            this.timelineVisibilityButton.id = 'timelineVisibilityButton';
-            this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/showTimelineButton.svg';
-            document.body.appendChild(this.timelineVisibilityButton);
-            this.timelineVisibilityButton.addEventListener('pointerup', _ev => {
-                this.toggleVisibility();
-            });
             this.toggleVisibility(false); // default to hidden
-
-            // hide timeline visibility toggle if there are no recorded clips
         }
         getPoseMatrixFromData(poseBase64) {
             // let segmentPoses = this.getSegmentInfo(deviceId, segmentId).poses;
@@ -169,12 +160,8 @@ createNameSpace('realityEditor.videoPlayback');
         toggleVisibility(toggled) {
             if (this.timelineVisibile || (typeof toggled !== 'undefined' && !toggled)) {
                 this.timelineVisibile = false;
-                this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/showTimelineButton.svg';
-                this.timelineVisibilityButton.classList.remove('timelineVisibilityButtonOpen');
             } else {
                 this.timelineVisibile = true;
-                this.timelineVisibilityButton.src = '/addons/vuforia-spatial-remote-operator-addon/hideTimelineButton.svg';
-                this.timelineVisibilityButton.classList.add('timelineVisibilityButtonOpen');
 
                 if (!menuItemsAdded) {
                     menuItemsAdded = true;
