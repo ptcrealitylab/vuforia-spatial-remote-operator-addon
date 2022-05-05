@@ -423,24 +423,28 @@ void main() {
                 // if (pktType === PKT_MATRIX) {
                 const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
                 // }
-                if (!this.cameras[id]) {
-                    this.createCameraVis(id);
-                }
-                this.cameras[id].update(mat);
-
-                let now = performance.now();
-                for (let camera of Object.values(this.cameras)) {
-                    if (camera.mesh.__hidden) {
-                        camera.mesh.visible = false;
-                        continue;
-                    }
-                    if (now - camera.lastUpdate > 2000) {
-                        camera.mesh.visible = false;
-                    } else if (!camera.mesh.visible) {
-                        camera.mesh.visible = true;
-                    }
-                }
+                this.updateMatrix(id, mat);
             });
+        }
+
+        updateMatrix(id, mat) {
+            if (!this.cameras[id]) {
+                this.createCameraVis(id);
+            }
+            this.cameras[id].update(mat);
+
+            let now = performance.now();
+            for (let camera of Object.values(this.cameras)) {
+                if (camera.mesh.__hidden) {
+                    camera.mesh.visible = false;
+                    continue;
+                }
+                if (now - camera.lastUpdate > 2000) {
+                    camera.mesh.visible = false;
+                } else if (!camera.mesh.visible) {
+                    camera.mesh.visible = true;
+                }
+            }
         }
 
         connect() {
@@ -452,55 +456,9 @@ void main() {
                 ws.addEventListener('message', async (msg) => {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
-                    if (!this.cameras[id]) {
-                        this.createCameraVis(id);
-                    }
-                    if (this.cameras[id].loading[textureKey]) {
-                        return;
-                    }
-                    this.cameras[id].loading[textureKey] = true;
-                    // const pktType = bytes[1];
-                    // if (pktType === PKT_MATRIX) {
-                    //   const text = await msg.data.slice(2, msg.data.length).text();
-                    //   const mat = JSON.parse(text);
-                    // }
                     const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
                     const imageUrl = URL.createObjectURL(imageBlob);
-                    const image = new Image();
-
-                    let start = window.performance.now();
-                    image.onload = () => {
-                        const tex = this.cameras[id][textureKey];
-                        tex.dispose();
-                        // hmmmmm
-                        // most efficient would be if this had a data url for its src
-                        // data url = 'data:image/(png|jpeg);' + base64(blob)
-                        if (textureKey === 'textureDepth') {
-                            canvas.width = image.width;
-                            canvas.height = image.height;
-                            context.drawImage(image, 0, 0, image.width, image.height);
-                            tex.image = canvas;
-                            if (this.voxelizer) {
-                                this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
-                            }
-                        } else {
-                            tex.image = image;
-                        }
-                        tex.needsUpdate = true;
-                        // let end = window.performance.now();
-                        if (textureKey === 'texture') {
-                            // We know that capture takes 30ms
-                            // Transmission takes ??s
-                            this.cameras[id].setTime(start + 40);
-                        }
-                        this.cameras[id].loading[textureKey] = false;
-                        // window.latencies[textureKey].push(end - start);
-                        URL.revokeObjectURL(imageUrl);
-                    };
-                    image.onerror = (e) => {
-                        console.error(e);
-                    };
-                    image.src = imageUrl;
+                    this.renderPointCloud(id, textureKey, imageUrl, canvas, context);
                 });
             };
 
@@ -513,87 +471,61 @@ void main() {
             this.connectWsToMatrix(urlMatrix);
         }
 
-        loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
-            // const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
-            // const id = bytes[0];
-            let newlyCreated = false;
+        renderPointCloud(id, textureKey, imageUrl, canvas, context) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
-                newlyCreated = true;
             }
-            if (this.cameras[id].loading['texture'] || this.cameras[id].loading['textureDepth']) {
+            if (this.cameras[id].loading[textureKey]) {
                 return;
             }
-            this.cameras[id].loading['texture'] = true;
-            this.cameras[id].loading['textureDepth'] = true;
+            this.cameras[id].loading[textureKey] = true;
             // const pktType = bytes[1];
             // if (pktType === PKT_MATRIX) {
             //   const text = await msg.data.slice(2, msg.data.length).text();
             //   const mat = JSON.parse(text);
             // }
-            // const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
-            // const url = URL.createObjectURL(imageBlob);
-            const textureImage = new Image();
-            const textureDepthImage = new Image();
 
-            // 1. Update Texture
+            const image = new Image();
 
             let start = window.performance.now();
-            textureImage.onload = () => {
-                const tex = this.cameras[id]['texture'];
+            image.onload = () => {
+                const tex = this.cameras[id][textureKey];
                 tex.dispose();
-                tex.image = textureImage;
+                // hmmmmm
+                // most efficient would be if this had a data url for its src
+                // data url = 'data:image/(png|jpeg);' + base64(blob)
+                if (textureKey === 'textureDepth') {
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    context.drawImage(image, 0, 0, image.width, image.height);
+                    tex.image = canvas;
+                    if (this.voxelizer) {
+                        this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
+                    }
+                } else {
+                    tex.image = image;
+                }
                 tex.needsUpdate = true;
                 // let end = window.performance.now();
-                // We know that capture takes 30ms
-                // Transmission takes ??s
-                this.cameras[id].setTime(start + 40);
-                this.cameras[id].loading['texture'] = false;
+                if (textureKey === 'texture') {
+                    // We know that capture takes 30ms
+                    // Transmission takes ??s
+                    this.cameras[id].setTime(start + 40);
+                }
+                this.cameras[id].loading[textureKey] = false;
                 // window.latencies[textureKey].push(end - start);
-                URL.revokeObjectURL(textureUrl);
-
-                this.cameras[id].lastUpdate = Date.now();
+                URL.revokeObjectURL(imageUrl);
             };
-            textureImage.onerror = (e) => {
+            image.onerror = (e) => {
                 console.error(e);
             };
-            textureImage.src = textureUrl;
+            image.src = imageUrl;
+        }
 
-            // 2. Update Depth Texture
-
-            textureDepthImage.onload = () => {
-                const tex = this.cameras[id]['textureDepth'];
-                tex.dispose();
-                tex.image = textureDepthImage;
-                tex.needsUpdate = true;
-                // let end = window.performance.now();
-                this.cameras[id].loading['textureDepth'] = false;
-                // window.latencies[textureKey].push(end - start);
-                URL.revokeObjectURL(textureDepthUrl);
-            };
-            textureDepthImage.onerror = (e) => {
-                console.error(e);
-            };
-            textureDepthImage.src = textureDepthUrl;
-
-            // 3. Update Matrix
-
-            if (!matrix) { return; }
-
-            // const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-            this.cameras[id].update(matrix);
-
-            this.cameras[id].mesh.visible = true;
-            this.cameras[id].mesh.__hidden = false;
-
-            // let now = performance.now();
-            // for (let camera of Object.values(this.cameras)) {
-            //     if (now - camera.lastUpdate > 2000) {
-            //         camera.mesh.visible = false;
-            //     } else if (!camera.mesh.visible) {
-            //         camera.mesh.visible = true;
-            //     }
-            // }
+        loadPointCloud(id, textureUrl, textureDepthUrl, matrix, depthCanvas, depthContext) {
+            this.renderPointCloud(id, 'texture', textureUrl);
+            this.renderPointCloud(id, 'textureDepth', textureDepthUrl, depthCanvas, depthContext);
+            this.updateMatrix(id, matrix);
         }
 
         hidePointCloud(id) {
@@ -604,7 +536,6 @@ void main() {
             let camera = this.cameras[id];
             if (camera.mesh) {
                 camera.mesh.visible = false;
-                camera.mesh.__hidden = true;
             }
         }
 

@@ -2,17 +2,15 @@ createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
     const DAY_LENGTH = 1000 * 60 * 60 * 24;
+
+    // Helper class to manage the viewport of the timeline
+    // this includes its bounds (as timestamps) when fully zoomed out,
+    // as well as the timestamps defining the current zoom/scroll of the window
     class TimelineWindow {
         constructor() {
             this.bounds = {
-                withoutZoom: {
-                    min: 0,
-                    max: 1,
-                },
-                current: {
-                    min: 0,
-                    max: 1
-                }
+                withoutZoom: { min: 0, max: Date.now() },
+                current: { min: 0, max: Date.now() }
             };
             this.callbacks = {
                 onWithoutZoomUpdated: [],
@@ -23,7 +21,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.bounds.withoutZoom.min = dateObject.getTime();
             this.bounds.withoutZoom.max = dateObject.getTime() + DAY_LENGTH - 1; // remove 1ms so that day ends at 11:59:59.99
 
-            // TODO: update current bounds separately, just doing this temporarily
+            // by default, also adjusts the current view to be the entire withoutZoom bounds
             this.bounds.current.min = this.bounds.withoutZoom.min;
             this.bounds.current.max = this.bounds.withoutZoom.max;
 
@@ -35,7 +33,6 @@ createNameSpace('realityEditor.videoPlayback');
             let fullLength = this.bounds.withoutZoom.max - this.bounds.withoutZoom.min;
             this.bounds.current.min = this.bounds.withoutZoom.min + minPercent * fullLength;
             this.bounds.current.max = this.bounds.withoutZoom.min + maxPercent * fullLength;
-            // TODO: do we trigger callbacks??
 
             this.callbacks.onCurrentWindowUpdated.forEach(cb => {
                 cb(this);
@@ -44,7 +41,7 @@ createNameSpace('realityEditor.videoPlayback');
         getZoomPercent() { // 0 if not zoomed at all (see 100%), 1 if current window is 0% of the withoutZoom window
             return 1.0 - (this.bounds.current.max - this.bounds.current.min) / (this.bounds.withoutZoom.max - this.bounds.withoutZoom.min);
         }
-        getScrollLeftPercent() {
+        getScrollLeftPercent() { // helper to get relative location of current.min within the withoutZoom window
             return (this.bounds.current.min - this.bounds.withoutZoom.min) / (this.bounds.withoutZoom.max - this.bounds.withoutZoom.min);
         }
         onWithoutZoomUpdated(callback) {

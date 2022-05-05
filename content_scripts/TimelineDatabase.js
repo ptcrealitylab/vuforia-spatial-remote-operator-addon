@@ -2,31 +2,26 @@ createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
     const TRACK_TYPES = Object.freeze({
-        VIDEO_2D: 'VIDEO_2D',
         VIDEO_3D: 'VIDEO_3D',
-        POSE: 'POSE',
-        IOT: 'IOT'
+        VIDEO_2D: 'VIDEO_2D', // not in use, yet
+        POSE: 'POSE', // not in use, yet
+        IOT: 'IOT' // not in use, yet
     });
-    exports.TRACK_TYPES = TRACK_TYPES;
     const DATA_PIECE_TYPES = Object.freeze({
-        VIDEO_URL: 'VIDEO_URL',
-        TIME_SERIES: 'TIME_SERIES'
+        VIDEO_URL: 'VIDEO_URL', // used for VIDEO_3D color and depth 
+        TIME_SERIES: 'TIME_SERIES' // used for VIDEO_3D poses
     });
-    exports.DATA_PIECE_TYPES = DATA_PIECE_TYPES;
 
+    // The TimelineDatabase consists of a nested hierarchy of DataTracks -> DataSegments -> DataPieces
+    // These currently correspond to DeviceID -> Recording Session -> (RGB + DEPTH + POSE) data
+    // It is designed to accept a variety of data types, such as pose data or IoT data, which can be added as additional tracks
     class TimelineDatabase {
         constructor() {
             this.tracks = {};
         }
         addTrack(track) {
             this.tracks[track.id] = track;
-            // console.log('added ' + track.id + ' to database');
         }
-        // applyDataView(start, end) {
-        //     let filteredTracks = JSON.parse(JSON.stringify(this.tracks));
-        //     // console.log(filteredTracks);
-        //     return filteredTracks;
-        // }
         getBounds() {
             let minStart = null;
             let maxEnd = null;
@@ -44,6 +39,7 @@ createNameSpace('realityEditor.videoPlayback');
                 end: maxEnd
             };
         }
+        // returns a subset of the tracks, which each contain only the subset of their segments that lie within the specified bounds
         getFilteredData(minTimestamp, maxTimestamp) {
             if (typeof minTimestamp !== 'number' || typeof maxTimestamp !== 'number') {
                 return this.tracks;
@@ -75,7 +71,6 @@ createNameSpace('realityEditor.videoPlayback');
         getDatesWithData() {
             let dates = [];
             for (const [_trackId, track] of Object.entries(this.tracks)) {
-                // let bounds = track.getBounds();
                 for (const [_segmentId, segment] of Object.entries(track.segments)) {
                     let date = new Date(segment.start); // TODO: don't assume only lasts one day
                     if (!dates.map(date => JSON.stringify(date)).includes(JSON.stringify(date))) {
@@ -87,6 +82,8 @@ createNameSpace('realityEditor.videoPlayback');
         }
     }
 
+    // A DataTrack contains any number of DataSegments of the same data type (e.g. 3D_VIDEO, 2D_VIDEO, POSES, IOT)
+    // Each DataTrack will be represented by a "layer" on the timeline, for example each unique person or recording device
     class DataTrack {
         constructor(id, type) {
             this.id = id;
@@ -103,7 +100,6 @@ createNameSpace('realityEditor.videoPlayback');
             }
             this.segments[segment.id] = segment;
             segment.trackId = this.id;
-            // console.log('added ' + segment.id + ' to track ' + this.id);
         }
         getBounds() {
             // compute the min/max of segments' starts/ends
@@ -124,6 +120,9 @@ createNameSpace('realityEditor.videoPlayback');
         }
     }
 
+    // A DataSegment is a contiguous data event, such as a 3D video, with a specific start and end time
+    // The actual data payload is contained in one or more DataPieces that the segment contains
+    // DataSegments belong to DataTracks, which will organize them vertically on the timeline.
     class DataSegment {
         constructor(id, type, start, end) {
             this.id = id;
@@ -138,13 +137,15 @@ createNameSpace('realityEditor.videoPlayback');
         addDataPiece(dataPiece) {
             this.dataPieces[dataPiece.id] = dataPiece;
             dataPiece.segmentId = this.id;
-            // console.log('added ' + dataPiece.id + ' to segment ' + this.id);
         }
         getTimestampAsPercent(timestamp) {
             return (timestamp - this.start) / (this.end - this.start);
         }
     }
 
+    // A DataPiece is a specific set of data that is attached to a DataSegment
+    // for example, a video or a time-series array of data
+    // A DataSegment can contain multiple DataPieces (e.g. a 3D_VIDEO segment contains 2 videos and an array of poses)
     class DataPiece {
         constructor(id, type) {
             this.id = id;
@@ -171,14 +172,12 @@ createNameSpace('realityEditor.videoPlayback');
         getClosestData(timestamp) {
             if (this.type !== DATA_PIECE_TYPES.TIME_SERIES) { return null; }
             // TODO: store newer and older so that in future we can have option to interpolate
-            // let min_older_dt = Date.now();
-            // let min_newer_dt = Date.now();
-            let min_dt = Date.now(); // initialize with ~Infinity
+            let min_dt = Infinity;
             let closestEntry = null;
             this.timeSeriesData.forEach(entry => {
-                let dt = timestamp - entry.time;
-                if (Math.abs(dt) < min_dt) {
-                    min_dt = Math.abs(dt);
+                let dt = Math.abs(timestamp - entry.time);
+                if (dt < min_dt) {
+                    min_dt = dt;
                     closestEntry = entry;
                 }
             });
@@ -192,6 +191,8 @@ createNameSpace('realityEditor.videoPlayback');
         }
     }
 
+    // A DataView contains a filteredDatabase, which is a subset of the TimelineDatabase
+    // where all segments are within the start and end timestamps
     class DataView {
         constructor(database) {
             this.start = null;
@@ -199,12 +200,14 @@ createNameSpace('realityEditor.videoPlayback');
             this.database = database;
             this.filteredDatabase = database;
         }
-        processTimeBounds(start, end) {
+        // updates the filteredDatabase to match the current view
+        setTimeBounds(start, end) {
             this.start = start;
             this.end = end;
             // filter the database, keeping only pointers to segments within the data range
             this.filteredDatabase = this.database.getFilteredData(start, end);
         }
+        // given a timestamp, returns all segments that occur at that time (partially overlap/contain that timestamp)
         processTimestamp(timestamp) {
             if (!this.filteredDatabase) { return []; }
             let currentSegments = [];
@@ -217,15 +220,6 @@ createNameSpace('realityEditor.videoPlayback');
             }
             return currentSegments;
         }
-        // getTrack(trackId) {
-        //     if (!this.filteredDatabase) { return null; }
-        //     return this.filteredDatabase.tracks[trackId];
-        // }
-        // getSegment(trackId, segmentId) {
-        //     let track = this.getTrack(trackId);
-        //     if (!track) { return null; }
-        //     return track.segments[segmentId];
-        // }
     }
 
     exports.TimelineDatabase = TimelineDatabase;
@@ -233,4 +227,6 @@ createNameSpace('realityEditor.videoPlayback');
     exports.DataSegment = DataSegment;
     exports.DataPiece = DataPiece;
     exports.DataView = DataView;
+    exports.TRACK_TYPES = TRACK_TYPES;
+    exports.DATA_PIECE_TYPES = DATA_PIECE_TYPES;
 })(realityEditor.videoPlayback);

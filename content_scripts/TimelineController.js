@@ -2,6 +2,7 @@ createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
 
+    // Communicates between the TimelineModel and the TimelineView, and bubbles up events to subscribing modules
     class TimelineController {
         constructor() {
             this.callbacks = {
@@ -21,20 +22,24 @@ createNameSpace('realityEditor.videoPlayback');
             this.model.onSegmentDeselected(this.handleSegmentDeselected.bind(this));
             this.model.onSegmentData(this.handleSegmentData.bind(this));
 
+            // set up the View and subscribe to events from the view (buttons pressed, scrollbars moved, etc)
             this.view = new realityEditor.videoPlayback.TimelineView(document.body);
-
             this.setupUserInteractions();
+        }
+        /**
+         * @param {TimelineDatabase} database
+         */
+        setDatabase(database) {
+            this.model.setDatabase(database);
         }
         setupCalendarView() {
             this.calendar = new realityEditor.videoPlayback.Calendar(this.view.timelineContainer, false);
             this.calendar.onDateSelected(this.handleCalendarDateSelected.bind(this));
-            this.calendar.selectDay(Date.now()); // TODO: do this when timeline visibility toggled, too
-            // TODO: calendar.highlightDates(datesWithVideos)
+            this.calendar.selectDay(Date.now()); // select today, as an initial default view
         }
         setupUserInteractions() {
             this.view.playButton.addEventListener('pointerup', e => {
-                // TODO: better way to retrieve button state?
-                let isPlayButton = e.currentTarget.src.includes('playButton.svg');
+                let isPlayButton = e.currentTarget.src.includes('playButton.svg'); // play vs pause state
                 this.model.togglePlayback(isPlayButton);
             });
             this.view.speedButton.addEventListener('pointerup', _e => {
@@ -48,34 +53,17 @@ createNameSpace('realityEditor.videoPlayback');
                 }
             });
             this.view.onZoomHandleChanged(percentZoom => {
-                // onZoomChanged(percentZoom)
-                // --> as a result, updates window which re-renders the view
-                // console.log('onZoomHandleChanged', percentZoom);
                 let playheadTimePercent = this.model.getPlayheadTimePercent();
                 this.view.onZoomChanged(percentZoom, playheadTimePercent);
             });
-            // this.view.zoomHandle.addEventListener('pointerdown', _e => { });
-            // this.view.zoomHandle.addEventListener('pointermove', _e => { });
-            // this.view.zoomHandle.addEventListener('pointerup', _e => { });
             this.view.onPlayheadSelected(_ => {
-                // stop video playback if needed
-                // console.log('onPlayheadSelected');
                 this.model.togglePlayback(false);
             });
             this.view.onPlayheadChanged(positionInWindow => {
-                // calculate timestamp, update video frame
-                // --> as a result, setPlayheadTimestamp which re-renders the view
-                // console.log('onPlayheadChanged', positionInWindow);
                 this.model.setTimestampFromPositionInWindow(positionInWindow);
-                // todo: determine which data tracks / segments / pieces use this time, and process them
 
-                // update the currentTime of each of the selected videos
-                // we do this specifically in response to user interaction because..
+                // update the currentTime of each of the selected videos, specifically if UI was touched
                 // if timestamp changes just due to time passing, the video will already play and update
-                
-                if (this.model.selectedSegments.length === 0) { return; }
-
-                // console.log('set currentTime of each video');
                 this.model.selectedSegments.forEach(segment => {
                     let currentTime = (segment.timeMultiplier || 1) * (this.model.currentTimestamp - segment.start) / 1000;
 
@@ -86,56 +74,48 @@ createNameSpace('realityEditor.videoPlayback');
                     }
                 });
             });
-            // potentially add onTrackSelected / onSegmentSelected
             this.view.onScrollbarChanged((zoomPercent, leftPercent, rightPercent) => {
-                // calculate timeline window
-                // console.log('onScrollbarChanged', zoomPercent, leftPercent, rightPercent);
                 this.model.adjustCurrentWindow(leftPercent, rightPercent);
             });
-            this.view.onVideoElementAdded(videoElement => {
-                let videoSegments = this.model.selectedSegments.filter(segment => segment.type === 'VIDEO_3D');
-                let isColor = videoElement.id.includes('color');
-                let isDepth = videoElement.id.includes('depth');
-                if (!isColor && !isDepth) {
+            this.view.onVideoElementAdded((videoElement, colorOrDepth) => {
+                if (colorOrDepth !== 'color' && colorOrDepth !== 'depth') {
                     console.warn('unable to parse segment id from video element - not color or depth');
+                    return;
                 }
-                // let segmentId = videoElement.src.split('_session_')[1].split('_start_')[0];
+                let videoSegments = this.model.selectedSegments.filter(segment => segment.type === 'VIDEO_3D');
                 let segmentId = videoElement.querySelector('source').src.split('_session_')[1].split('_start_')[0];
-
-                // let segmentId = isColor ? videoElement.id.split('_color')[0] : videoElement.id.split('_depth')[0];
                 let matchingSegment = videoSegments.find(segment => segment.id === segmentId);
-                console.log('found segment for video ' + videoElement.id, matchingSegment);
 
+                // we correct any temporal warping from the recording process here, by adding a timeMultiplier
+                // e.g. if it was supposed to be 10 fps but frames were added at 7 fps, this will stretch the video back to the correct length
                 videoElement.addEventListener('loadedmetadata', _e => {
-                    console.log('videoElement loaded metadata');
                     if (typeof matchingSegment.timeMultiplier === 'undefined') {
                         let videoDuration = videoElement.duration;
+                        // this relies on knowing the start and end timestamp of the segment
                         let intendedDuration = (matchingSegment.end - matchingSegment.start) / 1000;
                         matchingSegment.timeMultiplier = videoDuration / intendedDuration;
-                        // console.log('timeMultiplier for ' + filename + ' set to ' + segment.timeMultiplier);
                     }
                     videoElement.playbackRate = this.model.playbackSpeed * matchingSegment.timeMultiplier;
                 });
-                
-                if (isColor) {
-                    console.log('add timeupdate listener');
-                    videoElement.addEventListener('timeupdate', _e => {
-                        // console.log('timeupdate');
-                        let videoElements = this.view.getVideoElementsForTrack(matchingSegment.trackId);
-                        this.callbacks.onVideoFrame.forEach(cb => {
-                            cb(videoElements.color, videoElements.depth, matchingSegment);
-                        });
+
+                // only need one timeupdate listener per set of color and depth videos - we arbitrarily add it to the color
+                if (colorOrDepth !== 'color') { return; }
+
+                videoElement.addEventListener('timeupdate', _e => {
+                    let videoElements = this.view.getVideoElementsForTrack(matchingSegment.trackId);
+                    this.callbacks.onVideoFrame.forEach(cb => {
+                        cb(videoElements.color, videoElements.depth, matchingSegment);
                     });
-                }
+                });
             });
         }
+        // when a date is clicked, show those 24 hours on the timeline but zoom in to fit the recorded data from that day
         handleCalendarDateSelected(dateObject) {
             this.model.togglePlayback(false);
             this.calendar.hide();
 
-            console.log('calendar date selected: ', dateObject);
             this.model.timelineWindow.setWithoutZoomFromDate(dateObject);
-            
+
             // figure out how much of the day is using any data
             let minPercent = 1;
             let maxPercent = 0;
@@ -150,34 +130,30 @@ createNameSpace('realityEditor.videoPlayback');
             }
 
             // skip rescaling window if we don't have any tracks to scale it by
-            if (!(minPercent === 1 && maxPercent === 0)) {
+            if (minPercent !== 1 || maxPercent !== 0) {
                 this.model.timelineWindow.setCurrentFromPercent(Math.max(0, minPercent - 0.01), Math.min(1, maxPercent + 0.01));
             }
 
-            this.model.setTimestamp(Math.max(0, dayMin + minPercent * dayLength), true);
+            // move the playhead to the beginning of the recorded data
+            this.model.setTimestamp(Math.max(0, dayMin + minPercent * dayLength));
         }
-        setDatabase(database) {
-            this.model.setDatabase(database);
-        }
+        // set up the calendar and highlight which dates have data, in response to loading a database into the timeline
         handleDataLoaded() {
-            console.log('data loaded into timeline');
-
-            console.log('ben handleDataLoaded');
             if (!this.calendar) {
-                console.log('ben setupCalendarView');
                 try {
                     this.setupCalendarView();
                 } catch (e) {
-                    console.warn('ben error setting up calendar view', e);
+                    console.warn('error setting up calendar view', e);
                 }
             }
-            
             // triggers when data finishes loading
-            console.log('ben highlightDates');
             this.calendar.highlightDates(this.model.database.getDatesWithData());
         }
+        /**
+         * @param {DataView} dataView
+         */
         handleDataViewUpdated(dataView) {
-            // console.log('displayTracks, dataViewUpdated', dataView); // which date is selected, can be used to filter the database
+            // which date is selected, can be used to filter the database
             let simplifiedTracks = this.generateSimplifiedTracks(dataView);
 
             this.view.render({
@@ -185,6 +161,11 @@ createNameSpace('realityEditor.videoPlayback');
                 tracksFullUpdate: true
             });
         }
+
+        /**
+         * @param {DataView} dataView
+         * @returns {{}}
+         */
         generateSimplifiedTracks(dataView) {
             if (!dataView || !dataView.filteredDatabase) { return {}; }
             // process filtered tracks into just the info needed by the view
@@ -199,8 +180,6 @@ createNameSpace('realityEditor.videoPlayback');
                     simplifiedTracks[trackId].segments[segmentId] = {
                         id: segmentId,
                         type: segment.type,
-                        // start: segment.start,
-                        // end: segment.end
                         start: this.model.getTimestampAsPercent(segment.start),
                         end: this.model.getTimestampAsPercent(segment.end)
                     };
@@ -208,21 +187,20 @@ createNameSpace('realityEditor.videoPlayback');
             }
             return simplifiedTracks;
         }
-        handleWindowUpdated(window) {
-            // console.log('displayTracks, windowUpdated', window); // the withoutZoom and current .min and .max timestamp on the visible timeline window
 
+        /**
+         * @param {TimelineWindow} window
+         */
+        handleWindowUpdated(window) {
             this.view.render({
                 zoomPercent: window.getZoomPercent(),
                 scrollLeftPercent: window.getScrollLeftPercent(),
                 tracks: this.generateSimplifiedTracks(this.model.currentDataView),
-                // tracksFullUpdate: true
-                // we don't include tracksFullUpdate, since all the view needs to do is move the current segments based on the new window
             });
         }
         handleTimestampUpdated(timestamp) {
             let percentInWindow = this.model.getPlayheadTimePercent(true);
             let percentInDay = this.model.getPlayheadTimePercent(false);
-            // console.log(timestamp, percentInWindow); // what timestamp of data is selected
 
             this.view.render({
                 playheadTimePercent: percentInWindow,
@@ -244,23 +222,21 @@ createNameSpace('realityEditor.videoPlayback');
             this.model.multiplySpeed(factor, allowLoop);
         }
         handlePlaybackToggled(isPlaying) {
-            console.log('handle playback toggled');
             this.view.render({
                 isPlaying: isPlaying
             });
+
             // play each of the videos in the view
-            let tracks = this.generateSimplifiedTracks(this.model.currentDataView);
+            let tracks = this.model.currentDataView.filteredDatabase.tracks;
             Object.keys(tracks).forEach(trackId => {
                 let videoElements = this.view.getVideoElementsForTrack(trackId);
                 if (videoElements.color && videoElements.depth) {
                     let selectedSegments = this.model.selectedSegments;
                     if (selectedSegments.map(segment => segment.trackId).includes(trackId)) {
                         if (isPlaying) {
-                            console.log('play videos');
                             videoElements.color.play();
                             videoElements.depth.play();
                         } else {
-                            console.log('pause videos');
                             videoElements.color.pause();
                             videoElements.depth.pause();
                         }
@@ -274,15 +250,14 @@ createNameSpace('realityEditor.videoPlayback');
             });
 
             this.model.selectedSegments.forEach(segment => {
-                let colorVideo = this.view.getVideoElement(segment.id + '_color', segment.trackId);
-                let depthVideo = this.view.getVideoElement(segment.id + '_depth', segment.trackId);
+                let colorVideo = this.view.getOrCreateVideoElement(segment.trackId, 'color');
+                let depthVideo = this.view.getOrCreateVideoElement(segment.trackId, 'depth');
                 [colorVideo, depthVideo].forEach(video => {
                     video.playbackRate = playbackSpeed * (segment.timeMultiplier || 1)
                 });
             });
         }
         toggleVisibility(isNowVisible) {
-            // toggle timeline visibility
             if (isNowVisible) {
                 if (!this.model.database) {
                     console.warn('timeline database is null, cant show timeline yet...');
@@ -296,36 +271,31 @@ createNameSpace('realityEditor.videoPlayback');
                     return a.getTime() - b.getTime();
                 })[datesWithVideos.length - 1];
 
-                console.log('timeline shown - show most recent date');
                 if (!mostRecentDate) {
-                    mostRecentDate = new Date();
+                    mostRecentDate = new Date(); // if no data on timeline, default to today
                 }
-                let fullDate = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), mostRecentDate.getDate());
-                this.handleCalendarDateSelected(fullDate);
+                let startOfDay = new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), mostRecentDate.getDate());
+                this.handleCalendarDateSelected(startOfDay);
 
             } else {
                 this.view.hide();
             }
         }
         handleSegmentSelected(selectedSegment) {
-            console.log('selected segment', selectedSegment);
             this.renderSelectedSegments();
         }
         handleSegmentDeselected(deselectedSegment) {
-            console.log('deselected segment', deselectedSegment);
             this.renderSelectedSegments();
-
             this.callbacks.onSegmentDeselected.forEach(cb => {
-                cb(deselectedSegment);
+                cb(deselectedSegment); // can use this to hide point clouds when playhead moves away from a segment
             });
         }
         renderSelectedSegments() {
-            // get the set of video segments and re-render
             let videoSegments = this.model.selectedSegments.filter(segment => segment.type === 'VIDEO_3D');
             let videoElements = videoSegments.map(segment => {
                 return [
-                    { videoId: segment.id + '_color', trackId: segment.trackId, src: segment.dataPieces.colorVideo.videoUrl },
-                    { videoId: segment.id + '_depth', trackId: segment.trackId, src: segment.dataPieces.depthVideo.videoUrl },
+                    { colorOrDepth: 'color', trackId: segment.trackId, src: segment.dataPieces.colorVideo.videoUrl },
+                    { colorOrDepth: 'depth', trackId: segment.trackId, src: segment.dataPieces.depthVideo.videoUrl },
                 ];
             }).flat();
 
@@ -333,28 +303,19 @@ createNameSpace('realityEditor.videoPlayback');
                 videoElements: videoElements
             });
         }
-        handleSegmentData(segment, timestamp, _data) {
+        handleSegmentData(segment, _timestamp, _data) {
             if (segment.type === 'VIDEO_3D') {
-                // console.log('processing a 3d video segment', segment, timestamp);
-                let cameraPoseMatrix = segment.dataPieces.poses.getClosestData(timestamp).data;
-                let colorVideoUrl = segment.dataPieces.colorVideo.videoUrl;
-                let depthVideoUrl = segment.dataPieces.depthVideo.videoUrl;
-                let timePercent = segment.getTimestampAsPercent(timestamp);
-                // this.callbacks.onVideoFrame.forEach(cb => {
+                // TODO: this currently isn't accurate because of a time offset in the recording process
+                // but in theory this can be used for external modules to subscribe to any non-video data on the timeline (such as pose data)
+
+                // let cameraPoseMatrix = segment.dataPieces.poses.getClosestData(timestamp).data;
+                // let colorVideoUrl = segment.dataPieces.colorVideo.videoUrl;
+                // let depthVideoUrl = segment.dataPieces.depthVideo.videoUrl;
+                // let timePercent = segment.getTimestampAsPercent(timestamp);
+                //
+                // this.callbacks.onDataFrame.forEach(cb => {
                 //     cb(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
                 // });
-                
-                // get the color and depth video and set the currentTime
-                // let currentTime = (segment.timeMultiplier || 1) * (this.model.currentTimestamp - segment.start) / 1000;
-                // let videoElements = this.view.getVideoElementsForTrack(segment.trackId);
-                // if (videoElements.color && videoElements.depth) {
-                //     videoElements.color.currentTime = currentTime;
-                //     videoElements.depth.currentTime = currentTime;
-                // }
-                
-                this.callbacks.onDataFrame.forEach(cb => {
-                    cb(colorVideoUrl, depthVideoUrl, timePercent, cameraPoseMatrix);
-                });
             }
             // TODO: process other data types (IoT, Human Pose) and trigger other callbacks
         }
