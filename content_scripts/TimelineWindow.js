@@ -1,7 +1,7 @@
 createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
-    const DAY_LENGTH = 1000 * 60 * 60 * 24;
+    const DAY_LENGTH_MS = 1000 * 60 * 60 * 24;
 
     // Helper class to manage the viewport of the timeline
     // this includes its bounds (as timestamps) when fully zoomed out,
@@ -19,7 +19,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         setWithoutZoomFromDate(dateObject) {
             this.bounds.withoutZoom.min = dateObject.getTime();
-            this.bounds.withoutZoom.max = dateObject.getTime() + DAY_LENGTH - 1; // remove 1ms so that day ends at 11:59:59.99
+            this.bounds.withoutZoom.max = dateObject.getTime() + DAY_LENGTH_MS - 1; // remove 1ms so that day ends at 11:59:59.99
 
             // by default, also adjusts the current view to be the entire withoutZoom bounds
             this.bounds.current.min = this.bounds.withoutZoom.min;

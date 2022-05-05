@@ -646,8 +646,8 @@ createNameSpace('realityEditor.videoPlayback');
             let container = document.getElementById('timelineTracksContainer');
 
             // compute a quick checksum to ensure we have the right data to update
-            let childrenChecksum = Array.from(container.children).map(elt => elt.id).reduce((a, b) => a + b, '');
-            let tracksChecksum = Object.keys(tracks).map(id => this.getTrackElementId(id)).reduce((a, b) => a + b, '');
+            let childrenChecksum = Array.from(container.children).map(elt => elt.id).join('');
+            let tracksChecksum = Object.keys(tracks).map(id => this.getTrackElementId(id)).join('');
             if (childrenChecksum !== tracksChecksum) {
                 console.warn('tracks needs a full update instead... performing one now');
                 this.fullUpdateTracks(tracks);
