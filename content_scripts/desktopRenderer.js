@@ -49,6 +49,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let gltf = null;
     let staticModelMode = false;
     let realityZoneViewer = null;
+    let videoPlayback = null;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -131,24 +132,21 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
+                        videoPlayback = new realityEditor.videoPlayback.Coordinator();
+                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.load();
+                        window.videoPlayback = videoPlayback;
+
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                            videoPlayback.toggleVisibility(toggled);
+                        });
                     });
                 }
 
                 checkExist();
             }
         });
-
-        // add sliders to calibrate rotation and translation of model
-        realityEditor.gui.settings.addSlider('Calibrate Rotation', '', 'rotationCalibration',  '../../../svg/cameraRotate.svg', 0, function(newValue) {
-            console.log('rotation value = ' + newValue);
-        });
-        realityEditor.gui.settings.addSlider('Calibrate X', '', 'xCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('x value = ' + newValue);
-        });
-        realityEditor.gui.settings.addSlider('Calibrate Z', '', 'zCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('z value = ' + newValue);
-        });
-
 
         // create background canvas and supporting canvasses
 

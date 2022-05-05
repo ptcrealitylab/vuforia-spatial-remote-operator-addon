@@ -20,9 +20,13 @@ module.exports = Object.freeze({
     COLOR_FILETYPE: 'mp4',
     DEPTH_FILETYPE: 'mp4', // previously tried webm and mkv for lossless encoding but it never quite worked
     COLOR_CRF: 25, // 0 is pseudo-lossless, 51 is worst quality possible, 23 is considered default
-    DEPTH_CRF: 13, // a subjectively sane range for crf is 17-28 (https://trac.ffmpeg.org/)
-    COLOR_SCALE: 0.5, // camera image is 1920x1080, this will scale down the video dimensions
-    DEPTH_SCALE: 1, // depth sensor image is 256x144. should probably stay at scale=1 to preserve information.
+    DEPTH_CRF: 0, // a subjectively sane range for crf is 17-28 (https://trac.ffmpeg.org/)
+    COLOR_SCALE: 0.5, // camera image is initially (COLOR_WIDTH x COLOR_HEIGHT), this will scale down the video dimensions
+    DEPTH_SCALE: 1, // depth sensor image should probably stay at scale=1 to preserve information.
+    COLOR_WIDTH: 1920,
+    COLOR_HEIGHT: 1080,
+    DEPTH_WIDTH: 256,
+    DEPTH_HEIGHT: 144,
 
     // disable to prevent lossy transformation, enable to stretch videos back to correct time length
     // (it's ok to be false, the video playback system can adjust for this)
