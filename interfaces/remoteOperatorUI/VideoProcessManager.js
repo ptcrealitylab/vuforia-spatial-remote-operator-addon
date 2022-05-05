@@ -115,7 +115,7 @@ class Connection {
         let chunkTimestamp = Date.now();
         let colorFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + constants.COLOR_FILETYPE;
         let colorOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, constants.DIR_NAMES.color, colorFilename);
-        this.processes.color = ffmpegInterface.ffmpeg_image2mp4(colorOutputPath, constants.RECORDING_FPS, 'mjpeg', 1920, 1080, constants.COLOR_CRF, constants.COLOR_SCALE);
+        this.processes.color = ffmpegInterface.ffmpeg_image2mp4(colorOutputPath, constants.RECORDING_FPS, 'mjpeg', constants.COLOR_WIDTH, constants.COLOR_HEIGHT, constants.COLOR_CRF, constants.COLOR_SCALE);
         if (this.processes.color) {
             this.processStatuses.color = this.STATUS.STARTED;
         }
@@ -124,7 +124,7 @@ class Connection {
         // depth images are 256x144 lossless PNG buffers
         let depthFilename = 'chunk_' + this.sessionId + '_' + index + '_' + chunkTimestamp + '.' + constants.DEPTH_FILETYPE;
         let depthOutputPath = path.join(VideoFileManager.outputPath, this.deviceId, constants.DIR_NAMES.unprocessed_chunks, constants.DIR_NAMES.depth, depthFilename);
-        this.processes.depth = ffmpegInterface.ffmpeg_image2mp4(depthOutputPath, constants.RECORDING_FPS, 'png', 256, 144, constants.DEPTH_CRF, constants.DEPTH_SCALE);
+        this.processes.depth = ffmpegInterface.ffmpeg_image2mp4(depthOutputPath, constants.RECORDING_FPS, 'png', constants.DEPTH_WIDTH, constants.DEPTH_HEIGHT, constants.DEPTH_CRF, constants.DEPTH_SCALE);
         // this.processes[deviceId][this.PROCESS.DEPTH] = ffmpeg_image2losslessVideo(depthOutputPath, 10, 'png', 256, 144); // this version isn't working as reliably
         if (this.processes.depth) {
             this.processStatuses.depth = this.STATUS.STARTED;

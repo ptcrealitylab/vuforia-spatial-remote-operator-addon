@@ -1,13 +1,17 @@
 createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
+    // VideoSources is set up to discover all 3D video paths from the server and put them into a usable data structure
+    // It also adds the pose data to each recording. The videoInfo it returns can be loaded into a TimelineDatabase.
     class VideoSources {
         constructor(onDataLoaded) {
             this.onDataLoaded = onDataLoaded;
-            this.loadAvailableVideos().then(info => {
+            this.loadAvailableVideos('/virtualizer_recordings').then(info => {
                 this.videoInfo = info;
                 if (this.videoInfo) {
-                    this.createTrackInfo(this.videoInfo);
+                    // videoInfo is a json blob from the server with less structure
+                    // create trackInfo, which adds metadata and pose data to the videoInfo
+                    this.createTrackInfo(this.videoInfo); // triggers onDataLoaded when it's done
                 }
             }).catch(error => {
                 console.log(error);
@@ -16,10 +20,7 @@ createNameSpace('realityEditor.videoPlayback');
         createTrackInfo(videoInfo) {
             this.trackInfo = {
                 tracks: {}, // each device gets its own track. more than one segment can be on that track
-                metadata: {
-                    minTime: 0,
-                    maxTime: 1
-                }
+                metadata: { minTime: 0, maxTime: 1 }
             };
 
             let earliestTime = Date.now();
@@ -44,7 +45,7 @@ createNameSpace('realityEditor.videoPlayback');
                     let timeInfo = this.parseTimeInfo(sessionInfo.color);
                     this.trackInfo.tracks[deviceId].segments[sessionId] = {
                         colorVideo: sessionInfo.color,
-                        depthVideo: sessionInfo.depth, // this.getMatchingDepthVideo(filePath),
+                        depthVideo: sessionInfo.depth,
                         start: parseInt(timeInfo.start),
                         end: parseInt(timeInfo.end),
                         visible: true,
@@ -76,73 +77,11 @@ createNameSpace('realityEditor.videoPlayback');
                 end: endMatches[0].replace('end_', '')
             };
         }
-        getTrackInfo(deviceId) {
-            return this.trackInfo.tracks[deviceId];
-        }
-        getSegmentInfo(deviceId, segmentId) {
-            return this.getTrackInfo(deviceId).segments[segmentId];
-        }
-        getPoseAtIndex(deviceId, segmentId, poseIndex) {
-            let segmentPoses = this.getSegmentInfo(deviceId, segmentId).poses;
-            let clampedIndex = Math.max(0, Math.min(segmentPoses.length - 1, poseIndex));
-            let poseBase64 = segmentPoses[clampedIndex].pose;
-            if (poseBase64) {
-                let byteCharacters = window.atob(poseBase64);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                let matrix = new Float32Array(byteArray.buffer);
-                return matrix;
-            }
-            return null;
-        }
-        getClosestPose(deviceId, segmentId, absoluteTime) {
-            let segmentPoses = this.getSegmentInfo(deviceId, segmentId).poses;
-            // find the pose that minimizes dt
-            // this array might contain ~400 values per minute of video. TODO: in future, make more sparse and estimate/interpolate
-            let min_older_dt = Date.now();
-            let min_newer_dt = Date.now();
-            let closestPoseBase64_older = null; //[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-            let closestPoseBase64_newer = null; //[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-            segmentPoses.forEach(poseEntry => {
-                let this_dt = absoluteTime - poseEntry.time;
-                if (this_dt >= 0 && Math.abs(this_dt) < min_newer_dt) {
-                    min_newer_dt = Math.abs(this_dt);
-                    closestPoseBase64_newer = poseEntry.pose;
-                } else if (this_dt <= 0 && Math.abs(this_dt) < min_older_dt) {
-                    min_older_dt = Math.abs(this_dt);
-                    closestPoseBase64_older = poseEntry.pose;
-                }
-            });
-            // if (closestPoseBase64_older) {
-            //     console.log('closest <pose to time ' + absoluteTime + ' is ' + closestPoseBase64_older.substr(0, 5) + ' (dt = ' + min_older_dt + ')');
-            // }
-            // if (closestPoseBase64_newer) {
-            //     console.log('closest >pose to time ' + absoluteTime + ' is ' + closestPoseBase64_newer.substr(0, 5) + ' (dt = ' + min_newer_dt + ')');
-            // }
-            if (closestPoseBase64_newer || closestPoseBase64_older) {
-                let closestPoseBase64 = closestPoseBase64_older || closestPoseBase64_newer;
-                let byteCharacters = window.atob(closestPoseBase64);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                // console.log(byteArray);
-                // const blob = new Blob([byteArray]); //, {type: contentType})
-                let matrix = new Float32Array(byteArray.buffer);
-                // console.log(matrix);
-                return matrix;
-            }
-            return null; //closestPoseBase64;
-        }
-        loadAvailableVideos() {
+        loadAvailableVideos(url) {
             return new Promise((resolve, reject) => {
                 // this.downloadVideoInfo().then(info => console.log(info));
                 // httpGet('http://' + this.ip + ':31337/videoInfo').then(info => {
-                this.httpGet('/virtualizer_recordings').then(info => {
+                this.httpGet(url).then(info => {
                     console.log(info);
                     resolve(info);
                 }).catch(reason => {
@@ -179,8 +118,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         loadPoseInfo(deviceId, segmentId) {
             return new Promise((resolve, reject) => {
-                // http://localhost:8081/virtualizer_recording/device_21/pose/device_device_21_session_wE1fcfcd.json
-                this.httpGet('/virtualizer_recording/' + deviceId + '/pose/device_' + deviceId + '_session_' + segmentId + '.json').then(poseInfo => {
+                this.httpGet(this.getPoseUrl(deviceId, segmentId)).then(poseInfo => {
                     resolve({
                         deviceId: deviceId,
                         segmentId: segmentId,
@@ -192,11 +130,14 @@ createNameSpace('realityEditor.videoPlayback');
                 });
             });
         }
+        getPoseUrl(deviceId, segmentId) {
+            // http://localhost:8081/virtualizer_recording/device21/pose/device_device21_session_wE1fcfcd.json
+            return '/virtualizer_recording/' + deviceId + '/pose/device_' + deviceId + '_session_' + segmentId + '.json';
+        }
         httpGet(url) {
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
                 req.open('GET', url, true);
-                // req.setRequestHeader('Access-Control-Allow-Headers', '*');
                 req.onreadystatechange = function () {
                     if (req.readyState === 4) {
                         console.log(req.status);
@@ -212,25 +153,6 @@ createNameSpace('realityEditor.videoPlayback');
                 };
                 req.send();
             });
-        }
-        getDatesWithVideos() {
-            let dates = {};
-            Object.keys(this.trackInfo.tracks).forEach(trackId => {
-                let track = this.trackInfo.tracks[trackId];
-                Object.keys(track.segments).forEach(segmentId => {
-                    let segment = track.segments[segmentId];
-                    let startDate = new Date(segment.start);
-                    // let endDate = new Date(segment.end);
-                    // TODO: what if startDate and endDate are on two different days? Ignore for now and just use startDate
-                    let day = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-                    if (typeof dates[day] === 'undefined') {
-                        dates[day] = [{ segmentId: segmentId, startTime: segment.start, endTime: segment.end }];
-                    } else {
-                        dates[day].push({ segmentId: segmentId, startTime: segment.start, endTime: segment.end  });
-                    }
-                });
-            });
-            return dates;
         }
     }
 

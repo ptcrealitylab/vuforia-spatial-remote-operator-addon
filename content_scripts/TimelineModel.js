@@ -2,6 +2,10 @@ createNameSpace('realityEditor.videoPlayback');
 
 (function (exports) {
     const MAX_SPEED = 256;
+    const PLAYBACK_FPS = 10; // no need for this to be faster than recording FPS, it'll just waste resources
+
+    // The TimelineModel is the complete data representation needed for the timeline, including the database and the UI state
+    // (such as playhead timestamp, zoom/scroll window, playback speed, etc)
     class TimelineModel {
         constructor() {
             this.database = null;
@@ -10,6 +14,9 @@ createNameSpace('realityEditor.videoPlayback');
             this.currentTimestamp = null;
             this.isPlaying = false;
             this.playbackSpeed = 1;
+            this.playbackInterval = null;
+            this.lastUpdate = null;
+            this.selectedSegments = [];
             this.timelineWindow = new realityEditor.videoPlayback.TimelineWindow();
             this.timelineWindow.onWithoutZoomUpdated(window => {
                 this.handleWindowUpdated(window, true);
@@ -18,6 +25,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.timelineWindow.onCurrentWindowUpdated(window => {
                 this.handleWindowUpdated(window, false);
             });
+            // controller can subscribe to each of these to update the view in response to data changes
             this.callbacks = {
                 onDataLoaded: [],
                 onDataViewUpdated: [],
@@ -29,20 +37,6 @@ createNameSpace('realityEditor.videoPlayback');
                 onSegmentDeselected: [],
                 onSegmentData: []
             };
-            this.playbackInterval = null;
-            this.lastUpdate = null;
-            this.selectedSegments = [];
-        }
-        handleWindowUpdated(window, resetPlayhead) {
-            // TODO: update data view
-            // console.log('new bounds', window.bounds);
-            // update the timestamp based on its percent position and the new date
-            let playheadTime = resetPlayhead ? window.bounds.current.min : this.currentTimestamp;
-            this.setTimestamp(playheadTime, true);
-
-            this.callbacks.onWindowUpdated.forEach(cb => {
-                cb(window);
-            });
         }
         setDatabase(database) {
             this.database = database;
@@ -51,70 +45,59 @@ createNameSpace('realityEditor.videoPlayback');
                 cb();
             });
         }
+        handleWindowUpdated(window, resetPlayhead) {
+            let playheadTime = resetPlayhead ? window.bounds.current.min : this.currentTimestamp;
+            this.setTimestamp(playheadTime);
+
+            this.callbacks.onWindowUpdated.forEach(cb => {
+                cb(window);
+            });
+        }
         updateDataView(minTimestamp, maxTimestamp) {
             if (!this.database) { return; }
 
             // updates the currentDataView.filteredDatabase
-            this.currentDataView.processTimeBounds(minTimestamp, maxTimestamp);
-            // console.log('filteredDatabase', this.currentDataView.filteredDatabase);
+            this.currentDataView.setTimeBounds(minTimestamp, maxTimestamp);
 
             this.callbacks.onDataViewUpdated.forEach(cb => {
                 cb(this.currentDataView);
             });
         }
-        setTimestamp(newTimestamp, triggerCallbacks) {
-            // if (this.currentTimestamp === newTimestamp) { return; } // don't update if no change
+        setTimestamp(newTimestamp) {
             this.currentTimestamp = newTimestamp;
-            if (triggerCallbacks) {
-                this.callbacks.onTimestampUpdated.forEach(cb => {
-                    cb(this.currentTimestamp);
-                });
-            }
+            this.callbacks.onTimestampUpdated.forEach(cb => {
+                cb(this.currentTimestamp);
+            });
 
             // determine if there are any overlapping segments
             if (!this.currentDataView) { return; }
 
+            // trigger onSegmentSelected and onSegmentDeselected callbacks
             let previousSegments = JSON.parse(JSON.stringify(this.selectedSegments));
             let currentSegments = this.currentDataView.processTimestamp(newTimestamp);
             this.selectedSegments = currentSegments;
-
-            currentSegments.forEach(segment => {
-                let relativeTime = newTimestamp - segment.start;
-                let dataPieces = segment.dataPieces;
-                if (segment.type === 'VIDEO_3D') {
-                    let colorVideo = dataPieces.colorVideo; // VIDEO_URL
-                    let depthVideo = dataPieces.depthVideo; // VIDEO_URL
-                    let poses = dataPieces.poses; // TIME_SERIES
-                }
-            });
-
-            // trigger events based on difference between currentSegments and previous selectedSegments
-            // let newlySelected = [];
-            // let newlyDeselected = [];
             let selectedIds = currentSegments.map(segment => segment.id);
             let previousIds = previousSegments.map(segment => segment.id);
+            // trigger events based on difference between currentSegments and previous selectedSegments
             currentSegments.forEach(segment => {
-                let id = segment.id;
-                if (!previousIds.includes(id)) {
-                    // console.log('new selected segment', id);
+                if (!previousIds.includes(segment.id)) {
                     this.callbacks.onSegmentSelected.forEach(cb => {
                         cb(segment);
                     });
                 }
             });
             previousSegments.forEach(segment => {
-                let id = segment.id;
-                if (!selectedIds.includes(id)) {
-                    // console.log('deselected segment', id);
+                if (!selectedIds.includes(segment.id)) {
                     this.callbacks.onSegmentDeselected.forEach(cb => {
                         cb(segment);
                     });
                 }
             });
 
+            // trigger onSegmentData callbacks to process the dataPieces that occur at this timestamp
             currentSegments.forEach(segment => {
                 this.callbacks.onSegmentData.forEach(cb => {
-                    cb(segment, newTimestamp, segment.dataPieces); // TODO: process dataPieces here?
+                    cb(segment, newTimestamp, segment.dataPieces);
                 });
             });
         }
@@ -140,7 +123,7 @@ createNameSpace('realityEditor.videoPlayback');
             let min = this.timelineWindow.bounds.current.min;
             let max = this.timelineWindow.bounds.current.max;
             let current = min + (max - min) * percentInWindow;
-            this.setTimestamp(current, true);
+            this.setTimestamp(current);
         }
         adjustCurrentWindow(leftPercent, rightPercent) {
             this.timelineWindow.setCurrentFromPercent(leftPercent, rightPercent);
@@ -149,6 +132,7 @@ createNameSpace('realityEditor.videoPlayback');
             if (this.isPlaying === toggled) { return; }
             this.isPlaying = toggled;
 
+            // create a loop that will increment the currentTimestamp as time passes
             if (this.isPlaying) {
                 if (!this.playbackInterval) {
                     this.lastUpdate = Date.now();
@@ -157,26 +141,26 @@ createNameSpace('realityEditor.videoPlayback');
                         let dt = now - this.lastUpdate;
                         this.lastUpdate = now;
                         this.playbackLoop(dt);
-                    }, 16);
+                    }, 1000 / PLAYBACK_FPS);
                 }
             } else if (this.playbackInterval) {
                 clearInterval(this.playbackInterval);
                 this.playbackInterval = null;
             }
 
-            // TODO: play videos, begin data processing, etc
+            // play videos, begin data processing, etc
             this.callbacks.onPlaybackToggled.forEach(cb => {
                 cb(this.isPlaying);
             });
         }
         playbackLoop(dt) {
-            // update the timestamp based on time passed and process any data segments
+            // update the timestamp based on time passed (but stop if reached end of timeline)
             let newTime = this.currentTimestamp + dt * this.playbackSpeed;
             if (newTime > this.timelineWindow.bounds.withoutZoom.max) {
                 newTime = this.timelineWindow.bounds.withoutZoom.max;
                 this.togglePlayback(false);
             }
-            this.setTimestamp(newTime, true);
+            this.setTimestamp(newTime); // this will process any data segments
         }
         multiplySpeed(factor, allowLoop) {
             this.playbackSpeed *= factor;
