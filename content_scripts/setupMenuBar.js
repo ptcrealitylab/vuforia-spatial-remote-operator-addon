@@ -9,6 +9,7 @@ createNameSpace('realityEditor.gui');
         History: 'History',
         Help: 'Help'
     });
+    exports.MENU = MENU;
 
     const ITEM = Object.freeze({
         PointClouds: 'Point Clouds',
@@ -17,6 +18,7 @@ createNameSpace('realityEditor.gui');
         ModelTexture: 'Model Texture',
         UnityVirtualizers: 'Unity Virtualizers',
         SurfaceAnchors: 'Surface Anchors',
+        VideoPlayback: 'Video Timeline',
         ResetPaths: 'Reset Paths',
         TogglePaths: 'Toggle Paths',
         ClonePatch: 'Clone Patch',
@@ -61,6 +63,9 @@ createNameSpace('realityEditor.gui');
         const toggleSurfaceAnchors = new MenuItem(ITEM.SurfaceAnchors, { shortcutKey: 'SEMICOLON', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleSurfaceAnchors);
 
+        const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
+        menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
+
         const resetRzvHistory = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, resetRzvHistory);
 
@@ -88,7 +93,7 @@ createNameSpace('realityEditor.gui');
     const getMenuBar = () => { // use this to access the shared MenuBar instance
         if (!menuBar) {
             try {
-                this.setupMenuBar();
+                setupMenuBar();
             } catch (e) {
                 console.warn(e);
             }
