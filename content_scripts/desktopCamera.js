@@ -146,9 +146,10 @@ createNameSpace('realityEditor.device.desktopCamera');
             pointerPosition.x = e.clientX;
             pointerPosition.y = e.clientY;
 
-            if (interactionCursor && interactionCursor.getClientRects() && interactionCursor.getClientRects()[0] && interactionCursor.style.display !== 'none') {
-                interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width / 2) + 'px';
-                interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height / 2) + 'px';
+            let interactionRect = getRectSafe(interactionCursor);
+            if (interactionRect) {
+                interactionCursor.style.left = (pointerPosition.x - interactionRect.width / 2) + 'px';
+                interactionCursor.style.top = (pointerPosition.y - interactionRect.height / 2) + 'px';
             }
         });
 
@@ -359,19 +360,27 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (imageSrc) {
             interactionCursor.src = imageSrc;
         }
-        if (interactionCursor && interactionCursor.getClientRects() && interactionCursor.getClientRects()[0] && interactionCursor.getClientRects().length > 0) {
-            interactionCursor.style.left = (pointerPosition.x - interactionCursor.getClientRects()[0].width / 2) + 'px';
-            interactionCursor.style.top = (pointerPosition.y - interactionCursor.getClientRects()[0].height / 2) + 'px';
+        let interactionRect = getRectSafe(interactionCursor);
+        if (interactionRect) {
+            interactionCursor.style.left = (pointerPosition.x - interactionRect.width / 2) + 'px';
+            interactionCursor.style.top = (pointerPosition.y - interactionRect.height / 2) + 'px';
         }
 
         staticInteractionCursor.style.display = visible ? 'inline' : 'none';
         if (imageSrc) {
             staticInteractionCursor.src = imageSrc;
         }
-        if (staticInteractionCursor.getClientRects() && staticInteractionCursor.getClientRects().length > 0) {
-            staticInteractionCursor.style.left = (pointerPosition.x - staticInteractionCursor.getClientRects()[0].width / 2) + 'px';
-            staticInteractionCursor.style.top = (pointerPosition.y - staticInteractionCursor.getClientRects()[0].height / 2) + 'px';
+        let staticInteractionRect = getRectSafe(staticInteractionCursor);
+        if (staticInteractionRect) {
+            staticInteractionCursor.style.left = (pointerPosition.x - staticInteractionRect.width / 2) + 'px';
+            staticInteractionCursor.style.top = (pointerPosition.y - staticInteractionRect.height / 2) + 'px';
         }
+    }
+    function getRectSafe(div) {
+        if (!div || div.style.display === 'none') { return null; }
+        let rects = div.getClientRects();
+        if (!rects || rects.length === 0) { return null; }
+        return rects[0];
     }
 
     let threejsObject = null;

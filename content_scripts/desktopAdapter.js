@@ -395,13 +395,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      */
     function addSocketListeners() {
 
-        realityEditor.network.realtime.addDesktopSocketMessageListener('disconnect', function(_msgContent) {
-            console.log('Desktop Server Socket Disconnected: reload page');
-            setTimeout(() => {
-                // window.location.reload();
-            }, 3000);
-        });
-
         // @deprecated
         // todo: remove
         realityEditor.network.realtime.addDesktopSocketMessageListener('/matrix/visibleObjects', function(msgContent) {
