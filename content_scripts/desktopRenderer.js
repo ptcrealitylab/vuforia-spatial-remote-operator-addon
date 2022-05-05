@@ -47,7 +47,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let isGlbLoaded = false;
 
     let gltf = null;
-    let trueMaterial = null;
     let staticModelMode = false;
     let realityZoneViewer = null;
     let videoPlayback = null;
@@ -140,29 +139,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         window.videoPlayback = videoPlayback;
 
                         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
-                            // } else if (params.event.code === 'KeyY') {
                             videoPlayback.toggleVisibility(toggled);
-                            // } else if (params.event.code === 'KeyU') {
-                            //     videoPlayback.togglePointClouds();
-                            // }
                         });
                     });
                 }
 
                 checkExist();
             }
-        });
-
-        // TODO: I think these can be removed, the model starts out in the right orientation now
-        // add sliders to calibrate rotation and translation of model
-        realityEditor.gui.settings.addSlider('Calibrate Rotation', '', 'rotationCalibration',  '../../../svg/cameraRotate.svg', 0, function(newValue) {
-            console.log('rotation value = ' + newValue);
-        });
-        realityEditor.gui.settings.addSlider('Calibrate X', '', 'xCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('x value = ' + newValue);
-        });
-        realityEditor.gui.settings.addSlider('Calibrate Z', '', 'zCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('z value = ' + newValue);
         });
 
         // create background canvas and supporting canvasses
@@ -189,10 +172,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (!gltf) { return; }
             staticModelMode = value;
             if (staticModelMode) {
-                showGltf();
+                gltf.visible = true;
                 console.log('show gtlf');
             } else {
-                hideGltf();
+                gltf.visible = false;
                 console.log('hide gltf');
             }
         });
@@ -234,39 +217,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 logicCanvas.style.pointerEvents = 'none';
             }
         );
-    }
-
-    function showGltf() {
-        if (!gltf) { return; }
-        if (!trueMaterial) { return; }
-
-        if (gltf.children[0].geometry) {
-            gltf.children[0].material = trueMaterial;
-        } else {
-            gltf.children[0].children.forEach(child => {
-                child.material = trueMaterial;
-            });
-        }
-    }
-
-    function hideGltf() {
-        if (!gltf) { return; }
-
-        const meshMaterial = new realityEditor.gui.threejsScene.THREE.MeshBasicMaterial( {
-            color: 0x888888,
-            transparent: true,
-            opacity: 0.3,
-            depthWrite: false,
-        });
-        if (gltf.children[0].geometry) {
-            trueMaterial = gltf.children[0].material;
-            gltf.children[0].material = meshMaterial;
-        } else {
-            gltf.children[0].children.forEach(child => {
-                trueMaterial = gltf.children[0].material;
-                child.material = meshMaterial;
-            });
-        }
     }
 
     /**
