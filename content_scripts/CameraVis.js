@@ -145,13 +145,15 @@ void main() {
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
 
+            this.cameraMeshGroup = new THREE.Group();
+
             const geo = new THREE.BoxGeometry(100, 100, 80);
             const color = `hsl(${((id / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';
             box.cameraVisId = this.id;
-            this.phone.add(box);
+            this.cameraMeshGroup.add(box);
 
             const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
             const cone = new THREE.Mesh(geoCone, mat);
@@ -160,7 +162,9 @@ void main() {
             cone.position.z = 65;
             cone.name = 'cameraVisCamera';
             cone.cameraVisId = this.id;
-            this.phone.add(cone);
+            this.cameraMeshGroup.add(cone);
+
+            this.phone.add(this.cameraMeshGroup);
 
             this.texture = new THREE.Texture();
             this.texture.minFilter = THREE.NearestFilter;
@@ -320,7 +324,7 @@ void main() {
             let now = performance.now();
             this.lastUpdate = now;
             if (this.time > now) {
-                setMatrixFromArray(this.phone.matrix, mat);
+                this.setMatrix(mat);
                 return;
             }
             this.matrices.push({
@@ -347,14 +351,59 @@ void main() {
                 latest = mat;
                 latestI = i;
             }
-            setMatrixFromArray(this.phone.matrix, latest.matrix);
             this.matrices.splice(0, latestI + 1);
-            this.historyPoints.push(new THREE.Vector3(
-                latest.matrix[12],
-                latest.matrix[13],
-                latest.matrix[14],
-            ));
-            this.historyLine.setPoints(this.historyPoints);
+
+            this.setMatrix(latest.matrix);
+        }
+
+        setMatrix(newMatrix) {
+            setMatrixFromArray(this.phone.matrix, newMatrix);
+            this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
+            let nextHistoryPoint = new THREE.Vector3(
+                newMatrix[12],
+                newMatrix[13],
+                newMatrix[14],
+            );
+
+            let addToHistory = this.historyPoints.length === 0;
+            if (this.historyPoints.length > 0) {
+                let lastHistoryPoint = this.historyPoints[this.historyPoints.length - 1];
+                let diffSq = (lastHistoryPoint.x - nextHistoryPoint.x) * (lastHistoryPoint.x - nextHistoryPoint.x) +
+                    (lastHistoryPoint.y - nextHistoryPoint.y) * (lastHistoryPoint.y - nextHistoryPoint.y) +
+                    (lastHistoryPoint.z - nextHistoryPoint.z) * (lastHistoryPoint.z - nextHistoryPoint.z);
+
+                addToHistory = diffSq > 100 * 100;
+            }
+
+            if (addToHistory) {
+                this.historyPoints.push(nextHistoryPoint);
+                this.historyLine.setPoints(this.historyPoints);
+            }
+        }
+
+        hideNearCamera() {
+            let mat = this.phone.matrix.clone();
+            mat.premultiply(this.container.matrix);
+            const x = mat.elements[12];
+            const y = mat.elements[13];
+            const z = mat.elements[14];
+
+            let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+            const cameraX = cameraNode.worldMatrix[12];
+            const cameraY = cameraNode.worldMatrix[13];
+            const cameraZ = cameraNode.worldMatrix[14];
+
+            let diffSq = (cameraX - x) * (cameraX - x) +
+                (cameraY - y) * (cameraY - y) +
+                (cameraZ - z) * (cameraZ - z);
+
+            if (diffSq < 3000 * 3000) {
+                if (this.cameraMeshGroup.visible) {
+                    this.cameraMeshGroup.visible = false;
+                }
+            } else if (!this.cameraMeshGroup.visible) {
+                this.cameraMeshGroup.visible = true;
+            }
         }
 
         add() {
@@ -556,7 +605,7 @@ void main() {
 
         onPointerDown(e) {
             let objectsToCheck = Object.values(this.cameras).map(cameraVis => {
-                return cameraVis.phone;
+                return cameraVis.cameraMeshGroup;
             });
             let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY, objectsToCheck);
 
