@@ -97,6 +97,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.waitForARTracking = false; // don't show loading UI waiting for vuforia to give us camera matrices
         env.supportsAreaTargetCapture = false; // don't show Create Area Target UI when app loads
         env.hideOriginCube = true; // don't show a set of cubes at the world origin
+        env.addOcclusionGltf = false; // don't add transparent world gltf, because we're already adding the visible mesh
 
         globalStates.groundPlaneOffset = 0.77;
         // default values that I may or may not need to invert:
