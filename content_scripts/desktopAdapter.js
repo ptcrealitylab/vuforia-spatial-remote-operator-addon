@@ -99,7 +99,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.hideOriginCube = true; // don't show a set of cubes at the world origin
 
         globalStates.groundPlaneOffset = 0.77;
-        acceptUDPBeats = false
+        realityEditor.app.callbacks.acceptUDPBeats = false;
         globalStates.a = 0.77;
         realityEditor.network.state.isCloudInterface = true;
         // default values that I may or may not need to invert:
