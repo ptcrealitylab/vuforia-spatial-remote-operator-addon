@@ -545,7 +545,8 @@ void main() {
         startWebRTC() {
             const network = 'cam0';
 
-            const ws = new WebSocket(urlBase + 'signalling');
+            // const ws = new WebSocket(urlBase + 'signalling');
+            const ws = realityEditor.cloud.socket;
             const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 
