@@ -148,7 +148,14 @@ void main() {
             this.cameraMeshGroup = new THREE.Group();
 
             const geo = new THREE.BoxGeometry(100, 100, 80);
-            const color = `hsl(${((id / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+            let colorId = id;
+            if (typeof id === 'string') {
+                colorId = 0;
+                for (let i = 0; i < id.length; i++) {
+                    colorId ^= id.charCodeAt(i);
+                }
+            }
+            const color = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';
@@ -423,6 +430,7 @@ void main() {
             this.visible = true;
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
+            this.depthCanvasCache = {};
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -460,6 +468,8 @@ void main() {
             if (threejsCanvas) {
                 threejsCanvas.addEventListener('pointerdown', this.onPointerDown);
             }
+
+            this.startWebRTC();
         }
 
         connectWsToMatrix(url) {
@@ -499,15 +509,13 @@ void main() {
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = new WebSocket(url);
-                let canvas = document.createElement('canvas');
-                let context = canvas.getContext('2d');
 
                 ws.addEventListener('message', async (msg) => {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
                     const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
                     const imageUrl = URL.createObjectURL(imageBlob);
-                    this.renderPointCloud(id, textureKey, imageUrl, canvas, context);
+                    this.renderPointCloud(id, textureKey, imageUrl);
                 });
             };
 
@@ -520,7 +528,14 @@ void main() {
             this.connectWsToMatrix(urlMatrix);
         }
 
-        renderPointCloud(id, textureKey, imageUrl, canvas, context) {
+        startWebRTC() {
+            const network = 'cam0';
+
+            const ws = new WebSocket(urlBase + 'signalling');
+            const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
+        }
+
+        renderPointCloud(id, textureKey, imageUrl) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
             }
@@ -544,12 +559,21 @@ void main() {
                 // most efficient would be if this had a data url for its src
                 // data url = 'data:image/(png|jpeg);' + base64(blob)
                 if (textureKey === 'textureDepth') {
+                    if (!this.depthCanvasCache.hasOwnProperty(id)) {
+                        let canvas = document.createElement('canvas');
+                        this.depthCanvasCache[id] = {
+                            canvas,
+                            context: canvas.getContext('2d'),
+                        };
+                    }
+                    let {canvas, context} = this.depthCanvasCache[id];
                     canvas.width = image.width;
                     canvas.height = image.height;
                     context.drawImage(image, 0, 0, image.width, image.height);
                     tex.image = canvas;
                     if (this.voxelizer) {
-                        this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
+                        this.voxelizer.raycastDepthTexture(
+                            this.cameras[id].phone, canvas, context);
                     }
                 } else {
                     tex.image = image;
@@ -571,9 +595,9 @@ void main() {
             image.src = imageUrl;
         }
 
-        loadPointCloud(id, textureUrl, textureDepthUrl, matrix, depthCanvas, depthContext) {
+        loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
             this.renderPointCloud(id, 'texture', textureUrl);
-            this.renderPointCloud(id, 'textureDepth', textureDepthUrl, depthCanvas, depthContext);
+            this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
             this.updateMatrix(id, matrix);
         }
 

@@ -67,7 +67,7 @@ createNameSpace('realityEditor.videoPlayback');
 
                 if (closestPoseMatrix) {
                     if (typeof this.loadPointCloud !== 'undefined') {
-                        this.loadPointCloud(this.getCameraId(deviceId), colorImageUrl, depthImageUrl, closestPoseMatrix, depthVideoCanvas, depthCtx);
+                        this.loadPointCloud(this.getCameraId(deviceId), colorImageUrl, depthImageUrl, closestPoseMatrix);
                     }
                 }
             });
