@@ -7,10 +7,14 @@ body > * {
     pointer-events: auto;
 }
 
+#UIButtons > * {
+    cursor: pointer;
+}
+
 #canvas {
     background-color: transparent;
     transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0.1, 1);
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 #interactionCursor {

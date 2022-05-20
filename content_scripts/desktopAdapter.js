@@ -193,8 +193,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                     realityEditor.device.editingState.syntheticPinchInfo = {
                         startX: touchPosition.x,
                         startY: touchPosition.y
-                    }
+                    };
                 }
+            } else if (code === keyboard.keyCodes.P) {
+                console.log('Key P pressed - toggle positioning mode');
+                realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode();
             }
         });
         keyboard.onKeyUp(function(code) {
@@ -474,6 +477,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 return null;
             }
         }
+
+        realityEditor.network.realtime.addDesktopSocketMessageListener('reloadScreen', function(_msgContent) {
+            // window.location.reload(); // reload screen when server restarts
+        });
 
         realityEditor.network.realtime.addDesktopSocketMessageListener('udpMessage', function(msgContent) {
 
@@ -896,7 +903,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // Zone connections to restore background image
         const zoneSocketIPs = realityEditor.network.realtime.getSocketIPsForSet('realityZones');
         window.localStorage.setItem('realityEditor.desktopAdapter.savedZoneSocketIPs', JSON.stringify(zoneSocketIPs));
-        window.location.reload();
+        // window.location.reload();
     }
 
     function getPrimaryWorldId() {

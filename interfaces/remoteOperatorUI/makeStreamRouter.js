@@ -120,6 +120,65 @@ module.exports = function makeStreamRouter(app) {
         matrixPool.push(ws);
     });
 
+    let providers = [];
+    let idToSocket = {};
+
+    app.ws('/signalling', function(ws, req) {
+        console.log('new signalling ws', req.ip);
+        let wsId;
+
+        ws.on('message', function(msgRaw) {
+            console.log('signal ws message', msgRaw);
+            let msg;
+            try {
+                msg = JSON.parse(msgRaw);
+            } catch (e) {
+                console.warn('unable to parse ws msg', e, msgRaw);
+                return;
+            }
+
+            if (msg.command === 'joinNetwork') {
+                wsId = msg.src;
+                idToSocket[wsId] = ws;
+
+                if (msg.role === 'consumer') {
+                    // new remote operator, send list of iphones
+                    ws.send(JSON.stringify({
+                        command: 'discoverProviders',
+                        providers: providers,
+                    }));
+
+                }
+
+                if (msg.role === 'provider') {
+                    providers.push(wsId);
+                    for (let peerId in idToSocket) {
+                        if (providers.includes(peerId)) {
+                            continue;
+                        }
+                        idToSocket[peerId].send(JSON.stringify(msg));
+                    }
+                }
+            }
+
+            if (msg.dest) {
+                if (!idToSocket.hasOwnProperty(msg.dest)) {
+                    console.warn('missing dest', msg.dest);
+                }
+                idToSocket[msg.dest].send(JSON.stringify(msg));
+            }
+        });
+
+        ws.on('close', function() {
+            delete idToSocket[wsId];
+            providers = providers.filter(provId => provId !== wsId);
+        });
+
+        ws.on('error', function(e) {
+            console.error('signalling ws error', e);
+        });
+    });
+
     let frameData = {};
     function processFrame(id, color, depth, matrix) {
         if (typeof frameData[id] === 'undefined') {

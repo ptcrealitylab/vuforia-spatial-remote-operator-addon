@@ -62,7 +62,7 @@ void main() {
       ((r & (1 << 7)) << (21 - 7)) |
       ((g & (1 << 7)) << (22 - 7)) |
       ((b & (1 << 7)) << (23 - 7))) *
-      (1000.0 / float(1 << (24 - 4)));
+      (5000.0 / float(1 << 24));
 
   // Projection code by @kcmic
 
@@ -91,16 +91,32 @@ void main() {
 }`;
 
     const solidFragmentShader = `
+// color texture
 uniform sampler2D map;
-
+// uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
 varying vec4 pos;
 
 void main() {
+  // Depth in millimeters
   float depth = -pos.z;
+
+  // Fade out beginning at 4.5 meters and be gone after 5.0
   float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+
+  // Normal vector of the depth mesh based on pos
+  // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
   vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
+
+  // pos.xyz is the ray looking out from the camera to this pixel
+  // dot of pos.xyz and the normal is to what extent this pixel is flat
+  // relative to the camera (alternatively, how much it's pointing at the
+  // camera)
+  // alphaDepth is thrown in here to incorporate the depth-based fade
   float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth;
+
+  // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
 
   gl_FragColor = vec4(color.rgb, alpha);
@@ -129,13 +145,22 @@ void main() {
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
 
+            this.cameraMeshGroup = new THREE.Group();
+
             const geo = new THREE.BoxGeometry(100, 100, 80);
-            const color = `hsl(${((id / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+            let colorId = id;
+            if (typeof id === 'string') {
+                colorId = 0;
+                for (let i = 0; i < id.length; i++) {
+                    colorId ^= id.charCodeAt(i);
+                }
+            }
+            const color = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';
             box.cameraVisId = this.id;
-            this.phone.add(box);
+            this.cameraMeshGroup.add(box);
 
             const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
             const cone = new THREE.Mesh(geoCone, mat);
@@ -144,7 +169,9 @@ void main() {
             cone.position.z = 65;
             cone.name = 'cameraVisCamera';
             cone.cameraVisId = this.id;
-            this.phone.add(cone);
+            this.cameraMeshGroup.add(cone);
+
+            this.phone.add(this.cameraMeshGroup);
 
             this.texture = new THREE.Texture();
             this.texture.minFilter = THREE.NearestFilter;
@@ -304,7 +331,7 @@ void main() {
             let now = performance.now();
             this.lastUpdate = now;
             if (this.time > now) {
-                setMatrixFromArray(this.phone.matrix, mat);
+                this.setMatrix(mat);
                 return;
             }
             this.matrices.push({
@@ -331,14 +358,59 @@ void main() {
                 latest = mat;
                 latestI = i;
             }
-            setMatrixFromArray(this.phone.matrix, latest.matrix);
             this.matrices.splice(0, latestI + 1);
-            this.historyPoints.push(new THREE.Vector3(
-                latest.matrix[12],
-                latest.matrix[13],
-                latest.matrix[14],
-            ));
-            this.historyLine.setPoints(this.historyPoints);
+
+            this.setMatrix(latest.matrix);
+        }
+
+        setMatrix(newMatrix) {
+            setMatrixFromArray(this.phone.matrix, newMatrix);
+            this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
+            let nextHistoryPoint = new THREE.Vector3(
+                newMatrix[12],
+                newMatrix[13],
+                newMatrix[14],
+            );
+
+            let addToHistory = this.historyPoints.length === 0;
+            if (this.historyPoints.length > 0) {
+                let lastHistoryPoint = this.historyPoints[this.historyPoints.length - 1];
+                let diffSq = (lastHistoryPoint.x - nextHistoryPoint.x) * (lastHistoryPoint.x - nextHistoryPoint.x) +
+                    (lastHistoryPoint.y - nextHistoryPoint.y) * (lastHistoryPoint.y - nextHistoryPoint.y) +
+                    (lastHistoryPoint.z - nextHistoryPoint.z) * (lastHistoryPoint.z - nextHistoryPoint.z);
+
+                addToHistory = diffSq > 100 * 100;
+            }
+
+            if (addToHistory) {
+                this.historyPoints.push(nextHistoryPoint);
+                this.historyLine.setPoints(this.historyPoints);
+            }
+        }
+
+        hideNearCamera() {
+            let mat = this.phone.matrix.clone();
+            mat.premultiply(this.container.matrix);
+            const x = mat.elements[12];
+            const y = mat.elements[13];
+            const z = mat.elements[14];
+
+            let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+            const cameraX = cameraNode.worldMatrix[12];
+            const cameraY = cameraNode.worldMatrix[13];
+            const cameraZ = cameraNode.worldMatrix[14];
+
+            let diffSq = (cameraX - x) * (cameraX - x) +
+                (cameraY - y) * (cameraY - y) +
+                (cameraZ - z) * (cameraZ - z);
+
+            if (diffSq < 3000 * 3000) {
+                if (this.cameraMeshGroup.visible) {
+                    this.cameraMeshGroup.visible = false;
+                }
+            } else if (!this.cameraMeshGroup.visible) {
+                this.cameraMeshGroup.visible = true;
+            }
         }
 
         add() {
@@ -358,6 +430,7 @@ void main() {
             this.visible = true;
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
+            this.depthCanvasCache = {};
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -395,6 +468,8 @@ void main() {
             if (threejsCanvas) {
                 threejsCanvas.addEventListener('pointerdown', this.onPointerDown);
             }
+
+            this.startWebRTC();
         }
 
         connectWsToMatrix(_url) {
@@ -410,31 +485,33 @@ void main() {
                 // if (pktType === PKT_MATRIX) {
                 const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
                 // }
-                if (!this.cameras[id]) {
-                    this.createCameraVis(id);
-                }
-                this.cameras[id].update(mat);
-
-                let now = performance.now();
-                for (let camera of Object.values(this.cameras)) {
-                    if (camera.mesh.__hidden) {
-                        camera.mesh.visible = false;
-                        continue;
-                    }
-                    if (now - camera.lastUpdate > 2000) {
-                        camera.mesh.visible = false;
-                    } else if (!camera.mesh.visible) {
-                        camera.mesh.visible = true;
-                    }
-                }
+                this.updateMatrix(id, mat);
             });
+        }
+
+        updateMatrix(id, mat) {
+            if (!this.cameras[id]) {
+                this.createCameraVis(id);
+            }
+            this.cameras[id].update(mat);
+
+            let now = performance.now();
+            for (let camera of Object.values(this.cameras)) {
+                if (camera.mesh.__hidden) {
+                    camera.mesh.visible = false;
+                    continue;
+                }
+                if (now - camera.lastUpdate > 2000) {
+                    camera.mesh.visible = false;
+                } else if (!camera.mesh.visible) {
+                    camera.mesh.visible = true;
+                }
+            }
         }
 
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = realityEditor.cloud.socket;
-                let canvas = document.createElement('canvas');
-                let context = canvas.getContext('2d');
 
                 ws.on('message', async (route, body, cbObj, bin) => {
                     if (body.id === 'depth' && textureKey !== 'textureDepth') {
@@ -449,55 +526,10 @@ void main() {
 
                     const bytes = new Uint8Array(bin.data.slice(0, 1));
                     const id = bytes[0];
-                    if (!this.cameras[id]) {
-                        this.createCameraVis(id);
-                    }
-                    if (this.cameras[id].loading[textureKey]) {
-                        return;
-                    }
-                    this.cameras[id].loading[textureKey] = true;
-                    // const pktType = bytes[1];
-                    // if (pktType === PKT_MATRIX) {
-                    //   const text = await msg.data.slice(2, msg.data.length).text();
-                    //   const mat = JSON.parse(text);
-                    // }
                     const imageBlob = new Blob([bin.data.slice(1, bin.data.length).buffer], {type: mimetype});
+                    // const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
                     const imageUrl = URL.createObjectURL(imageBlob);
-                    const image = new Image();
-
-                    let start = window.performance.now();
-                    image.onload = () => {
-                        const tex = this.cameras[id][textureKey];
-                        tex.dispose();
-                        // hmmmmm
-                        // most efficient would be if this had a data url for its src
-                        // data url = 'data:image/(png|jpeg);' + base64(blob)
-                        if (textureKey === 'textureDepth') {
-                            canvas.width = image.width;
-                            canvas.height = image.height;
-                            context.drawImage(image, 0, 0, image.width, image.height);
-                            tex.image = canvas;
-                            if (this.voxelizer) {
-                                this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
-                            }
-                        } else {
-                            tex.image = image;
-                        }
-                        tex.needsUpdate = true;
-                        // let end = window.performance.now();
-                        if (textureKey === 'texture') {
-                            // We know that capture takes 30ms
-                            // Transmission takes ??s
-                            this.cameras[id].setTime(start + 40);
-                        }
-                        this.cameras[id].loading[textureKey] = false;
-                        // window.latencies[textureKey].push(end - start);
-                        URL.revokeObjectURL(imageUrl);
-                    };
-                    image.onerror = (e) => {
-                        console.error(e);
-                    };
-                    image.src = imageUrl;
+                    this.renderPointCloud(id, textureKey, imageUrl);
                 });
             };
 
@@ -508,6 +540,90 @@ void main() {
             connectWsToTexture(urlColor, 'texture', 'image/jpeg');
             connectWsToTexture(urlDepth, 'textureDepth', 'image/png');
             this.connectWsToMatrix(urlMatrix);
+        }
+
+        startWebRTC() {
+            const network = 'cam0';
+
+            const ws = new WebSocket(urlBase + 'signalling');
+            const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
+        }
+
+        renderPointCloud(id, textureKey, imageUrl) {
+            if (!this.cameras[id]) {
+                this.createCameraVis(id);
+            }
+            if (this.cameras[id].loading[textureKey]) {
+                return;
+            }
+            this.cameras[id].loading[textureKey] = true;
+            // const pktType = bytes[1];
+            // if (pktType === PKT_MATRIX) {
+            //   const text = await msg.data.slice(2, msg.data.length).text();
+            //   const mat = JSON.parse(text);
+            // }
+
+            const image = new Image();
+
+            let start = window.performance.now();
+            image.onload = () => {
+                const tex = this.cameras[id][textureKey];
+                tex.dispose();
+                // hmmmmm
+                // most efficient would be if this had a data url for its src
+                // data url = 'data:image/(png|jpeg);' + base64(blob)
+                if (textureKey === 'textureDepth') {
+                    if (!this.depthCanvasCache.hasOwnProperty(id)) {
+                        let canvas = document.createElement('canvas');
+                        this.depthCanvasCache[id] = {
+                            canvas,
+                            context: canvas.getContext('2d'),
+                        };
+                    }
+                    let {canvas, context} = this.depthCanvasCache[id];
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    context.drawImage(image, 0, 0, image.width, image.height);
+                    tex.image = canvas;
+                    if (this.voxelizer) {
+                        this.voxelizer.raycastDepthTexture(
+                            this.cameras[id].phone, canvas, context);
+                    }
+                } else {
+                    tex.image = image;
+                }
+                tex.needsUpdate = true;
+                // let end = window.performance.now();
+                if (textureKey === 'texture') {
+                    // We know that capture takes 30ms
+                    // Transmission takes ??s
+                    this.cameras[id].setTime(start + 40);
+                }
+                this.cameras[id].loading[textureKey] = false;
+                // window.latencies[textureKey].push(end - start);
+                URL.revokeObjectURL(imageUrl);
+            };
+            image.onerror = (e) => {
+                console.error(e);
+            };
+            image.src = imageUrl;
+        }
+
+        loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
+            this.renderPointCloud(id, 'texture', textureUrl);
+            this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
+            this.updateMatrix(id, matrix);
+        }
+
+        hidePointCloud(id) {
+            if (!this.cameras[id]) {
+                console.log('No need to hide camera ' + id + ', it hasn\'t been created yet.');
+                return;
+            }
+            let camera = this.cameras[id];
+            if (camera.mesh) {
+                camera.mesh.visible = false;
+            }
         }
 
         createCameraVis(id) {
@@ -527,7 +643,7 @@ void main() {
 
         onPointerDown(e) {
             let objectsToCheck = Object.values(this.cameras).map(cameraVis => {
-                return cameraVis.phone;
+                return cameraVis.cameraMeshGroup;
             });
             let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY, objectsToCheck);
 
