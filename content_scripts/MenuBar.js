@@ -281,6 +281,8 @@ createNameSpace('realityEditor.gui');
             return '⎇';
         } else if (keyCodeName === 'ESCAPE') {
             return 'Esc';
+        } else if (keyCodeName === 'SPACE') {
+            return '_';
         } else if (keyCodeName === 'UP') {
             return '↑';
         } else if (keyCodeName === 'DOWN') {

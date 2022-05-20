@@ -22,5 +22,8 @@
     "express-ws": "^5.0.2",
     "socket.io": "~2.2.0",
     "socket.io-client": "~2.3.1"
+  },
+  "devDependencies": {
+    "eslint": "^5.16.0"
   }
 }
