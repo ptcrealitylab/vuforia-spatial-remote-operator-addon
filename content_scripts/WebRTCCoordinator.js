@@ -3,6 +3,9 @@ createNameSpace('realityEditor.device.cameraVis');
 (function(exports) {
     const PROXY = true;
 
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
     class WebRTCCoordinator {
         constructor(cameraVisCoordinator, ws, consumerId) {
             this.cameraVisCoordinator = cameraVisCoordinator;
@@ -20,12 +23,12 @@ createNameSpace('realityEditor.device.cameraVis');
                 this.ws.addEventListener('message', this.onWsMessage);
             } else {
                 this.ws.on('message', this.onToolsocketMessage);
-                this.ws.message('ihopethisisntused', {id: 'signalling'}, null, {
-                    data: JSON.stringify({
+                this.ws.message('unused', {id: 'signalling'}, null, {
+                    data: encoder.encode(JSON.stringify({
                         command: 'joinNetwork',
                         src: this.consumerId,
                         role: 'consumer',
-                    })
+                    })),
                 });
             }
         }
@@ -68,7 +71,7 @@ createNameSpace('realityEditor.device.cameraVis');
             if (body.id !== 'signalling') {
                 return;
             }
-            this.onWsMessage({data: bin});
+            this.onWsMessage({data: decoder.decode(bin.data)});
         }
 
         initConnection(providerId) {
@@ -142,12 +145,23 @@ createNameSpace('realityEditor.device.cameraVis');
                 if (!e.candidate) {
                     return;
                 }
-                this.ws.send(JSON.stringify({
-                    src: this.consumerId,
-                    dest: this.providerId,
-                    command: 'newIceCandidate',
-                    candidate: e.candidate,
-                }));
+                if (PROXY) {
+                    this.ws.message('unused', {id: 'signalling'}, null, {
+                        data: encoder.encode(JSON.stringify({
+                            src: this.consumerId,
+                            dest: this.providerId,
+                            command: 'newIceCandidate',
+                            candidate: e.candidate,
+                        })),
+                    });
+                } else {
+                    this.ws.send(JSON.stringify({
+                        src: this.consumerId,
+                        dest: this.providerId,
+                        command: 'newIceCandidate',
+                        candidate: e.candidate,
+                    }));
+                }
             });
 
             this.localConnection.addEventListener('datachannel', (e) => {
@@ -167,12 +181,23 @@ createNameSpace('realityEditor.device.cameraVis');
             const offer = await this.localConnection.createOffer();
             await this.localConnection.setLocalDescription(offer);
 
-            this.ws.send(JSON.stringify({
-                src: this.consumerId,
-                dest: this.providerId,
-                command: 'newDescription',
-                description: this.localConnection.localDescription,
-            }));
+            if (PROXY) {
+                this.ws.message('unused', {id: 'signalling'}, null, {
+                    data: encoder.encode(JSON.stringify({
+                        src: this.consumerId,
+                        dest: this.providerId,
+                        command: 'newDescription',
+                        description: this.localConnection.localDescription,
+                    })),
+                });
+            } else {
+                this.ws.send(JSON.stringify({
+                    src: this.consumerId,
+                    dest: this.providerId,
+                    command: 'newDescription',
+                    description: this.localConnection.localDescription,
+                }));
+            }
         }
 
         onSendChannelStatusChange() {
@@ -204,7 +229,6 @@ createNameSpace('realityEditor.device.cameraVis');
             const id = this.providerId;
             let bytes = new Uint8Array(event.data);
             if (bytes.length < 1000) {
-                const decoder = new TextDecoder();
                 const matricesMsg = decoder.decode(bytes);
                 // blah blah it's matrix
                 const matrices = JSON.parse(matricesMsg);
@@ -277,11 +301,21 @@ createNameSpace('realityEditor.device.cameraVis');
         }
 
         disconnect() {
-            this.ws.send({
-                src: this.consumerId,
-                dest: this.providerId,
-                command: 'leaveNetwork',
-            });
+            if (PROXY) {
+                this.ws.message('unused', {id: 'signalling'}, null, {
+                    data: encoder.encode(JSON.stringify({
+                        src: this.consumerId,
+                        dest: this.providerId,
+                        command: 'leaveNetwork',
+                    })),
+                });
+            } else {
+                this.ws.send({
+                    src: this.consumerId,
+                    dest: this.providerId,
+                    command: 'leaveNetwork',
+                });
+            }
             this.sendChannel.close();
             this.receiveChannel.close();
 
