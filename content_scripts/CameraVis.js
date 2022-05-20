@@ -5,7 +5,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
-    const FLATSHADER = true;
+    const ShaderMode = {
+        SOLID: 'SOLID',
+        POINT: 'POINT',
+        HOLO: 'HOLO',
+    };
+    const shaderMode = ShaderMode.SOLID;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -80,7 +85,7 @@ void main() {
   gl_PointSize = pointSizeBase + pointSize * depth * depthScale + glPosScale / gl_Position.w;
 }`;
 
-    const fragmentShader = `
+    const pointFragmentShader = `
 uniform sampler2D map;
 
 varying vec2 vUv;
@@ -90,9 +95,49 @@ void main() {
   gl_FragColor = vec4(color.r, color.g, color.b, 0.4);
 }`;
 
+    const holoFragmentShader = `
+// color texture
+uniform sampler2D map;
+uniform float time;
+
+// uv (0.0-1.0) texture coordinates
+varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
+varying vec4 pos;
+
+void main() {
+  // Depth in millimeters
+  float depth = -pos.z;
+
+  // Fade out beginning at 4.5 meters and be gone after 5.0
+  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+
+  // Hologram effect :)
+  float alphaHolo = clamp(round(sin(pos.y / 3.0 - 40.0 * time) - 0.3), 0.0, 1.0) *
+                clamp(sin(gl_FragCoord.x / 10.0 + gl_FragCoord.y + 40.0 * time) + sin(5.0 * time) + 1.5, 0.0, 1.0);
+                // clamp(sin(sqrt(pos.x * pos.x + pos.z * pos.z) / 3.0 + 0.5) + sin(10.0 * time) + 1.5, 0.0, 1.0);
+
+  // Normal vector of the depth mesh based on pos
+  // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
+  vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
+
+  // pos.xyz is the ray looking out from the camera to this pixel
+  // dot of pos.xyz and the normal is to what extent this pixel is flat
+  // relative to the camera (alternatively, how much it's pointing at the
+  // camera)
+  // alphaDepth is thrown in here to incorporate the depth-based fade
+  float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth * alphaHolo;
+
+  // Sample the proper color for this pixel from the color image
+  vec4 color = texture2D(map, vUv);
+
+  gl_FragColor = vec4(color.rgb * vec3(0.1, 0.3, 0.3) + vec3(0.0, 0.7, 0.7), alpha);
+}`;
+
     const solidFragmentShader = `
 // color texture
 uniform sampler2D map;
+
 // uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
 // Position of this pixel relative to the camera in proper (millimeter) coordinates
@@ -284,7 +329,7 @@ void main() {
         setupPointCloud() {
             const width = 640, height = 360;
 
-            if (FLATSHADER) {
+            if (shaderMode !== ShaderMode.POINT) {
                 this.geometry = new THREE.PlaneBufferGeometry(width, height, width / 5, height / 5);
                 this.geometry.translate(width / 2, height / 2);
             } else {
@@ -299,8 +344,23 @@ void main() {
                 this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             }
 
+            let fragmentShader;
+            switch (shaderMode) {
+            case ShaderMode.POINT:
+                fragmentShader = pointFragmentShader;
+                break;
+            case ShaderMode.HOLO:
+                fragmentShader = holoFragmentShader;
+                break;
+            case ShaderMode.SOLID:
+            default:
+                fragmentShader = solidFragmentShader;
+                break;
+            }
+
             this.material = new THREE.ShaderMaterial({
                 uniforms: {
+                    time: {value: window.performance.now()},
                     map: {value: this.texture},
                     mapDepth: {value: this.textureDepth},
                     width: {value: width},
@@ -311,13 +371,13 @@ void main() {
                     pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
-                fragmentShader: FLATSHADER ? solidFragmentShader : fragmentShader,
+                fragmentShader,
                 // blending: THREE.AdditiveBlending,
                 // depthTest: false, depthWrite: false,
                 transparent: true
             });
 
-            if (FLATSHADER) {
+            if (shaderMode !== ShaderMode.POINT) {
                 this.mesh = new THREE.Mesh(this.geometry, this.material);
             } else {
                 this.mesh = new THREE.Points(this.geometry, this.material);
@@ -329,6 +389,9 @@ void main() {
 
         update(mat) {
             let now = performance.now();
+            if (shaderMode === ShaderMode.HOLO) {
+                this.material.uniforms.time.value = window.performance.now();
+            }
             this.lastUpdate = now;
             if (this.time > now) {
                 this.setMatrix(mat);
