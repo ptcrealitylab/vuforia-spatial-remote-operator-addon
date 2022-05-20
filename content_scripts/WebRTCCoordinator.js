@@ -1,6 +1,8 @@
 createNameSpace('realityEditor.device.cameraVis');
 
 (function(exports) {
+    const PROXY = true;
+
     class WebRTCCoordinator {
         constructor(cameraVisCoordinator, ws, consumerId) {
             this.cameraVisCoordinator = cameraVisCoordinator;
@@ -11,9 +13,21 @@ createNameSpace('realityEditor.device.cameraVis');
 
             this.onWsOpen = this.onWsOpen.bind(this);
             this.onWsMessage = this.onWsMessage.bind(this);
+            this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
 
-            this.ws.addEventListener('open', this.onWsOpen);
-            this.ws.addEventListener('message', this.onWsMessage);
+            if (!PROXY) {
+                this.ws.addEventListener('open', this.onWsOpen);
+                this.ws.addEventListener('message', this.onWsMessage);
+            } else {
+                this.ws.on('message', this.onToolsocketMessage);
+                this.ws.message('ihopethisisntused', {id: 'signalling'}, null, {
+                    data: JSON.stringify({
+                        command: 'joinNetwork',
+                        src: this.consumerId,
+                        role: 'consumer',
+                    })
+                });
+            }
         }
 
         onWsOpen() {
@@ -48,6 +62,13 @@ createNameSpace('realityEditor.device.cameraVis');
             }
 
             this.webrtcConnections[msg.src].onSignallingMessage(msg);
+        }
+
+        onToolsocketMessage(route, body, cbObj, bin) {
+            if (body.id !== 'signalling') {
+                return;
+            }
+            this.onWsMessage({data: bin});
         }
 
         initConnection(providerId) {
