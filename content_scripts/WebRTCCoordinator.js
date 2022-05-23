@@ -135,6 +135,28 @@ createNameSpace('realityEditor.device.cameraVis');
                 this.sendChannel.addEventListener('open', this.onSendChannelStatusChange);
                 this.sendChannel.addEventListener('close', this.onSendChannelStatusChange);
             });
+
+            this.localConnection.addEventListener('track', (e) => {
+                console.log('webrtc track event', e);
+                if (e.streams.length === 0) {
+                    return;
+                }
+                const elt = document.createElement('audio');
+                elt.autoplay = true;
+                elt.srcObject = e.streams[0];
+                let autoplayWhenAvailableInterval = setInterval(() => {
+                    try {
+                        elt.play();
+                    } catch (err) {
+                        console.log('autoplay failed', err);
+                    }
+                }, 250);
+                elt.addEventListener('play', function clearAutoplayInterval() {
+                    clearInterval(autoplayWhenAvailableInterval);
+                    elt.removeEventListener('play', clearAutoplayInterval);
+                });
+                document.body.appendChild(elt);
+            });
         }
 
         async connect() {
@@ -143,7 +165,9 @@ createNameSpace('realityEditor.device.cameraVis');
             }
 
             this.offered = true;
-            const offer = await this.localConnection.createOffer();
+            const offer = await this.localConnection.createOffer({
+                offerToReceiveAudio: true,
+            });
             await this.localConnection.setLocalDescription(offer);
 
             this.ws.send(JSON.stringify({
