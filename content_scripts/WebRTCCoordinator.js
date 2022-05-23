@@ -10,6 +10,7 @@ createNameSpace('realityEditor.device.cameraVis');
         constructor(cameraVisCoordinator, ws, consumerId) {
             this.cameraVisCoordinator = cameraVisCoordinator;
             this.ws = ws;
+            this.audioStream = null;
             this.consumerId = consumerId;
 
             this.webrtcConnections = {};
@@ -31,6 +32,10 @@ createNameSpace('realityEditor.device.cameraVis');
                     })),
                 });
             }
+
+            navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
+                this.audioStream = stream;
+            });
         }
 
         onWsOpen() {
@@ -78,6 +83,7 @@ createNameSpace('realityEditor.device.cameraVis');
             let newConn = new WebRTCConnection(
                 this.cameraVisCoordinator,
                 this.ws,
+                this.audioStream,
                 this.consumerId,
                 providerId
             );
@@ -88,11 +94,12 @@ createNameSpace('realityEditor.device.cameraVis');
     }
 
     class WebRTCConnection {
-        constructor(cameraVisCoordinator, ws, consumerId, providerId) {
+        constructor(cameraVisCoordinator, ws, audioStream, consumerId, providerId) {
             this.cameraVisCoordinator = cameraVisCoordinator;
             this.ws = ws;
             this.consumerId = consumerId;
             this.providerId = providerId;
+            this.audioStream = audioStream;
 
             this.receiveChannel = null;
             this.localConnection = null;
@@ -107,7 +114,6 @@ createNameSpace('realityEditor.device.cameraVis');
                 this.onSendChannelStatusChange.bind(this);
             this.onWebRTCError =
                 this.onWebRTCError.bind(this);
-
         }
 
         onSignallingMessage(msg) {
@@ -139,6 +145,10 @@ createNameSpace('realityEditor.device.cameraVis');
             this.receiveChannel.onopen = this.onReceiveChannelStatusChange;
             this.receiveChannel.onclose = this.onReceiveChannelStatusChange;
             this.receiveChannel.addEventListener('message', this.onReceiveChannelMessage);
+
+            if (this.audioStream) {
+                this.localConnection.addStream(this.audioStream);
+            }
 
             this.localConnection.addEventListener('icecandidate', (e) => {
                 console.log('webrtc local candidate', e);
