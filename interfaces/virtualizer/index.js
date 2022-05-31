@@ -9,9 +9,9 @@
 var server = require('@libraries/hardwareInterfaces');
 var utilities = require('@libraries/utilities');
 
-var settings = server.loadHardwareInterface(__dirname);
+var _settings = server.loadHardwareInterface(__dirname);
 
-exports.enabled = settings('enabled');
+exports.enabled = true; // settings('enabled');
 exports.configurable = true; // can be turned on/off/adjusted from the web frontend
 
 if (exports.enabled) {

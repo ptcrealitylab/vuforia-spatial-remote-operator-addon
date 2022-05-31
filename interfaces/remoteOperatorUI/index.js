@@ -21,7 +21,7 @@ const LocalUIApp =  require('@libraries/LocalUIApp');
 
 const settings = server.loadHardwareInterface(__dirname);
 
-exports.enabled = settings('enabled');
+exports.enabled = true; // settings('enabled');
 exports.configurable = true; // can be turned on/off/adjusted from the web frontend
 
 /**
@@ -57,9 +57,9 @@ if (exports.enabled) {
 
         console.log('successfully created local_ui_app for remote operator');
 
-        startHTTPServer(localUIApp, 8081);
+        startHTTPServer(localUIApp, 58081);
     } catch (e) {
-        console.warn('CANNOT START REMOTE OPERATOR ON PORT 8081: ', e);
+        console.warn('CANNOT START REMOTE OPERATOR ON PORT 58081: ', e);
     }
 
     try {
