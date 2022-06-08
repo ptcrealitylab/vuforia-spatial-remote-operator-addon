@@ -12,6 +12,7 @@
 
 const os = require('os');
 const path = require('path');
+const fs = require('fs');
 
 const server = require('@libraries/hardwareInterfaces');
 const utilities = require('@libraries/utilities');
@@ -79,8 +80,77 @@ function startHTTPServer(localUIApp, port) {
     const http = require('http').Server(localUIApp.app);
     const io = require('socket.io')(http);
 
+    const objectsPath = server.getObjectsPath();
+    const identityFolderName = '.identity';
+
     http.listen(port, function() {
         console.log('~~~ started remote operator on port ' + port);
+
+        // serves the camera poses that correspond to a recorded rgb+depth 3d video
+        localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {
+            let deviceId = req.params.deviceId;
+            let filename = req.params.filename;
+
+            const jsonFilePath = path.join(objectsPath, identityFolderName, 'virtualizer_recordings', deviceId, 'session_videos', 'pose', filename);
+
+            if (!fs.existsSync(jsonFilePath)) {
+                res.status(404).send('No file at path: ' + jsonFilePath);
+                return;
+            }
+
+            res.sendFile(jsonFilePath);
+        });
+
+        // serves the color and depth video files in streaming format, if range headers are provided
+        localUIApp.app.use('/virtualizer_recording/:deviceId/:colorOrDepth/:filename', function (req, res) {
+            let deviceId = req.params.deviceId;
+            let videoType = req.params.colorOrDepth;
+            let filename = req.params.filename;
+            const videoPath = path.join(objectsPath, identityFolderName, 'virtualizer_recordings', deviceId, 'session_videos', videoType, filename);
+
+            if (!fs.existsSync(videoPath)) {
+                res.status(404).send('No video at path: ' + videoPath);
+                return;
+            }
+
+            const range = req.headers.range;
+            if (!range) {
+                res.sendFile(videoPath); // send video normally if no range headers
+                return;
+            }
+
+            const videoSize = fs.statSync(videoPath).size;
+            // console.log('Video Size = ' + Math.round(videoSize / 1000)  + 'kb');
+
+            // Parse Range (example: "bytes=32324-")
+            const CHUNK_SIZE = 10 ** 6; // 1 MB
+            const start = Number(range.replace(/\D/g, ''));
+            const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
+
+            // Create Headers
+            const contentLength = end - start + 1;
+            const headers = {
+                'Content-Range': `bytes ${start}-${end}/${videoSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': contentLength,
+                'Content-Type': 'video/mp4',
+            };
+
+            // HTTP Status 206 for partial content
+            res.writeHead(206, headers);
+            const videoStream = fs.createReadStream(videoPath, {start, end});
+            videoStream.pipe(res);
+        });
+
+        // serves the json file containing all of the file paths to the different 3d video recordings
+        localUIApp.app.use('/virtualizer_recordings', function (req, res) {
+            const jsonPath = path.join(objectsPath, identityFolderName, 'virtualizer_recordings', 'videoInfo.json');
+            if (!fs.existsSync(jsonPath)) {
+                res.json({});
+            } else {
+                res.json(JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8', flag: 'r' })));
+            }
+        });
 
         // pass visibleObjects messages to the userinterface
         server.subscribeToMatrixStream(function(visibleObjects) {

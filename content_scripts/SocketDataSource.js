@@ -18,7 +18,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             
             try {
                 
-                console.log('Message received', event.data);
+                // console.log('Message received', event.data);
 
                 let msg = JSON.parse(event.data);
 

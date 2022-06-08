@@ -61,7 +61,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     ];
 
     class PoseNetSkelVis {
-        constructor(skel, floorOffset) {
+        constructor(skel, floorOffset, historyLineContainer) {
             this.spheres = [];
             this.container = new THREE.Group();
             this.container.position.y = -floorOffset;
@@ -70,6 +70,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.bones = [];
             this.ghost = (typeof skel.id === 'string') && skel.id.includes('ghost');
             this.createSpheres();
+            this.createHistoryLine(historyLineContainer);
             this.update(skel);
         }
 
@@ -94,6 +95,22 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.greenMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0x00ff00});
         }
 
+        createHistoryLine(container) {
+            this.historyLine = new realityEditor.device.meshLine.MeshLine();
+            const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
+                color: this.ghost ? 0x777777 : 0xffff00,
+                // opacity: 0.6,
+                lineWidth: 14,
+                // depthWrite: false,
+                transparent: false,
+                side: THREE.DoubleSide,
+            });
+            this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);
+            this.historyPoints = [];
+            this.historyLine.setPoints(this.historyPoints);
+            container.add(this.historyMesh);
+        }
+
         update(skel) {
             if (skel.joints.length !== POSE_JOINTS_LEN) {
                 console.warn('other pose format passed into PoseNetSkelVis');
@@ -108,6 +125,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 sphere.position.y = joint.y;
                 sphere.position.z = joint.z;
             }
+
+            this.historyPoints.push(new THREE.Vector3(
+                this.spheres[0].position.x,
+                this.spheres[0].position.y + 0.4,
+                this.spheres[0].position.z,
+            ));
+            this.historyLine.setPoints(this.historyPoints);
 
             for (let i = 0; i < this.bones.length; i++) {
                 let bone = this.bones[i];
