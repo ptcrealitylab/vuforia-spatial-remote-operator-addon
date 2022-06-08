@@ -117,7 +117,7 @@ createNameSpace('realityEditor.device');
                 this.mouseInput.last.y = 0;
 
                 if (this.preRotateDistanceToTarget !== null) {
-                    console.log(this.preRotateDistanceToTarget, this.distanceToTarget);
+                    // console.log(this.preRotateDistanceToTarget, this.distanceToTarget);
                     this.zoomBackToPreRotateLevel();
                     this.preRotateDistanceToTarget = null;
                 }
@@ -141,15 +141,6 @@ createNameSpace('realityEditor.device');
 
                     this.mouseInput.last.x = event.pageX;
                     this.mouseInput.last.y = event.pageY;
-                }
-            }.bind(this));
-
-            this.keyboard.onKeyUp(function(code) {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-                // reset when escape pressed
-                if (code === this.keyboard.keyCodes.ESCAPE) {
-                    this.reset();
                 }
             }.bind(this));
         }

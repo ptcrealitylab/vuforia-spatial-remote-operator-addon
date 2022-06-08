@@ -8,6 +8,8 @@
 
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
  * For remote desktop operation: renders background graphics simulating the context streamed from a connected phone.
@@ -46,6 +48,8 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
     let gltf = null;
     let staticModelMode = false;
+    let realityZoneViewer = null;
+    let videoPlayback = null;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -102,6 +106,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                     realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
                         gltf = createdMesh;
                         gltf.name = 'areaTargetMesh';
+
+                        const greyMaterial = new THREE.MeshBasicMaterial({
+                            color: 0x777777,
+                            wireframe: true,
+                        });
+
+                        gltf.traverse(obj => {
+                            if (obj.type === 'Mesh' && obj.material) {
+                                obj.oldMaterial = greyMaterial;
+                            }
+                        });
+
                         realityEditor.device.meshLine.inject();
 
                         let realityZoneVoxelizer;
@@ -113,9 +129,18 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                         let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
 
-                        let realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
+                        realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
+                        videoPlayback = new realityEditor.videoPlayback.Coordinator();
+                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.load();
+                        window.videoPlayback = videoPlayback;
+
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                            videoPlayback.toggleVisibility(toggled);
+                        });
                     });
                 }
 
@@ -123,17 +148,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             }
         });
 
-        // add sliders to calibrate rotation and translation of model
-        realityEditor.gui.settings.addSlider('Calibrate Rotation', '', 'rotationCalibration',  '../../../svg/cameraRotate.svg', 0, function(newValue) {
-            console.log('rotation value = ' + newValue);
-        });
-        realityEditor.gui.settings.addSlider('Calibrate X', '', 'xCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('x value = ' + newValue);
-        });
-        realityEditor.gui.settings.addSlider('Calibrate Z', '', 'zCalibration',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('z value = ' + newValue);
-        });
-
+        document.body.style.backgroundColor = 'rgb(50,50,50)';
 
         // create background canvas and supporting canvasses
 
@@ -143,6 +158,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         backgroundCanvas.style.transform = 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)'; // render behind three.js
         backgroundCanvas.style.transformOrigin = 'top left';
         backgroundCanvas.style.position = 'absolute';
+        backgroundCanvas.style.visibility = 'hidden';
         primaryBackgroundCanvas = document.createElement('canvas');
         secondaryBackgroundCanvas = document.createElement('canvas');
 
@@ -154,20 +170,55 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        realityEditor.device.keyboardEvents.registerCallback('keyUpHandler', function(params) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-            if (params.event.code === 'KeyT' && gltf) {
-                staticModelMode = !staticModelMode;
-                if (staticModelMode) {
-                    gltf.visible = true;
-                    console.log('show gtlf');
-                } else {
-                    gltf.visible = false;
-                    console.log('hide gltf');
-                }
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelVisibility, (value) => {
+            if (!gltf) { return; }
+            staticModelMode = value;
+            if (staticModelMode) {
+                gltf.visible = true;
+                console.log('show gtlf');
+            } else {
+                gltf.visible = false;
+                console.log('hide gltf');
             }
         });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelTexture, () => {
+            if (!gltf) {
+                return;
+            }
+            gltf.traverse(obj => {
+                if (obj.type === 'Mesh' && obj.material) {
+                    let tmp = obj.material;
+                    obj.material = obj.oldMaterial;
+                    obj.oldMaterial = tmp;
+                }
+            });
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
+            if (!realityZoneViewer) { return; }
+            realityZoneViewer.resetHistory();
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (toggled) => {
+            if (!realityZoneViewer) { return; }
+            realityZoneViewer.toggleHistory(toggled);
+        });
+
+        realityEditor.gui.buttons.registerCallbackForButton(
+            'logic',
+            function onLogicMode() {
+                const logicCanvas = document.getElementById('canvas');
+                logicCanvas.style.pointerEvents = 'auto';
+            }
+        );
+        realityEditor.gui.buttons.registerCallbackForButton(
+            'gui',
+            function onGuiMode() {
+                const logicCanvas = document.getElementById('canvas');
+                logicCanvas.style.pointerEvents = 'none';
+            }
+        );
     }
 
     /**

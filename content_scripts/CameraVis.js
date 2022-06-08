@@ -4,6 +4,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
     const debug = false;
+    const ZDEPTH = true;
+    const ShaderMode = {
+        SOLID: 'SOLID',
+        POINT: 'POINT',
+        HOLO: 'HOLO',
+    };
+    const shaderMode = ShaderMode.SOLID;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -12,11 +19,13 @@ uniform sampler2D mapDepth;
 uniform float width;
 uniform float height;
 uniform float depthScale;
+uniform float glPosScale;
 
 uniform float pointSize;
-const float pointSizeBase = 3.0;
+const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
+varying vec4 pos;
 
 const float XtoZ = 1920.0 / 1448.24976; // width over focal length
 const float YtoZ = 1080.0 / 1448.24976;
@@ -25,40 +34,137 @@ void main() {
   vUv = vec2(position.x / width, position.y / height);
 
   vec4 color = texture2D(mapDepth, vUv);
-  float depth = (color.r + color.g / 256.0 + color.b / (256.0 * 256.0)) * 1000.0;
+  ${(!ZDEPTH) ? `
+  float depth = (color.r * 255.0 + color.g + color.b / 255.0) * 1000.0;
+  float z = depth - 0.05;
+  ` : `
+  // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
+  int r = int(color.r * 255.0);
+  int g = int(color.g * 255.0);
+  int b = int(color.b * 255.0);
+
+  float depth = float((r & 1) |
+      ((g & 1) << 1) |
+      ((b & 1) << 2) |
+      ((r & (1 << 1)) << (3 - 1)) |
+      ((g & (1 << 1)) << (4 - 1)) |
+      ((b & (1 << 1)) << (5 - 1)) |
+      ((r & (1 << 2)) << (6 - 2)) |
+      ((g & (1 << 2)) << (7 - 2)) |
+      ((b & (1 << 2)) << (8 - 2)) |
+      ((r & (1 << 3)) << (9 - 3)) |
+      ((g & (1 << 3)) << (10 - 3)) |
+      ((b & (1 << 3)) << (11 - 3)) |
+      ((r & (1 << 4)) << (12 - 4)) |
+      ((g & (1 << 4)) << (13 - 4)) |
+      ((b & (1 << 4)) << (14 - 4)) |
+      ((r & (1 << 5)) << (15 - 5)) |
+      ((g & (1 << 5)) << (16 - 5)) |
+      ((b & (1 << 5)) << (17 - 5)) |
+      ((r & (1 << 6)) << (18 - 6)) |
+      ((g & (1 << 6)) << (19 - 6)) |
+      ((b & (1 << 6)) << (20 - 6)) |
+      ((r & (1 << 7)) << (21 - 7)) |
+      ((g & (1 << 7)) << (22 - 7)) |
+      ((b & (1 << 7)) << (23 - 7))) *
+      (5000.0 / float(1 << 24));
 
   // Projection code by @kcmic
 
-  float z = depth * 256.0 - 0.05; // Not exactly sure why it's this
+  float z = depth - 1.0;
+  `}
 
-  vec4 pos = vec4(
+  pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
     (position.y / height - 0.5) * z * YtoZ,
     -z,
     1.0);
 
-  gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
   gl_Position = projectionMatrix * modelViewMatrix * pos;
+  // gl_PointSize = pointSizeBase + pointSize * depth * depthScale;
+  gl_PointSize = pointSizeBase + pointSize * depth * depthScale + glPosScale / gl_Position.w;
 }`;
 
-    const fragmentShader = `
+    const pointFragmentShader = `
 uniform sampler2D map;
 
 varying vec2 vUv;
 
 void main() {
   vec4 color = texture2D(map, vUv);
-  gl_FragColor = vec4(color.r, color.g, color.b, 0.2);
+  gl_FragColor = vec4(color.r, color.g, color.b, 0.4);
+}`;
+
+    const holoFragmentShader = `
+// color texture
+uniform sampler2D map;
+uniform float time;
+
+// uv (0.0-1.0) texture coordinates
+varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
+varying vec4 pos;
+
+void main() {
+  // Depth in millimeters
+  float depth = -pos.z;
+
+  // Fade out beginning at 4.5 meters and be gone after 5.0
+  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+
+  // Hologram effect :)
+  float alphaHolo = clamp(round(sin(pos.y / 3.0 - 40.0 * time) - 0.3), 0.0, 1.0) *
+                clamp(sin(gl_FragCoord.x / 10.0 + gl_FragCoord.y + 40.0 * time) + sin(5.0 * time) + 1.5, 0.0, 1.0);
+                // clamp(sin(sqrt(pos.x * pos.x + pos.z * pos.z) / 3.0 + 0.5) + sin(10.0 * time) + 1.5, 0.0, 1.0);
+
+  // Normal vector of the depth mesh based on pos
+  // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
+  vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
+
+  // pos.xyz is the ray looking out from the camera to this pixel
+  // dot of pos.xyz and the normal is to what extent this pixel is flat
+  // relative to the camera (alternatively, how much it's pointing at the
+  // camera)
+  // alphaDepth is thrown in here to incorporate the depth-based fade
+  float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth * alphaHolo;
+
+  // Sample the proper color for this pixel from the color image
+  vec4 color = texture2D(map, vUv);
+
+  gl_FragColor = vec4(color.rgb * vec3(0.1, 0.3, 0.3) + vec3(0.0, 0.7, 0.7), alpha);
 }`;
 
     const solidFragmentShader = `
+// color texture
 uniform sampler2D map;
 
+// uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
+varying vec4 pos;
 
 void main() {
+  // Depth in millimeters
+  float depth = -pos.z;
+
+  // Fade out beginning at 4.5 meters and be gone after 5.0
+  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+
+  // Normal vector of the depth mesh based on pos
+  // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
+  vec3 normal = normalize(cross(dFdx(pos.xyz), dFdy(pos.xyz)));
+
+  // pos.xyz is the ray looking out from the camera to this pixel
+  // dot of pos.xyz and the normal is to what extent this pixel is flat
+  // relative to the camera (alternatively, how much it's pointing at the
+  // camera)
+  // alphaDepth is thrown in here to incorporate the depth-based fade
+  float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth;
+
+  // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
-  gl_FragColor = vec4(color.r, color.g, color.b, 1.0);
+
+  gl_FragColor = vec4(color.rgb, alpha);
 }`;
 
     function setMatrixFromArray(matrix, array) {
@@ -84,13 +190,22 @@ void main() {
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
 
+            this.cameraMeshGroup = new THREE.Group();
+
             const geo = new THREE.BoxGeometry(100, 100, 80);
-            const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+            let colorId = id;
+            if (typeof id === 'string') {
+                colorId = 0;
+                for (let i = 0; i < id.length; i++) {
+                    colorId ^= id.charCodeAt(i);
+                }
+            }
+            const color = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';
             box.cameraVisId = this.id;
-            this.phone.add(box);
+            this.cameraMeshGroup.add(box);
 
             const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
             const cone = new THREE.Mesh(geoCone, mat);
@@ -99,13 +214,17 @@ void main() {
             cone.position.z = 65;
             cone.name = 'cameraVisCamera';
             cone.cameraVisId = this.id;
-            this.phone.add(cone);
+            this.cameraMeshGroup.add(cone);
+
+            this.phone.add(this.cameraMeshGroup);
 
             this.texture = new THREE.Texture();
             this.texture.minFilter = THREE.NearestFilter;
+            this.texture.magFilter = THREE.NearestFilter;
 
             this.textureDepth = new THREE.Texture();
             this.textureDepth.minFilter = THREE.NearestFilter;
+            this.textureDepth.magFilter = THREE.NearestFilter;
 
             this.material = null;
             this.mesh = null;
@@ -189,8 +308,6 @@ void main() {
         }
 
         addColorCube(i) {
-            const THREE = realityEditor.gui.threejsScene.THREE;
-
             if (!this.debugColorCube) {
                 let debugColor = new THREE.MeshBasicMaterial({
                     map: this.texture,
@@ -212,24 +329,45 @@ void main() {
         setupPointCloud() {
             const width = 640, height = 360;
 
-            this.geometry = new THREE.BufferGeometry();
+            if (shaderMode !== ShaderMode.POINT) {
+                this.geometry = new THREE.PlaneBufferGeometry(width, height, width / 5, height / 5);
+                this.geometry.translate(width / 2, height / 2);
+            } else {
+                this.geometry = new THREE.BufferGeometry();
+                const vertices = new Float32Array(width * height * 3);
 
-            const vertices = new Float32Array(width * height * 3);
+                for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j ++) {
+                    vertices[i] = j % width;
+                    vertices[i + 1] = Math.floor(j / width);
+                }
 
-            for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j ++) {
-                vertices[i] = j % width;
-                vertices[i + 1] = Math.floor(j / width);
+                this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             }
 
-            this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            let fragmentShader;
+            switch (shaderMode) {
+            case ShaderMode.POINT:
+                fragmentShader = pointFragmentShader;
+                break;
+            case ShaderMode.HOLO:
+                fragmentShader = holoFragmentShader;
+                break;
+            case ShaderMode.SOLID:
+            default:
+                fragmentShader = solidFragmentShader;
+                break;
+            }
 
             this.material = new THREE.ShaderMaterial({
                 uniforms: {
+                    time: {value: window.performance.now()},
                     map: {value: this.texture},
                     mapDepth: {value: this.textureDepth},
                     width: {value: width},
                     height: {value: height},
-                    depthScale: {value: 0.15}, // roughly 256 / 1920
+                    depthScale: {value: 0.15 / 256}, // roughly 1 / 1920
+                    glPosScale: {value: 20000}, // 0.15 / 256}, // roughly 1 / 1920
+                    // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                 },
                 vertexShader,
@@ -239,7 +377,11 @@ void main() {
                 transparent: true
             });
 
-            this.mesh = new THREE.Points(this.geometry, this.material);
+            if (shaderMode !== ShaderMode.POINT) {
+                this.mesh = new THREE.Mesh(this.geometry, this.material);
+            } else {
+                this.mesh = new THREE.Points(this.geometry, this.material);
+            }
             this.mesh.scale.set(-1, 1, -1);
             this.mesh.frustumCulled = false;
             this.phone.add(this.mesh);
@@ -247,9 +389,12 @@ void main() {
 
         update(mat) {
             let now = performance.now();
+            if (shaderMode === ShaderMode.HOLO) {
+                this.material.uniforms.time.value = window.performance.now();
+            }
             this.lastUpdate = now;
             if (this.time > now) {
-                setMatrixFromArray(this.phone.matrix, mat);
+                this.setMatrix(mat);
                 return;
             }
             this.matrices.push({
@@ -276,14 +421,59 @@ void main() {
                 latest = mat;
                 latestI = i;
             }
-            setMatrixFromArray(this.phone.matrix, latest.matrix);
             this.matrices.splice(0, latestI + 1);
-            this.historyPoints.push(new THREE.Vector3(
-                latest.matrix[12],
-                latest.matrix[13],
-                latest.matrix[14],
-            ));
-            this.historyLine.setPoints(this.historyPoints);
+
+            this.setMatrix(latest.matrix);
+        }
+
+        setMatrix(newMatrix) {
+            setMatrixFromArray(this.phone.matrix, newMatrix);
+            this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
+            let nextHistoryPoint = new THREE.Vector3(
+                newMatrix[12],
+                newMatrix[13],
+                newMatrix[14],
+            );
+
+            let addToHistory = this.historyPoints.length === 0;
+            if (this.historyPoints.length > 0) {
+                let lastHistoryPoint = this.historyPoints[this.historyPoints.length - 1];
+                let diffSq = (lastHistoryPoint.x - nextHistoryPoint.x) * (lastHistoryPoint.x - nextHistoryPoint.x) +
+                    (lastHistoryPoint.y - nextHistoryPoint.y) * (lastHistoryPoint.y - nextHistoryPoint.y) +
+                    (lastHistoryPoint.z - nextHistoryPoint.z) * (lastHistoryPoint.z - nextHistoryPoint.z);
+
+                addToHistory = diffSq > 100 * 100;
+            }
+
+            if (addToHistory) {
+                this.historyPoints.push(nextHistoryPoint);
+                this.historyLine.setPoints(this.historyPoints);
+            }
+        }
+
+        hideNearCamera() {
+            let mat = this.phone.matrix.clone();
+            mat.premultiply(this.container.matrix);
+            const x = mat.elements[12];
+            const y = mat.elements[13];
+            const z = mat.elements[14];
+
+            let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+            const cameraX = cameraNode.worldMatrix[12];
+            const cameraY = cameraNode.worldMatrix[13];
+            const cameraZ = cameraNode.worldMatrix[14];
+
+            let diffSq = (cameraX - x) * (cameraX - x) +
+                (cameraY - y) * (cameraY - y) +
+                (cameraZ - z) * (cameraZ - z);
+
+            if (diffSq < 3000 * 3000) {
+                if (this.cameraMeshGroup.visible) {
+                    this.cameraMeshGroup.visible = false;
+                }
+            } else if (!this.cameraMeshGroup.visible) {
+                this.cameraMeshGroup.visible = true;
+            }
         }
 
         add() {
@@ -303,42 +493,46 @@ void main() {
             this.visible = true;
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
-            this.keyboard = new realityEditor.device.KeyboardListener();
+            this.depthCanvasCache = {};
 
-            this.keyboard.onKeyUp((code) => {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
+                this.visible = toggled;
+                for (let camera of Object.values(this.cameras)) {
+                    camera.mesh.visible = this.visible;
+                    camera.mesh.__hidden = !this.visible;
+                }
+            });
 
-                if (code === this.keyboard.keyCodes.M) {
-                    this.visible = !this.visible;
-                    for (let camera of Object.values(this.cameras)) {
-                        camera.mesh.visible = this.visible;
-                    }
-                } else if (code === this.keyboard.keyCodes.R) {
-                    for (let camera of Object.values(this.cameras)) {
-                        camera.historyPoints = [];
-                        camera.historyLine.setPoints(camera.historyPoints);
-                    }
-                } else if (code === this.keyboard.keyCodes.N) {
-                    this.spaghettiVisible = !this.spaghettiVisible;
-                    for (let camera of Object.values(this.cameras)) {
-                        camera.historyMesh.visible = this.spaghettiVisible;
-                    }
-                } else if (code === this.keyboard.keyCodes.P) {
-                    for (let camera of Object.values(this.cameras)) {
-                        let patch = camera.clonePatch();
-                        realityEditor.gui.threejsScene.addToScene(patch);
-                        this.patches.push(patch);
-                    }
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
+                for (let camera of Object.values(this.cameras)) {
+                    camera.historyPoints = [];
+                    camera.historyLine.setPoints(camera.historyPoints);
+                }
+            });
+
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SpaghettiMap, (toggled) => {
+                this.spaghettiVisible = toggled;
+                for (let camera of Object.values(this.cameras)) {
+                    camera.historyMesh.visible = this.spaghettiVisible;
+                }
+            });
+
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, () => {
+                for (let camera of Object.values(this.cameras)) {
+                    let patch = camera.clonePatch();
+                    realityEditor.gui.threejsScene.addToScene(patch);
+                    this.patches.push(patch);
                 }
             });
 
             this.onPointerDown = this.onPointerDown.bind(this);
-            this.updatePositioningMode = this.updatePositioningMode.bind(this);
-            this.getTouchEventCatcher();
 
-            realityEditor.gui.buttons.registerCallbackForButton(
-                'setting',
-                this.updatePositioningMode);
+            let threejsCanvas = document.getElementById('mainThreejsCanvas');
+            if (threejsCanvas) {
+                threejsCanvas.addEventListener('pointerdown', this.onPointerDown);
+            }
+
+            this.startWebRTC();
         }
 
         connectWsToMatrix(url) {
@@ -351,80 +545,40 @@ void main() {
                 // if (pktType === PKT_MATRIX) {
                 const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
                 // }
-                if (!this.cameras[id]) {
-                    this.createCameraVis(id);
-                }
-                this.cameras[id].update(mat);
-
-                let now = performance.now();
-                for (let camera of Object.values(this.cameras)) {
-                    if (now - camera.lastUpdate > 2000) {
-                        camera.mesh.visible = false;
-                    } else if (!camera.mesh.visible) {
-                        camera.mesh.visible = true;
-                    }
-                }
+                this.updateMatrix(id, mat);
             });
+        }
+
+        updateMatrix(id, mat) {
+            if (!this.cameras[id]) {
+                this.createCameraVis(id);
+            }
+            this.cameras[id].update(mat);
+
+            let now = performance.now();
+            for (let camera of Object.values(this.cameras)) {
+                if (camera.mesh.__hidden) {
+                    camera.mesh.visible = false;
+                    continue;
+                }
+                if (now - camera.lastUpdate > 2000) {
+                    camera.mesh.visible = false;
+                } else if (!camera.mesh.visible) {
+                    camera.mesh.visible = true;
+                }
+            }
         }
 
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
                 const ws = new WebSocket(url);
-                let canvas = document.createElement('canvas');
-                let context = canvas.getContext('2d');
 
                 ws.addEventListener('message', async (msg) => {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
-                    if (!this.cameras[id]) {
-                        this.createCameraVis(id);
-                    }
-                    if (this.cameras[id].loading[textureKey]) {
-                        return;
-                    }
-                    this.cameras[id].loading[textureKey] = true;
-                    // const pktType = bytes[1];
-                    // if (pktType === PKT_MATRIX) {
-                    //   const text = await msg.data.slice(2, msg.data.length).text();
-                    //   const mat = JSON.parse(text);
-                    // }
                     const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
-                    const url = URL.createObjectURL(imageBlob);
-                    const image = new Image();
-
-                    let start = window.performance.now();
-                    image.onload = () => {
-                        const tex = this.cameras[id][textureKey];
-                        tex.dispose();
-                        // hmmmmm
-                        // most efficient would be if this had a data url for its src
-                        // data url = 'data:image/(png|jpeg);' + base64(blob)
-                        if (textureKey === 'textureDepth') {
-                            canvas.width = image.width;
-                            canvas.height = image.height;
-                            context.drawImage(image, 0, 0, image.width, image.height);
-                            tex.image = canvas;
-                            if (this.voxelizer) {
-                                this.voxelizer.raycastDepthTexture(this.cameras[id].phone, canvas, context);
-                            }
-                        } else {
-                            tex.image = image;
-                        }
-                        tex.needsUpdate = true;
-                        // let end = window.performance.now();
-                        if (textureKey === 'texture') {
-                            // We know that capture takes 30ms
-                            // Transmission takes ??s
-                            this.cameras[id].setTime(start + 40);
-                        }
-                        this.cameras[id].loading[textureKey] = false;
-                        // window.latencies[textureKey].push(end - start);
-                        URL.revokeObjectURL(url);
-                    };
-                    image.onerror = (e) => {
-                        console.error(e);
-                    };
-                    image.src = url;
+                    const imageUrl = URL.createObjectURL(imageBlob);
+                    this.renderPointCloud(id, textureKey, imageUrl);
                 });
             };
 
@@ -437,47 +591,110 @@ void main() {
             this.connectWsToMatrix(urlMatrix);
         }
 
+        startWebRTC() {
+            const network = 'cam0';
+
+            const ws = new WebSocket(urlBase + 'signalling');
+            const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
+        }
+
+        renderPointCloud(id, textureKey, imageUrl) {
+            if (!this.cameras[id]) {
+                this.createCameraVis(id);
+            }
+            if (this.cameras[id].loading[textureKey]) {
+                return;
+            }
+            this.cameras[id].loading[textureKey] = true;
+            // const pktType = bytes[1];
+            // if (pktType === PKT_MATRIX) {
+            //   const text = await msg.data.slice(2, msg.data.length).text();
+            //   const mat = JSON.parse(text);
+            // }
+
+            const image = new Image();
+
+            let start = window.performance.now();
+            image.onload = () => {
+                const tex = this.cameras[id][textureKey];
+                tex.dispose();
+                // hmmmmm
+                // most efficient would be if this had a data url for its src
+                // data url = 'data:image/(png|jpeg);' + base64(blob)
+                if (textureKey === 'textureDepth') {
+                    if (!this.depthCanvasCache.hasOwnProperty(id)) {
+                        let canvas = document.createElement('canvas');
+                        this.depthCanvasCache[id] = {
+                            canvas,
+                            context: canvas.getContext('2d'),
+                        };
+                    }
+                    let {canvas, context} = this.depthCanvasCache[id];
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    context.drawImage(image, 0, 0, image.width, image.height);
+                    tex.image = canvas;
+                    if (this.voxelizer) {
+                        this.voxelizer.raycastDepthTexture(
+                            this.cameras[id].phone, canvas, context);
+                    }
+                } else {
+                    tex.image = image;
+                }
+                tex.needsUpdate = true;
+                // let end = window.performance.now();
+                if (textureKey === 'texture') {
+                    // We know that capture takes 30ms
+                    // Transmission takes ??s
+                    this.cameras[id].setTime(start + 40);
+                }
+                this.cameras[id].loading[textureKey] = false;
+                // window.latencies[textureKey].push(end - start);
+                URL.revokeObjectURL(imageUrl);
+            };
+            image.onerror = (e) => {
+                console.error(e);
+            };
+            image.src = imageUrl;
+        }
+
+        loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
+            this.renderPointCloud(id, 'texture', textureUrl);
+            this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
+            this.updateMatrix(id, matrix);
+        }
+
+        hidePointCloud(id) {
+            if (!this.cameras[id]) {
+                console.log('No need to hide camera ' + id + ', it hasn\'t been created yet.');
+                return;
+            }
+            let camera = this.cameras[id];
+            if (camera.mesh) {
+                camera.mesh.visible = false;
+            }
+        }
+
         createCameraVis(id) {
             if (debug) {
                 console.log('new camera', id);
             }
             this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
+
+            // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
         }
 
-        updatePositioningMode() {
-            if (!globalStates.settingsButtonState) {
-                this.getTouchEventCatcher().style.display = '';
-                this.getTouchEventCatcher().style.pointerEvents = 'auto';
-            } else {
-                this.getTouchEventCatcher().style.display = 'none';
-                this.getTouchEventCatcher().style.pointerEvents = 'none';
-            }
-        }
-
-        // ensures there's a div on top of everything that blocks touch events from reaching the tools when we're in this mode
-        getTouchEventCatcher() {
-            if (!this.touchEventCatcher) {
-                this.touchEventCatcher = document.createElement('div');
-                this.touchEventCatcher.style.position = 'absolute';
-                this.touchEventCatcher.style.left = '0';
-                this.touchEventCatcher.style.top = '0';
-                this.touchEventCatcher.style.width = '100vw';
-                this.touchEventCatcher.style.height = '100vh';
-                let zIndex = 2900; // above scene elements, below pocket and menus
-                this.touchEventCatcher.style.zIndex = zIndex;
-                this.touchEventCatcher.style.transform = 'matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,' + zIndex + ',1)';
-                document.body.appendChild(this.touchEventCatcher);
-
-                this.touchEventCatcher.addEventListener('pointerdown', this.onPointerDown);
-            }
-            return this.touchEventCatcher;
-        }
-
-        // hit test threeJsScene to see if we hit any of the anchor threeJsGroups
-        // if we are, keep track of it so we can move it on pointermove. also give visual feedback
         onPointerDown(e) {
-            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY);
+            let objectsToCheck = Object.values(this.cameras).map(cameraVis => {
+                return cameraVis.cameraMeshGroup;
+            });
+            let intersects = realityEditor.gui.threejsScene.getRaycastIntersects(e.clientX, e.clientY, objectsToCheck);
 
             intersects.forEach((intersect) => {
                 if (intersect.object.name !== 'cameraVisCamera') {
@@ -492,7 +709,6 @@ void main() {
                 e.stopPropagation();
             });
         }
-
     };
 
 })(realityEditor.device.cameraVis);
