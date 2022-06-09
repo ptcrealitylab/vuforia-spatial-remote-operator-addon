@@ -5,6 +5,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
+    const PROXY = true;
     const ShaderMode = {
         SOLID: 'SOLID',
         POINT: 'POINT',
