@@ -155,6 +155,7 @@ createNameSpace('realityEditor.device.cameraVis');
                 if (!e.candidate) {
                     return;
                 }
+
                 if (PROXY) {
                     this.ws.message('unused', {id: 'signalling'}, null, {
                         data: encoder.encode(JSON.stringify({
@@ -263,6 +264,7 @@ createNameSpace('realityEditor.device.cameraVis');
             const id = this.providerId;
             let bytes = new Uint8Array(event.data);
             if (bytes.length < 1000) {
+                const decoder = new TextDecoder();
                 const matricesMsg = decoder.decode(bytes);
                 // blah blah it's matrix
                 const matrices = JSON.parse(matricesMsg);
