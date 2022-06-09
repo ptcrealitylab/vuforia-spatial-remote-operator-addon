@@ -18,6 +18,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
     const ENABLE_VOXELIZER = false;
+    const PROXY = window.location.host === 'toolboxedge.net';
 
     /**
      * @type {Canvas} - the DOM element where the images streamed from a reality zone are rendered
@@ -132,15 +133,17 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
 
-                        videoPlayback = new realityEditor.videoPlayback.Coordinator();
-                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                        videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
-                        videoPlayback.load();
-                        window.videoPlayback = videoPlayback;
+                        if (!PROXY) {
+                            videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
+                            videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                            videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                            videoPlayback.load();
+                            window.videoPlayback = videoPlayback;
 
-                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
-                            videoPlayback.toggleVisibility(toggled);
-                        });
+                            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                                videoPlayback.toggleVisibility(toggled);
+                            });
+                        }
                     });
                 }
 

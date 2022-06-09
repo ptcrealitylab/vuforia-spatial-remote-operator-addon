@@ -6,7 +6,7 @@ createNameSpace('realityEditor.videoPlayback');
 
     // The Video Playback Coordinator creates a Timeline and loads all VideoSources into it via a TimelineDatabase
     // When the Timeline plays or is scrolled, responds to the RGB+Depth+Pose data and tells the CameraVisCoordinator to render point clouds
-    class Coordinator {
+    class VideoPlaybackCoordinator {
         constructor() {
             this.canvasElements = {};
             this.timelineVisibile = true;
@@ -162,5 +162,5 @@ createNameSpace('realityEditor.videoPlayback');
             }
         }
     }
-    exports.Coordinator = Coordinator;
+    exports.VideoPlaybackCoordinator = VideoPlaybackCoordinator;
 })(realityEditor.videoPlayback);
