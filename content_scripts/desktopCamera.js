@@ -413,7 +413,11 @@ createNameSpace('realityEditor.device.desktopCamera');
                     unityCamera.update();
 
                     let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-                    realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.worldMatrix);
+                    let gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
+                    if (!gpNode) {
+                        gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
+                    }
+                    realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.getMatrixRelativeTo(gpNode));
                 }
             } catch (e) {
                 if (DEBUG) {
