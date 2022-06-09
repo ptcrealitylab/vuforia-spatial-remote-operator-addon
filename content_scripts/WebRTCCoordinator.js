@@ -1,7 +1,7 @@
 createNameSpace('realityEditor.device.cameraVis');
 
 (function(exports) {
-    const PROXY = true;
+    const PROXY = window.location.host === 'toolboxedge.net';
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();

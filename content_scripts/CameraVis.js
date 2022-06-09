@@ -5,7 +5,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
-    const PROXY = true;
+    const PROXY = window.location.host === 'toolboxedge.net';
     const ShaderMode = {
         SOLID: 'SOLID',
         POINT: 'POINT',
@@ -537,20 +537,30 @@ void main() {
         }
 
         connectWsToMatrix(_url) {
-            const ws = realityEditor.cloud.socket;
+            if (PROXY) {
+                const ws = realityEditor.cloud.socket;
 
-            ws.on('message', async (route, body, cbObj, bin) => {
-                if (body.id !== 'matrix') {
-                    return;
-                }
+                ws.on('message', async (route, body, cbObj, bin) => {
+                    if (body.id !== 'matrix') {
+                        return;
+                    }
 
-                const id = bin.data[0];
-                // const pktType = bytes[1];
-                // if (pktType === PKT_MATRIX) {
-                const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
-                // }
-                this.updateMatrix(id, mat);
-            });
+                    const id = bin.data[0];
+                    // const pktType = bytes[1];
+                    // if (pktType === PKT_MATRIX) {
+                    const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
+                    // }
+                    this.updateMatrix(id, mat);
+                });
+            } else {
+                const ws = new WebSocket(url);
+                ws.addEventListener('message', async (msg) => {
+                    const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
+                    const id = bytes[0];
+                    const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
+                    this.updateMatrix(id, mat);
+                });
+            }
         }
 
         updateMatrix(id, mat) {
@@ -575,26 +585,37 @@ void main() {
 
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
-                const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(url);
+                if (PROXY) {
+                    const ws = realityEditor.cloud.socket;
 
-                ws.on('message', async (route, body, cbObj, bin) => {
-                    if (body.id === 'depth' && textureKey !== 'textureDepth') {
-                        return;
-                    }
-                    if (body.id === 'color' && textureKey !== 'texture') {
-                        return;
-                    }
-                    if (body.id === 'matrix') {
-                        return;
-                    }
+                    ws.on('message', async (route, body, cbObj, bin) => {
+                        if (body.id === 'depth' && textureKey !== 'textureDepth') {
+                            return;
+                        }
+                        if (body.id === 'color' && textureKey !== 'texture') {
+                            return;
+                        }
+                        if (body.id === 'matrix') {
+                            return;
+                        }
 
-                    const bytes = new Uint8Array(bin.data.slice(0, 1));
-                    const id = bytes[0];
-                    const imageBlob = new Blob([bin.data.slice(1, bin.data.length).buffer], {type: mimetype});
-                    // const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
-                    const imageUrl = URL.createObjectURL(imageBlob);
-                    this.renderPointCloud(id, textureKey, imageUrl);
-                });
+                        const bytes = new Uint8Array(bin.data.slice(0, 1));
+                        const id = bytes[0];
+                        const imageBlob = new Blob([bin.data.slice(1, bin.data.length).buffer], {type: mimetype});
+                        const imageUrl = URL.createObjectURL(imageBlob);
+                        this.renderPointCloud(id, textureKey, imageUrl);
+                    });
+                } else {
+                    const ws = new WebSocket(url);
+
+                    ws.addEventListener('message', async (msg) => {
+                        const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
+                        const id = bytes[0];
+                        const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
+                        const imageUrl = URL.createObjectURL(imageBlob);
+                        this.renderPointCloud(id, textureKey, imageUrl);
+                    });
+                }
             };
 
             const urlColor = urlBase + 'color';
