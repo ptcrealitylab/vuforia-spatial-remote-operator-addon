@@ -574,7 +574,7 @@ void main() {
 
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
-                const ws = realityEditor.cloud.socket;
+                const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(url);
 
                 ws.on('message', async (route, body, cbObj, bin) => {
                     if (body.id === 'depth' && textureKey !== 'textureDepth') {
@@ -608,8 +608,7 @@ void main() {
         startWebRTC() {
             const network = 'cam0';
 
-            // const ws = new WebSocket(urlBase + 'signalling');
-            const ws = realityEditor.cloud.socket;
+            const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(urlBase + 'signalling');
             const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 

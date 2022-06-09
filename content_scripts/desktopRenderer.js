@@ -148,6 +148,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         });
 
+        document.body.style.backgroundColor = 'rgb(50,50,50)';
+
         // create background canvas and supporting canvasses
 
         backgroundCanvas = document.createElement('canvas');
