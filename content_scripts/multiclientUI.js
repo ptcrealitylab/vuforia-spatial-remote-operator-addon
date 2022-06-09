@@ -12,7 +12,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
     let allConnectedCameras = {};
-    let isCameraSubscriptionActive = false;
+    let isCameraSubscriptionActiveForObject = {};
 
     const wireVertex = `
         attribute vec3 center;
@@ -68,14 +68,16 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     }
 
     function setupWorldSocketSubscriptionsIfNeeded(objectKey) {
-        if (isCameraSubscriptionActive) { return; }
+        if (isCameraSubscriptionActiveForObject[objectKey]) {
+            return;
+        }
 
         // subscribe to remote operator camera positions
         // right now this assumes there will only be one world object in the network
         let object = realityEditor.getObject(objectKey);
         if (object && (object.isWorldObject || object.type === 'world')) {
             realityEditor.network.realtime.subscribeToCameraMatrices(objectKey, onCameraMatrix);
-            isCameraSubscriptionActive = true;
+            isCameraSubscriptionActiveForObject[objectKey] = true;
         }
     }
 
