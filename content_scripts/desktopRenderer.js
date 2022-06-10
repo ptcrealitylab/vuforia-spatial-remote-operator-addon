@@ -50,6 +50,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let staticModelMode = false;
     let realityZoneViewer = null;
     let videoPlayback = null;
+    let cameraVisSceneNodes = [];
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -128,6 +129,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                         let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
+                        cameraVisCoordinator.onCameraVisCreated(cameraVis => {
+                            console.log('onCameraVisCreated', cameraVis);
+                            cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+                        });
 
                         realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
@@ -331,6 +336,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     }
 
     exports.processImageFromSource = processImageFromSource;
+    
+    exports.getCameraVisSceneNodes = () => {
+        return cameraVisSceneNodes;
+    }
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);

@@ -184,11 +184,18 @@ void main() {
             // this.container.rotation.y = Math.PI;
             this.container.position.y = -floorOffset;
             this.container.rotation.x = Math.PI / 2;
+            this.container.name = 'CameraVisContainer_' + id;
             this.lastUpdate = Date.now();
             this.phone = new THREE.Group();
             this.phone.matrixAutoUpdate = false;
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
+
+            let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+            // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            // let parentNode = realityEditor.sceneGraph.getSceneNodeById(elementId);
+            let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraVis_' + id, parentNode);
+            this.sceneGraphNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
 
             this.cameraMeshGroup = new THREE.Group();
 
@@ -449,6 +456,10 @@ void main() {
                 this.historyPoints.push(nextHistoryPoint);
                 this.historyLine.setPoints(this.historyPoints);
             }
+            
+            if (this.sceneGraphNode) {
+                this.sceneGraphNode.setLocalMatrix(newMatrix);
+            }
         }
 
         hideNearCamera() {
@@ -494,6 +505,9 @@ void main() {
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
             this.depthCanvasCache = {};
+            this.callbacks = {
+                onCameraVisCreated: []
+            }
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -675,6 +689,10 @@ void main() {
             }
         }
 
+        onCameraVisCreated(cb) {
+            this.callbacks.onCameraVisCreated.push(cb);
+        }
+
         createCameraVis(id) {
             if (debug) {
                 console.log('new camera', id);
@@ -688,6 +706,13 @@ void main() {
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.Follow1stPerson, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.Follow3rdPerson, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
+            
+            this.callbacks.onCameraVisCreated.forEach(cb => {
+                cb(this.cameras[id]);
+            });
         }
 
         onPointerDown(e) {

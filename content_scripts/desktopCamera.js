@@ -62,6 +62,16 @@ createNameSpace('realityEditor.device.desktopCamera');
     let interactionCursor = null;
     let pointerPosition = { x: 0, y: 0 };
 
+    function makeGroundPlaneRotationX(theta) {
+        var c = Math.cos(theta), s = Math.sin(theta);
+        return [
+            1, 0, 0, 0,
+            0, c, -s, 0,
+            0, s, c, 0,
+            0, 0, 0, 1
+        ];
+    }
+    
     function makeGroundPlaneRotationY(theta) {
         var c = Math.cos(theta), s = Math.sin(theta);
         return [
@@ -95,8 +105,17 @@ createNameSpace('realityEditor.device.desktopCamera');
             return;
         }
 
+        let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
+        let cameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('CameraGroupContainer', parentNode);
+        let cameraGroupContainer = realityEditor.sceneGraph.getSceneNodeById(cameraGroupContainerId);
+        let transformationMatrix = makeGroundPlaneRotationX(0);
+        transformationMatrix[13] = 1286; // ground plane translation
+        cameraGroupContainer.setLocalMatrix(transformationMatrix);
+        
+        // let elementId = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
+        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, false);
 
         cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', undefined, undefined, virtualCamera.getTargetMatrix());
 
@@ -201,6 +220,27 @@ createNameSpace('realityEditor.device.desktopCamera');
             unityCamera.idleOrbitting = value;
         });
 
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Follow1stPerson, () => {
+            let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
+            if (virtualizerSceneNodes.length > 0) {
+                virtualCamera.follow1stPerson(virtualizerSceneNodes[0]);
+                unityCamera.follow1stPerson(virtualizerSceneNodes[0]);                
+            }
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Follow3rdPerson, () => {
+            let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
+            if (virtualizerSceneNodes.length > 0) {
+                virtualCamera.follow3rdPerson(virtualizerSceneNodes[0]);
+                unityCamera.follow3rdPerson(virtualizerSceneNodes[0]);
+            }
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.StopFollowing, () => {
+            virtualCamera.stopFollowing();
+            unityCamera.stopFollowing();
+        });
+
         if (DEBUG_SHOW_LOGGER) {
             closestObjectLog = document.createElement('div');
             closestObjectLog.style.position = 'absolute';
@@ -294,19 +334,19 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
     }
 
-    function setTargetPositionToObject(objectKey) {
-        if (objectKey === 'origin') {
-            cameraTargetPosition = [0, 0, 0];
-            isFollowingObjectTarget = true;
-            return;
-        }
-
-        var targetPosition = realityEditor.sceneGraph.getWorldPosition(objectKey);
-        if (targetPosition) {
-            cameraTargetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
-            isFollowingObjectTarget = true;
-        }
-    }
+    // function setTargetPositionToObject(objectKey) {
+    //     if (objectKey === 'origin') {
+    //         cameraTargetPosition = [0, 0, 0];
+    //         isFollowingObjectTarget = true;
+    //         return;
+    //     }
+    //
+    //     var targetPosition = realityEditor.sceneGraph.getWorldPosition(objectKey);
+    //     if (targetPosition) {
+    //         cameraTargetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
+    //         isFollowingObjectTarget = true;
+    //     }
+    // }
 
     function onObjectSelectionChanged(selected) {
         if (selected && selected.element) {
