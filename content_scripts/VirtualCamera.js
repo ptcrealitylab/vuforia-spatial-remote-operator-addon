@@ -4,6 +4,8 @@
 
 createNameSpace('realityEditor.device');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 (function(exports) {
 
     const FOLLOWING_RELATIVE_POSITION = [
@@ -12,6 +14,11 @@ createNameSpace('realityEditor.device');
         0.1355399071070364, -1.3471959077679534, 1.4719672222377786, 0,
         1033.3310890578132, -10300.982745528603, 12136.112553930248, 0.9999999999999998
     ];
+    
+    const THIRD_PERSON_FOLLOW = [0.3948297800489131, 0.7550329823511126, 0.5234836880620531, 0,
+        0.9134077373584234, -0.3839629897627356, -0.13512492764589737, 0,
+        0.09897390496442003, 0.5315057665562919, -0.8412528042757477, 0,
+        598.0929462431984, 1461.9560097023732, -3530.857824661904, 0.9999999999999997];
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
@@ -52,7 +59,11 @@ createNameSpace('realityEditor.device');
             this.followingState = {
                 active: false,
                 selectedId: null,
-                followerElementId: null
+                followerElementId: null,
+                isFirstPerson: false,
+                isThirdPerson: false,
+                threejsObject: null
+                // threejsTargetObject: null
             };
             if (typeof isDemoVersion !== 'undefined') {
                 this.isDemoVersion = isDemoVersion;
@@ -63,6 +74,13 @@ createNameSpace('realityEditor.device');
                 onScaleToggled: []
             };
             this.addEventListeners();
+
+            this.threeJsContainer = new THREE.Group();
+            this.threeJsContainer.name = 'VirtualCamera_' + cameraNode.id + '_threeJsContainer';
+            let floorOffset = -1286;
+            this.threeJsContainer.position.y = -floorOffset; // TODO: don't hard-code, pass in
+            this.threeJsContainer.rotation.x = Math.PI / 2;
+            realityEditor.gui.threejsScene.addToScene(this.threeJsContainer); // , {worldObjectId: realityEditor.worldObjects.getBestWorldObject().objectId}
         }
         addEventListeners() {
 
@@ -198,6 +216,7 @@ createNameSpace('realityEditor.device');
             //     // objectDropdown.setText('Select Camera Target', true);
             //     objectDropdown.resetSelection();
             // }
+            this.stopFollowing();
         }
         adjustEnvVars(distanceToTarget) {
             if (distanceToTarget < 3000) {
@@ -208,40 +227,157 @@ createNameSpace('realityEditor.device');
                 realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (4);
             }
         }
+        follow1stPerson(sceneNodeToFollow) {
+            console.log('follow 1st person', sceneNodeToFollow);
+            this.followingState.active = true;
+            this.followingState.selectedId = sceneNodeToFollow.id;
+            this.followingState.isFirstPerson = true;
+            this.followingState.isThirdPerson = false;
+        }
+        follow3rdPerson(sceneNodeToFollow) {
+            console.log('follow 3rd person', sceneNodeToFollow);
+            this.followingState.active = true;
+            this.followingState.selectedId = sceneNodeToFollow.id;
+            this.followingState.isFirstPerson = false;
+            this.followingState.isThirdPerson = true;
+        }
+        // stopFollowing() {
+        //     console.log('stop following');
+        // }
         updateFollowing() {
             let targetPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.selectedId);
             if (!targetPosition) { this.stopFollowing(); return; }
 
-            this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
+            // this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
 
             if (!realityEditor.sceneGraph.getVisualElement(this.followerName)) {
                 let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
-                let relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
 
-                if (this.isDemoVersion) {
-                    relativeToTarget = FOLLOWING_RELATIVE_POSITION;
-                    if (selectedNode.linkedVehicle) {
-                        let thisObject = realityEditor.getObject(selectedNode.linkedVehicle.objectId);
-                        if (thisObject) {
-                            let body = {};
-                            body[selectedNode.linkedVehicle.objectId] = {
-                                objectID: selectedNode.linkedVehicle.objectID,
-                                toolID: '',
-                                nodeID: ''
-                            };
-                            globalStates.spatial.whereWas[thisObject.ip] = JSON.parse(JSON.stringify(body));
-                            realityEditor.gui.spatial.checkState();
-                        }
-                    }
+                if (!this.followingState.threejsObject) {
+                    const THREE = realityEditor.gui.threejsScene.THREE;
+                    this.followingState.threejsObject = new THREE.Group();
+                    this.followingState.threejsObject.name = 'followingElementGroup';
+                    this.followingState.threejsObject.matrixAutoUpdate = false;
+                    this.followingState.threejsObject.visible = true;
+                    this.threeJsContainer.add(this.followingState.threejsObject);
+
+                    let positionObject = new THREE.Mesh(new THREE.BoxGeometry(150, 150, 150), new THREE.MeshBasicMaterial({color: 0xff00ff}));
+                    positionObject.name = 'followingPositionElement';
+                    positionObject.position.set(0, 0, -200);
+                    positionObject.visible = false;
+                    this.followingState.threejsObject.add(positionObject);
+                    
+                    let targetObject = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial({color: 0xff88ff}));
+                    targetObject.name = 'followingTargetElement';
+                    targetObject.position.set(0, 0, 500);
+                    targetObject.visible = false;
+                    this.followingState.threejsObject.add(targetObject);
+
+                    // realityEditor.gui.threejsScene.addToScene(this.followingState.threejsObject); // , {worldObjectId: realityEditor.worldObjects.getBestWorldObject().objectId}
                 }
 
+                // if (!this.followingState.threejsTargetObject) {
+                //     const THREE = realityEditor.gui.threejsScene.THREE;
+                //     this.followingState.threejsTargetObject = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial({color: 0xff88ff}));
+                //     this.followingState.threejsTargetObject.position.set(0, 0, 200);
+                //     this.followingState.threejsTargetObject.name = 'followingTargetElement';
+                //     this.followingState.threejsTargetObject.matrixAutoUpdate = false;
+                //     this.followingState.threejsTargetObject.visible = true;
+                //     this.threeJsContainer.add(this.followingState.threejsTargetObject);
+                // }
+
+                let relativeToTarget = null;
+                if (this.followingState.isFirstPerson) {
+                    relativeToTarget = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+                } else if (this.followingState.isThirdPerson) {
+                    relativeToTarget = THIRD_PERSON_FOLLOW;
+                } else {
+                    relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
+                }
+
+                // if (this.isDemoVersion) {
+                //     relativeToTarget = FOLLOWING_RELATIVE_POSITION;
+                //     if (selectedNode.linkedVehicle) {
+                //         let thisObject = realityEditor.getObject(selectedNode.linkedVehicle.objectId);
+                //         if (thisObject) {
+                //             let body = {};
+                //             body[selectedNode.linkedVehicle.objectId] = {
+                //                 objectID: selectedNode.linkedVehicle.objectID,
+                //                 toolID: '',
+                //                 nodeID: ''
+                //             };
+                //             globalStates.spatial.whereWas[thisObject.ip] = JSON.parse(JSON.stringify(body));
+                //             realityEditor.gui.spatial.checkState();
+                //         }
+                //     }
+                // }
+
                 this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement(this.followerName, selectedNode, null, relativeToTarget);
+                realityEditor.sceneGraph.calculateFinalMatrices([]); // recompute scenegraph immediately
+
             } else {
-                let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
-                let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
-                let movement = add(newPosVec, negate(this.position));
-                if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-                    this.velocity = add(this.velocity, movement);
+                // let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
+                // let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
+                // let movement = add(newPosVec, negate(this.position));
+                // if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+                //     this.velocity = add(this.velocity, movement);
+                // }
+
+                if (this.followingState.threejsObject) {
+                    let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
+                    realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
+                    // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsTargetObject.matrix, selectedNode.worldMatrix);
+
+                    let positionObject = realityEditor.gui.threejsScene.getObjectByName('followingPositionElement');
+                    let targetObject = realityEditor.gui.threejsScene.getObjectByName('followingTargetElement');
+                    
+                    let targetModelView = targetObject.matrixWorld.clone();
+                    let positionModelView = positionObject.matrixWorld.clone();
+
+                    // multiply intersect, which is in ROOT coordinates, by the relative world matrix (ground plane) to ROOT
+                    let cameraMatrix = new realityEditor.gui.threejsScene.THREE.Matrix4();
+                    realityEditor.gui.threejsScene.setMatrixFromArray(cameraMatrix, realityEditor.sceneGraph.getCameraNode().worldMatrix);
+                    // inverseCameraMatrix.invert();
+
+                    targetModelView.premultiply(cameraMatrix);
+                    positionModelView.premultiply(cameraMatrix);
+                    
+                    // targetModelView.applyMatrix4(inverseCameraMatrix);
+                    // positionModelView.applyMatrix4(inverseCameraMatrix);
+                    
+                    console.log(targetModelView, positionModelView);
+
+                    // this.position = [positionModelView[12], positionModelView[13], positionModelView[14]];
+                    // this.targetPosition = [targetModelView[12], targetModelView[13], targetModelView[14]];
+
+                    // let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
+                    // let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
+
+                    let newPosVec = [positionModelView.elements[12], positionModelView.elements[13], positionModelView.elements[14]];
+                    let newTargetPosVec = [targetModelView.elements[12], targetModelView.elements[13], targetModelView.elements[14]];
+                    
+                    let movement = add(newPosVec, negate(this.position));
+                    if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+                        this.velocity = add(this.velocity, movement);
+                    }
+
+                    let targetMovement = add(newTargetPosVec, negate(this.targetPosition));
+                    if (targetMovement[0] !== 0 || targetMovement[1] !== 0 || targetMovement[2] !== 0) {
+                        this.targetVelocity = add(this.targetVelocity, targetMovement);
+                    }
+
+                    // let nodeRelativeToGroundPlane = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph.getGroundPlaneNode());
+                    // let cameraRelativeToGroundPlane = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph);
+                    
+                    // if (this.followingState.isFirstPerson) {
+                    //     this.cameraNode.setLocalMatrix(selectedNode.worldMatrix);
+                    //     // realityEditor.sceneGraph.getCameraNode().setLocalMatrix(selectedNode.worldMatrix);
+                    // }
+
+                    // this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
+                    // this.targetPosition = [selectedNode.worldMatrix[12], selectedNode.worldMatrix[13], selectedNode.worldMatrix[14]]
+                    
+                    // this.position = [selectedNode.worldMatrix[12], selectedNode.worldMatrix[13], selectedNode.worldMatrix[14]];
                 }
             }
         }
@@ -250,6 +386,8 @@ createNameSpace('realityEditor.device');
                 realityEditor.sceneGraph.removeElementAndChildren(this.followingState.followerElementId);
                 this.followingState.followerElementId = null;
             }
+            this.followingState.active = false;
+            this.followingState.selectedId = null;
         }
         getTargetMatrix() {
             return [
@@ -293,6 +431,9 @@ createNameSpace('realityEditor.device');
 
             if (this.followingState.active) {
                 this.updateFollowing();
+                // if (this.followingState.isFirstPerson) {
+                //     return;
+                // }
             } else {
                 this.stopFollowing();
             }
