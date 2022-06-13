@@ -21,7 +21,7 @@ const LocalUIApp =  require('@libraries/LocalUIApp');
 
 const settings = server.loadHardwareInterface(__dirname);
 
-exports.enabled = settings('enabled');
+exports.enabled = os.platform() === 'ios' || settings('enabled');
 exports.configurable = true; // can be turned on/off/adjusted from the web frontend
 
 /**
