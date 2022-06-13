@@ -50,6 +50,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let staticModelMode = false;
     let realityZoneViewer = null;
     let videoPlayback = null;
+    let cameraVisCoordinator = null;
     let cameraVisSceneNodes = [];
 
     /**
@@ -127,7 +128,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                             realityZoneVoxelizer.add();
                         }
 
-                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
+                        cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
@@ -225,6 +226,20 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         );
     }
+    
+    function showCameraCanvas(id) {
+        if (cameraVisCoordinator) {
+            cameraVisCoordinator.showFullscreenColorCanvas(id);
+        }
+    }
+    exports.showCameraCanvas = showCameraCanvas;
+
+    function hideCameraCanvas(id) {
+        if (cameraVisCoordinator) {
+            cameraVisCoordinator.hideFullscreenColorCanvas(id);
+        }
+    }
+    exports.hideCameraCanvas = hideCameraCanvas;
 
     /**
      * Updates canvas size for resize events
