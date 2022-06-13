@@ -34,19 +34,20 @@ createNameSpace('realityEditor.device.desktopCamera');
             name: 'firstPersonFollow',
             threejsPositionObject: null,
             threejsTargetObject: null,
-            positionRelativeToCamera: [0, 0, -200],
+            positionRelativeToCamera: [0, 0, -1000],
             targetRelativeToCamera: [0, 0, 500],
             smoothing: 0.2,
             debugColor: '#ffffff',
             keyboardShortcut: '_1',
-            menuBarName: 'Follow 1st-Person'
+            menuBarName: 'Follow 1st-Person',
+            render2DVideo: true
         },
         2: {
             name: 'almostFirstPersonFollow',
             threejsPositionObject: null,
             threejsTargetObject: null,
-            positionRelativeToCamera: [0, -250, -500],
-            targetRelativeToCamera: [0, 0, 500],
+            positionRelativeToCamera: [0, -250, -1500],
+            targetRelativeToCamera: [0, 0, 2000],
             smoothing: 0.5,
             debugColor: '#ffffff',
             keyboardShortcut: '_2',
@@ -56,8 +57,8 @@ createNameSpace('realityEditor.device.desktopCamera');
             name: 'thirdPersonFollowClose',
             threejsPositionObject: null,
             threejsTargetObject: null,
-            positionRelativeToCamera: [0, -1000, -1000],
-            targetRelativeToCamera: [0, 0, 1000],
+            positionRelativeToCamera: [0, -1000, -2500],
+            targetRelativeToCamera: [0, 0, 2000],
             smoothing: 0.5,
             debugColor: '#ffffff',
             keyboardShortcut: '_3',
@@ -67,8 +68,8 @@ createNameSpace('realityEditor.device.desktopCamera');
             name: 'thirdPersonFollowFar',
             threejsPositionObject: null,
             threejsTargetObject: null,
-            positionRelativeToCamera: [0, -2000, -3000],
-            targetRelativeToCamera: [0, 0, 1000],
+            positionRelativeToCamera: [0, -2000, -4000],
+            targetRelativeToCamera: [0, 0, 2000],
             smoothing: 0.8,
             debugColor: '#ffffff',
             keyboardShortcut: '_4',
@@ -78,7 +79,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             name: 'godMode',
             threejsPositionObject: null,
             threejsTargetObject: null,
-            positionRelativeToCamera: [0, -5000, -5000],
+            positionRelativeToCamera: [0, -5000, -6000],
             targetRelativeToCamera: [0, 0, 0],
             smoothing: 0.8,
             debugColor: '#ffffff',
@@ -279,25 +280,26 @@ createNameSpace('realityEditor.device.desktopCamera');
             unityCamera.idleOrbitting = value;
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Follow1stPerson, () => {
-            let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
-            if (virtualizerSceneNodes.length > 0) {
-                virtualCamera.follow1stPerson(virtualizerSceneNodes[0]);
-                unityCamera.follow1stPerson(virtualizerSceneNodes[0]);                
-            }
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Follow3rdPerson, () => {
-            let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
-            if (virtualizerSceneNodes.length > 0) {
-                virtualCamera.follow3rdPerson(virtualizerSceneNodes[0]);
-                unityCamera.follow3rdPerson(virtualizerSceneNodes[0]);
-            }
-        });
+        // realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Follow1stPerson, () => {
+        //     let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
+        //     if (virtualizerSceneNodes.length > 0) {
+        //         virtualCamera.follow1stPerson(virtualizerSceneNodes[0]);
+        //         unityCamera.follow1stPerson(virtualizerSceneNodes[0]);                
+        //     }
+        // });
+        //
+        // realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Follow3rdPerson, () => {
+        //     let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
+        //     if (virtualizerSceneNodes.length > 0) {
+        //         virtualCamera.follow3rdPerson(virtualizerSceneNodes[0]);
+        //         unityCamera.follow3rdPerson(virtualizerSceneNodes[0]);
+        //     }
+        // });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.StopFollowing, () => {
             virtualCamera.stopFollowing();
             unityCamera.stopFollowing();
+            realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(12);
         });
 
         if (DEBUG_SHOW_LOGGER) {
@@ -317,8 +319,13 @@ createNameSpace('realityEditor.device.desktopCamera');
                 if (virtualizerSceneNodes.length > 0) {
                     virtualCamera.follow(virtualizerSceneNodes[0], info);
                     unityCamera.follow(virtualizerSceneNodes[0], info);
+                    
+                    if (info.render2DVideo) {
+                        realityEditor.gui.ar.desktopRenderer.showCameraCanvas(12);
+                    } else {
+                        realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(12);
+                    }
                 }
-
             });
             realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
         }

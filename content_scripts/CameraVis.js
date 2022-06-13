@@ -505,6 +505,8 @@ void main() {
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
             this.depthCanvasCache = {};
+            this.colorCanvasCache = {};
+            this.showCanvasTimeout = null;
             this.callbacks = {
                 onCameraVisCreated: []
             }
@@ -653,7 +655,19 @@ void main() {
                             this.cameras[id].phone, canvas, context);
                     }
                 } else {
-                    tex.image = image;
+                    if (!this.colorCanvasCache.hasOwnProperty(id)) {
+                        let canvas = document.createElement('canvas');
+                        this.colorCanvasCache[id] = {
+                            canvas,
+                            context: canvas.getContext('2d'),
+                        };
+                    }
+                    let {canvas, context} = this.colorCanvasCache[id];
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    context.drawImage(image, 0, 0, image.width, image.height);
+                    tex.image = canvas;
+                    // tex.image = image;
                 }
                 tex.needsUpdate = true;
                 // let end = window.performance.now();
@@ -670,6 +684,40 @@ void main() {
                 console.error(e);
             };
             image.src = imageUrl;
+        }
+        
+        showFullscreenColorCanvas(id) {
+            if (this.colorCanvasCache[id] && !this.showCanvasTimeout) {
+                let canvas = this.colorCanvasCache[id].canvas;
+                canvas.style.position = 'absolute';
+                canvas.style.left = '0';
+                canvas.style.top = '0';
+                canvas.style.width = '100vw';
+                canvas.style.height = '100vh';
+                canvas.style.transform = 'rotate(180deg)';
+                // canvas.style.transition = 'opacity 1.0s ease-in-out';
+                // canvas.style.opacity = '0';
+                canvas.id = 'colorCanvas' + id;
+                this.showCanvasTimeout = setTimeout(() => {
+                    document.body.appendChild(canvas);
+                }, 300);
+                // setTimeout(() => {
+                //     canvas.style.opacity = '1.0';
+                // }, 100);
+            }
+        }
+        
+        hideFullscreenColorCanvas(id) {
+            if (this.showCanvasTimeout) {
+                clearInterval(this.showCanvasTimeout);
+                this.showCanvasTimeout = null;
+            }
+
+            let canvas = document.getElementById('colorCanvas' + id);
+            if (canvas && canvas.parentElement) {
+                // canvas.style.opacity = '0';
+                canvas.parentElement.removeChild(canvas);
+            }
         }
 
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {

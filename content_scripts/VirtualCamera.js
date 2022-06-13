@@ -342,6 +342,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
             this.followingState.active = false;
             this.followingState.selectedId = null;
+            // hideFullscreenColorCanvas(id);
         }
         getTargetMatrix() {
             return [
