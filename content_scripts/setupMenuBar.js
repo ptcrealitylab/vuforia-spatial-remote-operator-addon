@@ -90,7 +90,7 @@ createNameSpace('realityEditor.gui');
         document.body.appendChild(menuBar.domElement);
 
         // Offset certain UI elements that align to the top of the screen, such as the envelope X button
-        realityEditor.device.environment.variables.screenTopOffset = menuBar.domElement.getClientRects()[0].height;
+        realityEditor.device.environment.variables.screenTopOffset = menuBar.domElement.getBoundingClientRect().height;
     };
 
     const getMenuBar = () => { // use this to access the shared MenuBar instance

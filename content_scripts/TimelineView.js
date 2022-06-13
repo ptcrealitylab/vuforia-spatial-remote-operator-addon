@@ -179,24 +179,21 @@ createNameSpace('realityEditor.videoPlayback');
             document.addEventListener('pointermove', e => {
                 if (!isDown) { return; }
                 let pointerX = e.pageX;
-                let sliderLeft = slider.getClientRects()[0].left; // 34
-                let sliderRight = slider.getClientRects()[0].right;
-                let sliderWidth = slider.getClientRects()[0].width;
                 let leftMargin = ZOOM_BAR_MARGIN;
                 let rightMargin = ZOOM_BAR_MARGIN;
-                let _handleX = handle.getClientRects()[0].left; // 49 at min
-                let handleWidth = handle.getClientRects()[0].width;
+                let sliderRect = slider.getBoundingClientRect();
+                let handleWidth = handle.getBoundingClientRect().width;
 
-                if (pointerX < (sliderLeft + leftMargin)) {
+                if (pointerX < (sliderRect.left + leftMargin)) {
                     handle.style.left = leftMargin - (handleWidth / 2) + 'px';
-                } else if (pointerX > (sliderRight - rightMargin)) {
-                    handle.style.left = (sliderWidth - rightMargin - handleWidth / 2) + 'px';
+                } else if (pointerX > (sliderRect.right - rightMargin)) {
+                    handle.style.left = (sliderRect.width - rightMargin - handleWidth / 2) + 'px';
                 } else {
-                    handle.style.left = pointerX - sliderLeft - (handleWidth / 2) + 'px';
+                    handle.style.left = pointerX - sliderRect.left - (handleWidth / 2) + 'px';
                 }
 
                 // we scale from linear to sqrt so that it zooms in faster when it is further zoomed out than when it is already zoomed in a lot
-                let linearZoom = (parseFloat(handle.style.left) - handleWidth / 2) / ((sliderRight - rightMargin) - (sliderLeft + leftMargin));
+                let linearZoom = (parseFloat(handle.style.left) - handleWidth / 2) / ((sliderRect.right - rightMargin) - (sliderRect.left + leftMargin));
                 let percentZoom = Math.pow(Math.max(0, linearZoom), ZOOM_EXPONENT);
                 let MAX_ZOOM = 1.0 - (1.0 / MAX_ZOOM_FACTOR); // max zoom level is 96x (15 minutes vs 1 day)
 
@@ -214,6 +211,7 @@ createNameSpace('realityEditor.videoPlayback');
             let scrollBar = document.getElementById('timelineScrollBar');
             let handle = scrollBar.querySelector('.timelineScrollBarHandle');
             let playheadDot = document.getElementById('timelinePlayheadDot');
+            let trackBox = document.getElementById('timelineTrackBox');
             handle.style.width = (1.0 - zoomPercent) * 100 + '%';
 
             if (zoomPercent < 0.01) {
@@ -224,13 +222,15 @@ createNameSpace('realityEditor.videoPlayback');
                 playheadDot.classList.remove('timelineScrollBarFadeout');
             }
 
-            let newWidth = handle.getClientRects()[0].width;
-            let maxLeft = scrollBar.getClientRects()[0].width - newWidth;
+            let handleRect = handle.getBoundingClientRect();
+            let scrollBarRect = scrollBar.getBoundingClientRect();
+            let trackBoxRect = trackBox.getBoundingClientRect();
+            let newWidth = handleRect.width;
+            let maxLeft = scrollBarRect.width - newWidth;
 
             if (typeof scrollbarLeftPercent === 'undefined') {
                 // keep the timeline playhead at the same timestamp and zoom around that
-                let trackBox = document.getElementById('timelineTrackBox');
-                let containerWidth = trackBox.getClientRects()[0].width;
+                let containerWidth = trackBoxRect.width;
                 let playheadElement = document.getElementById('timelinePlayhead');
                 let leftMargin = 20;
                 let rightMargin = 20;
@@ -248,17 +248,17 @@ createNameSpace('realityEditor.videoPlayback');
 
                 // if previous leftPercent is 0, new leftPercent is 0
                 // move scrollbar handle to playheadTimePercent, then move it so playhead is playheadTimePercent within the handle width
-                let newLeft = (playheadTimePercent * scrollBar.getClientRects()[0].width) - (playheadTimePercentWindow * handle.getClientRects()[0].width);
+                let newLeft = (playheadTimePercent * scrollBarRect.width) - (playheadTimePercentWindow * handleRect.width);
                 // TODO: this is off if you scroll in halfway, move playhead sideways, then continue scrolling
                 handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
 
             } else {
-                let newLeft = scrollbarLeftPercent * scrollBar.getClientRects()[0].width;
+                let newLeft = scrollbarLeftPercent * scrollBar.getBoundingClientRect().width;
                 handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
             }
 
-            let startPercent = (handle.getClientRects()[0].left - scrollBar.getClientRects()[0].left) / scrollBar.getClientRects()[0].width;
-            let endPercent = (handle.getClientRects()[0].right - scrollBar.getClientRects()[0].left) / scrollBar.getClientRects()[0].width;
+            let startPercent = (handleRect.left - scrollBarRect.left) / scrollBarRect.width;
+            let endPercent = (handleRect.right - scrollBarRect.left) / scrollBarRect.width;
             // this.onTimelineWindowChanged(zoomPercent, startPercent, endPercent);
 
             this.callbacks.onScrollbarChanged.forEach(cb => {
@@ -276,9 +276,8 @@ createNameSpace('realityEditor.videoPlayback');
             let pointerOffset = 0;
             handle.addEventListener('pointerdown', e => {
                 isDown = true;
-                let handleX = handle.getClientRects()[0].left; // 49 at min
-                let handleWidth = handle.getClientRects()[0].width;
-                pointerOffset = e.pageX - (handleX + handleWidth / 2);
+                let handleRect = handle.getBoundingClientRect();
+                pointerOffset = e.pageX - (handleRect.left + handleRect.width / 2);
             });
             document.addEventListener('pointerup', _e => {
                 isDown = false;
@@ -289,23 +288,20 @@ createNameSpace('realityEditor.videoPlayback');
             document.addEventListener('pointermove', e => {
                 if (!isDown) { return; }
                 let pointerX = e.pageX;
-                let sliderLeft = container.getClientRects()[0].left; // 34
-                let sliderRight = container.getClientRects()[0].right;
-                let sliderWidth = container.getClientRects()[0].width;
-                let _handleX = handle.getClientRects()[0].left; // 49 at min
-                let handleWidth = handle.getClientRects()[0].width;
+                let containerRect = container.getBoundingClientRect();
+                let handleRect = handle.getBoundingClientRect();
 
-                if (pointerX < sliderLeft + handleWidth / 2) {
+                if (pointerX < containerRect.left + handleRect.width / 2) {
                     handle.style.left = '0px';
-                } else if (pointerX > sliderRight - handleWidth / 2) {
-                    handle.style.left = (sliderWidth - handleWidth) + 'px';
+                } else if (pointerX > containerRect.right - handleRect.width / 2) {
+                    handle.style.left = (containerRect.width - handleRect.width) + 'px';
                 } else {
-                    handle.style.left = (pointerX - pointerOffset) - (sliderLeft + handleWidth / 2) + 'px';
+                    handle.style.left = (pointerX - pointerOffset) - (containerRect.left + handleRect.width / 2) + 'px';
                 }
 
-                let startPercent = (handle.getClientRects()[0].left - container.getClientRects()[0].left) / container.getClientRects()[0].width;
-                let endPercent = (handle.getClientRects()[0].right - container.getClientRects()[0].left) / container.getClientRects()[0].width;
-                let zoomPercent = 1.0 - handle.getClientRects()[0].width / container.getClientRects()[0].width;
+                let startPercent = (handleRect.left - containerRect.left) / containerRect.width;
+                let endPercent = (handleRect.right - containerRect.left) / containerRect.width;
+                let zoomPercent = 1.0 - handleRect.width / containerRect.width;
 
                 this.callbacks.onScrollbarChanged.forEach(cb => {
                     cb(zoomPercent, startPercent, endPercent);
@@ -363,19 +359,18 @@ createNameSpace('realityEditor.videoPlayback');
             let pointerX = e.pageX;
 
             let trackBox = document.getElementById('timelineTrackBox');
-            let containerLeft = trackBox.getClientRects()[0].left;
-            let containerWidth = trackBox.getClientRects()[0].width;
+            let trackBoxRect = trackBox.getBoundingClientRect();
 
-            let relativeX = pointerX - containerLeft;
+            let relativeX = pointerX - trackBoxRect.left;
             let leftMargin = 20;
             let rightMargin = 20;
             let halfPlayheadWidth = 10;
-            playheadElement.style.left = Math.min(containerWidth - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
+            playheadElement.style.left = Math.min(trackBoxRect.width - halfPlayheadWidth - rightMargin, Math.max(leftMargin, relativeX)) - halfPlayheadWidth + 'px';
             let playheadLeft = parseInt(playheadElement.style.left) || halfPlayheadWidth;
             // move timelineVideoPreviewContainer to correct spot (constrained to -68px < left < (innerWidth - 588)
             this.displayPlayheadVideoPreview(playheadLeft, halfPlayheadWidth);
 
-            let playheadTimePercentWindow = (playheadLeft + halfPlayheadWidth - leftMargin) / (containerWidth - halfPlayheadWidth - leftMargin - rightMargin);
+            let playheadTimePercentWindow = (playheadLeft + halfPlayheadWidth - leftMargin) / (trackBoxRect.width - halfPlayheadWidth - leftMargin - rightMargin);
 
             this.callbacks.onPlayheadChanged.forEach(cb => {
                 cb(playheadTimePercentWindow);
@@ -515,7 +510,7 @@ createNameSpace('realityEditor.videoPlayback');
         }
         displayPlayhead(percentInWindow) {
             let trackBox = document.getElementById('timelineTrackBox');
-            let containerWidth = trackBox.getClientRects()[0].width;
+            let containerWidth = trackBox.getBoundingClientRect().width;
             let halfPlayheadWidth = PLAYHEAD_WIDTH / 2;
             let leftMargin = TRACK_CONTAINER_MARGIN;
             let rightMargin = TRACK_CONTAINER_MARGIN;
@@ -527,10 +522,11 @@ createNameSpace('realityEditor.videoPlayback');
         }
         displayPlayheadVideoPreview(playheadLeft, halfPlayheadWidth) {
             let videoPreviewContainer = document.getElementById('timelineVideoPreviewContainer');
-            if (videoPreviewContainer && videoPreviewContainer.getClientRects()[0]) {
-                let previewWidth = videoPreviewContainer.getClientRects()[0].width;
+            let videoPreviewContainerRect = videoPreviewContainer.getBoundingClientRect();
+            if (videoPreviewContainer && videoPreviewContainerRect) {
+                let previewWidth = videoPreviewContainerRect.width;
                 let previewRelativeX = playheadLeft + halfPlayheadWidth - previewWidth / 2;
-                let timelineTracksRight = document.getElementById('timelineTracksContainer').getClientRects()[0].right;
+                let timelineTracksRight = document.getElementById('timelineTracksContainer').getBoundingClientRect().right;
                 let clampMin = 0;
                 let clampMax = (timelineTracksRight - previewWidth) - VIDEO_PREVIEW_CONTAINER_OFFSET;
                 videoPreviewContainer.style.left = Math.min(clampMax, Math.max(clampMin, previewRelativeX)) + 'px';
@@ -540,7 +536,7 @@ createNameSpace('realityEditor.videoPlayback');
             // put a little dot on the scrollbar showing the currentWindow-agnostic position of the playhead
             let playheadDot = document.getElementById('timelinePlayheadDot');
             let trackBox = document.getElementById('timelineTrackBox');
-            let containerWidth = trackBox.getClientRects()[0].width;
+            let containerWidth = trackBox.getBoundingClientRect().width;
             let leftMargin = TRACK_CONTAINER_MARGIN;
             let rightMargin = TRACK_CONTAINER_MARGIN;
             let halfPlayheadWidth = PLAYHEAD_WIDTH / 2;
@@ -557,13 +553,12 @@ createNameSpace('realityEditor.videoPlayback');
             let slider = document.getElementById('zoomSliderBackground');
             let handle = document.getElementById('zoomSliderHandle');
             let leftMargin = ZOOM_BAR_MARGIN;
-            let sliderLeft = slider.getClientRects()[0].left;
-            let sliderRight = slider.getClientRects()[0].right;
-            let handleWidth = handle.getClientRects()[0].width;
+            let sliderRect = slider.getBoundingClientRect();
+            let handleWidth = handle.getBoundingClientRect().width;
 
             // percentZoom = Math.pow(Math.max(0, linearZoom), 0.25)
             let linearZoom = Math.pow(zoomPercent, 1.0 / ZOOM_EXPONENT);
-            let handleLeft = linearZoom * ((sliderRight - leftMargin) - (sliderLeft + leftMargin)) + (handleWidth / 2);
+            let handleLeft = linearZoom * ((sliderRect.right - leftMargin) - (sliderRect.left + leftMargin)) + (handleWidth / 2);
             handle.style.left = handleLeft + 'px';
         }
         displayScroll(scrollLeftPercent, zoomPercent) {
@@ -571,7 +566,7 @@ createNameSpace('realityEditor.videoPlayback');
             let scrollBar = document.getElementById('timelineScrollBar');
             let handle = scrollBar.querySelector('.timelineScrollBarHandle');
             let trackBox = document.getElementById('timelineTrackBox');
-            let containerWidth = trackBox.getClientRects()[0].width;
+            let containerWidth = trackBox.getBoundingClientRect().width;
             let leftMargin = TRACK_CONTAINER_MARGIN;
             let rightMargin = TRACK_CONTAINER_MARGIN;
             let halfPlayheadWidth = PLAYHEAD_WIDTH / 2;
