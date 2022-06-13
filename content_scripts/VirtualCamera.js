@@ -19,6 +19,44 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         0.9134077373584234, -0.3839629897627356, -0.13512492764589737, 0,
         0.09897390496442003, 0.5315057665562919, -0.8412528042757477, 0,
         598.0929462431984, 1461.9560097023732, -3530.857824661904, 0.9999999999999997];
+    
+    const perspectives = {
+        1: {
+            name: 'firstPersonFollow',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, 0, 0],
+            smoothing: 0.2
+        },
+        2: {
+            name: 'almostFirstPersonFollow',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, 250, -500],
+            smoothing: 0.5
+        },
+        3: {
+            name: 'thirdPersonFollowClose',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, 1000, -1000],
+            smoothing: 0.5
+        },
+        4: {
+            name: 'thirdPersonFollowFar',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, 2000, -3000],
+            smoothing: 0.8
+        },
+        5: {
+            name: 'godMode',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, 5000, -5000],
+            smoothing: 0.8
+        }
+    }
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
@@ -261,17 +299,23 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.followingState.threejsObject.visible = true;
                     this.threeJsContainer.add(this.followingState.threejsObject);
 
-                    let positionObject = new THREE.Mesh(new THREE.BoxGeometry(150, 150, 150), new THREE.MeshBasicMaterial({color: 0xff00ff}));
-                    positionObject.name = 'followingPositionElement';
-                    positionObject.position.set(0, 0, -200);
-                    positionObject.visible = false;
-                    this.followingState.threejsObject.add(positionObject);
+                    let firstPersonPositionObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0xff00ff}));
+                    firstPersonPositionObject.name = 'followingPositionElement';
+                    firstPersonPositionObject.position.set(0, 0, -200);
+                    firstPersonPositionObject.visible = true;
+                    this.followingState.threejsObject.add(firstPersonPositionObject);
                     
-                    let targetObject = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial({color: 0xff88ff}));
-                    targetObject.name = 'followingTargetElement';
-                    targetObject.position.set(0, 0, 500);
-                    targetObject.visible = false;
-                    this.followingState.threejsObject.add(targetObject);
+                    let firstPersonTargetObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0xff88ff}));
+                    firstPersonTargetObject.name = 'followingTargetElement';
+                    firstPersonTargetObject.position.set(0, 0, 500);
+                    firstPersonTargetObject.visible = true;
+                    this.followingState.threejsObject.add(firstPersonTargetObject);
+
+                    let thirdPersonPositionObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0xff00ff}));
+                    thirdPersonPositionObject.name = 'thirdPersonFollowingPositionElement';
+                    thirdPersonPositionObject.position.set(0, 1000, -1000);
+                    thirdPersonPositionObject.visible = true;
+                    this.followingState.threejsObject.add(thirdPersonPositionObject);
 
                     // realityEditor.gui.threejsScene.addToScene(this.followingState.threejsObject); // , {worldObjectId: realityEditor.worldObjects.getBestWorldObject().objectId}
                 }
@@ -290,7 +334,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (this.followingState.isFirstPerson) {
                     relativeToTarget = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
                 } else if (this.followingState.isThirdPerson) {
-                    relativeToTarget = THIRD_PERSON_FOLLOW;
+                    // relativeToTarget = THIRD_PERSON_FOLLOW;
+                    relativeToTarget = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
                 } else {
                     relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
                 }
@@ -329,6 +374,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsTargetObject.matrix, selectedNode.worldMatrix);
 
                     let positionObject = realityEditor.gui.threejsScene.getObjectByName('followingPositionElement');
+                    if (this.followingState.isThirdPerson) {
+                        positionObject = realityEditor.gui.threejsScene.getObjectByName('thirdPersonFollowingPositionElement')
+                    }
                     let targetObject = realityEditor.gui.threejsScene.getObjectByName('followingTargetElement');
                     
                     let targetModelView = targetObject.matrixWorld.clone();
