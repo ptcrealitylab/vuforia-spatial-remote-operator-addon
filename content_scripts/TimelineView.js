@@ -256,6 +256,7 @@ createNameSpace('realityEditor.videoPlayback');
                 let newLeft = scrollbarLeftPercent * scrollBar.getBoundingClientRect().width;
                 handle.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
             }
+            handleRect = handle.getBoundingClientRect(); // recompute after moving handle
 
             let startPercent = (handleRect.left - scrollBarRect.left) / scrollBarRect.width;
             let endPercent = (handleRect.right - scrollBarRect.left) / scrollBarRect.width;
@@ -299,6 +300,7 @@ createNameSpace('realityEditor.videoPlayback');
                     handle.style.left = (pointerX - pointerOffset) - (containerRect.left + handleRect.width / 2) + 'px';
                 }
 
+                handleRect = handle.getBoundingClientRect(); // recompute handleRect after moving handle
                 let startPercent = (handleRect.left - containerRect.left) / containerRect.width;
                 let endPercent = (handleRect.right - containerRect.left) / containerRect.width;
                 let zoomPercent = 1.0 - handleRect.width / containerRect.width;
