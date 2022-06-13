@@ -589,13 +589,13 @@ void main() {
                     const ws = realityEditor.cloud.socket;
 
                     ws.on('message', async (route, body, cbObj, bin) => {
+                        if (body.id !== 'depth' && body.id !== 'color') {
+                            return;
+                        }
                         if (body.id === 'depth' && textureKey !== 'textureDepth') {
                             return;
                         }
                         if (body.id === 'color' && textureKey !== 'texture') {
-                            return;
-                        }
-                        if (body.id === 'matrix') {
                             return;
                         }
 
