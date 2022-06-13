@@ -2,12 +2,16 @@ const cors = require('cors');
 const express = require('express');
 const expressWs = require('express-ws');
 const makeStreamRouter = require('./makeStreamRouter.js');
-const VideoServer = require('./VideoServer.js');
 const path = require('path');
 const os = require('os');
 const server = require('@libraries/hardwareInterfaces');
 
-const DEBUG_DISABLE_VIDEO_RECORDING = false;
+const DEBUG_DISABLE_VIDEO_RECORDING = os.platform() === 'ios';
+
+let VideoServer;
+if (!DEBUG_DISABLE_VIDEO_RECORDING) {
+    VideoServer = require('./VideoServer.js');
+}
 
 module.exports.start = function start() {
     const app = express();
