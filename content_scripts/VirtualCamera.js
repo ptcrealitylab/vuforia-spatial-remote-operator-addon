@@ -14,49 +14,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         0.1355399071070364, -1.3471959077679534, 1.4719672222377786, 0,
         1033.3310890578132, -10300.982745528603, 12136.112553930248, 0.9999999999999998
     ];
-    
+
     const THIRD_PERSON_FOLLOW = [0.3948297800489131, 0.7550329823511126, 0.5234836880620531, 0,
         0.9134077373584234, -0.3839629897627356, -0.13512492764589737, 0,
         0.09897390496442003, 0.5315057665562919, -0.8412528042757477, 0,
         598.0929462431984, 1461.9560097023732, -3530.857824661904, 0.9999999999999997];
-    
-    const perspectives = {
-        1: {
-            name: 'firstPersonFollow',
-            threejsPositionObject: null,
-            threejsTargetObject: null,
-            positionRelativeToCamera: [0, 0, 0],
-            smoothing: 0.2
-        },
-        2: {
-            name: 'almostFirstPersonFollow',
-            threejsPositionObject: null,
-            threejsTargetObject: null,
-            positionRelativeToCamera: [0, 250, -500],
-            smoothing: 0.5
-        },
-        3: {
-            name: 'thirdPersonFollowClose',
-            threejsPositionObject: null,
-            threejsTargetObject: null,
-            positionRelativeToCamera: [0, 1000, -1000],
-            smoothing: 0.5
-        },
-        4: {
-            name: 'thirdPersonFollowFar',
-            threejsPositionObject: null,
-            threejsTargetObject: null,
-            positionRelativeToCamera: [0, 2000, -3000],
-            smoothing: 0.8
-        },
-        5: {
-            name: 'godMode',
-            threejsPositionObject: null,
-            threejsTargetObject: null,
-            positionRelativeToCamera: [0, 5000, -5000],
-            smoothing: 0.8
-        }
-    }
+
+    const DISPLAY_PERSPECTIVE_CUBES = false;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
@@ -100,7 +64,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 followerElementId: null,
                 isFirstPerson: false,
                 isThirdPerson: false,
-                threejsObject: null
+                threejsObject: null,
+                followInfo: null
                 // threejsTargetObject: null
             };
             if (typeof isDemoVersion !== 'undefined') {
@@ -265,6 +230,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (4);
             }
         }
+        follow(sceneNodeToFollow, followInfo) {
+            this.followingState.active = true;
+            this.followingState.selectedId = sceneNodeToFollow.id;
+            // this.followingState.isFirstPerson = true;
+            // this.followingState.isThirdPerson = false;
+            this.followingState.followInfo = followInfo;
+        }
         follow1stPerson(sceneNodeToFollow) {
             console.log('follow 1st person', sceneNodeToFollow);
             this.followingState.active = true;
@@ -286,147 +258,81 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let targetPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.selectedId);
             if (!targetPosition) { this.stopFollowing(); return; }
 
-            // this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
+            let info = this.followingState.followInfo;
+            if (!info) { return; }
+
+            // create any missing Three.js objects for the current perspective
+            if (!this.followingState.threejsObject) {
+                const THREE = realityEditor.gui.threejsScene.THREE;
+                this.followingState.threejsObject = new THREE.Group();
+                this.followingState.threejsObject.name = 'followingElementGroup';
+                this.followingState.threejsObject.matrixAutoUpdate = false;
+                this.followingState.threejsObject.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.threeJsContainer.add(this.followingState.threejsObject);
+            }
+
+            if (!info.threejsPositionObject) {
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
+                obj.name = info.name + 'PositionObject';
+                obj.position.set(info.positionRelativeToCamera[0], info.positionRelativeToCamera[1], info.positionRelativeToCamera[2]);
+                obj.matrixWorldNeedsUpdate = true;
+                obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(obj);
+                this.followingState.followInfo.threejsPositionObject = obj;
+            }
+
+            if (!info.threejsTargetObject) {
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
+                obj.name = info.name + 'TargetObject';
+                obj.position.set(info.targetRelativeToCamera[0], info.targetRelativeToCamera[1], info.targetRelativeToCamera[2]);
+                obj.matrixWorldNeedsUpdate = true;
+                obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(obj);
+                this.followingState.followInfo.threejsTargetObject = obj;
+            }
 
             if (!realityEditor.sceneGraph.getVisualElement(this.followerName)) {
                 let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
-
-                if (!this.followingState.threejsObject) {
-                    const THREE = realityEditor.gui.threejsScene.THREE;
-                    this.followingState.threejsObject = new THREE.Group();
-                    this.followingState.threejsObject.name = 'followingElementGroup';
-                    this.followingState.threejsObject.matrixAutoUpdate = false;
-                    this.followingState.threejsObject.visible = true;
-                    this.threeJsContainer.add(this.followingState.threejsObject);
-
-                    let firstPersonPositionObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0xff00ff}));
-                    firstPersonPositionObject.name = 'followingPositionElement';
-                    firstPersonPositionObject.position.set(0, 0, -200);
-                    firstPersonPositionObject.visible = true;
-                    this.followingState.threejsObject.add(firstPersonPositionObject);
-                    
-                    let firstPersonTargetObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0xff88ff}));
-                    firstPersonTargetObject.name = 'followingTargetElement';
-                    firstPersonTargetObject.position.set(0, 0, 500);
-                    firstPersonTargetObject.visible = true;
-                    this.followingState.threejsObject.add(firstPersonTargetObject);
-
-                    let thirdPersonPositionObject = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0xff00ff}));
-                    thirdPersonPositionObject.name = 'thirdPersonFollowingPositionElement';
-                    thirdPersonPositionObject.position.set(0, 1000, -1000);
-                    thirdPersonPositionObject.visible = true;
-                    this.followingState.threejsObject.add(thirdPersonPositionObject);
-
-                    // realityEditor.gui.threejsScene.addToScene(this.followingState.threejsObject); // , {worldObjectId: realityEditor.worldObjects.getBestWorldObject().objectId}
-                }
-
-                // if (!this.followingState.threejsTargetObject) {
-                //     const THREE = realityEditor.gui.threejsScene.THREE;
-                //     this.followingState.threejsTargetObject = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial({color: 0xff88ff}));
-                //     this.followingState.threejsTargetObject.position.set(0, 0, 200);
-                //     this.followingState.threejsTargetObject.name = 'followingTargetElement';
-                //     this.followingState.threejsTargetObject.matrixAutoUpdate = false;
-                //     this.followingState.threejsTargetObject.visible = true;
-                //     this.threeJsContainer.add(this.followingState.threejsTargetObject);
-                // }
-
-                let relativeToTarget = null;
-                if (this.followingState.isFirstPerson) {
-                    relativeToTarget = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-                } else if (this.followingState.isThirdPerson) {
-                    // relativeToTarget = THIRD_PERSON_FOLLOW;
-                    relativeToTarget = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-                } else {
-                    relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
-                }
-
-                // if (this.isDemoVersion) {
-                //     relativeToTarget = FOLLOWING_RELATIVE_POSITION;
-                //     if (selectedNode.linkedVehicle) {
-                //         let thisObject = realityEditor.getObject(selectedNode.linkedVehicle.objectId);
-                //         if (thisObject) {
-                //             let body = {};
-                //             body[selectedNode.linkedVehicle.objectId] = {
-                //                 objectID: selectedNode.linkedVehicle.objectID,
-                //                 toolID: '',
-                //                 nodeID: ''
-                //             };
-                //             globalStates.spatial.whereWas[thisObject.ip] = JSON.parse(JSON.stringify(body));
-                //             realityEditor.gui.spatial.checkState();
-                //         }
-                //     }
-                // }
-
+                let relativeToTarget = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
                 this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement(this.followerName, selectedNode, null, relativeToTarget);
                 realityEditor.sceneGraph.calculateFinalMatrices([]); // recompute scenegraph immediately
+            }
+            
+            let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
+            realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
 
-            } else {
-                // let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
-                // let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
-                // let movement = add(newPosVec, negate(this.position));
-                // if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-                //     this.velocity = add(this.velocity, movement);
-                // }
+            let positionObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'PositionObject');
+            let targetObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'TargetObject');
+            // positionObject.matrixWorldNeedsUpdate = true;
+            // targetObject.matrixWorldNeedsUpdate = true;
+            
+            if (positionObject.matrixWorldNeedsUpdate || targetObject.matrixWorldNeedsUpdate) {
+                console.log('matrixWorldNeedsUpdate');
+                return;
+            }
 
-                if (this.followingState.threejsObject) {
-                    let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
-                    realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
-                    // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsTargetObject.matrix, selectedNode.worldMatrix);
+            let targetModelView = targetObject.matrixWorld.clone();
+            let positionModelView = positionObject.matrixWorld.clone();
 
-                    let positionObject = realityEditor.gui.threejsScene.getObjectByName('followingPositionElement');
-                    if (this.followingState.isThirdPerson) {
-                        positionObject = realityEditor.gui.threejsScene.getObjectByName('thirdPersonFollowingPositionElement')
-                    }
-                    let targetObject = realityEditor.gui.threejsScene.getObjectByName('followingTargetElement');
-                    
-                    let targetModelView = targetObject.matrixWorld.clone();
-                    let positionModelView = positionObject.matrixWorld.clone();
+            // multiply target and position matrices by inverse view matrix (just the camera matrix) to convert modelView into model
+            let cameraMatrix = new realityEditor.gui.threejsScene.THREE.Matrix4();
+            realityEditor.gui.threejsScene.setMatrixFromArray(cameraMatrix, realityEditor.sceneGraph.getCameraNode().worldMatrix);
+            targetModelView.premultiply(cameraMatrix);
+            positionModelView.premultiply(cameraMatrix);
 
-                    // multiply intersect, which is in ROOT coordinates, by the relative world matrix (ground plane) to ROOT
-                    let cameraMatrix = new realityEditor.gui.threejsScene.THREE.Matrix4();
-                    realityEditor.gui.threejsScene.setMatrixFromArray(cameraMatrix, realityEditor.sceneGraph.getCameraNode().worldMatrix);
-                    // inverseCameraMatrix.invert();
+            // console.log(targetModelView, positionModelView);
 
-                    targetModelView.premultiply(cameraMatrix);
-                    positionModelView.premultiply(cameraMatrix);
-                    
-                    // targetModelView.applyMatrix4(inverseCameraMatrix);
-                    // positionModelView.applyMatrix4(inverseCameraMatrix);
-                    
-                    console.log(targetModelView, positionModelView);
+            let newPosVec = [positionModelView.elements[12], positionModelView.elements[13], positionModelView.elements[14]];
+            let newTargetPosVec = [targetModelView.elements[12], targetModelView.elements[13], targetModelView.elements[14]];
 
-                    // this.position = [positionModelView[12], positionModelView[13], positionModelView[14]];
-                    // this.targetPosition = [targetModelView[12], targetModelView[13], targetModelView[14]];
+            let movement = add(newPosVec, negate(this.position));
+            if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+                this.velocity = add(this.velocity, movement);
+            }
 
-                    // let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
-                    // let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
-
-                    let newPosVec = [positionModelView.elements[12], positionModelView.elements[13], positionModelView.elements[14]];
-                    let newTargetPosVec = [targetModelView.elements[12], targetModelView.elements[13], targetModelView.elements[14]];
-                    
-                    let movement = add(newPosVec, negate(this.position));
-                    if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-                        this.velocity = add(this.velocity, movement);
-                    }
-
-                    let targetMovement = add(newTargetPosVec, negate(this.targetPosition));
-                    if (targetMovement[0] !== 0 || targetMovement[1] !== 0 || targetMovement[2] !== 0) {
-                        this.targetVelocity = add(this.targetVelocity, targetMovement);
-                    }
-
-                    // let nodeRelativeToGroundPlane = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph.getGroundPlaneNode());
-                    // let cameraRelativeToGroundPlane = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph);
-                    
-                    // if (this.followingState.isFirstPerson) {
-                    //     this.cameraNode.setLocalMatrix(selectedNode.worldMatrix);
-                    //     // realityEditor.sceneGraph.getCameraNode().setLocalMatrix(selectedNode.worldMatrix);
-                    // }
-
-                    // this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
-                    // this.targetPosition = [selectedNode.worldMatrix[12], selectedNode.worldMatrix[13], selectedNode.worldMatrix[14]]
-                    
-                    // this.position = [selectedNode.worldMatrix[12], selectedNode.worldMatrix[13], selectedNode.worldMatrix[14]];
-                }
+            let targetMovement = add(newTargetPosVec, negate(this.targetPosition));
+            if (targetMovement[0] !== 0 || targetMovement[1] !== 0 || targetMovement[2] !== 0) {
+                this.targetVelocity = add(this.targetVelocity, targetMovement);
             }
         }
         stopFollowing() {

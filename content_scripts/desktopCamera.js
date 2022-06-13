@@ -13,7 +13,7 @@ createNameSpace('realityEditor.device.desktopCamera');
  * Responsible for manipulating the camera position and resulting view matrix, on remote desktop clients
  */
 
-(function() {
+(function(exports) {
     let INITIAL_CAMERA_POSITIONS = Object.freeze({
         DESK: [757, 1410, -956], // [330, 3751, -1575]; //[735, -1575, -162]; //[1000, -500, 500];
         LAB_TABLE: [-1499.9648912671637, 8275.552791086136, 5140.3791620707225],
@@ -28,6 +28,65 @@ createNameSpace('realityEditor.device.desktopCamera');
         BEDROOM: [0, 0, 0],
         LAB: [0, 0, 0]
     });
+
+    const perspectives = {
+        1: {
+            name: 'firstPersonFollow',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, 0, -200],
+            targetRelativeToCamera: [0, 0, 500],
+            smoothing: 0.2,
+            debugColor: '#ffffff',
+            keyboardShortcut: '_1',
+            menuBarName: 'Follow 1st-Person'
+        },
+        2: {
+            name: 'almostFirstPersonFollow',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, -250, -500],
+            targetRelativeToCamera: [0, 0, 500],
+            smoothing: 0.5,
+            debugColor: '#ffffff',
+            keyboardShortcut: '_2',
+            menuBarName: 'Follow 1st-Person (Wide)'
+        },
+        3: {
+            name: 'thirdPersonFollowClose',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, -1000, -1000],
+            targetRelativeToCamera: [0, 0, 1000],
+            smoothing: 0.5,
+            debugColor: '#ffffff',
+            keyboardShortcut: '_3',
+            menuBarName: 'Follow 3rd-Person'
+        },
+        4: {
+            name: 'thirdPersonFollowFar',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, -2000, -3000],
+            targetRelativeToCamera: [0, 0, 1000],
+            smoothing: 0.8,
+            debugColor: '#ffffff',
+            keyboardShortcut: '_4',
+            menuBarName: 'Follow 3rd-Person (Wide)'
+        },
+        5: {
+            name: 'godMode',
+            threejsPositionObject: null,
+            threejsTargetObject: null,
+            positionRelativeToCamera: [0, -5000, -5000],
+            targetRelativeToCamera: [0, 0, 0],
+            smoothing: 0.8,
+            debugColor: '#ffffff',
+            keyboardShortcut: '_5',
+            menuBarName: 'Follow Aerial'
+        }
+    }
+    exports.perspectives = perspectives;
 
     var cameraTargetPosition = [0, 0, 0];
     let cameraTargetElementId = null;
@@ -250,6 +309,19 @@ createNameSpace('realityEditor.device.desktopCamera');
             closestObjectLog.style.color = 'cyan';
             document.body.appendChild(closestObjectLog);
         }
+        
+        // Setup Following Menu
+        for (let info of Object.values(perspectives)) {
+            const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: true }, () => {
+                let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
+                if (virtualizerSceneNodes.length > 0) {
+                    virtualCamera.follow(virtualizerSceneNodes[0], info);
+                    unityCamera.follow(virtualizerSceneNodes[0], info);
+                }
+
+            });
+            realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
+        }
     }
 
     function addSensitivitySlidersToMenu() {
@@ -469,4 +541,4 @@ createNameSpace('realityEditor.device.desktopCamera');
 
 
     realityEditor.addons.addCallback('init', initService);
-})();
+})(realityEditor.device.desktopCamera);

@@ -706,9 +706,10 @@ void main() {
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.Follow1stPerson, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.Follow3rdPerson, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
+            Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
+                realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
+            });
             
             this.callbacks.onCameraVisCreated.forEach(cb => {
                 cb(this.cameras[id]);
