@@ -185,11 +185,18 @@ void main() {
             // this.container.rotation.y = Math.PI;
             this.container.position.y = -floorOffset;
             this.container.rotation.x = Math.PI / 2;
+            this.container.name = 'CameraVisContainer_' + id;
             this.lastUpdate = Date.now();
             this.phone = new THREE.Group();
             this.phone.matrixAutoUpdate = false;
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
+
+            let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+            // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            // let parentNode = realityEditor.sceneGraph.getSceneNodeById(elementId);
+            let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraVis_' + id, parentNode);
+            this.sceneGraphNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
 
             this.cameraMeshGroup = new THREE.Group();
 
@@ -450,6 +457,10 @@ void main() {
                 this.historyPoints.push(nextHistoryPoint);
                 this.historyLine.setPoints(this.historyPoints);
             }
+            
+            if (this.sceneGraphNode) {
+                this.sceneGraphNode.setLocalMatrix(newMatrix);
+            }
         }
 
         hideNearCamera() {
@@ -495,6 +506,11 @@ void main() {
             this.spaghettiVisible = true;
             this.floorOffset = floorOffset;
             this.depthCanvasCache = {};
+            this.colorCanvasCache = {};
+            this.showCanvasTimeout = null;
+            this.callbacks = {
+                onCameraVisCreated: []
+            }
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -675,7 +691,19 @@ void main() {
                             this.cameras[id].phone, canvas, context);
                     }
                 } else {
-                    tex.image = image;
+                    if (!this.colorCanvasCache.hasOwnProperty(id)) {
+                        let canvas = document.createElement('canvas');
+                        this.colorCanvasCache[id] = {
+                            canvas,
+                            context: canvas.getContext('2d'),
+                        };
+                    }
+                    let {canvas, context} = this.colorCanvasCache[id];
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    context.drawImage(image, 0, 0, image.width, image.height);
+                    tex.image = canvas;
+                    // tex.image = image;
                 }
                 tex.needsUpdate = true;
                 // let end = window.performance.now();
@@ -692,6 +720,40 @@ void main() {
                 console.error(e);
             };
             image.src = imageUrl;
+        }
+        
+        showFullscreenColorCanvas(id) {
+            if (this.colorCanvasCache[id] && !this.showCanvasTimeout) {
+                let canvas = this.colorCanvasCache[id].canvas;
+                canvas.style.position = 'absolute';
+                canvas.style.left = '0';
+                canvas.style.top = '0';
+                canvas.style.width = '100vw';
+                canvas.style.height = '100vh';
+                canvas.style.transform = 'rotate(180deg)';
+                // canvas.style.transition = 'opacity 1.0s ease-in-out';
+                // canvas.style.opacity = '0';
+                canvas.id = 'colorCanvas' + id;
+                this.showCanvasTimeout = setTimeout(() => {
+                    document.body.appendChild(canvas);
+                }, 300);
+                // setTimeout(() => {
+                //     canvas.style.opacity = '1.0';
+                // }, 100);
+            }
+        }
+        
+        hideFullscreenColorCanvas(id) {
+            if (this.showCanvasTimeout) {
+                clearInterval(this.showCanvasTimeout);
+                this.showCanvasTimeout = null;
+            }
+
+            let canvas = document.getElementById('colorCanvas' + id);
+            if (canvas && canvas.parentElement) {
+                // canvas.style.opacity = '0';
+                canvas.parentElement.removeChild(canvas);
+            }
         }
 
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
@@ -711,6 +773,10 @@ void main() {
             }
         }
 
+        onCameraVisCreated(cb) {
+            this.callbacks.onCameraVisCreated.push(cb);
+        }
+
         createCameraVis(id) {
             if (debug) {
                 console.log('new camera', id);
@@ -724,6 +790,14 @@ void main() {
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
+            Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
+                realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
+            });
+            
+            this.callbacks.onCameraVisCreated.forEach(cb => {
+                cb(this.cameras[id]);
+            });
         }
 
         onPointerDown(e) {

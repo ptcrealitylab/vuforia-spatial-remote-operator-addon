@@ -63,7 +63,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }, 100); // give time for bestWorldObject to update before checking
         });
 
-
         update();
     }
 
