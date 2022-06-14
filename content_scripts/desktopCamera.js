@@ -304,7 +304,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.StopFollowing, () => {
             virtualCamera.stopFollowing();
             unityCamera.stopFollowing();
-            realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(12);
         });
 
         if (DEBUG_SHOW_LOGGER) {
@@ -322,13 +321,14 @@ createNameSpace('realityEditor.device.desktopCamera');
             const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: true }, () => {
                 let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
                 if (virtualizerSceneNodes.length > 0) {
-                    virtualCamera.follow(virtualizerSceneNodes[0], info);
-                    unityCamera.follow(virtualizerSceneNodes[0], info);
+                    const thisVirtualizerId = parseInt(virtualizerSceneNodes[0].id.match(/\d+/)[0]); // TODO: pass this along in a less fragile way
+                    virtualCamera.follow(virtualizerSceneNodes[0], thisVirtualizerId, info);
+                    unityCamera.follow(virtualizerSceneNodes[0], thisVirtualizerId, info);
                     
                     if (info.render2DVideo) {
-                        realityEditor.gui.ar.desktopRenderer.showCameraCanvas(12);
+                        realityEditor.gui.ar.desktopRenderer.showCameraCanvas(thisVirtualizerId);
                     } else {
-                        realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(12);
+                        realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(thisVirtualizerId);
                     }
                 }
             });
@@ -471,9 +471,9 @@ createNameSpace('realityEditor.device.desktopCamera');
         updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
     function scaleToggled() {
-        if (threejsObject) {
-            threejsObject.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
-        }
+        // if (threejsObject) {
+        //     threejsObject.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
+        // }
         if (!threejsObject.visible) {
             updateInteractionCursor(false);
         }
