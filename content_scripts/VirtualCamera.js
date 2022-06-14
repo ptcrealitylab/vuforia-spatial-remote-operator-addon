@@ -4,6 +4,8 @@
 
 createNameSpace('realityEditor.device');
 
+import * as THREE from '../../thirdPartyCode/three/three.module.js';
+
 (function(exports) {
 
     const FOLLOWING_RELATIVE_POSITION = [
@@ -12,6 +14,13 @@ createNameSpace('realityEditor.device');
         0.1355399071070364, -1.3471959077679534, 1.4719672222377786, 0,
         1033.3310890578132, -10300.982745528603, 12136.112553930248, 0.9999999999999998
     ];
+
+    const THIRD_PERSON_FOLLOW = [0.3948297800489131, 0.7550329823511126, 0.5234836880620531, 0,
+        0.9134077373584234, -0.3839629897627356, -0.13512492764589737, 0,
+        0.09897390496442003, 0.5315057665562919, -0.8412528042757477, 0,
+        598.0929462431984, 1461.9560097023732, -3530.857824661904, 0.9999999999999997];
+
+    const DISPLAY_PERSPECTIVE_CUBES = false;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
@@ -52,7 +61,15 @@ createNameSpace('realityEditor.device');
             this.followingState = {
                 active: false,
                 selectedId: null,
-                followerElementId: null
+                virtualizerId: null,
+                followerElementId: null,
+                isFirstPerson: false,
+                isThirdPerson: false,
+                threejsObject: null,
+                followInfo: null,
+                currentFollowingDistance: 0,
+                currentlyRendering2DVideo: false
+                // threejsTargetObject: null
             };
             if (typeof isDemoVersion !== 'undefined') {
                 this.isDemoVersion = isDemoVersion;
@@ -63,6 +80,13 @@ createNameSpace('realityEditor.device');
                 onScaleToggled: []
             };
             this.addEventListeners();
+
+            this.threeJsContainer = new THREE.Group();
+            this.threeJsContainer.name = 'VirtualCamera_' + cameraNode.id + '_threeJsContainer';
+            let floorOffset = -1286;
+            this.threeJsContainer.position.y = -floorOffset; // TODO: don't hard-code, pass in
+            this.threeJsContainer.rotation.x = Math.PI / 2;
+            realityEditor.gui.threejsScene.addToScene(this.threeJsContainer); // , {worldObjectId: realityEditor.worldObjects.getBestWorldObject().objectId}
         }
         addEventListeners() {
 
@@ -145,6 +169,7 @@ createNameSpace('realityEditor.device');
             }.bind(this));
         }
         reset() {
+            this.stopFollowing();
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
 
@@ -198,6 +223,7 @@ createNameSpace('realityEditor.device');
             //     // objectDropdown.setText('Select Camera Target', true);
             //     objectDropdown.resetSelection();
             // }
+            this.stopFollowing();
         }
         adjustEnvVars(distanceToTarget) {
             if (distanceToTarget < 3000) {
@@ -208,47 +234,147 @@ createNameSpace('realityEditor.device');
                 realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (4);
             }
         }
+        follow(sceneNodeToFollow, virtualizerId, followInfo) {
+            this.followingState.active = true;
+            this.followingState.virtualizerId = virtualizerId;
+            this.followingState.selectedId = sceneNodeToFollow.id;
+            // this.followingState.isFirstPerson = true;
+            // this.followingState.isThirdPerson = false;
+            this.followingState.followInfo = followInfo;
+            this.followingState.currentFollowingDistance = followInfo.distanceToCamera; // can adjust with scroll wheel
+            this.followingState.currentlyRendering2DVideo = followInfo.render2DVideo;
+            
+            this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
+        }
+        // follow1stPerson(sceneNodeToFollow) {
+        //     console.log('follow 1st person', sceneNodeToFollow);
+        //     this.followingState.active = true;
+        //     this.followingState.selectedId = sceneNodeToFollow.id;
+        //     this.followingState.isFirstPerson = true;
+        //     this.followingState.isThirdPerson = false;
+        // }
+        // follow3rdPerson(sceneNodeToFollow) {
+        //     console.log('follow 3rd person', sceneNodeToFollow);
+        //     this.followingState.active = true;
+        //     this.followingState.selectedId = sceneNodeToFollow.id;
+        //     this.followingState.isFirstPerson = false;
+        //     this.followingState.isThirdPerson = true;
+        // }
+        // stopFollowing() {
+        //     console.log('stop following');
+        // }
         updateFollowing() {
             let targetPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.selectedId);
             if (!targetPosition) { this.stopFollowing(); return; }
 
-            this.targetPosition = [targetPosition.x, targetPosition.y, targetPosition.z];
+            let info = this.followingState.followInfo;
+            if (!info) { return; }
+
+            // create any missing Three.js objects for the current perspective
+            if (!this.followingState.threejsObject) {
+                const THREE = realityEditor.gui.threejsScene.THREE;
+                this.followingState.threejsObject = new THREE.Group();
+                this.followingState.threejsObject.name = 'followingElementGroup';
+                this.followingState.threejsObject.matrixAutoUpdate = false;
+                this.followingState.threejsObject.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.threeJsContainer.add(this.followingState.threejsObject);
+
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+                obj.name = 'parametricPositionObject';
+                let z = -this.followingState.currentFollowingDistance;
+                let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+                obj.position.set(0, y, z);
+                obj.matrixWorldNeedsUpdate = true;
+                obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(obj);
+                
+                let target = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+                target.name = 'parametricTargetObject';
+                z = 1500 * (10000 / (this.followingState.currentFollowingDistance + 2000)); // target distance decreases hyperbolically as camera distance increases
+                target.position.set(0, 0, z);
+                target.matrixWorldNeedsUpdate = true;
+                target.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(target);
+            }
+
+            if (!info.threejsPositionObject) {
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
+                obj.name = info.name + 'PositionObject';
+                let z = -info.distanceToCamera;
+                let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+                obj.position.set(0, y, z);
+                // obj.position.set(info.positionRelativeToCamera[0], info.positionRelativeToCamera[1], info.positionRelativeToCamera[2]);
+                obj.matrixWorldNeedsUpdate = true;
+                obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(obj);
+                this.followingState.followInfo.threejsPositionObject = obj;
+            }
+
+            if (!info.threejsTargetObject) {
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
+                obj.name = info.name + 'TargetObject';
+                let z = 1500 * (10000 / (info.distanceToCamera + 2000)); // target distance decreases hyperbolically as camera distance increases
+                obj.position.set(0, 0, z);
+                // obj.position.set(info.targetRelativeToCamera[0], info.targetRelativeToCamera[1], info.targetRelativeToCamera[2]);
+                obj.matrixWorldNeedsUpdate = true;
+                obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(obj);
+                this.followingState.followInfo.threejsTargetObject = obj;
+            }
 
             if (!realityEditor.sceneGraph.getVisualElement(this.followerName)) {
                 let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
-                let relativeToTarget = this.cameraNode.getMatrixRelativeTo(selectedNode);
-
-                if (this.isDemoVersion) {
-                    relativeToTarget = FOLLOWING_RELATIVE_POSITION;
-                    if (selectedNode.linkedVehicle) {
-                        let thisObject = realityEditor.getObject(selectedNode.linkedVehicle.objectId);
-                        if (thisObject) {
-                            let body = {};
-                            body[selectedNode.linkedVehicle.objectId] = {
-                                objectID: selectedNode.linkedVehicle.objectID,
-                                toolID: '',
-                                nodeID: ''
-                            };
-                            globalStates.spatial.whereWas[thisObject.ip] = JSON.parse(JSON.stringify(body));
-                            realityEditor.gui.spatial.checkState();
-                        }
-                    }
-                }
-
+                let relativeToTarget = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
                 this.followingState.followerElementId = realityEditor.sceneGraph.addVisualElement(this.followerName, selectedNode, null, relativeToTarget);
-            } else {
-                let followerPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.followerElementId);
-                let newPosVec = [followerPosition.x, followerPosition.y, followerPosition.z];
-                let movement = add(newPosVec, negate(this.position));
-                if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
-                    this.velocity = add(this.velocity, movement);
-                }
+                realityEditor.sceneGraph.calculateFinalMatrices([]); // recompute scenegraph immediately
+            }
+            
+            let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
+            realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
+
+            // let positionObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'PositionObject');
+            // let targetObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'TargetObject');
+
+            let positionObject = realityEditor.gui.threejsScene.getObjectByName('parametricPositionObject');
+            let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
+
+            if (positionObject.matrixWorldNeedsUpdate || targetObject.matrixWorldNeedsUpdate) {
+                return; // irrecoverable error in camera position if we continue before Three.js computes the matrixWorld of the new objects
+            }
+
+            let targetModelView = targetObject.matrixWorld.clone();
+            let positionModelView = positionObject.matrixWorld.clone();
+
+            // multiply target and position matrices by inverse view matrix (just the camera matrix) to convert modelView into model
+            let cameraMatrix = new realityEditor.gui.threejsScene.THREE.Matrix4();
+            realityEditor.gui.threejsScene.setMatrixFromArray(cameraMatrix, realityEditor.sceneGraph.getCameraNode().worldMatrix);
+            targetModelView.premultiply(cameraMatrix);
+            positionModelView.premultiply(cameraMatrix);
+
+            let newPosVec = [positionModelView.elements[12], positionModelView.elements[13], positionModelView.elements[14]];
+            let newTargetPosVec = [targetModelView.elements[12], targetModelView.elements[13], targetModelView.elements[14]];
+
+            let movement = add(newPosVec, negate(this.position));
+            if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
+                this.velocity = add(this.velocity, movement);
+            }
+
+            let targetMovement = add(newTargetPosVec, negate(this.targetPosition));
+            if (targetMovement[0] !== 0 || targetMovement[1] !== 0 || targetMovement[2] !== 0) {
+                this.targetVelocity = add(this.targetVelocity, targetMovement);
             }
         }
         stopFollowing() {
             if (this.followingState.followerElementId) {
                 realityEditor.sceneGraph.removeElementAndChildren(this.followingState.followerElementId);
                 this.followingState.followerElementId = null;
+            }
+            this.followingState.active = false;
+            this.followingState.selectedId = null;
+            // hideFullscreenColorCanvas(id);
+            if (this.followingState.virtualizerId) {
+                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                this.followingState.virtualizerId = null;
             }
         }
         getTargetMatrix() {
@@ -285,6 +411,33 @@ createNameSpace('realityEditor.device');
             let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
             this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preRotateDistanceToTarget));
         }
+        
+        updateParametricTargetAndPosition(distanceToCamera) {
+            let positionObject = realityEditor.gui.threejsScene.getObjectByName('parametricPositionObject');
+            let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
+            
+            if (!positionObject || !targetObject) {
+                return;
+            }
+            
+            let z = -distanceToCamera;
+            let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+            positionObject.position.set(0, y, z);
+            positionObject.matrixWorldNeedsUpdate = true;
+
+            z = 1500 * (10000 / (distanceToCamera + 2000)); // target distance decreases hyperbolically as camera distance increases
+            targetObject.position.set(0, 0, z);
+            targetObject.matrixWorldNeedsUpdate = true;
+
+            if (this.followingState.currentFollowingDistance === 0 && !this.followingState.currentlyRendering2DVideo) {
+                realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
+                this.followingState.currentlyRendering2DVideo = true;
+
+            } else if (this.followingState.currentlyRendering2DVideo && this.followingState.currentFollowingDistance > 0) {
+                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                this.followingState.currentlyRendering2DVideo = false;
+            }
+        }
 
         // this needs to be called externally each frame that you want it to update
         update() {
@@ -293,6 +446,9 @@ createNameSpace('realityEditor.device');
 
             if (this.followingState.active) {
                 this.updateFollowing();
+                // if (this.followingState.isFirstPerson) {
+                //     return;
+                // }
             } else {
                 this.stopFollowing();
             }
@@ -318,22 +474,49 @@ createNameSpace('realityEditor.device');
             let verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
 
             if (this.mouseInput.unprocessedScroll !== 0) {
-                // increase speed as distance increases
-                let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
-                let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
+                
+                if (this.followingState.active) {
+                    // let positionObject = realityEditor.gui.threejsScene.getObjectByName('parametricPositionObject');
+                    // let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
 
-                let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                    // increase speed as distance increases
+                    // let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
+                    // let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
 
-                // prevent you from zooming beyond it
-                let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
-                if (isZoomingIn && this.distanceToTarget <= magnitude(vector)) {
-                    // zoom in at most halfway to the origin if you're going to overshoot it
-                    let percentToClipBy = 0.5 * this.distanceToTarget / magnitude(vector);
-                    vector = scalarMultiply(vector, percentToClipBy);
+                    let dDist = this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll;
+
+                    // // prevent you from zooming beyond it
+                    // let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
+                    // if (isZoomingIn && (this.followingState.currentFollowingDistance + dDist) < 0) {
+                    //     // zoom in at most halfway to the origin if you're going to overshoot it
+                    //     let percentToClipBy = 0.5 * this.followingState.currentFollowingDistance / dDist;
+                    //     dDist *= percentToClipBy;
+                    // }
+                    
+                    this.followingState.currentFollowingDistance = Math.min(10000, Math.max(0, this.followingState.currentFollowingDistance + dDist));
+                    
+                    console.log('currentFollowingDistance = ' + this.followingState.currentFollowingDistance);
+                    
+                    this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
+
+                } else {
+                    // increase speed as distance increases
+                    let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
+                    let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
+
+                    let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+
+                    // prevent you from zooming beyond it
+                    let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
+                    if (isZoomingIn && this.distanceToTarget <= magnitude(vector)) {
+                        // zoom in at most halfway to the origin if you're going to overshoot it
+                        let percentToClipBy = 0.5 * this.distanceToTarget / magnitude(vector);
+                        vector = scalarMultiply(vector, percentToClipBy);
+                    }
+
+                    this.velocity = add(this.velocity, vector);
+                    this.deselectTarget();
                 }
-
-                this.velocity = add(this.velocity, vector);
-                this.deselectTarget();
 
                 this.mouseInput.unprocessedScroll = 0; // reset now that data is processed
             }
