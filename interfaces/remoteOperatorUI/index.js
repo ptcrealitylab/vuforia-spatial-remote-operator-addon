@@ -21,7 +21,7 @@ const LocalUIApp =  require('@libraries/LocalUIApp');
 
 const settings = server.loadHardwareInterface(__dirname);
 
-exports.enabled = settings('enabled');
+exports.enabled = os.platform() === 'ios' || settings('enabled');
 exports.configurable = true; // can be turned on/off/adjusted from the web frontend
 
 /**
@@ -37,29 +37,31 @@ exports.settings = {
 
 if (exports.enabled) {
 
-    const addonPaths = [
-        path.join(__dirname, '../../../'),
-        path.join(os.homedir(), 'Documents/toolbox/addons'),
-    ];
+    if (os.platform() !== 'ios') {
+        const addonPaths = [
+            path.join(__dirname, '../../../'),
+            path.join(os.homedir(), 'Documents/toolbox/addons'),
+        ];
 
-    const addons = new Addons(addonPaths);
-    const addonFolders = addons.listAddonFolders();
+        const addons = new Addons(addonPaths);
+        const addonFolders = addons.listAddonFolders();
 
-    // Set this in the web frontend, e.g.:
-    // /Users/Benjamin/Documents/github/vuforia-spatial-toolbox-ios/bin/data/userinterface
-    const userinterfacePath = settings('userinterfacePath');
+        // Set this in the web frontend, e.g.:
+        // /Users/Benjamin/Documents/github/vuforia-spatial-toolbox-ios/bin/data/userinterface
+        const userinterfacePath = settings('userinterfacePath');
 
-    // Load the userinterface codebase (including all add-ons) using the server's LocalUIApp class
-    // and serve the userinterface on port 8081
-    try {
-        const localUIApp = new LocalUIApp(userinterfacePath, addonFolders);
-        localUIApp.setup();
+        // Load the userinterface codebase (including all add-ons) using the server's LocalUIApp class
+        // and serve the userinterface on port 8081
+        try {
+            const localUIApp = new LocalUIApp(userinterfacePath, addonFolders);
+            localUIApp.setup();
 
-        console.log('successfully created local_ui_app for remote operator');
+            console.log('successfully created local_ui_app for remote operator');
 
-        startHTTPServer(localUIApp, 8081);
-    } catch (e) {
-        console.warn('CANNOT START REMOTE OPERATOR ON PORT 8081: ', e);
+            startHTTPServer(localUIApp, 8081);
+        } catch (e) {
+            console.warn('CANNOT START REMOTE OPERATOR ON PORT 8081: ', e);
+        }
     }
 
     try {
