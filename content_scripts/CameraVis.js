@@ -723,6 +723,10 @@ void main() {
         }
         
         showFullscreenColorCanvas(id) {
+            if (!this.colorCanvasCache.hasOwnProperty(id)) {
+                id = 'prov' + id;
+            }
+
             if (this.colorCanvasCache[id] && !this.showCanvasTimeout) {
                 let canvas = this.colorCanvasCache[id].canvas;
                 canvas.style.position = 'absolute';
