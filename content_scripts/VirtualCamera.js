@@ -274,7 +274,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (!info.threejsPositionObject) {
                 let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
                 obj.name = info.name + 'PositionObject';
-                obj.position.set(info.positionRelativeToCamera[0], info.positionRelativeToCamera[1], info.positionRelativeToCamera[2]);
+                let z = -info.distanceToCamera;
+                let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+                obj.position.set(0, y, z);
+                // obj.position.set(info.positionRelativeToCamera[0], info.positionRelativeToCamera[1], info.positionRelativeToCamera[2]);
                 obj.matrixWorldNeedsUpdate = true;
                 obj.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.followingState.threejsObject.add(obj);
@@ -284,7 +287,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (!info.threejsTargetObject) {
                 let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
                 obj.name = info.name + 'TargetObject';
-                obj.position.set(info.targetRelativeToCamera[0], info.targetRelativeToCamera[1], info.targetRelativeToCamera[2]);
+                let z = 1500 * (10000 / (info.distanceToCamera + 2000)); // target distance decreases hyperbolically as camera distance increases
+                obj.position.set(0, 0, z);
+                // obj.position.set(info.targetRelativeToCamera[0], info.targetRelativeToCamera[1], info.targetRelativeToCamera[2]);
                 obj.matrixWorldNeedsUpdate = true;
                 obj.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.followingState.threejsObject.add(obj);
@@ -303,12 +308,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             let positionObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'PositionObject');
             let targetObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'TargetObject');
-            // positionObject.matrixWorldNeedsUpdate = true;
-            // targetObject.matrixWorldNeedsUpdate = true;
             
             if (positionObject.matrixWorldNeedsUpdate || targetObject.matrixWorldNeedsUpdate) {
-                console.log('matrixWorldNeedsUpdate');
-                return;
+                return; // irrecoverable error in camera position if we continue before Three.js computes the matrixWorld of the new objects
             }
 
             let targetModelView = targetObject.matrixWorld.clone();
@@ -319,8 +321,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             realityEditor.gui.threejsScene.setMatrixFromArray(cameraMatrix, realityEditor.sceneGraph.getCameraNode().worldMatrix);
             targetModelView.premultiply(cameraMatrix);
             positionModelView.premultiply(cameraMatrix);
-
-            // console.log(targetModelView, positionModelView);
 
             let newPosVec = [positionModelView.elements[12], positionModelView.elements[13], positionModelView.elements[14]];
             let newTargetPosVec = [targetModelView.elements[12], targetModelView.elements[13], targetModelView.elements[14]];
