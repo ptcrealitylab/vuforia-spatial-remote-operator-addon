@@ -61,11 +61,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.followingState = {
                 active: false,
                 selectedId: null,
+                virtualizerId: null,
                 followerElementId: null,
                 isFirstPerson: false,
                 isThirdPerson: false,
                 threejsObject: null,
-                followInfo: null
+                followInfo: null,
+                currentFollowingDistance: 0,
+                currentlyRendering2DVideo: false
                 // threejsTargetObject: null
             };
             if (typeof isDemoVersion !== 'undefined') {
@@ -166,6 +169,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }.bind(this));
         }
         reset() {
+            this.stopFollowing();
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
 
@@ -230,27 +234,32 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (4);
             }
         }
-        follow(sceneNodeToFollow, followInfo) {
+        follow(sceneNodeToFollow, virtualizerId, followInfo) {
             this.followingState.active = true;
+            this.followingState.virtualizerId = virtualizerId;
             this.followingState.selectedId = sceneNodeToFollow.id;
             // this.followingState.isFirstPerson = true;
             // this.followingState.isThirdPerson = false;
             this.followingState.followInfo = followInfo;
+            this.followingState.currentFollowingDistance = followInfo.distanceToCamera; // can adjust with scroll wheel
+            this.followingState.currentlyRendering2DVideo = followInfo.render2DVideo;
+            
+            this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
         }
-        follow1stPerson(sceneNodeToFollow) {
-            console.log('follow 1st person', sceneNodeToFollow);
-            this.followingState.active = true;
-            this.followingState.selectedId = sceneNodeToFollow.id;
-            this.followingState.isFirstPerson = true;
-            this.followingState.isThirdPerson = false;
-        }
-        follow3rdPerson(sceneNodeToFollow) {
-            console.log('follow 3rd person', sceneNodeToFollow);
-            this.followingState.active = true;
-            this.followingState.selectedId = sceneNodeToFollow.id;
-            this.followingState.isFirstPerson = false;
-            this.followingState.isThirdPerson = true;
-        }
+        // follow1stPerson(sceneNodeToFollow) {
+        //     console.log('follow 1st person', sceneNodeToFollow);
+        //     this.followingState.active = true;
+        //     this.followingState.selectedId = sceneNodeToFollow.id;
+        //     this.followingState.isFirstPerson = true;
+        //     this.followingState.isThirdPerson = false;
+        // }
+        // follow3rdPerson(sceneNodeToFollow) {
+        //     console.log('follow 3rd person', sceneNodeToFollow);
+        //     this.followingState.active = true;
+        //     this.followingState.selectedId = sceneNodeToFollow.id;
+        //     this.followingState.isFirstPerson = false;
+        //     this.followingState.isThirdPerson = true;
+        // }
         // stopFollowing() {
         //     console.log('stop following');
         // }
@@ -269,6 +278,23 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.followingState.threejsObject.matrixAutoUpdate = false;
                 this.followingState.threejsObject.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.threeJsContainer.add(this.followingState.threejsObject);
+
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+                obj.name = 'parametricPositionObject';
+                let z = -this.followingState.currentFollowingDistance;
+                let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+                obj.position.set(0, y, z);
+                obj.matrixWorldNeedsUpdate = true;
+                obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(obj);
+                
+                let target = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+                target.name = 'parametricTargetObject';
+                z = 1500 * (10000 / (this.followingState.currentFollowingDistance + 2000)); // target distance decreases hyperbolically as camera distance increases
+                target.position.set(0, 0, z);
+                target.matrixWorldNeedsUpdate = true;
+                target.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.add(target);
             }
 
             if (!info.threejsPositionObject) {
@@ -306,9 +332,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
             realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
 
-            let positionObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'PositionObject');
-            let targetObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'TargetObject');
-            
+            // let positionObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'PositionObject');
+            // let targetObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'TargetObject');
+
+            let positionObject = realityEditor.gui.threejsScene.getObjectByName('parametricPositionObject');
+            let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
+
             if (positionObject.matrixWorldNeedsUpdate || targetObject.matrixWorldNeedsUpdate) {
                 return; // irrecoverable error in camera position if we continue before Three.js computes the matrixWorld of the new objects
             }
@@ -343,6 +372,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.followingState.active = false;
             this.followingState.selectedId = null;
             // hideFullscreenColorCanvas(id);
+            if (this.followingState.virtualizerId) {
+                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                this.followingState.virtualizerId = null;
+            }
         }
         getTargetMatrix() {
             return [
@@ -377,6 +410,33 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (this.preRotateDistanceToTarget === null) { return; }
             let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
             this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preRotateDistanceToTarget));
+        }
+        
+        updateParametricTargetAndPosition(distanceToCamera) {
+            let positionObject = realityEditor.gui.threejsScene.getObjectByName('parametricPositionObject');
+            let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
+            
+            if (!positionObject || !targetObject) {
+                return;
+            }
+            
+            let z = -distanceToCamera;
+            let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+            positionObject.position.set(0, y, z);
+            positionObject.matrixWorldNeedsUpdate = true;
+
+            z = 1500 * (10000 / (distanceToCamera + 2000)); // target distance decreases hyperbolically as camera distance increases
+            targetObject.position.set(0, 0, z);
+            targetObject.matrixWorldNeedsUpdate = true;
+
+            if (this.followingState.currentFollowingDistance === 0 && !this.followingState.currentlyRendering2DVideo) {
+                realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
+                this.followingState.currentlyRendering2DVideo = true;
+
+            } else if (this.followingState.currentlyRendering2DVideo && this.followingState.currentFollowingDistance > 0) {
+                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                this.followingState.currentlyRendering2DVideo = false;
+            }
         }
 
         // this needs to be called externally each frame that you want it to update
@@ -414,22 +474,49 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
 
             if (this.mouseInput.unprocessedScroll !== 0) {
-                // increase speed as distance increases
-                let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
-                let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
+                
+                if (this.followingState.active) {
+                    // let positionObject = realityEditor.gui.threejsScene.getObjectByName('parametricPositionObject');
+                    // let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
 
-                let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                    // increase speed as distance increases
+                    // let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
+                    // let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
 
-                // prevent you from zooming beyond it
-                let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
-                if (isZoomingIn && this.distanceToTarget <= magnitude(vector)) {
-                    // zoom in at most halfway to the origin if you're going to overshoot it
-                    let percentToClipBy = 0.5 * this.distanceToTarget / magnitude(vector);
-                    vector = scalarMultiply(vector, percentToClipBy);
+                    let dDist = this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll;
+
+                    // // prevent you from zooming beyond it
+                    // let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
+                    // if (isZoomingIn && (this.followingState.currentFollowingDistance + dDist) < 0) {
+                    //     // zoom in at most halfway to the origin if you're going to overshoot it
+                    //     let percentToClipBy = 0.5 * this.followingState.currentFollowingDistance / dDist;
+                    //     dDist *= percentToClipBy;
+                    // }
+                    
+                    this.followingState.currentFollowingDistance = Math.min(10000, Math.max(0, this.followingState.currentFollowingDistance + dDist));
+                    
+                    console.log('currentFollowingDistance = ' + this.followingState.currentFollowingDistance);
+                    
+                    this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
+
+                } else {
+                    // increase speed as distance increases
+                    let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
+                    let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
+
+                    let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+
+                    // prevent you from zooming beyond it
+                    let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
+                    if (isZoomingIn && this.distanceToTarget <= magnitude(vector)) {
+                        // zoom in at most halfway to the origin if you're going to overshoot it
+                        let percentToClipBy = 0.5 * this.distanceToTarget / magnitude(vector);
+                        vector = scalarMultiply(vector, percentToClipBy);
+                    }
+
+                    this.velocity = add(this.velocity, vector);
+                    this.deselectTarget();
                 }
-
-                this.velocity = add(this.velocity, vector);
-                this.deselectTarget();
 
                 this.mouseInput.unprocessedScroll = 0; // reset now that data is processed
             }
