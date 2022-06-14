@@ -274,6 +274,7 @@ createNameSpace('realityEditor.device.cameraVis');
 
                 let gpNode = new realityEditor.sceneGraph.SceneNode(id + '-gp');
                 let gpRxNode = new realityEditor.sceneGraph.SceneNode(id + '-gp-rx');
+                gpRxNode.setParent(gpNode);
                 // let gpNode = realityEditor.sceneGraph.getSceneNodeById(
                 //     realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
                 // if (!gpNode) {
