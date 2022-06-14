@@ -628,7 +628,7 @@ void main() {
         }
 
         startWebRTC() {
-            const network = 'cam0';
+            const network = 'cam' + Math.floor(Math.random() * 1000);
 
             const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(urlBase + 'signalling');
             const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
