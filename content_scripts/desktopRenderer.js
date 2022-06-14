@@ -50,6 +50,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let staticModelMode = false;
     let realityZoneViewer = null;
     let videoPlayback = null;
+    let cameraVisCoordinator = null;
+    let cameraVisSceneNodes = [];
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -126,8 +128,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                             realityZoneVoxelizer.add();
                         }
 
-                        let cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
+                        cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
                         cameraVisCoordinator.connect();
+                        cameraVisCoordinator.onCameraVisCreated(cameraVis => {
+                            console.log('onCameraVisCreated', cameraVis);
+                            cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+                        });
 
                         realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                         realityZoneViewer.draw();
@@ -220,6 +226,20 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         );
     }
+    
+    function showCameraCanvas(id) {
+        if (cameraVisCoordinator) {
+            cameraVisCoordinator.showFullscreenColorCanvas(id);
+        }
+    }
+    exports.showCameraCanvas = showCameraCanvas;
+
+    function hideCameraCanvas(id) {
+        if (cameraVisCoordinator) {
+            cameraVisCoordinator.hideFullscreenColorCanvas(id);
+        }
+    }
+    exports.hideCameraCanvas = hideCameraCanvas;
 
     /**
      * Updates canvas size for resize events
@@ -331,6 +351,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     }
 
     exports.processImageFromSource = processImageFromSource;
+    
+    exports.getCameraVisSceneNodes = () => {
+        return cameraVisSceneNodes;
+    }
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);

@@ -19,6 +19,9 @@ createNameSpace('realityEditor.gui');
         UnityVirtualizers: 'Unity Virtualizers',
         SurfaceAnchors: 'Surface Anchors',
         VideoPlayback: 'Video Timeline',
+        Follow1stPerson: 'Follow 1st-Person',
+        Follow3rdPerson: 'Follow 3rd-Person',
+        StopFollowing: 'Stop Following',
         ResetPaths: 'Reset Paths',
         TogglePaths: 'Toggle Paths',
         ClonePatch: 'Clone Patch',
@@ -74,6 +77,9 @@ createNameSpace('realityEditor.gui');
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, clonePatch);
+
+        const stopFollowing = new MenuItem(ITEM.StopFollowing, { shortcutKey: '_0', toggle: false, disabled: true }, null);
+        menuBar.addItemToMenu(MENU.Camera, stopFollowing);
 
         const orbitCamera = new MenuItem(ITEM.OrbitCamera, { shortcutKey: 'O', toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.Camera, orbitCamera);
