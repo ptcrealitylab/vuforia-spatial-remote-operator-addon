@@ -264,7 +264,7 @@ createNameSpace('realityEditor.device.cameraVis');
             const id = this.providerId;
             let bytes = new Uint8Array(event.data);
             if (bytes.length < 1000) {
-                const decoder = new TextDecoder();
+                // const decoder = new TextDecoder();
                 const matricesMsg = decoder.decode(bytes);
                 // blah blah it's matrix
                 const matrices = JSON.parse(matricesMsg);
@@ -273,15 +273,10 @@ createNameSpace('realityEditor.device.cameraVis');
                 cameraNode.updateWorldMatrix();
 
                 let gpNode = new realityEditor.sceneGraph.SceneNode(id + '-gp');
-                let gpRxNode = new realityEditor.sceneGraph.SceneNode(id + '-gp-rx');
+                gpNode.needsRotateX = true;
+                let gpRxNode = new realityEditor.sceneGraph.SceneNode(id + '-gp' + 'rotateX');
+                gpRxNode.addTag('rotateX');
                 gpRxNode.setParent(gpNode);
-                // let gpNode = realityEditor.sceneGraph.getSceneNodeById(
-                //     realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
-                // if (!gpNode) {
-                //     gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
-                // }
-                gpNode.setLocalMatrix(matrices.groundplane);
-                gpNode.updateWorldMatrix();
 
                 const c = Math.cos(-Math.PI / 2);
                 const s = Math.sin(-Math.PI / 2);
@@ -292,7 +287,15 @@ createNameSpace('realityEditor.device.cameraVis');
                     0, 0, 0, 1
                 ];
                 gpRxNode.setLocalMatrix(rxMat);
-                gpRxNode.updateWorldMatrix();
+
+                // let gpNode = realityEditor.sceneGraph.getSceneNodeById(
+                //     realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
+                // if (!gpNode) {
+                //     gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
+                // }
+                gpNode.setLocalMatrix(matrices.groundplane);
+                gpNode.updateWorldMatrix();
+                // gpRxNode.updateWorldMatrix();
 
                 let sceneNode = new realityEditor.sceneGraph.SceneNode(id);
                 sceneNode.setParent(realityEditor.sceneGraph.getSceneNodeById('ROOT'));
