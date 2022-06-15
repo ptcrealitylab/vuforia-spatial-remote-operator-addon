@@ -457,7 +457,7 @@ void main() {
                 this.historyPoints.push(nextHistoryPoint);
                 this.historyLine.setPoints(this.historyPoints);
             }
-            
+
             if (this.sceneGraphNode) {
                 this.sceneGraphNode.setLocalMatrix(newMatrix);
             }
@@ -510,7 +510,7 @@ void main() {
             this.showCanvasTimeout = null;
             this.callbacks = {
                 onCameraVisCreated: []
-            }
+            };
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -552,7 +552,7 @@ void main() {
             this.startWebRTC();
         }
 
-        connectWsToMatrix(_url) {
+        connectWsToMatrix(url) {
             if (PROXY) {
                 const ws = realityEditor.cloud.socket;
 
@@ -721,7 +721,7 @@ void main() {
             };
             image.src = imageUrl;
         }
-        
+
         showFullscreenColorCanvas(id) {
             let cacheId = id;
             if (!this.colorCanvasCache.hasOwnProperty(cacheId)) {
@@ -747,7 +747,7 @@ void main() {
                 // }, 100);
             }
         }
-        
+
         hideFullscreenColorCanvas(id) {
             if (this.showCanvasTimeout) {
                 clearInterval(this.showCanvasTimeout);
@@ -799,7 +799,7 @@ void main() {
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
             });
-            
+
             this.callbacks.onCameraVisCreated.forEach(cb => {
                 cb(this.cameras[id]);
             });
