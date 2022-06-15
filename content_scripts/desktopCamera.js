@@ -29,7 +29,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         LAB: [0, 0, 0]
     });
 
-    const MIN_DIST_TO_CAMERA = 1500; // the point at which the 2D video will show up
+    const MIN_DIST_TO_CAMERA = 500; // the point at which the 2D video will show up
     exports.MIN_DIST_TO_CAMERA = MIN_DIST_TO_CAMERA;
 
     const perspectives = {
