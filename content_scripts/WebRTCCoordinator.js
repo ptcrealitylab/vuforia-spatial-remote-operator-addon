@@ -34,8 +34,19 @@ createNameSpace('realityEditor.device.cameraVis');
             }
 
             navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
-                this.audioStream = stream;
+                this.audioStream = this.improveAudioStream(stream);
             });
+        }
+
+        improveAudioStream(stream) {
+            const context = new AudioContext();
+            const src = context.createMediaStreamSource(stream);
+            const dst = context.createMediaStreamDestination();
+            const gainNode = context.createGain();
+            gainNode.gain.value = 3;
+            src.connect(gainNode);
+            gainNode.connect(dst);
+            return dst.stream;
         }
 
         onWsOpen() {
