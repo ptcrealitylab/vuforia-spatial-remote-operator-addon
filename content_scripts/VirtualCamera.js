@@ -420,20 +420,22 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return;
             }
             
+            let minDist = realityEditor.device.desktopCamera.MIN_DIST_TO_CAMERA;
             let z = -distanceToCamera;
-            let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+            let y = -1500 * ((z+minDist) / 3000) * ((z+minDist) / 3000); // camera is positioned along a quadratic curve behind the camera
             positionObject.position.set(0, y, z);
             positionObject.matrixWorldNeedsUpdate = true;
 
-            z = 1500 * (10000 / (distanceToCamera + 2000)); // target distance decreases hyperbolically as camera distance increases
+            z = 1500 * (10000 / ((distanceToCamera-minDist) + 2000)); // target distance decreases hyperbolically as camera distance increases
             targetObject.position.set(0, 0, z);
             targetObject.matrixWorldNeedsUpdate = true;
 
-            if (this.followingState.currentFollowingDistance === 0 && !this.followingState.currentlyRendering2DVideo) {
+            // let minDist = realityEditor.device.desktopCamera.MIN_DIST_TO_CAMERA;
+            if (this.followingState.currentFollowingDistance <= minDist && !this.followingState.currentlyRendering2DVideo) {
                 realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
                 this.followingState.currentlyRendering2DVideo = true;
 
-            } else if (this.followingState.currentlyRendering2DVideo && this.followingState.currentFollowingDistance > 0) {
+            } else if (this.followingState.currentlyRendering2DVideo && this.followingState.currentFollowingDistance > minDist) {
                 realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
                 this.followingState.currentlyRendering2DVideo = false;
             }
@@ -493,7 +495,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     //     dDist *= percentToClipBy;
                     // }
                     
-                    this.followingState.currentFollowingDistance = Math.min(10000, Math.max(0, this.followingState.currentFollowingDistance + dDist));
+                    let minDist = realityEditor.device.desktopCamera.MIN_DIST_TO_CAMERA;
+                    this.followingState.currentFollowingDistance = Math.min(10000, Math.max(minDist, this.followingState.currentFollowingDistance + dDist));
                     
                     console.log('currentFollowingDistance = ' + this.followingState.currentFollowingDistance);
                     
