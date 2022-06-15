@@ -270,6 +270,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let info = this.followingState.followInfo;
             if (!info) { return; }
 
+            let minDist = realityEditor.device.desktopCamera.MIN_DIST_TO_CAMERA;
             // create any missing Three.js objects for the current perspective
             if (!this.followingState.threejsObject) {
                 const THREE = realityEditor.gui.threejsScene.THREE;
@@ -282,7 +283,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
                 obj.name = 'parametricPositionObject';
                 let z = -this.followingState.currentFollowingDistance;
-                let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+                let y = -1500 * ((z+minDist) / 3000) * ((z+minDist) / 3000); // camera is positioned along a quadratic curve behind the camera
                 obj.position.set(0, y, z);
                 obj.matrixWorldNeedsUpdate = true;
                 obj.visible = DISPLAY_PERSPECTIVE_CUBES;
@@ -290,7 +291,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 
                 let target = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
                 target.name = 'parametricTargetObject';
-                z = 1500 * (10000 / (this.followingState.currentFollowingDistance + 2000)); // target distance decreases hyperbolically as camera distance increases
+                z = 1500 * (10000 / ((this.followingState.currentFollowingDistance-minDist) + 2000)); // target distance decreases hyperbolically as camera distance increases
                 target.position.set(0, 0, z);
                 target.matrixWorldNeedsUpdate = true;
                 target.visible = DISPLAY_PERSPECTIVE_CUBES;
@@ -301,7 +302,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
                 obj.name = info.name + 'PositionObject';
                 let z = -info.distanceToCamera;
-                let y = -1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
+                let y = -1500 * ((z+minDist) / 3000) * ((z + minDist) / 3000); // camera is positioned along a quadratic curve behind the camera
                 obj.position.set(0, y, z);
                 // obj.position.set(info.positionRelativeToCamera[0], info.positionRelativeToCamera[1], info.positionRelativeToCamera[2]);
                 obj.matrixWorldNeedsUpdate = true;
@@ -313,7 +314,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (!info.threejsTargetObject) {
                 let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: info.debugColor}));
                 obj.name = info.name + 'TargetObject';
-                let z = 1500 * (10000 / (info.distanceToCamera + 2000)); // target distance decreases hyperbolically as camera distance increases
+                let z = 1500 * (10000 / ((info.distanceToCamera-minDist) + 2000)); // target distance decreases hyperbolically as camera distance increases
                 obj.position.set(0, 0, z);
                 // obj.position.set(info.targetRelativeToCamera[0], info.targetRelativeToCamera[1], info.targetRelativeToCamera[2]);
                 obj.matrixWorldNeedsUpdate = true;
