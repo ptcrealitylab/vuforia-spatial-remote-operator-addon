@@ -19,6 +19,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     // Automatically connect to all discovered reality zones
     const AUTO_ZONE_CONNECT = true;
 
+    const PROXY = window.location.host === 'toolboxedge.net';
+
     /**
      * @type {boolean} - when paused, desktops ignore matrices received from mobile editors and use their own
      */
@@ -91,7 +93,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.distanceScaleFactor = 30; // makes distance-based interactions work at further distances than mobile
         env.newFrameDistanceMultiplier = 6; // makes new tools spawn further away from camera position
         // globalStates.defaultScale *= 3; // make new tools bigger
-        env.localServerPort = 443; // this would let it find world_local if it exists (but it probably doesn't exist)
+        env.localServerPort = PROXY ? 443 : 8080; // this would let it find world_local if it exists (but it probably doesn't exist)
         env.shouldCreateDesktopSocket = true; // this lets UDP messages get sent over socket instead
         env.isCameraOrientationFlipped = true; // otherwise new tools and anchors get placed upside-down
         env.waitForARTracking = false; // don't show loading UI waiting for vuforia to give us camera matrices
@@ -100,9 +102,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.addOcclusionGltf = false; // don't add transparent world gltf, because we're already adding the visible mesh
 
         globalStates.groundPlaneOffset = 0.77;
-        realityEditor.app.callbacks.acceptUDPBeats = false;
-        globalStates.a = 0.77;
-        realityEditor.network.state.isCloudInterface = true;
+        if (PROXY) {
+            realityEditor.app.callbacks.acceptUDPBeats = false;
+            globalStates.a = 0.77;
+            realityEditor.network.state.isCloudInterface = true;
+        }
         // default values that I may or may not need to invert:
         // shouldBroadcastUpdateObjectMatrix: false,
 
