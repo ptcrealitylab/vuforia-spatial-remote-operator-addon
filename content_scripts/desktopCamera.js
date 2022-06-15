@@ -31,6 +31,9 @@ createNameSpace('realityEditor.device.desktopCamera');
         LAB: [0, 0, 0]
     });
 
+    const MIN_DIST_TO_CAMERA = 1500; // the point at which the 2D video will show up
+    exports.MIN_DIST_TO_CAMERA = MIN_DIST_TO_CAMERA;
+
     const perspectives = {
         1: {
             name: 'firstPersonFollow',
@@ -38,7 +41,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             threejsTargetObject: null,
             // positionRelativeToCamera: [0, 0, 0],
             // targetRelativeToCamera: [0, 0, 500],
-            distanceToCamera: 0,
+            distanceToCamera: MIN_DIST_TO_CAMERA,
             smoothing: 0.2,
             debugColor: '#ffffff',
             keyboardShortcut: '_1',
@@ -51,7 +54,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             threejsTargetObject: null,
             // positionRelativeToCamera: [0, -250, -1000],
             // targetRelativeToCamera: [0, 0, 2000],
-            distanceToCamera: 1500,
+            distanceToCamera: 1500 + MIN_DIST_TO_CAMERA,
             smoothing: 0.5,
             debugColor: '#ffffff',
             keyboardShortcut: '_2',
@@ -63,7 +66,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             threejsTargetObject: null,
             // positionRelativeToCamera: [0, -1000, -2000],
             // targetRelativeToCamera: [0, 0, 2000],
-            distanceToCamera: 3000,
+            distanceToCamera: 3000 + MIN_DIST_TO_CAMERA,
             smoothing: 0.5,
             debugColor: '#ffffff',
             keyboardShortcut: '_3',
@@ -75,7 +78,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             threejsTargetObject: null,
             // positionRelativeToCamera: [0, -2000, -3000],
             // targetRelativeToCamera: [0, 0, 2000],
-            distanceToCamera: 4500,
+            distanceToCamera: 4500 + MIN_DIST_TO_CAMERA,
             smoothing: 0.8,
             debugColor: '#ffffff',
             keyboardShortcut: '_4',
@@ -87,7 +90,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             threejsTargetObject: null,
             // positionRelativeToCamera: [0, -5000, -4000],
             // targetRelativeToCamera: [0, 0, 0],
-            distanceToCamera: 6000,
+            distanceToCamera: 6000 + MIN_DIST_TO_CAMERA,
             smoothing: 0.8,
             debugColor: '#ffffff',
             keyboardShortcut: '_5',
