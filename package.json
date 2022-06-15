@@ -1,5 +1,5 @@
 {
-  "name": "vuforia-spatial-remote-operator-cloud-edition",
+  "name": "vuforia-spatial-remote-operator-addon",
   "version": "1.0.0",
   "description": "Remote Operator Add-on for the Vuforia Spatial Edge Server",
   "scripts": {
