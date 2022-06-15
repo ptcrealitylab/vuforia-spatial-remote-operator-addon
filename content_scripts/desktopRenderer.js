@@ -67,94 +67,101 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId();
             let criteriaMet = primaryWorldId ? (objectKey === primaryWorldId) : (object.isWorldObject || object.type === 'world' );
 
-            // try loading area target GLB file into the threejs scene
-            if (criteriaMet) {
-                isGlbLoaded = true;
-                let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
-
-                function checkExist() {
-                    fetch(gltfPath).then(res => {
-                        if (!res.ok) {
-                            setTimeout(checkExist, 500);
-                        } else {
-                            realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
-                        }
-                    }).catch(_ => {
-                        setTimeout(checkExist, 500);
-                    });
-                }
-
-                function createNavmeshCallback(navmesh) {
-                    let floorOffset = navmesh.floorOffset * 1000;
-                    let buffer = 50;
-                    floorOffset += buffer;
-                    let groundPlaneMatrix = [
-                        1, 0, 0, 0,
-                        0, 1, 0, 0,
-                        0, 0, 1, 0,
-                        0, floorOffset, 0, 1
-                    ];
-                    realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
-
-                    let ceilingHeight = Math.max(
-                        navmesh.maxY - navmesh.minY,
-                        navmesh.maxX - navmesh.minX,
-                        navmesh.maxZ - navmesh.minZ
-                    );
-                    let center = {
-                        x: (navmesh.maxX + navmesh.minX) / 2,
-                        y: navmesh.minY,
-                        z: (navmesh.maxZ + navmesh.minZ) / 2,
-                    };
-                    realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
-                        gltf = createdMesh;
-                        gltf.name = 'areaTargetMesh';
-
-                        const greyMaterial = new THREE.MeshBasicMaterial({
-                            color: 0x777777,
-                            wireframe: true,
-                        });
-
-                        gltf.traverse(obj => {
-                            if (obj.type === 'Mesh' && obj.material) {
-                                obj.oldMaterial = greyMaterial;
-                            }
-                        });
-
-                        realityEditor.device.meshLine.inject();
-
-                        let realityZoneVoxelizer;
-                        if (ENABLE_VOXELIZER) {
-                            realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
-                            realityZoneVoxelizer.add();
-                        }
-
-                        cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
-                        cameraVisCoordinator.connect();
-                        cameraVisCoordinator.onCameraVisCreated(cameraVis => {
-                            console.log('onCameraVisCreated', cameraVis);
-                            cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
-                        });
-
-                        realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
-                        realityZoneViewer.draw();
-
-                        if (!PROXY) {
-                            videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
-                            videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                            videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
-                            videoPlayback.load();
-                            window.videoPlayback = videoPlayback;
-
-                            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
-                                videoPlayback.toggleVisibility(toggled);
-                            });
-                        }
-                    });
-                }
-
-                checkExist();
+            if (!criteriaMet) {
+                return;
             }
+
+            if (objectKey.includes('_local')) {
+                console.warn('Rejected local world object');
+                return;
+            }
+
+            // try loading area target GLB file into the threejs scene
+            isGlbLoaded = true;
+            let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
+
+            function checkExist() {
+                fetch(gltfPath).then(res => {
+                    if (!res.ok) {
+                        setTimeout(checkExist, 500);
+                    } else {
+                        realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
+                    }
+                }).catch(_ => {
+                    setTimeout(checkExist, 500);
+                });
+            }
+
+            function createNavmeshCallback(navmesh) {
+                let floorOffset = navmesh.floorOffset * 1000;
+                let buffer = 50;
+                floorOffset += buffer;
+                let groundPlaneMatrix = [
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, floorOffset, 0, 1
+                ];
+                realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+
+                let ceilingHeight = Math.max(
+                    navmesh.maxY - navmesh.minY,
+                    navmesh.maxX - navmesh.minX,
+                    navmesh.maxZ - navmesh.minZ
+                );
+                let center = {
+                    x: (navmesh.maxX + navmesh.minX) / 2,
+                    y: navmesh.minY,
+                    z: (navmesh.maxZ + navmesh.minZ) / 2,
+                };
+                realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
+                    gltf = createdMesh;
+                    gltf.name = 'areaTargetMesh';
+
+                    const greyMaterial = new THREE.MeshBasicMaterial({
+                        color: 0x777777,
+                        wireframe: true,
+                    });
+
+                    gltf.traverse(obj => {
+                        if (obj.type === 'Mesh' && obj.material) {
+                            obj.oldMaterial = greyMaterial;
+                        }
+                    });
+
+                    realityEditor.device.meshLine.inject();
+
+                    let realityZoneVoxelizer;
+                    if (ENABLE_VOXELIZER) {
+                        realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
+                        realityZoneVoxelizer.add();
+                    }
+
+                    cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
+                    cameraVisCoordinator.connect();
+                    cameraVisCoordinator.onCameraVisCreated(cameraVis => {
+                        console.log('onCameraVisCreated', cameraVis);
+                        cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+                    });
+
+                    realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
+                    realityZoneViewer.draw();
+
+                    if (!PROXY) {
+                        videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
+                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                        videoPlayback.load();
+                        window.videoPlayback = videoPlayback;
+
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                            videoPlayback.toggleVisibility(toggled);
+                        });
+                    }
+                });
+            }
+
+            checkExist();
         });
 
         document.body.style.backgroundColor = 'rgb(50,50,50)';
@@ -229,7 +236,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         );
     }
-    
+
     function showCameraCanvas(id) {
         if (cameraVisCoordinator) {
             cameraVisCoordinator.showFullscreenColorCanvas(id);
@@ -354,10 +361,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     }
 
     exports.processImageFromSource = processImageFromSource;
-    
+
     exports.getCameraVisSceneNodes = () => {
         return cameraVisSceneNodes;
-    }
+    };
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
