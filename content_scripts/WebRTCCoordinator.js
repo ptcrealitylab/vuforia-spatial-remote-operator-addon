@@ -1,6 +1,11 @@
 createNameSpace('realityEditor.device.cameraVis');
 
 (function(exports) {
+    const PROXY = window.location.host === 'toolboxedge.net';
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
     class WebRTCCoordinator {
         constructor(cameraVisCoordinator, ws, consumerId) {
             this.cameraVisCoordinator = cameraVisCoordinator;
@@ -12,13 +17,36 @@ createNameSpace('realityEditor.device.cameraVis');
 
             this.onWsOpen = this.onWsOpen.bind(this);
             this.onWsMessage = this.onWsMessage.bind(this);
+            this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
 
-            this.ws.addEventListener('open', this.onWsOpen);
-            this.ws.addEventListener('message', this.onWsMessage);
+            if (!PROXY) {
+                this.ws.addEventListener('open', this.onWsOpen);
+                this.ws.addEventListener('message', this.onWsMessage);
+            } else {
+                this.ws.on('message', this.onToolsocketMessage);
+                this.ws.message('unused', {id: 'signalling'}, null, {
+                    data: encoder.encode(JSON.stringify({
+                        command: 'joinNetwork',
+                        src: this.consumerId,
+                        role: 'consumer',
+                    })),
+                });
+            }
 
             navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
-                this.audioStream = stream;
+                this.audioStream = this.improveAudioStream(stream);
             });
+        }
+
+        improveAudioStream(stream) {
+            const context = new AudioContext();
+            const src = context.createMediaStreamSource(stream);
+            const dst = context.createMediaStreamDestination();
+            const gainNode = context.createGain();
+            gainNode.gain.value = 3;
+            src.connect(gainNode);
+            gainNode.connect(dst);
+            return dst.stream;
         }
 
         onWsOpen() {
@@ -53,6 +81,13 @@ createNameSpace('realityEditor.device.cameraVis');
             }
 
             this.webrtcConnections[msg.src].onSignallingMessage(msg);
+        }
+
+        onToolsocketMessage(route, body, cbObj, bin) {
+            if (body.id !== 'signalling') {
+                return;
+            }
+            this.onWsMessage({data: decoder.decode(bin.data)});
         }
 
         initConnection(providerId) {
@@ -131,12 +166,24 @@ createNameSpace('realityEditor.device.cameraVis');
                 if (!e.candidate) {
                     return;
                 }
-                this.ws.send(JSON.stringify({
-                    src: this.consumerId,
-                    dest: this.providerId,
-                    command: 'newIceCandidate',
-                    candidate: e.candidate,
-                }));
+
+                if (PROXY) {
+                    this.ws.message('unused', {id: 'signalling'}, null, {
+                        data: encoder.encode(JSON.stringify({
+                            src: this.consumerId,
+                            dest: this.providerId,
+                            command: 'newIceCandidate',
+                            candidate: e.candidate,
+                        })),
+                    });
+                } else {
+                    this.ws.send(JSON.stringify({
+                        src: this.consumerId,
+                        dest: this.providerId,
+                        command: 'newIceCandidate',
+                        candidate: e.candidate,
+                    }));
+                }
             });
 
             this.localConnection.addEventListener('datachannel', (e) => {
@@ -180,12 +227,23 @@ createNameSpace('realityEditor.device.cameraVis');
             });
             await this.localConnection.setLocalDescription(offer);
 
-            this.ws.send(JSON.stringify({
-                src: this.consumerId,
-                dest: this.providerId,
-                command: 'newDescription',
-                description: this.localConnection.localDescription,
-            }));
+            if (PROXY) {
+                this.ws.message('unused', {id: 'signalling'}, null, {
+                    data: encoder.encode(JSON.stringify({
+                        src: this.consumerId,
+                        dest: this.providerId,
+                        command: 'newDescription',
+                        description: this.localConnection.localDescription,
+                    })),
+                });
+            } else {
+                this.ws.send(JSON.stringify({
+                    src: this.consumerId,
+                    dest: this.providerId,
+                    command: 'newDescription',
+                    description: this.localConnection.localDescription,
+                }));
+            }
         }
 
         onSendChannelStatusChange() {
@@ -217,7 +275,7 @@ createNameSpace('realityEditor.device.cameraVis');
             const id = this.providerId;
             let bytes = new Uint8Array(event.data);
             if (bytes.length < 1000) {
-                const decoder = new TextDecoder();
+                // const decoder = new TextDecoder();
                 const matricesMsg = decoder.decode(bytes);
                 // blah blah it's matrix
                 const matrices = JSON.parse(matricesMsg);
@@ -226,14 +284,10 @@ createNameSpace('realityEditor.device.cameraVis');
                 cameraNode.updateWorldMatrix();
 
                 let gpNode = new realityEditor.sceneGraph.SceneNode(id + '-gp');
-                let gpRxNode = new realityEditor.sceneGraph.SceneNode(id + '-gp-rx');
-                // let gpNode = realityEditor.sceneGraph.getSceneNodeById(
-                //     realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
-                // if (!gpNode) {
-                //     gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
-                // }
-                gpNode.setLocalMatrix(matrices.groundplane);
-                gpNode.updateWorldMatrix();
+                gpNode.needsRotateX = true;
+                let gpRxNode = new realityEditor.sceneGraph.SceneNode(id + '-gp' + 'rotateX');
+                gpRxNode.addTag('rotateX');
+                gpRxNode.setParent(gpNode);
 
                 const c = Math.cos(-Math.PI / 2);
                 const s = Math.sin(-Math.PI / 2);
@@ -244,7 +298,15 @@ createNameSpace('realityEditor.device.cameraVis');
                     0, 0, 0, 1
                 ];
                 gpRxNode.setLocalMatrix(rxMat);
-                gpRxNode.updateWorldMatrix();
+
+                // let gpNode = realityEditor.sceneGraph.getSceneNodeById(
+                //     realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
+                // if (!gpNode) {
+                //     gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
+                // }
+                gpNode.setLocalMatrix(matrices.groundplane);
+                gpNode.updateWorldMatrix();
+                // gpRxNode.updateWorldMatrix();
 
                 let sceneNode = new realityEditor.sceneGraph.SceneNode(id);
                 sceneNode.setParent(realityEditor.sceneGraph.getSceneNodeById('ROOT'));
@@ -290,11 +352,21 @@ createNameSpace('realityEditor.device.cameraVis');
         }
 
         disconnect() {
-            this.ws.send({
-                src: this.consumerId,
-                dest: this.providerId,
-                command: 'leaveNetwork',
-            });
+            if (PROXY) {
+                this.ws.message('unused', {id: 'signalling'}, null, {
+                    data: encoder.encode(JSON.stringify({
+                        src: this.consumerId,
+                        dest: this.providerId,
+                        command: 'leaveNetwork',
+                    })),
+                });
+            } else {
+                this.ws.send({
+                    src: this.consumerId,
+                    dest: this.providerId,
+                    command: 'leaveNetwork',
+                });
+            }
             this.sendChannel.close();
             this.receiveChannel.close();
 

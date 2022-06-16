@@ -5,6 +5,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
+    const PROXY = window.location.host === 'toolboxedge.net';
     const ShaderMode = {
         SOLID: 'SOLID',
         POINT: 'POINT',
@@ -456,7 +457,7 @@ void main() {
                 this.historyPoints.push(nextHistoryPoint);
                 this.historyLine.setPoints(this.historyPoints);
             }
-            
+
             if (this.sceneGraphNode) {
                 this.sceneGraphNode.setLocalMatrix(newMatrix);
             }
@@ -509,7 +510,7 @@ void main() {
             this.showCanvasTimeout = null;
             this.callbacks = {
                 onCameraVisCreated: []
-            }
+            };
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -552,17 +553,30 @@ void main() {
         }
 
         connectWsToMatrix(url) {
-            const ws = new WebSocket(url);
+            if (PROXY) {
+                const ws = realityEditor.cloud.socket;
 
-            ws.addEventListener('message', async (msg) => {
-                const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
-                const id = bytes[0];
-                // const pktType = bytes[1];
-                // if (pktType === PKT_MATRIX) {
-                const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                // }
-                this.updateMatrix(id, mat);
-            });
+                ws.on('message', async (route, body, cbObj, bin) => {
+                    if (body.id !== 'matrix') {
+                        return;
+                    }
+
+                    const id = bin.data[0];
+                    // const pktType = bytes[1];
+                    // if (pktType === PKT_MATRIX) {
+                    const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
+                    // }
+                    this.updateMatrix(id, mat);
+                });
+            } else {
+                const ws = new WebSocket(url);
+                ws.addEventListener('message', async (msg) => {
+                    const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
+                    const id = bytes[0];
+                    const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
+                    this.updateMatrix(id, mat);
+                });
+            }
         }
 
         updateMatrix(id, mat) {
@@ -587,15 +601,37 @@ void main() {
 
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
-                const ws = new WebSocket(url);
+                if (PROXY) {
+                    const ws = realityEditor.cloud.socket;
 
-                ws.addEventListener('message', async (msg) => {
-                    const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
-                    const id = bytes[0];
-                    const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
-                    const imageUrl = URL.createObjectURL(imageBlob);
-                    this.renderPointCloud(id, textureKey, imageUrl);
-                });
+                    ws.on('message', async (route, body, cbObj, bin) => {
+                        if (body.id !== 'depth' && body.id !== 'color') {
+                            return;
+                        }
+                        if (body.id === 'depth' && textureKey !== 'textureDepth') {
+                            return;
+                        }
+                        if (body.id === 'color' && textureKey !== 'texture') {
+                            return;
+                        }
+
+                        const bytes = new Uint8Array(bin.data.slice(0, 1));
+                        const id = bytes[0];
+                        const imageBlob = new Blob([bin.data.slice(1, bin.data.length).buffer], {type: mimetype});
+                        const imageUrl = URL.createObjectURL(imageBlob);
+                        this.renderPointCloud(id, textureKey, imageUrl);
+                    });
+                } else {
+                    const ws = new WebSocket(url);
+
+                    ws.addEventListener('message', async (msg) => {
+                        const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
+                        const id = bytes[0];
+                        const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
+                        const imageUrl = URL.createObjectURL(imageBlob);
+                        this.renderPointCloud(id, textureKey, imageUrl);
+                    });
+                }
             };
 
             const urlColor = urlBase + 'color';
@@ -608,9 +644,9 @@ void main() {
         }
 
         startWebRTC() {
-            const network = 'cam0';
+            const network = 'cam' + Math.floor(Math.random() * 1000);
 
-            const ws = new WebSocket(urlBase + 'signalling');
+            const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(urlBase + 'signalling');
             const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 
@@ -685,10 +721,15 @@ void main() {
             };
             image.src = imageUrl;
         }
-        
+
         showFullscreenColorCanvas(id) {
-            if (this.colorCanvasCache[id] && !this.showCanvasTimeout) {
-                let canvas = this.colorCanvasCache[id].canvas;
+            let cacheId = id;
+            if (!this.colorCanvasCache.hasOwnProperty(cacheId)) {
+                cacheId = 'prov' + id;
+            }
+
+            if (this.colorCanvasCache[cacheId] && !this.showCanvasTimeout) {
+                let canvas = this.colorCanvasCache[cacheId].canvas;
                 canvas.style.position = 'absolute';
                 canvas.style.left = '0';
                 canvas.style.top = '0';
@@ -706,7 +747,7 @@ void main() {
                 // }, 100);
             }
         }
-        
+
         hideFullscreenColorCanvas(id) {
             if (this.showCanvasTimeout) {
                 clearInterval(this.showCanvasTimeout);
@@ -758,7 +799,7 @@ void main() {
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
             });
-            
+
             this.callbacks.onCameraVisCreated.forEach(cb => {
                 cb(this.cameras[id]);
             });
