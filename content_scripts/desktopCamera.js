@@ -461,13 +461,13 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (threejsObject) {
             threejsObject.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
         }
-        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-cloud-edition/cameraPan.svg');
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
     }
     function rotateToggled() {
         if (threejsObject) {
             threejsObject.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
         }
-        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-cloud-edition/cameraRotate.svg');
+        updateInteractionCursor(threejsObject.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
     function scaleToggled() {
         // if (threejsObject) {
