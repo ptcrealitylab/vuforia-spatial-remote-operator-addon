@@ -1,7 +1,13 @@
 createNameSpace('realityEditor.gui');
 
 (function(exports) {
-    const keyboard = new realityEditor.device.KeyboardListener();
+    let _keyboard;
+    function getKeyboard() {
+        if (!_keyboard) {
+            _keyboard = new realityEditor.device.KeyboardListener();
+        }
+        return _keyboard;
+    }
 
     class MenuBar {
         constructor() {
@@ -15,7 +21,7 @@ createNameSpace('realityEditor.gui');
             this.domElement.classList.add('desktopMenuBar');
         }
         setupKeyboard() {
-            keyboard.onKeyDown((code) => {
+            getKeyboard().onKeyDown((code) => {
                 if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
 
                 // check with each of the menu items, whether this triggers anything
@@ -192,7 +198,7 @@ createNameSpace('realityEditor.gui');
                 shortcut.innerText = getShortcutDisplay(this.options.shortcutKey);
                 this.domElement.appendChild(shortcut);
 
-                let thisKeyCode = keyboard.keyCodes[this.options.shortcutKey];
+                let thisKeyCode = getKeyboard().keyCodes[this.options.shortcutKey];
                 this.onKeyDown = function(code) {
                     if (code === thisKeyCode) {
                         let succeeded = this.triggerItem();
