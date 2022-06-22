@@ -139,6 +139,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                       new THREE.MeshBasicMaterial({
                         color: new THREE.Color(color),
                         transparent: true,
+                        depthWrite: false,
                         opacity: 0.05,
                       })
                     );
