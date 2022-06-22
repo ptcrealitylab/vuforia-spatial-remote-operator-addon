@@ -145,6 +145,7 @@ module.exports = function makeStreamRouter(app) {
                     // new remote operator, send list of iphones
                     ws.send(JSON.stringify({
                         command: 'discoverProviders',
+                        dest: msg.src,
                         providers: providers,
                     }));
 
