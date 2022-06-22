@@ -80,6 +80,11 @@ createNameSpace('realityEditor.device.cameraVis');
                 return;
             }
 
+            if (msg.dest !== this.consumerId) {
+                console.warn('discarding not mine', msg);
+                return;
+            }
+
             this.webrtcConnections[msg.src].onSignallingMessage(msg);
         }
 
