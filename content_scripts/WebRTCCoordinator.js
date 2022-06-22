@@ -73,7 +73,7 @@ createNameSpace('realityEditor.device.cameraVis');
                 return;
             }
 
-            if (msg.command === 'discoverProviders') {
+            if (msg.command === 'discoverProviders' && msg.dest === this.consumerId) {
                 for (let provider of msg.providers) {
                     this.initConnection(provider);
                 }
