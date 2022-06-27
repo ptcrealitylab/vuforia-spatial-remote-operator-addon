@@ -271,7 +271,7 @@ void main() {
 
             let patch = this.container.clone(false);
             let phone = this.phone.clone(false);
-            let flatGeo = new THREE.PlaneBufferGeometry(width, height, width, height);
+            let flatGeo = new THREE.PlaneBufferGeometry(width, height, width / 7, height / 7);
             flatGeo.translate(width / 2, height / 2);
 
             let material = this.material.clone();
