@@ -131,6 +131,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                     realityEditor.device.meshLine.inject();
 
+                    // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
+                    let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+                    realityEditor.worldObjects.setOrigin(objectKey, identity);
+
                     let realityZoneVoxelizer;
                     if (ENABLE_VOXELIZER) {
                         realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);

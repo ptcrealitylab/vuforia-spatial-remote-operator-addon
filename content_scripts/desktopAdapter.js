@@ -625,12 +625,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // now process the other objects
         Object.keys(objects).forEach(function(objectKey) {
-            // todo: check if object.worldId matches a world that is currently loaded
             let object = objects[objectKey];
 
-            // always add world object to scene unles we set a primaryWorldId in the URLSearchParams
-            if (object.isWorldObject || object.type === 'world') {
-                return; // already processed
+            // we already added world objects. also ignore the avatar objects
+            if (object.isWorldObject || object.type === 'world' || object.type === 'avatar') {
+                return;
             }
 
             // if there isn't a world object, it's ok to load objects without a world (e.g. as a debugger)
