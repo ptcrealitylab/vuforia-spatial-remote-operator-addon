@@ -168,6 +168,7 @@ module.exports = function makeStreamRouter(app) {
             if (msg.dest) {
                 if (!idToSocket.hasOwnProperty(msg.dest)) {
                     console.warn('missing dest', msg.dest);
+                    return;
                 }
                 idToSocket[msg.dest].send(JSON.stringify(msg));
             }
