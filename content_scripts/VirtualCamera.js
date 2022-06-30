@@ -604,7 +604,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, 0.3);
-            this.cameraNode.setLocalMatrix(newCameraMatrix);
+
+            if (this.cameraNode.id === 'CAMERA') {
+                realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+            } else {
+                this.cameraNode.setLocalMatrix(newCameraMatrix);
+            }
         }
     }
 
