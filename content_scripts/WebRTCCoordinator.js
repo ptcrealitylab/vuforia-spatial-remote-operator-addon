@@ -35,6 +35,10 @@ createNameSpace('realityEditor.device.cameraVis');
 
             navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
                 this.audioStream = this.improveAudioStream(stream);
+                for (let conn of Object.values(this.webrtcConnections)) {
+                    conn.audioStream = this.audioStream;
+                    conn.localConnection.addStream(conn.audioStream);
+                }
             });
         }
 
