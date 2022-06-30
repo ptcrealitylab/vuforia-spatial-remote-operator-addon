@@ -77,9 +77,14 @@ createNameSpace('realityEditor.device.cameraVis');
                 return;
             }
 
-            if (msg.command === 'discoverProviders' && msg.dest === this.consumerId) {
+            if (msg.command === 'discoverPeers' && msg.dest === this.consumerId) {
                 for (let provider of msg.providers) {
                     this.initConnection(provider);
+                }
+                for (let consumer of msg.consumers) {
+                    if (consumer !== this.consumerId) {
+                        this.initConnection(consumer);
+                    }
                 }
                 return;
             }
@@ -89,6 +94,16 @@ createNameSpace('realityEditor.device.cameraVis');
                 return;
             }
 
+            if (!this.webrtcConnections[msg.src]) {
+                this.webrtcConnections[msg.src] = new WebRTCConnection(
+                    this.cameraVisCoordinator,
+                    this.ws,
+                    this.audioStream,
+                    this.consumerId,
+                    msg.src
+                );
+                this.webrtcConnections[msg.src].initLocalConnection();
+            }
             this.webrtcConnections[msg.src].onSignallingMessage(msg);
         }
 
@@ -99,16 +114,16 @@ createNameSpace('realityEditor.device.cameraVis');
             this.onWsMessage({data: decoder.decode(bin.data)});
         }
 
-        initConnection(providerId) {
+        initConnection(otherId) {
             let newConn = new WebRTCConnection(
                 this.cameraVisCoordinator,
                 this.ws,
                 this.audioStream,
                 this.consumerId,
-                providerId
+                otherId,
             );
 
-            this.webrtcConnections[providerId] = newConn;
+            this.webrtcConnections[otherId] = newConn;
             newConn.connect();
         }
     }
@@ -120,6 +135,7 @@ createNameSpace('realityEditor.device.cameraVis');
             this.consumerId = consumerId;
             this.providerId = providerId;
             this.audioStream = audioStream;
+            this.offered = false;
 
             this.receiveChannel = null;
             this.localConnection = null;
@@ -136,7 +152,7 @@ createNameSpace('realityEditor.device.cameraVis');
                 this.onWebRTCError.bind(this);
         }
 
-        onSignallingMessage(msg) {
+        async onSignallingMessage(msg) {
             if (msg.command === 'newIceCandidate') {
                 console.log('webrtc remote candidate', msg);
                 this.localConnection.addIceCandidate(msg.candidate)
@@ -145,9 +161,21 @@ createNameSpace('realityEditor.device.cameraVis');
             }
 
             if (msg.command === 'newDescription') {
-                this.localConnection.setRemoteDescription(msg.description);
-                return;
-                // will now receive datachannel event
+                try {
+                    await this.localConnection.setRemoteDescription(msg.description);
+                    if (!this.offered) {
+                        let answer = await this.localConnection.createAnswer();
+                        await this.localConnection.setLocalDescription(answer);
+                        this.sendSignallingMessage({
+                            src: this.consumerId,
+                            dest: this.providerId,
+                            command: 'newDescription',
+                            description: this.localConnection.localDescription,
+                        });
+                    }
+                } catch (e) {
+                    this.onWebRTCError(e);
+                }
             }
         }
 
@@ -168,6 +196,8 @@ createNameSpace('realityEditor.device.cameraVis');
 
             if (this.audioStream) {
                 this.localConnection.addStream(this.audioStream);
+            } else {
+                console.warn('missing audiostream');
             }
 
             this.localConnection.addEventListener('icecandidate', (e) => {
@@ -176,23 +206,12 @@ createNameSpace('realityEditor.device.cameraVis');
                     return;
                 }
 
-                if (PROXY) {
-                    this.ws.message('unused', {id: 'signalling'}, null, {
-                        data: encoder.encode(JSON.stringify({
-                            src: this.consumerId,
-                            dest: this.providerId,
-                            command: 'newIceCandidate',
-                            candidate: e.candidate,
-                        })),
-                    });
-                } else {
-                    this.ws.send(JSON.stringify({
-                        src: this.consumerId,
-                        dest: this.providerId,
-                        command: 'newIceCandidate',
-                        candidate: e.candidate,
-                    }));
-                }
+                this.sendSignallingMessage({
+                    src: this.consumerId,
+                    dest: this.providerId,
+                    command: 'newIceCandidate',
+                    candidate: e.candidate,
+                });
             });
 
             this.localConnection.addEventListener('datachannel', (e) => {
@@ -207,7 +226,14 @@ createNameSpace('realityEditor.device.cameraVis');
                 if (e.streams.length === 0) {
                     return;
                 }
-                const elt = document.createElement('audio');
+                const elt = document.createElement('video');
+                // elt.style.position = 'absolute';
+                // elt.style.top = 0;
+                // elt.style.left = 0;
+                // elt.style.zIndex = 10000;
+                // elt.style.transform = 'translateZ(10000px)';
+                // elt.controls = true;
+
                 elt.autoplay = true;
                 elt.srcObject = e.streams[0];
                 let autoplayWhenAvailableInterval = setInterval(() => {
@@ -233,27 +259,28 @@ createNameSpace('realityEditor.device.cameraVis');
             this.offered = true;
             const offer = await this.localConnection.createOffer({
                 offerToReceiveAudio: true,
+                offerToReceiveVideo: true,
             });
             await this.localConnection.setLocalDescription(offer);
 
+            this.sendSignallingMessage({
+                src: this.consumerId,
+                dest: this.providerId,
+                command: 'newDescription',
+                description: this.localConnection.localDescription,
+            });
+        }
+
+        sendSignallingMessage(message) {
             if (PROXY) {
                 this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify({
-                        src: this.consumerId,
-                        dest: this.providerId,
-                        command: 'newDescription',
-                        description: this.localConnection.localDescription,
-                    })),
+                    data: encoder.encode(JSON.stringify(message)),
                 });
             } else {
-                this.ws.send(JSON.stringify({
-                    src: this.consumerId,
-                    dest: this.providerId,
-                    command: 'newDescription',
-                    description: this.localConnection.localDescription,
-                }));
+                this.ws.send(JSON.stringify(message));
             }
         }
+
 
         onSendChannelStatusChange() {
             if (!this.sendChannel) {
@@ -262,9 +289,6 @@ createNameSpace('realityEditor.device.cameraVis');
 
             const state = this.sendChannel.readyState;
             console.log('webrtc onSendChannelStatusChange', state);
-            setInterval(() => {
-                this.sendChannel.send('hi');
-            }, 1000);
         }
 
         onReceiveChannelStatusChange() {
@@ -361,21 +385,12 @@ createNameSpace('realityEditor.device.cameraVis');
         }
 
         disconnect() {
-            if (PROXY) {
-                this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify({
-                        src: this.consumerId,
-                        dest: this.providerId,
-                        command: 'leaveNetwork',
-                    })),
-                });
-            } else {
-                this.ws.send({
-                    src: this.consumerId,
-                    dest: this.providerId,
-                    command: 'leaveNetwork',
-                });
-            }
+            this.sendSignallingMessage({
+                src: this.consumerId,
+                dest: this.providerId,
+                command: 'leaveNetwork',
+            });
+
             this.sendChannel.close();
             this.receiveChannel.close();
 

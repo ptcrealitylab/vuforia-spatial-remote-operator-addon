@@ -121,6 +121,7 @@ module.exports = function makeStreamRouter(app) {
     });
 
     let providers = [];
+    let consumers = [];
     let idToSocket = {};
 
     app.ws('/signalling', function(ws, req) {
@@ -144,11 +145,13 @@ module.exports = function makeStreamRouter(app) {
                 if (msg.role === 'consumer') {
                     // new remote operator, send list of iphones
                     ws.send(JSON.stringify({
-                        command: 'discoverProviders',
+                        command: 'discoverPeers',
                         dest: msg.src,
                         providers: providers,
+                        consumers: consumers,
                     }));
 
+                    consumers.push(wsId);
                 }
 
                 if (msg.role === 'provider') {
