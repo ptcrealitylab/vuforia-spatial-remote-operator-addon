@@ -25,6 +25,7 @@ createNameSpace('realityEditor.gui');
         ResetPaths: 'Reset Paths',
         TogglePaths: 'Toggle Paths',
         ClonePatch: 'Clone Patch',
+        UndoPatch: 'Undo Patch',
         OrbitCamera: 'Orbit Camera',
         ResetCameraPosition: 'Reset Camera Position',
         GettingStarted: 'Getting Started',
@@ -77,6 +78,9 @@ createNameSpace('realityEditor.gui');
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, clonePatch);
+
+        const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '', disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, undoPatch);
 
         const stopFollowing = new MenuItem(ITEM.StopFollowing, { shortcutKey: '_0', toggle: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, stopFollowing);
