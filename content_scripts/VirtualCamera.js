@@ -8,18 +8,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
 
-    const FOLLOWING_RELATIVE_POSITION = [
-        -1.991735742789964, -0.0019402862384033104, 0.1816275024820606, 0,
-        -0.12091535927151742, -1.4781942937095942, -1.3417622677709533, 0,
-        0.1355399071070364, -1.3471959077679534, 1.4719672222377786, 0,
-        1033.3310890578132, -10300.982745528603, 12136.112553930248, 0.9999999999999998
-    ];
-
-    const THIRD_PERSON_FOLLOW = [0.3948297800489131, 0.7550329823511126, 0.5234836880620531, 0,
-        0.9134077373584234, -0.3839629897627356, -0.13512492764589737, 0,
-        0.09897390496442003, 0.5315057665562919, -0.8412528042757477, 0,
-        598.0929462431984, 1461.9560097023732, -3530.857824661904, 0.9999999999999997];
-
     const DISPLAY_PERSPECTIVE_CUBES = false;
 
     class VirtualCamera {
@@ -343,17 +331,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // irrecoverable error in camera position if we continue before Three.js computes the matrixWorld of the new objects
             }
 
-            let targetModelView = targetObject.matrixWorld.clone();
-            let positionModelView = positionObject.matrixWorld.clone();
+            let targetMatrix = targetObject.matrixWorld.clone();
+            let positionMatrix = positionObject.matrixWorld.clone();
 
-            // multiply target and position matrices by inverse view matrix (just the camera matrix) to convert modelView into model
-            let cameraMatrix = new realityEditor.gui.threejsScene.THREE.Matrix4();
-            realityEditor.gui.threejsScene.setMatrixFromArray(cameraMatrix, realityEditor.sceneGraph.getCameraNode().worldMatrix);
-            targetModelView.premultiply(cameraMatrix);
-            positionModelView.premultiply(cameraMatrix);
-
-            let newPosVec = [positionModelView.elements[12], positionModelView.elements[13], positionModelView.elements[14]];
-            let newTargetPosVec = [targetModelView.elements[12], targetModelView.elements[13], targetModelView.elements[14]];
+            let newPosVec = [positionMatrix.elements[12], positionMatrix.elements[13], positionMatrix.elements[14]];
+            let newTargetPosVec = [targetMatrix.elements[12], targetMatrix.elements[13], targetMatrix.elements[14]];
 
             let movement = add(newPosVec, negate(this.position));
             if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
