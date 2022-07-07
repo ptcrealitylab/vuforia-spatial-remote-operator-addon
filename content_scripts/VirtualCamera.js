@@ -23,7 +23,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     const DISPLAY_PERSPECTIVE_CUBES = false;
 
     class VirtualCamera {
-        constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion) {
+        constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion, floorOffset) {
             if (!cameraNode) { console.warn('cameraNode is undefined!'); }
 
             this.cameraNode = cameraNode;
@@ -83,8 +83,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             this.threeJsContainer = new THREE.Group();
             this.threeJsContainer.name = 'VirtualCamera_' + cameraNode.id + '_threeJsContainer';
-            let floorOffset = -1286;
-            this.threeJsContainer.position.y = -floorOffset; // TODO: don't hard-code, pass in
+            this.threeJsContainer.position.y = -floorOffset;
             this.threeJsContainer.rotation.x = Math.PI / 2;
             realityEditor.gui.threejsScene.addToScene(this.threeJsContainer); // , {worldObjectId: realityEditor.worldObjects.getBestWorldObject().objectId}
         }
@@ -273,7 +272,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let minDist = realityEditor.device.desktopCamera.MIN_DIST_TO_CAMERA;
             // create any missing Three.js objects for the current perspective
             if (!this.followingState.threejsObject) {
-                const THREE = realityEditor.gui.threejsScene.THREE;
                 this.followingState.threejsObject = new THREE.Group();
                 this.followingState.threejsObject.name = 'followingElementGroup';
                 this.followingState.threejsObject.matrixAutoUpdate = false;

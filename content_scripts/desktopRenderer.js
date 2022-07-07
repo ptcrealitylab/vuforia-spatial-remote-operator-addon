@@ -104,6 +104,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
 
+                realityEditor.device.desktopCamera.initService(floorOffset);
+
                 let ceilingHeight = Math.max(
                     navmesh.maxY - navmesh.minY,
                     navmesh.maxX - navmesh.minX,
