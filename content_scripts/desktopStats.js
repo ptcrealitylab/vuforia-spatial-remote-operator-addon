@@ -29,20 +29,29 @@ createNameSpace('realityEditor.device.desktopStats');
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
-        document.body.appendChild(stats.dom);
+        setTimeout(() => {
 
-    	imagesPerSecondElement = document.createElement('div');
-    	imagesPerSecondElement.style.color = 'white';
-    	imagesPerSecondElement.style.fontSize = '30px';
-    	imagesPerSecondElement.style.position = 'absolute';
-    	imagesPerSecondElement.style.left = '100px';
-    	imagesPerSecondElement.style.top = '0';
-    	document.body.appendChild(imagesPerSecondElement);
+            stats.dom.position = 'absolute';
+            stats.dom.style.top = realityEditor.device.environment.variables.screenTopOffset + 'px';
+            document.body.appendChild(stats.dom);
+            stats.dom.style.left = (window.innerWidth - stats.dom.getBoundingClientRect().width) + 'px';
 
-    	isVisible = true;
+            imagesPerSecondElement = document.createElement('div');
+            imagesPerSecondElement.style.color = 'white';
+            imagesPerSecondElement.style.fontSize = '30px';
+            imagesPerSecondElement.style.position = 'absolute';
+            imagesPerSecondElement.style.right = '100px';
+            imagesPerSecondElement.style.top = realityEditor.device.environment.variables.screenTopOffset + 'px';
+            document.body.appendChild(imagesPerSecondElement);
 
-	    update(); // start update loop
-        hide(); // default hidden
+            isVisible = true;
+
+            update(); // start update loop
+            // hide(); // default hidden
+            show();
+
+        }, 1000);
+
     }
 
     function update() {

@@ -141,7 +141,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             0, 0, 0, 1
         ];
     }
-    
+
     function makeGroundPlaneRotationY(theta) {
         var c = Math.cos(theta), s = Math.sin(theta);
         return [
@@ -181,7 +181,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         let transformationMatrix = makeGroundPlaneRotationX(0);
         transformationMatrix[13] = 1286; // ground plane translation
         cameraGroupContainer.setLocalMatrix(transformationMatrix);
-        
+
         // let elementId = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
@@ -294,7 +294,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         //     let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
         //     if (virtualizerSceneNodes.length > 0) {
         //         virtualCamera.follow1stPerson(virtualizerSceneNodes[0]);
-        //         unityCamera.follow1stPerson(virtualizerSceneNodes[0]);                
+        //         unityCamera.follow1stPerson(virtualizerSceneNodes[0]);
         //     }
         // });
         //
@@ -320,7 +320,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             closestObjectLog.style.color = 'cyan';
             document.body.appendChild(closestObjectLog);
         }
-        
+
         // Setup Following Menu
         for (let info of Object.values(perspectives)) {
             const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: true }, () => {
@@ -329,7 +329,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                     const thisVirtualizerId = parseInt(virtualizerSceneNodes[0].id.match(/\d+/)[0]); // TODO: pass this along in a less fragile way
                     virtualCamera.follow(virtualizerSceneNodes[0], thisVirtualizerId, info);
                     unityCamera.follow(virtualizerSceneNodes[0], thisVirtualizerId, info);
-                    
+
                     if (info.render2DVideo) {
                         realityEditor.gui.ar.desktopRenderer.showCameraCanvas(thisVirtualizerId);
                     } else {
