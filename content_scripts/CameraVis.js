@@ -180,16 +180,10 @@ varying vec2 vUv;
 varying vec4 pos;
 
 void main() {
-  // Depth in millimeters
-  float depth = -pos.z;
-
-  // Fade out beginning at 4.5 meters and be gone after 5.0
-  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
-
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
 
-  gl_FragColor = vec4(color.rgb, alphaDepth);
+  gl_FragColor = vec4(color.rgb, 1.0);
 }`;
 
     function setMatrixFromArray(matrix, array) {
