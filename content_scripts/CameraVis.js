@@ -11,8 +11,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         SOLID: 'SOLID',
         POINT: 'POINT',
         HOLO: 'HOLO',
+        FIRST_PERSON: 'FIRST_PERSON',
     };
-    const shaderMode = ShaderMode.SOLID;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -169,6 +169,29 @@ void main() {
   gl_FragColor = vec4(color.rgb, alpha);
 }`;
 
+
+    const firstPersonFragmentShader = `
+// color texture
+uniform sampler2D map;
+
+// uv (0.0-1.0) texture coordinates
+varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
+varying vec4 pos;
+
+void main() {
+  // Depth in millimeters
+  float depth = -pos.z;
+
+  // Fade out beginning at 4.5 meters and be gone after 5.0
+  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+
+  // Sample the proper color for this pixel from the color image
+  vec4 color = texture2D(map, vUv);
+
+  gl_FragColor = vec4(color.rgb, alphaDepth);
+}`;
+
     function setMatrixFromArray(matrix, array) {
         matrix.set(
             array[0], array[4], array[8], array[12],
@@ -319,7 +342,7 @@ void main() {
             texture.needsUpdate = true;
             textureDepth.needsUpdate = true;
 
-            let mesh = CameraVis.createPointCloud(texture, textureDepth);
+            let mesh = CameraVis.createPointCloud(texture, textureDepth, ShaderMode.SOLID);
 
             phone.add(mesh);
             patch.add(phone);
@@ -370,7 +393,7 @@ void main() {
             realityEditor.gui.threejsScene.removeFromScene(this.debugColorCube);
         }
 
-        static createPointCloud(texture, textureDepth) {
+        static createPointCloud(texture, textureDepth, shaderMode) {
             const width = 640, height = 360;
 
             let geometry;
@@ -389,6 +412,23 @@ void main() {
                 geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             }
 
+            const material = CameraVis.createPointCloudMaterial(texture, textureDepth, shaderMode);
+
+            let mesh;
+            if (shaderMode !== ShaderMode.POINT) {
+                mesh = new THREE.Mesh(geometry, material);
+            } else {
+                mesh = new THREE.Points(geometry, material);
+            }
+            mesh.scale.set(-1, 1, -1);
+            mesh.frustumCulled = false;
+
+            return mesh;
+        }
+
+        static createPointCloudMaterial(texture, textureDepth, shaderMode) {
+            const width = 640, height = 360;
+
             let fragmentShader;
             switch (shaderMode) {
             case ShaderMode.POINT:
@@ -396,6 +436,9 @@ void main() {
                 break;
             case ShaderMode.HOLO:
                 fragmentShader = holoFragmentShader;
+                break;
+            case ShaderMode.FIRST_PERSON:
+                fragmentShader = firstPersonFragmentShader;
                 break;
             case ShaderMode.SOLID:
             default:
@@ -418,24 +461,16 @@ void main() {
                 vertexShader,
                 fragmentShader,
                 // blending: THREE.AdditiveBlending,
-                // depthTest: false, depthWrite: false,
+                depthTest: shaderMode !== ShaderMode.FIRST_PERSON,
+                // depthWrite: false,
                 transparent: true
             });
 
-            let mesh;
-            if (shaderMode !== ShaderMode.POINT) {
-                mesh = new THREE.Mesh(geometry, material);
-            } else {
-                mesh = new THREE.Points(geometry, material);
-            }
-            mesh.scale.set(-1, 1, -1);
-            mesh.frustumCulled = false;
-
-            return mesh;
+            return material;
         }
 
         setupPointCloud() {
-            const mesh = CameraVis.createPointCloud(this.texture, this.textureDepth);
+            const mesh = CameraVis.createPointCloud(this.texture, this.textureDepth, this.shaderMode);
 
             this.mesh = mesh;
             this.material = mesh.material;
@@ -445,7 +480,7 @@ void main() {
 
         update(mat) {
             let now = performance.now();
-            if (shaderMode === ShaderMode.HOLO) {
+            if (this.shaderMode === ShaderMode.HOLO) {
                 this.material.uniforms.time.value = window.performance.now();
             }
             this.lastUpdate = now;
@@ -534,6 +569,13 @@ void main() {
             } else if (!this.cameraMeshGroup.visible) {
                 this.cameraMeshGroup.visible = true;
             }
+        }
+
+        setShaderMode(shaderMode) {
+            this.shaderMode = shaderMode;
+
+            this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
+            this.mesh.material = this.material;
         }
 
         add() {
@@ -777,40 +819,27 @@ void main() {
 
         showFullscreenColorCanvas(id) {
             let cacheId = id;
-            if (!this.colorCanvasCache.hasOwnProperty(cacheId)) {
+            if (!this.cameras.hasOwnProperty(cacheId)) {
                 cacheId = 'prov' + id;
             }
 
-            if (this.colorCanvasCache[cacheId] && !this.showCanvasTimeout) {
-                let canvas = this.colorCanvasCache[cacheId].canvas;
-                canvas.style.position = 'absolute';
-                canvas.style.left = '0';
-                canvas.style.top = '0';
-                canvas.style.width = '100vw';
-                canvas.style.height = '100vh';
-                canvas.style.transform = 'rotate(180deg)';
-                // canvas.style.transition = 'opacity 1.0s ease-in-out';
-                // canvas.style.opacity = '0';
-                canvas.id = 'colorCanvas' + id;
-                this.showCanvasTimeout = setTimeout(() => {
-                    document.body.appendChild(canvas);
-                }, 300);
-                // setTimeout(() => {
-                //     canvas.style.opacity = '1.0';
-                // }, 100);
+            const camera = this.cameras[cacheId];
+            if (camera) {
+                camera.setShaderMode(ShaderMode.FIRST_PERSON);
+                camera.historyMesh.visible = false;
             }
         }
 
         hideFullscreenColorCanvas(id) {
-            if (this.showCanvasTimeout) {
-                clearInterval(this.showCanvasTimeout);
-                this.showCanvasTimeout = null;
+            let cacheId = id;
+            if (!this.cameras.hasOwnProperty(cacheId)) {
+                cacheId = 'prov' + id;
             }
 
-            let canvas = document.getElementById('colorCanvas' + id);
-            if (canvas && canvas.parentElement) {
-                // canvas.style.opacity = '0';
-                canvas.parentElement.removeChild(canvas);
+            const camera = this.cameras[cacheId];
+            if (this.cameras[cacheId]) {
+                this.cameras[cacheId].setShaderMode(ShaderMode.SOLID);
+                camera.historyMesh.visible = this.spaghettiVisible;
             }
         }
 
