@@ -177,6 +177,7 @@ module.exports = function makeStreamRouter(app) {
         ws.on('close', function() {
             delete idToSocket[wsId];
             providers = providers.filter(provId => provId !== wsId);
+            consumers = consumers.filter(conId => conId !== wsId);
         });
 
         ws.on('error', function(e) {
