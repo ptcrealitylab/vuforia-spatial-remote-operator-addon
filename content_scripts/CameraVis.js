@@ -5,13 +5,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
+    const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
     const PROXY = window.location.host === 'toolboxedge.net';
     const ShaderMode = {
         SOLID: 'SOLID',
         POINT: 'POINT',
         HOLO: 'HOLO',
+        FIRST_PERSON: 'FIRST_PERSON',
     };
-    const shaderMode = ShaderMode.SOLID;
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -168,6 +169,23 @@ void main() {
   gl_FragColor = vec4(color.rgb, alpha);
 }`;
 
+
+    const firstPersonFragmentShader = `
+// color texture
+uniform sampler2D map;
+
+// uv (0.0-1.0) texture coordinates
+varying vec2 vUv;
+// Position of this pixel relative to the camera in proper (millimeter) coordinates
+varying vec4 pos;
+
+void main() {
+  // Sample the proper color for this pixel from the color image
+  vec4 color = texture2D(map, vUv);
+
+  gl_FragColor = vec4(color.rgb, 1.0);
+}`;
+
     function setMatrixFromArray(matrix, array) {
         matrix.set(
             array[0], array[4], array[8], array[12],
@@ -185,6 +203,10 @@ void main() {
             // this.container.rotation.y = Math.PI;
             this.container.position.y = -floorOffset;
             this.container.rotation.x = Math.PI / 2;
+
+            this.container.updateMatrix();
+            this.container.matrixAutoUpdate = false;
+
             this.container.name = 'CameraVisContainer_' + id;
             this.lastUpdate = Date.now();
             this.phone = new THREE.Group();
@@ -267,23 +289,54 @@ void main() {
          * @return {THREE.Object3D} object containing all relevant meshes
          */
         clonePatch() {
-            const width = 640, height = 360;
+            let key = PATCH_KEY_PREFIX + '-' + Date.now() + '.' + Math.floor(Math.random() * 10000);
+            let serialization = {
+                key,
+                container: this.container.matrix.elements,
+                phone: this.phone.matrix.elements,
+                texture: this.texture.image.toDataURL(),
+                textureDepth: this.textureDepth.image.toDataURL(),
+            };
+            window.localStorage.setItem(key, JSON.stringify(serialization));
 
-            let patch = this.container.clone(false);
-            let phone = this.phone.clone(false);
-            let flatGeo = new THREE.PlaneBufferGeometry(width, height, width / 7, height / 7);
-            flatGeo.translate(width / 2, height / 2);
+            return {
+                key,
+                patch: CameraVis.createPatch(
+                    this.container.matrix,
+                    this.phone.matrix,
+                    this.texture.image,
+                    this.textureDepth.image
+                ),
+            };
+        }
 
-            let material = this.material.clone();
-            material.fragmentShader = solidFragmentShader;
-            material.uniforms.map.value.image = this.texture.image; // .cloneNode();
-            material.uniforms.map.value.needsUpdate = true;
-            material.uniforms.mapDepth.value.image = this.textureDepth.image; // .cloneNode();
-            material.uniforms.mapDepth.value.needsUpdate = true;
+        static createPatch(containerMatrix, phoneMatrix, textureImage, textureDepthImage) {
+            let patch = new THREE.Group();
+            patch.matrix.copy(containerMatrix);
+            patch.matrixAutoUpdate = false;
+            patch.matrixWorldNeedsUpdate = true;
 
-            let mesh = new THREE.Mesh(flatGeo, material);
-            mesh.scale.set(-1, 1, -1);
-            mesh.frustumCulled = false;
+            let phone = new THREE.Group();
+            phone.matrix.copy(phoneMatrix);
+            phone.matrixAutoUpdate = false;
+            phone.matrixWorldNeedsUpdate = true;
+            phone.frustumCulled = false;
+
+            let texture = new THREE.Texture();
+            texture.minFilter = THREE.NearestFilter;
+            texture.magFilter = THREE.NearestFilter;
+
+            let textureDepth = new THREE.Texture();
+            textureDepth.minFilter = THREE.NearestFilter;
+            textureDepth.magFilter = THREE.NearestFilter;
+
+            texture.image = textureImage;
+            textureDepth.image = textureDepthImage;
+
+            texture.needsUpdate = true;
+            textureDepth.needsUpdate = true;
+
+            let mesh = CameraVis.createPointCloud(texture, textureDepth, ShaderMode.SOLID);
 
             phone.add(mesh);
             patch.add(phone);
@@ -334,14 +387,15 @@ void main() {
             realityEditor.gui.threejsScene.removeFromScene(this.debugColorCube);
         }
 
-        setupPointCloud() {
+        static createPointCloud(texture, textureDepth, shaderMode) {
             const width = 640, height = 360;
 
+            let geometry;
             if (shaderMode !== ShaderMode.POINT) {
-                this.geometry = new THREE.PlaneBufferGeometry(width, height, width / 5, height / 5);
-                this.geometry.translate(width / 2, height / 2);
+                geometry = new THREE.PlaneBufferGeometry(width, height, width / 5, height / 5);
+                geometry.translate(width / 2, height / 2);
             } else {
-                this.geometry = new THREE.BufferGeometry();
+                geometry = new THREE.BufferGeometry();
                 const vertices = new Float32Array(width * height * 3);
 
                 for (let i = 0, j = 0, l = vertices.length; i < l; i += 3, j ++) {
@@ -349,8 +403,25 @@ void main() {
                     vertices[i + 1] = Math.floor(j / width);
                 }
 
-                this.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             }
+
+            const material = CameraVis.createPointCloudMaterial(texture, textureDepth, shaderMode);
+
+            let mesh;
+            if (shaderMode !== ShaderMode.POINT) {
+                mesh = new THREE.Mesh(geometry, material);
+            } else {
+                mesh = new THREE.Points(geometry, material);
+            }
+            mesh.scale.set(-1, 1, -1);
+            mesh.frustumCulled = false;
+
+            return mesh;
+        }
+
+        static createPointCloudMaterial(texture, textureDepth, shaderMode) {
+            const width = 640, height = 360;
 
             let fragmentShader;
             switch (shaderMode) {
@@ -360,17 +431,20 @@ void main() {
             case ShaderMode.HOLO:
                 fragmentShader = holoFragmentShader;
                 break;
+            case ShaderMode.FIRST_PERSON:
+                fragmentShader = firstPersonFragmentShader;
+                break;
             case ShaderMode.SOLID:
             default:
                 fragmentShader = solidFragmentShader;
                 break;
             }
 
-            this.material = new THREE.ShaderMaterial({
+            let material = new THREE.ShaderMaterial({
                 uniforms: {
                     time: {value: window.performance.now()},
-                    map: {value: this.texture},
-                    mapDepth: {value: this.textureDepth},
+                    map: {value: texture},
+                    mapDepth: {value: textureDepth},
                     width: {value: width},
                     height: {value: height},
                     depthScale: {value: 0.15 / 256}, // roughly 1 / 1920
@@ -381,23 +455,26 @@ void main() {
                 vertexShader,
                 fragmentShader,
                 // blending: THREE.AdditiveBlending,
-                // depthTest: false, depthWrite: false,
+                depthTest: shaderMode !== ShaderMode.FIRST_PERSON,
+                // depthWrite: false,
                 transparent: true
             });
 
-            if (shaderMode !== ShaderMode.POINT) {
-                this.mesh = new THREE.Mesh(this.geometry, this.material);
-            } else {
-                this.mesh = new THREE.Points(this.geometry, this.material);
-            }
-            this.mesh.scale.set(-1, 1, -1);
-            this.mesh.frustumCulled = false;
-            this.phone.add(this.mesh);
+            return material;
+        }
+
+        setupPointCloud() {
+            const mesh = CameraVis.createPointCloud(this.texture, this.textureDepth, this.shaderMode);
+
+            this.mesh = mesh;
+            this.material = mesh.material;
+
+            this.phone.add(mesh);
         }
 
         update(mat) {
             let now = performance.now();
-            if (shaderMode === ShaderMode.HOLO) {
+            if (this.shaderMode === ShaderMode.HOLO) {
                 this.material.uniforms.time.value = window.performance.now();
             }
             this.lastUpdate = now;
@@ -488,6 +565,13 @@ void main() {
             }
         }
 
+        setShaderMode(shaderMode) {
+            this.shaderMode = shaderMode;
+
+            this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
+            this.mesh.material = this.material;
+        }
+
         add() {
             realityEditor.gui.threejsScene.addToScene(this.container);
         }
@@ -536,10 +620,14 @@ void main() {
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, () => {
                 for (let camera of Object.values(this.cameras)) {
-                    let patch = camera.clonePatch();
+                    const {key, patch} = camera.clonePatch();
                     realityEditor.gui.threejsScene.addToScene(patch);
-                    this.patches.push(patch);
+                    this.patches[key] = patch;
                 }
+            });
+
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatch, () => {
+                this.undoPatch();
             });
 
             this.onPointerDown = this.onPointerDown.bind(this);
@@ -550,6 +638,7 @@ void main() {
             }
 
             this.startWebRTC();
+            this.restorePatches();
         }
 
         connectWsToMatrix(url) {
@@ -724,40 +813,27 @@ void main() {
 
         showFullscreenColorCanvas(id) {
             let cacheId = id;
-            if (!this.colorCanvasCache.hasOwnProperty(cacheId)) {
+            if (!this.cameras.hasOwnProperty(cacheId)) {
                 cacheId = 'prov' + id;
             }
 
-            if (this.colorCanvasCache[cacheId] && !this.showCanvasTimeout) {
-                let canvas = this.colorCanvasCache[cacheId].canvas;
-                canvas.style.position = 'absolute';
-                canvas.style.left = '0';
-                canvas.style.top = '0';
-                canvas.style.width = '100vw';
-                canvas.style.height = '100vh';
-                canvas.style.transform = 'rotate(180deg)';
-                // canvas.style.transition = 'opacity 1.0s ease-in-out';
-                // canvas.style.opacity = '0';
-                canvas.id = 'colorCanvas' + id;
-                this.showCanvasTimeout = setTimeout(() => {
-                    document.body.appendChild(canvas);
-                }, 300);
-                // setTimeout(() => {
-                //     canvas.style.opacity = '1.0';
-                // }, 100);
+            const camera = this.cameras[cacheId];
+            if (camera) {
+                camera.setShaderMode(ShaderMode.FIRST_PERSON);
+                camera.historyMesh.visible = false;
             }
         }
 
         hideFullscreenColorCanvas(id) {
-            if (this.showCanvasTimeout) {
-                clearInterval(this.showCanvasTimeout);
-                this.showCanvasTimeout = null;
+            let cacheId = id;
+            if (!this.cameras.hasOwnProperty(cacheId)) {
+                cacheId = 'prov' + id;
             }
 
-            let canvas = document.getElementById('colorCanvas' + id);
-            if (canvas && canvas.parentElement) {
-                // canvas.style.opacity = '0';
-                canvas.parentElement.removeChild(canvas);
+            const camera = this.cameras[cacheId];
+            if (this.cameras[cacheId]) {
+                this.cameras[cacheId].setShaderMode(ShaderMode.SOLID);
+                camera.historyMesh.visible = this.spaghettiVisible;
             }
         }
 
@@ -795,6 +871,7 @@ void main() {
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.UndoPatch, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
@@ -823,6 +900,49 @@ void main() {
                 // stop propagation if we hit anything, otherwise pass the event on to the rest of the application
                 e.stopPropagation();
             });
+        }
+
+        restorePatches() {
+            const keys = Object.keys(window.localStorage).filter(key => {
+                return key.startsWith(PATCH_KEY_PREFIX);
+            });
+
+            for (const key of keys) {
+                const serialization = JSON.parse(window.localStorage[key]);
+                const containerMatrix = new THREE.Matrix4().fromArray(serialization.container);
+                const phoneMatrix = new THREE.Matrix4().fromArray(serialization.phone);
+                const textureImage = document.createElement('img');
+                textureImage.src = serialization.texture;
+                const textureDepthImage = document.createElement('img');
+                textureDepthImage.src = serialization.textureDepth;
+
+                const patch = CameraVis.createPatch(
+                    containerMatrix,
+                    phoneMatrix,
+                    textureImage,
+                    textureDepthImage
+                );
+                realityEditor.gui.threejsScene.addToScene(patch);
+                this.patches[key] = patch;
+            }
+        }
+
+        undoPatch() {
+            const keys = Object.keys(window.localStorage).filter(key => {
+                return key.startsWith(PATCH_KEY_PREFIX);
+            });
+            keys.sort((keyA, keyB) => {
+                let a = parseFloat(keyA.split('-')[1]);
+                let b = parseFloat(keyB.split('-')[1]);
+                return b - a;
+            });
+            const key = keys[0];
+            window.localStorage.removeItem(key);
+
+            if (this.patches[key]) {
+                realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
+                delete this.patches[key];
+            }
         }
     };
 

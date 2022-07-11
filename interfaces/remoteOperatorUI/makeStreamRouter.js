@@ -121,6 +121,7 @@ module.exports = function makeStreamRouter(app) {
     });
 
     let providers = [];
+    let consumers = [];
     let idToSocket = {};
 
     app.ws('/signalling', function(ws, req) {
@@ -144,11 +145,13 @@ module.exports = function makeStreamRouter(app) {
                 if (msg.role === 'consumer') {
                     // new remote operator, send list of iphones
                     ws.send(JSON.stringify({
-                        command: 'discoverProviders',
+                        command: 'discoverPeers',
                         dest: msg.src,
                         providers: providers,
+                        consumers: consumers,
                     }));
 
+                    consumers.push(wsId);
                 }
 
                 if (msg.role === 'provider') {
@@ -165,6 +168,7 @@ module.exports = function makeStreamRouter(app) {
             if (msg.dest) {
                 if (!idToSocket.hasOwnProperty(msg.dest)) {
                     console.warn('missing dest', msg.dest);
+                    return;
                 }
                 idToSocket[msg.dest].send(JSON.stringify(msg));
             }
@@ -173,6 +177,7 @@ module.exports = function makeStreamRouter(app) {
         ws.on('close', function() {
             delete idToSocket[wsId];
             providers = providers.filter(provId => provId !== wsId);
+            consumers = consumers.filter(conId => conId !== wsId);
         });
 
         ws.on('error', function(e) {
