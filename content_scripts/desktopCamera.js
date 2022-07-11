@@ -165,12 +165,12 @@ createNameSpace('realityEditor.device.desktopCamera');
     /**
      * Public init method to enable rendering if isDesktop
      */
-    function initService() {
+    function initService(floorOffset) {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
         if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
             setTimeout(function() {
-                initService();
+                initService(floorOffset);
             }, 100);
             return;
         }
@@ -179,13 +179,13 @@ createNameSpace('realityEditor.device.desktopCamera');
         let cameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('CameraGroupContainer', parentNode);
         let cameraGroupContainer = realityEditor.sceneGraph.getSceneNodeById(cameraGroupContainerId);
         let transformationMatrix = makeGroundPlaneRotationX(0);
-        transformationMatrix[13] = 1286; // ground plane translation
+        transformationMatrix[13] = -floorOffset; // ground plane translation
         cameraGroupContainer.setLocalMatrix(transformationMatrix);
 
         // let elementId = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
-        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, false);
+        virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, false, floorOffset);
 
         cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', undefined, undefined, virtualCamera.getTargetMatrix());
 
@@ -254,7 +254,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         // let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', invertedCoordinatesNode);
         let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', rotatedCoordinatesNode);
         let unityCameraNode = realityEditor.sceneGraph.getSceneNodeById(unityCameraNodeId);
-        unityCamera = new realityEditor.device.VirtualCamera(unityCameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true);
+        unityCamera = new realityEditor.device.VirtualCamera(unityCameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITIONS.LAB, true, floorOffset);
 
         update();
 
@@ -556,6 +556,5 @@ createNameSpace('realityEditor.device.desktopCamera');
         requestAnimationFrame(update);
     }
 
-
-    realityEditor.addons.addCallback('init', initService);
+    exports.initService = initService;
 })(realityEditor.device.desktopCamera);

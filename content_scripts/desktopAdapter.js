@@ -100,6 +100,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.supportsAreaTargetCapture = false; // don't show Create Area Target UI when app loads
         env.hideOriginCube = true; // don't show a set of cubes at the world origin
         env.addOcclusionGltf = false; // don't add transparent world gltf, because we're already adding the visible mesh
+        env.transformControlsSize = 0.3; // gizmos for ground plane anchors are smaller
 
         globalStates.groundPlaneOffset = 0.77;
         if (PROXY) {
