@@ -29,20 +29,31 @@ createNameSpace('realityEditor.device.desktopStats');
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
+        // wait until the menubar is initialized
+        if (typeof realityEditor.gui.setupMenuBar !== 'function') {
+            setTimeout(initService, 100);
+            return;
+        }
+        realityEditor.gui.setupMenuBar(); // this can be safely called multiple times to ensure it is created
+
+        stats.dom.position = 'absolute';
+        stats.dom.style.top = realityEditor.device.environment.variables.screenTopOffset + 'px';
         document.body.appendChild(stats.dom);
+        stats.dom.style.left = (window.innerWidth - stats.dom.getBoundingClientRect().width) + 'px';
 
-    	imagesPerSecondElement = document.createElement('div');
-    	imagesPerSecondElement.style.color = 'white';
-    	imagesPerSecondElement.style.fontSize = '30px';
-    	imagesPerSecondElement.style.position = 'absolute';
-    	imagesPerSecondElement.style.left = '100px';
-    	imagesPerSecondElement.style.top = '0';
-    	document.body.appendChild(imagesPerSecondElement);
+        imagesPerSecondElement = document.createElement('div');
+        imagesPerSecondElement.style.color = 'white';
+        imagesPerSecondElement.style.fontSize = '30px';
+        imagesPerSecondElement.style.position = 'absolute';
+        imagesPerSecondElement.style.right = '100px';
+        imagesPerSecondElement.style.top = realityEditor.device.environment.variables.screenTopOffset + 'px';
+        document.body.appendChild(imagesPerSecondElement);
 
-    	isVisible = true;
+        isVisible = true;
 
-	    update(); // start update loop
-        hide(); // default hidden
+        update(); // start update loop
+        // hide(); // default hidden
+        show();
     }
 
     function update() {

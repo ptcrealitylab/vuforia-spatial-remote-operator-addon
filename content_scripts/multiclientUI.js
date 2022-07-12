@@ -14,6 +14,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let allConnectedCameras = {};
     let isCameraSubscriptionActiveForObject = {};
 
+    const USE_ICOSAHEDRON = false;
+
     const wireVertex = `
         attribute vec3 center;
         varying vec3 vCenter;
@@ -64,6 +66,26 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         });
 
         update();
+
+        let keyboard = new realityEditor.device.KeyboardListener();
+        keyboard.onKeyDown(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // while shift is down, turn on the laser beam
+            if (code === keyboard.keyCodes.SHIFT) {
+                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
+                realityEditor.avatarObjects.setBeamOn(touchPosition.x, touchPosition.y);
+            }
+        });
+        keyboard.onKeyUp(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // when shift is released, turn off the laser beam
+            if (code === keyboard.keyCodes.SHIFT) {
+                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
+                realityEditor.avatarObjects.setBeamOff(touchPosition.x, touchPosition.y);
+            }
+        });
     }
 
     function setupWorldSocketSubscriptionsIfNeeded(objectKey) {
@@ -104,28 +126,37 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     // each client gets a random but consistent color based on their editorId
                     let id = Math.abs(hashCode(editorId));
                     const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
-                    const geo = new THREE.IcosahedronBufferGeometry(100);
-                    geo.deleteAttribute('normal');
-                    geo.deleteAttribute('uv');
 
-                    const vectors = [
-                      new THREE.Vector3(1, 0, 0),
-                      new THREE.Vector3(0, 1, 0),
-                      new THREE.Vector3(0, 0, 1)
-                    ];
+                    let mesh;
+                    if (USE_ICOSAHEDRON) {
+                        const geo = new THREE.IcosahedronBufferGeometry(100);
+                        geo.deleteAttribute('normal');
+                        geo.deleteAttribute('uv');
 
-                    const position = geo.attributes.position;
-                    const centers = new Float32Array(position.count * 3);
+                        const vectors = [
+                            new THREE.Vector3(1, 0, 0),
+                            new THREE.Vector3(0, 1, 0),
+                            new THREE.Vector3(0, 0, 1)
+                        ];
 
-                    for (let i = 0, l = position.count; i < l; i ++) {
-                      vectors[i % 3].toArray(centers, i * 3);
+                        const position = geo.attributes.position;
+                        const centers = new Float32Array(position.count * 3);
+
+                        for (let i = 0, l = position.count; i < l; i ++) {
+                            vectors[i % 3].toArray(centers, i * 3);
+                        }
+
+                        geo.setAttribute('center', new THREE.BufferAttribute(centers, 3));
+
+                        const mat = wireMat.clone();
+                        mat.uniforms.color.value = new THREE.Color(color);
+                        mesh = new THREE.Mesh(geo, mat);
+                    } else {
+                        let cubeSize = 50;
+                        const geo = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+                        const mat = new THREE.MeshBasicMaterial({color: color});
+                        mesh = new THREE.Mesh(geo, mat);
                     }
-
-                    geo.setAttribute('center', new THREE.BufferAttribute(centers, 3));
-
-                    const mat = wireMat.clone();
-                    mat.uniforms.color.value = new THREE.Color(color);
-                    const mesh = new THREE.Mesh(geo, mat);
 
                     const fov = 0.1 * Math.PI;
                     const points = [

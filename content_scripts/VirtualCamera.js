@@ -438,7 +438,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
             // move camera to cameraPosition and look at cameraTargetPosition
-            let destinationCameraMatrix = lookAt(this.position[0], this.position[1], this.position[2], this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 0, 1, 0);
+            let newCameraLookAtMatrix = lookAt(this.position[0], this.position[1], this.position[2], this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 0, 1, 0);
 
             let ev = this.position;
             let cv = this.targetPosition;
@@ -447,7 +447,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.distanceToTarget = magnitude(add(ev, negate(cv)));
             this.adjustEnvVars(this.distanceToTarget);
 
-            let mCamera = destinationCameraMatrix; // translation is based on what direction you're facing,
+            let mCamera = newCameraLookAtMatrix; // translation is based on what direction you're facing,
             let vCamX = normalize([mCamera[0], mCamera[4], mCamera[8]]);
             let vCamY = normalize([mCamera[1], mCamera[5], mCamera[9]]);
             let _vCamZ = normalize([mCamera[2], mCamera[6], mCamera[10]]);
@@ -578,7 +578,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // tween the matrix every frame to animate it to the new position
             // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
             let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(this.cameraNode.localMatrix);
-            let newCameraMatrix = tweenMatrix(currentCameraMatrix, realityEditor.gui.ar.utilities.invertMatrix(destinationCameraMatrix), 0.3);
+            let destinationCameraMatrix = realityEditor.gui.ar.utilities.invertMatrix(newCameraLookAtMatrix);
+            let totalDifference = sumOfElementDifferences(destinationCameraMatrix, currentCameraMatrix);
+            if (totalDifference < 0.00001) {
+                return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
+            }
+
+            let shouldSmoothCamera = !(this.followingState.active && this.followingState.currentlyRendering2DVideo);
+            let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
+            let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
             if (this.cameraNode.id === 'CAMERA') {
                 realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
@@ -642,6 +650,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
             M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
             M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
+    }
+
+    function sumOfElementDifferences(M1, M2) {
+        // assumes M1 and M2 are of equal length
+        let sum = 0;
+        for (let i = 0; i < M1.length; i++) {
+            sum += Math.abs(M1[i] - M2[i]);
+        }
+        return sum;
     }
 
     function getBaseLog(x, y) {

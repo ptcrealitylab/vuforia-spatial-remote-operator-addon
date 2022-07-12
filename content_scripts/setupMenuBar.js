@@ -35,6 +35,8 @@ createNameSpace('realityEditor.gui');
     // sets up the initial contents of the menuBar
     // other modules can add more to it by calling getMenuBar().addItemToMenu(menuName, menuItem)
     const setupMenuBar = () => {
+        if (menuBar) { return; }
+
         const MenuBar = realityEditor.gui.MenuBar;
         const Menu = realityEditor.gui.Menu;
         const MenuItem = realityEditor.gui.MenuItem;
