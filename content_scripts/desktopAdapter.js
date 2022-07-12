@@ -320,7 +320,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             function(textValue) {
                 console.log('zone text was set to ' + textValue);
             },
-            true);
+            { ignoreOnload: true });
 
         realityEditor.gui.ar.injectClosestObjectFilter(function(objectKey) {
             let object = realityEditor.getObject(objectKey);
