@@ -583,7 +583,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (totalDifference < 0.00001) {
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
-            let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, 0.3);
+
+            let shouldSmoothCamera = !(this.followingState.active && this.followingState.currentlyRendering2DVideo);
+            let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
+            let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
             if (this.cameraNode.id === 'CAMERA') {
                 realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
