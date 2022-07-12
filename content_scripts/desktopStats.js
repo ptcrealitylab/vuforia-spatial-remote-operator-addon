@@ -52,59 +52,58 @@ createNameSpace('realityEditor.device.desktopStats');
         isVisible = true;
 
         update(); // start update loop
-        // hide(); // default hidden
-        show();
+        hide(); // default hidden
     }
 
     function update() {
-    	if (!isVisible) {
-    		return;
-    	}
+        if (!isVisible) {
+            return;
+        }
 
         stats.update();
         requestAnimationFrame(update);
 
         if (imageStartTime !== null) {
-        	updateImagesPerSecond();
+            updateImagesPerSecond();
         }
     }
 
     function startImageTimer() {
-    	imageStartTime = (new Date()).getTime();
+        imageStartTime = (new Date()).getTime();
     }
 
     function resetImageTimer() {
-    	numImages = 0;
-    	imageStartTime = null;
-    	currentImageTime = null;
+        numImages = 0;
+        imageStartTime = null;
+        currentImageTime = null;
     }
 
     function imageRendered() {
-    	if (!isVisible) {
-    		return;
-    	}
+        if (!isVisible) {
+            return;
+        }
 
-    	if (currentImageTime > 10000) {
-    		resetImageTimer(); // reset every 10 seconds to maintain accurate temporal averages
-    	}
-    	if (imageStartTime === null) {
-    		startImageTimer();
-    	}
-    	numImages += 1;
+        if (currentImageTime > 10000) {
+            resetImageTimer(); // reset every 10 seconds to maintain accurate temporal averages
+        }
+        if (imageStartTime === null) {
+            startImageTimer();
+        }
+        numImages += 1;
     }
 
     function updateImagesPerSecond() {
-    	currentImageTime = (new Date()).getTime() - imageStartTime;
-    	imagesPerSecond = numImages / (currentImageTime / 1000);
-    	imagesPerSecondElement.innerText = imagesPerSecond.toFixed(2);
+        currentImageTime = (new Date()).getTime() - imageStartTime;
+        imagesPerSecond = numImages / (currentImageTime / 1000);
+        imagesPerSecondElement.innerText = imagesPerSecond.toFixed(2);
     }
 
     function show() {
-    	stats.dom.style.visibility = 'visible';
-    	imagesPerSecondElement.style.visibility = 'visible';
-    	isVisible = true;
-    	resetImageTimer();
-    	update();
+        stats.dom.style.visibility = 'visible';
+        imagesPerSecondElement.style.visibility = 'visible';
+        isVisible = true;
+        resetImageTimer();
+        update();
     }
 
     function hide() {
@@ -114,7 +113,7 @@ createNameSpace('realityEditor.device.desktopStats');
         if (imagesPerSecond) {
             imagesPerSecondElement.style.visibility = 'hidden';
         }
-    	isVisible = false;
+        isVisible = false;
     }
 
     exports.imageRendered = imageRendered;
