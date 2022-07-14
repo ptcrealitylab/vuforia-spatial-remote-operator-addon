@@ -8,7 +8,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
 
-    const DISPLAY_PERSPECTIVE_CUBES = true;
+    const DISPLAY_PERSPECTIVE_CUBES = false;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion, floorOffset) {
@@ -263,7 +263,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.followingState.threejsObject = new THREE.Group();
                 this.followingState.threejsObject.name = 'followingElementGroup';
                 this.followingState.threejsObject.matrixAutoUpdate = false;
-                this.followingState.threejsObject.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.followingState.threejsObject.visible = true; //DISPLAY_PERSPECTIVE_CUBES;
                 this.threeJsContainer.add(this.followingState.threejsObject);
 
                 let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
@@ -317,28 +317,85 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
 
             let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
-            realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
+            // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
 
-            if (!info.debugObject) {
-                let obj = new THREE.Mesh(new THREE.BoxGeometry(200, 50, 200), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+            if (!this.followingState.debugObject) {
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(50, 200, 200), new THREE.MeshBasicMaterial({color: '#ff0000'}));
                 obj.name = info.name + 'DebugObject';
-                obj.matrixAutoUpdate = false;
+                // obj.matrixAutoUpdate = false;
                 // obj.visible = DISPLAY_PERSPECTIVE_CUBES;
                 // this.followingState.threejsObject.add(obj);
                 // this.followingState.followInfo.threejsTargetObject = obj;
-                info.debugObject = obj;
+                this.followingState.debugObject = obj;
                 this.threeJsContainer.add(obj);
+                // realityEditor.gui.threejsScene.addToScene(obj); // , {worldObjectId: realityEditor.worldObjects.getBestWorldObject().objectId}
             }
 
-            // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, untiltedVirtualizerMatrix);
+            // let targetOfExperiment = this.followingState.debugObject;
+            let targetsOfExperiment = [this.followingState.debugObject, this.followingState.threejsObject];
+            targetsOfExperiment.forEach(obj => { obj.matrixAutoUpdate = true;});
 
-            // TODO: get a version of selectedNode.worldMatrix that is normalized against the up vector
+            // // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, untiltedVirtualizerMatrix);
+            //
+            // // TODO: get a version of selectedNode.worldMatrix that is normalized against the up vector
             let virtualizerMatrixThree = new THREE.Matrix4();
             realityEditor.gui.threejsScene.setMatrixFromArray(virtualizerMatrixThree, selectedNode.worldMatrix);
-            let untiltedVirtualizerMatrix = this.removeTilt(virtualizerMatrixThree);
+            // let untiltedVirtualizerMatrix = this.removeTilt(selectedNode.worldMatrix);
 
-            realityEditor.gui.threejsScene.setMatrixFromArray(info.debugObject, untiltedVirtualizerMatrix);
+            // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.debugObject.matrix, untiltedVirtualizerMatrix);
 
+            let position = new THREE.Vector3();
+            position.setFromMatrixPosition(virtualizerMatrixThree);
+            targetsOfExperiment.forEach(obj => { obj.position.set(position.x, position.y, position.z)});
+
+            // let worldRot = new THREE.Euler();
+            // obj.getWorldRotation().copy(worldRot);
+            // worldRot.reorder("ZYX");
+
+            let translation = new THREE.Vector3();
+            let q = new THREE.Quaternion();
+            let scale = new THREE.Vector3();
+            virtualizerMatrixThree.decompose(translation, q, scale);
+
+            let qToolbox = realityEditor.gui.ar.utilities.getQuaternionFromMatrix(selectedNode.worldMatrix);
+
+            console.log(q, qToolbox);
+
+            let yaw = Math.atan2(2.0*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
+            let pitch = Math.asin(-2.0*(q.x*q.z - q.w*q.y));
+            let roll = Math.atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z);
+
+            let anglesToolbox = realityEditor.gui.ar.utilities.quaternionToEulerAngles(qToolbox);
+
+            console.log(yaw, pitch, roll, anglesToolbox);
+
+
+            // this.followingState.debugObject.rotation.z = roll;
+
+            var up2 = new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize();
+
+            const a = new THREE.Euler( roll, yaw, pitch, 'XYZ' );
+
+            let q2 = new THREE.Quaternion();
+            q2.setFromEuler(a);
+            q2.normalize();
+
+            // let q2Toolbox = realityEditor.gui.ar.utilities.getQuaternionFromPitchRollYaw(anglesToolbox.theta, anglesToolbox.psi, anglesToolbox.phi);
+            // let q2Toolbox = realityEditor.gui.ar.utilities.getQuaternionFromPitchRollYaw(anglesToolbox.theta, anglesToolbox.psi, anglesToolbox.phi);
+
+            // this pretty much works
+            // let q2Toolbox = realityEditor.gui.ar.utilities.getQuaternionFromPitchRollYaw(Math.PI/2, 0, anglesToolbox.phi);
+
+            let q2Toolbox = realityEditor.gui.ar.utilities.getQuaternionFromPitchRollYaw(0, Math.PI/2, anglesToolbox.phi);
+            // let q2Toolbox = realityEditor.gui.ar.utilities.getQuaternionFromPitchRollYaw(anglesToolbox.theta, anglesToolbox.psi, anglesToolbox.phi);
+            // realityEditor.gui.ar.utilities.convertQuaternionHandedness(q2Toolbox);
+            console.log(q2, q2Toolbox);
+
+            // this.followingState.debugObject.quaternion.set(q2.x, q2.y, q2.z, q2.w);
+            targetsOfExperiment.forEach(obj => { obj.quaternion.set(q2Toolbox.x, q2Toolbox.y, q2Toolbox.z, q2Toolbox.w)});
+            // this.followingState.debugObject.quaternion.normalize();
+
+            // this.followingState.debugObject.matrix = virtualizerMatrixThree.clone();
 
             // let positionObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'PositionObject');
             // let targetObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'TargetObject');
@@ -387,14 +444,18 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 1
             ];
         }
-        removeTilt(matrixThree) {
+        removeTilt(matrix) {
             // let row1 = [matrixThree.elements[0], matrixThree.elements[1], matrixThree.elements[2]];
             // let row2 = [matrixThree.elements[4], matrixThree.elements[5], matrixThree.elements[6]];
             // let row3 = [matrixThree.elements[8], matrixThree.elements[9], matrixThree.elements[10]];
 
-            let row1 = [matrixThree.elements[0], matrixThree.elements[4], matrixThree.elements[8]];
-            let row2 = [matrixThree.elements[1], matrixThree.elements[5], matrixThree.elements[9]];
-            let row3 = [matrixThree.elements[2], matrixThree.elements[6], matrixThree.elements[10]];
+            // let row1 = [matrix[0], matrix[4], matrix[8]];
+            // let row2 = [matrix[1], matrix[5], matrix[9]];
+            // let row3 = [matrix[2], matrix[6], matrix[10]];
+
+            let row1 = [matrix[0], matrix[1], matrix[2]];
+            let row2 = [matrix[4], matrix[5], matrix[6]];
+            let row3 = [matrix[8], matrix[9], matrix[10]];
 
             // console.log('1: ' + row1);
             // console.log('2: ' + row2);
@@ -418,7 +479,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             let uv = [0, 1, 0]; //row2;
 
-            let n = normalize(row2); // vector from the camera to the center point
+            let n = normalize(row1); // vector from the camera to the center point
             let u = normalize(crossProduct(uv, n)); // a "right" vector, orthogonal to n and the lookup vector
             let v = crossProduct(n, u); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
 
@@ -426,14 +487,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 u[0], v[0], n[0], 0,
                 u[1], v[1], n[1], 0,
                 u[2], v[2], n[2], 0,
-                matrixThree.elements[12], matrixThree.elements[13], matrixThree.elements[14], 1
+                matrix[12], matrix[13], matrix[14], 1
                 // dotProduct(negate(u), ev), dotProduct(negate(v), ev), dotProduct(negate(n), ev), 1
             ];
 
             // console.log(matrixThree.elements, result);
 
-            // return result;
-            return matrixThree.clone();
+            return result;
+            // return matrix;
         }
         onPanToggled(callback) {
             this.callbacks.onPanToggled.push(callback);
