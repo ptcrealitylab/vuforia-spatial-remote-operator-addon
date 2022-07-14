@@ -8,7 +8,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
 
-    const DISPLAY_PERSPECTIVE_CUBES = false;
+    const DISPLAY_PERSPECTIVE_CUBES = true;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, isDemoVersion, floorOffset) {
@@ -319,6 +319,27 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
             realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, selectedNode.worldMatrix);
 
+            if (!info.debugObject) {
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(200, 50, 200), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+                obj.name = info.name + 'DebugObject';
+                obj.matrixAutoUpdate = false;
+                // obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                // this.followingState.threejsObject.add(obj);
+                // this.followingState.followInfo.threejsTargetObject = obj;
+                info.debugObject = obj;
+                this.threeJsContainer.add(obj);
+            }
+
+            // realityEditor.gui.threejsScene.setMatrixFromArray(this.followingState.threejsObject.matrix, untiltedVirtualizerMatrix);
+
+            // TODO: get a version of selectedNode.worldMatrix that is normalized against the up vector
+            let virtualizerMatrixThree = new THREE.Matrix4();
+            realityEditor.gui.threejsScene.setMatrixFromArray(virtualizerMatrixThree, selectedNode.worldMatrix);
+            let untiltedVirtualizerMatrix = this.removeTilt(virtualizerMatrixThree);
+
+            realityEditor.gui.threejsScene.setMatrixFromArray(info.debugObject, untiltedVirtualizerMatrix);
+
+
             // let positionObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'PositionObject');
             // let targetObject = realityEditor.gui.threejsScene.getObjectByName(info.name + 'TargetObject');
 
@@ -366,7 +387,54 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 1
             ];
         }
+        removeTilt(matrixThree) {
+            // let row1 = [matrixThree.elements[0], matrixThree.elements[1], matrixThree.elements[2]];
+            // let row2 = [matrixThree.elements[4], matrixThree.elements[5], matrixThree.elements[6]];
+            // let row3 = [matrixThree.elements[8], matrixThree.elements[9], matrixThree.elements[10]];
 
+            let row1 = [matrixThree.elements[0], matrixThree.elements[4], matrixThree.elements[8]];
+            let row2 = [matrixThree.elements[1], matrixThree.elements[5], matrixThree.elements[9]];
+            let row3 = [matrixThree.elements[2], matrixThree.elements[6], matrixThree.elements[10]];
+
+            // console.log('1: ' + row1);
+            // console.log('2: ' + row2);
+            // console.log('3: ' + row3);
+
+            // // this.position[0], this.position[1], this.position[2], this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 0, 1, 0
+            // let eyeX = this.position[0];
+            // let eyeY = this.position[1];
+            // let eyeZ = this.position[2];
+            // let centerX = this.targetPosition[0];
+            // let centerY = this.targetPosition[1];
+            // let centerZ = this.targetPosition[2];
+            //
+            // var ev = [eyeX, eyeY, eyeZ];
+            // var cv = [centerX, centerY, centerZ];
+            // var uv = [upX, upY, upZ];
+            //
+            // var n = normalize(add(ev, negate(cv))); // vector from the camera to the center point
+            // var u = normalize(crossProduct(uv, n)); // a "right" vector, orthogonal to n and the lookup vector
+            // var v = crossProduct(n, u); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
+
+            let uv = [0, 1, 0]; //row2;
+
+            let n = normalize(row2); // vector from the camera to the center point
+            let u = normalize(crossProduct(uv, n)); // a "right" vector, orthogonal to n and the lookup vector
+            let v = crossProduct(n, u); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
+
+            let result = [
+                u[0], v[0], n[0], 0,
+                u[1], v[1], n[1], 0,
+                u[2], v[2], n[2], 0,
+                matrixThree.elements[12], matrixThree.elements[13], matrixThree.elements[14], 1
+                // dotProduct(negate(u), ev), dotProduct(negate(v), ev), dotProduct(negate(n), ev), 1
+            ];
+
+            // console.log(matrixThree.elements, result);
+
+            // return result;
+            return matrixThree.clone();
+        }
         onPanToggled(callback) {
             this.callbacks.onPanToggled.push(callback);
         }
@@ -420,6 +488,24 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
                 this.followingState.currentlyRendering2DVideo = false;
             }
+        }
+
+        rotateCurveVertically() {
+            // this.position[0], this.position[1], this.position[2], this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 0, 1, 0
+            let eyeX = this.position[0];
+            let eyeY = this.position[1];
+            let eyeZ = this.position[2];
+            let centerX = this.targetPosition[0];
+            let centerY = this.targetPosition[1];
+            let centerZ = this.targetPosition[2];
+
+            var ev = [eyeX, eyeY, eyeZ];
+            var cv = [centerX, centerY, centerZ];
+            var uv = [upX, upY, upZ];
+
+            var n = normalize(add(ev, negate(cv))); // vector from the camera to the center point
+            var u = normalize(crossProduct(uv, n)); // a "right" vector, orthogonal to n and the lookup vector
+            var v = crossProduct(n, u); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
         }
 
         // this needs to be called externally each frame that you want it to update
