@@ -14,11 +14,43 @@ createNameSpace('realityEditor.device.desktopCamera');
  */
 
 (function(exports) {
-    const DEBUG = true;
-    const ENABLE_LEGACY_UNITY_VIRTUALIZER = false; // adds another camera to the scene with the right coordinate system for the old virtualizer project
+    const DEBUG = false;
 
+    // arbitrary birds-eye view to start the camera with. it will look towards the world object origin
     let INITIAL_CAMERA_POSITION = [-1499.9648912671637, 8275.552791086136, 5140.3791620707225];
 
+    // used to render an icon at the target position to help you navigate the scene
+    let cameraTargetElementId = null;
+
+    var targetOnLoad = 'origin'; // window.localStorage.getItem('selectedObjectKey');
+
+    var DEBUG_SHOW_LOGGER = false;
+    var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
+
+    /** @type {Dropdown} - DOM element to choose which object to target for the camera */
+    var objectDropdown;
+
+    // polyfill for requestAnimationFrame to provide a smooth update loop
+    let requestAnimationFrame = window.requestAnimationFrame ||
+        window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
+    let virtualCamera;
+
+    // adds another camera to the scene with the right coordinate system for the old virtualizer project
+    const ENABLE_LEGACY_UNITY_VIRTUALIZER = false;
+    let unityCamera;
+
+    let knownInteractionStates = {
+        pan: false,
+        rotate: false,
+        scale: false
+    }
+
+    let staticInteractionCursor = null;
+    let interactionCursor = null;
+    let pointerPosition = { x: 0, y: 0 };
+    let cameraTargetIcon = null;
+
+    // defines each of the menu shortcuts to follow the virtualizer
     const perspectives = [
         {
             keyboardShortcut: '_1',
@@ -49,33 +81,6 @@ createNameSpace('realityEditor.device.desktopCamera');
     ];
     exports.perspectives = perspectives;
 
-    // used to render an icon at the target position to help you navigate the scene
-    let cameraTargetElementId = null;
-
-    var targetOnLoad = 'origin'; // window.localStorage.getItem('selectedObjectKey');
-
-    var DEBUG_SHOW_LOGGER = false;
-    var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
-
-    /** @type {Dropdown} - DOM element to choose which object to target for the camera */
-    var objectDropdown;
-
-    // polyfill for requestAnimationFrame to provide a smooth update loop
-    let requestAnimationFrame = window.requestAnimationFrame ||
-        window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
-    let virtualCamera;
-
-    let unityCamera;
-
-    let knownInteractionStates = {
-        pan: false,
-        rotate: false,
-        scale: false
-    }
-
-    let staticInteractionCursor = null;
-    let interactionCursor = null;
-    let pointerPosition = { x: 0, y: 0 };
 
     function makeGroundPlaneRotationX(theta) {
         var c = Math.cos(theta), s = Math.sin(theta);
@@ -426,8 +431,6 @@ createNameSpace('realityEditor.device.desktopCamera');
         if (!rects || rects.length === 0) { return null; }
         return rects[0];
     }
-
-    let cameraTargetIcon = null;
 
     /**
      * Main update loop

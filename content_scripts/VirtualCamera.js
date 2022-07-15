@@ -8,7 +8,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
 
-    const DISPLAY_PERSPECTIVE_CUBES = true;
+    const DISPLAY_PERSPECTIVE_CUBES = false;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, floorOffset) {
@@ -452,6 +452,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 let z = -this.followingState.currentFollowingDistance;
                 let y = 1500 * (z / 3000) * (z / 3000); // camera is positioned along a quadratic curve behind the camera
                 obj.position.set(0, y, z);
+                obj.matrixWorldNeedsUpdate = true;
                 obj.visible = DISPLAY_PERSPECTIVE_CUBES;
                 container.add(obj);
 
@@ -459,6 +460,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 target.name = 'parametricTargetObject';
                 z = 1500 * (10000 / (this.followingState.currentFollowingDistance + 2000)); // target distance decreases hyperbolically as camera distance increases
                 target.position.set(0, 0, z);
+                target.matrixWorldNeedsUpdate = true;
                 target.visible = DISPLAY_PERSPECTIVE_CUBES;
                 container.add(target);
             }
