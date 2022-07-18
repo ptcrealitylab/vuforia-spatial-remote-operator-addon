@@ -59,27 +59,31 @@ createNameSpace('realityEditor.device.desktopCamera');
             keyboardShortcut: '_1',
             menuBarName: 'Follow 1st-Person',
             distanceToCamera: 0,
-            render2DVideo: true,
+            render2DVideo: true
         },
         {
             keyboardShortcut: '_2',
             menuBarName: 'Follow 1st-Person (Wide)',
             distanceToCamera: 1500,
+            render2DVideo: false
         },
         {
             keyboardShortcut: '_3',
             menuBarName: 'Follow 3rd-Person',
             distanceToCamera: 3000,
+            render2DVideo: false
         },
         {
             keyboardShortcut: '_4',
             menuBarName: 'Follow 3rd-Person (Wide)',
             distanceToCamera: 4500,
+            render2DVideo: false
         },
         {
             keyboardShortcut: '_5',
             menuBarName: 'Follow Aerial',
             distanceToCamera: 6000,
+            render2DVideo: false
         }
     ];
     exports.perspectives = perspectives;
