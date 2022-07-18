@@ -61,7 +61,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.callbacks = {
                 onPanToggled: [],
                 onRotateToggled: [],
-                onScaleToggled: []
+                onScaleToggled: [],
+                onStopFollowing: [] // other modules can discover when pan/rotate forced this camera out of follow mode
             };
             this.addEventListeners();
 
@@ -199,6 +200,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (this.preRotateDistanceToTarget === null) { return; }
             let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
             this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preRotateDistanceToTarget));
+        }
+        onStopFollowing(callback) {
+            this.callbacks.onStopFollowing.push(callback);
         }
         // this needs to be called externally each frame that you want it to update
         update() {
@@ -355,11 +359,19 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         // FOLLOWING THE VIRTUALIZER
         /////////////////////////////
         follow(sceneNodeToFollow, virtualizerId, initialFollowDistance, isRendering2D) {
+            if (this.followingState.active) {
+                this.stopFollowing();
+            }
+
             this.followingState.active = true;
             this.followingState.virtualizerId = virtualizerId;
             this.followingState.selectedId = sceneNodeToFollow.id;
-            this.followingState.currentFollowingDistance = initialFollowDistance; // can adjust with scroll wheel
-            this.followingState.currentlyRendering2DVideo = isRendering2D;
+            if (typeof initialFollowDistance !== 'undefined') {
+                this.followingState.currentFollowingDistance = initialFollowDistance; // can adjust with scroll wheel
+            }
+            if (typeof isRendering2D !== 'undefined') {
+                this.followingState.currentlyRendering2DVideo = isRendering2D;
+            }
 
             this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
         }
@@ -370,6 +382,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
                 this.followingState.virtualizerId = null;
             }
+
+            this.callbacks.onStopFollowing.forEach(cb => cb());
         }
         // trigger this in the main update loop each frame while we are following, to perform the following camera motion
         updateFollowing() {

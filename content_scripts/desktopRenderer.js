@@ -246,6 +246,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     function showCameraCanvas(id) {
         if (cameraVisCoordinator) {
             cameraVisCoordinator.showFullscreenColorCanvas(id);
+            isVirtualizerRenderingIn2D[id] = true;
         }
     }
     exports.showCameraCanvas = showCameraCanvas;
@@ -253,9 +254,16 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     function hideCameraCanvas(id) {
         if (cameraVisCoordinator) {
             cameraVisCoordinator.hideFullscreenColorCanvas(id);
+            isVirtualizerRenderingIn2D[id] = false;
         }
     }
     exports.hideCameraCanvas = hideCameraCanvas;
+
+    // can use this to preserve 2D rendering if we switch from one camera target to another
+    let isVirtualizerRenderingIn2D = {};
+    exports.getVirtualizers2DRenderingState = function() {
+        return isVirtualizerRenderingIn2D;
+    }
 
     /**
      * Updates canvas size for resize events
