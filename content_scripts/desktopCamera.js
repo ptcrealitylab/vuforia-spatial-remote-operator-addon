@@ -50,6 +50,9 @@ createNameSpace('realityEditor.device.desktopCamera');
     let pointerPosition = { x: 0, y: 0 };
     let cameraTargetIcon = null;
 
+    let currentFollowIndex = 0; // which virtualizer we are currently following
+    let lastFollowingIndex = 0; // lets you start following the camera you were previously following. defaults to camera 0
+    let currentlyFollowingId = null;
     // defines each of the menu shortcuts to follow the virtualizer
     const perspectives = [
         {
@@ -171,6 +174,10 @@ createNameSpace('realityEditor.device.desktopCamera');
             }
         });
 
+        virtualCamera.onStopFollowing(() => {
+            currentlyFollowingId = null;
+        });
+
         interactionCursor = document.createElement('img');
         interactionCursor.id = 'interactionCursor';
         document.body.appendChild(interactionCursor);
@@ -262,23 +269,85 @@ createNameSpace('realityEditor.device.desktopCamera');
         // Setup Following Menu
         perspectives.forEach(info => {
             const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: true }, () => {
-                let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
-                if (virtualizerSceneNodes.length > 0) {
-                    const thisVirtualizerId = parseInt(virtualizerSceneNodes[0].id.match(/\d+/)[0]); // TODO: pass this along in a less fragile way
-                    virtualCamera.follow(virtualizerSceneNodes[0], thisVirtualizerId, info.distanceToCamera, info.render2DVideo);
-                    if (unityCamera) {
-                        unityCamera.follow(virtualizerSceneNodes[0], thisVirtualizerId, info.distanceToCamera, info.render2DVideo);
-                    }
-
-                    if (info.render2DVideo) {
-                        realityEditor.gui.ar.desktopRenderer.showCameraCanvas(thisVirtualizerId);
-                    } else {
-                        realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(thisVirtualizerId);
-                    }
+                currentFollowIndex = lastFollowingIndex; // resumes following the previously followed camera. defaults to 0
+                let followTarget = chooseFollowTarget(currentFollowIndex);
+                if (!followTarget) {
+                    console.warn('Can\'t find a virtualizer to follow');
+                    return;
                 }
+
+                followVirtualizer(followTarget.id, followTarget.sceneNode, info.distanceToCamera, info.render2DVideo);
             });
             realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
         });
+
+        // TODO: enable (or add) this only if there are more than one virtualizers
+        let changeTargetButtons = [
+            { name: 'Follow Next Target', shortcutKey: 'RIGHT', dIndex: 1 },
+            { name: 'Follow Previous Target', shortcutKey: 'LEFT',  dIndex: -1 }
+        ];
+
+        changeTargetButtons.forEach(itemInfo => {
+            const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: false }, () => {
+                if (currentlyFollowingId === null) {
+                    return; // can't swap targets if not following anything
+                }
+
+                let numVirtualizers = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes().length;
+                currentFollowIndex = (currentFollowIndex + itemInfo.dIndex) % numVirtualizers;
+                if (currentFollowIndex < 0) {
+                    currentFollowIndex += numVirtualizers;
+                }
+
+                let followTarget = chooseFollowTarget(currentFollowIndex);
+                if (!followTarget) {
+                    console.warn('Can\'t find a virtualizer to follow');
+                    return;
+                }
+                followVirtualizer(followTarget.id, followTarget.sceneNode);
+                lastFollowingIndex = currentFollowIndex;
+            });
+            realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, item);
+        });
+    }
+
+    // based on the index you pass in, it will retrieve the virtualizer camera at that index
+    function chooseFollowTarget(index) {
+        let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
+        if (virtualizerSceneNodes.length === 0) { return null; }
+        index = Math.min(index, virtualizerSceneNodes.length-1);
+        const thisVirtualizerId = parseInt(virtualizerSceneNodes[index].id.match(/\d+/)[0]); // TODO: extract this in a less fragile way
+        return {
+            id: thisVirtualizerId,
+            sceneNode: virtualizerSceneNodes[index]
+        }
+    }
+
+    // initialDistance is optional – if included, it will change the camera distance, if not it will keep it the same
+    // shouldRender2D is optional – if included, it will either start or stop the first-person renderer, if not it will keep it the same
+    function followVirtualizer(virtualizerId, virtualizerSceneNode, initialDistance, shouldRender2D) {
+        let wasFollowingIn2D = false;
+        if (currentlyFollowingId) {
+            wasFollowingIn2D = realityEditor.gui.ar.desktopRenderer.getVirtualizers2DRenderingState()[currentlyFollowingId];
+        }
+
+        virtualCamera.follow(virtualizerSceneNode, virtualizerId, initialDistance, shouldRender2D);
+        if (unityCamera) {
+            unityCamera.follow(virtualizerSceneNode, virtualizerId, initialDistance, shouldRender2D);
+        }
+
+        if (shouldRender2D) { // change to flat shader
+            realityEditor.gui.ar.desktopRenderer.showCameraCanvas(virtualizerId);
+        } else if (shouldRender2D === false) { // change to 3d shader
+            realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(virtualizerId);
+        } else {
+            if (wasFollowingIn2D) { // if old follow target was using flat shader, new should use it too
+                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(currentlyFollowingId);
+                realityEditor.gui.ar.desktopRenderer.showCameraCanvas(virtualizerId);
+            }
+        }
+
+        currentlyFollowingId = virtualizerId;
     }
 
     function addSensitivitySlidersToMenu() {
