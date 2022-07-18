@@ -483,6 +483,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
 
             if (positionObject.matrixWorldNeedsUpdate || targetObject.matrixWorldNeedsUpdate) {
+                console.warn('moveCameraToParametricFollowPosition triggered before matrixWorldNeedUpdate processed. skipping.');
                 return; // irrecoverable error in camera position if we continue before Three.js computes the matrixWorld of the new objects
             }
 
