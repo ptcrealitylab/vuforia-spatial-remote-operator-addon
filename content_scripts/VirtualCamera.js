@@ -154,11 +154,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
         }
-        deselectTarget() {
-            this.followingState.active = false;
-            this.followingState.selectedId = null;
-            this.stopFollowing();
-        }
         adjustEnvVars(distanceToTarget) {
             if (distanceToTarget < 3000) {
                 realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6;
@@ -374,6 +369,33 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
 
             this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
+        }
+        deselectTarget() {
+            // first, set the target position to the virtualizer position
+            // todo: if you're in first person view, set the position to a point slightly in front of the camera, instead
+            let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
+            if (!selectedNode) { return; }
+            let virtualizerMatrixThree = new THREE.Matrix4();
+            let relativeMatrix = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId()))
+
+
+            // realityEditor.gui.threejsScene.setMatrixFromArray(virtualizerMatrixThree, selectedNode.worldMatrix);
+            realityEditor.gui.threejsScene.setMatrixFromArray(virtualizerMatrixThree, relativeMatrix);
+
+            // 2. set the position of the stabilized container = the UN-stabilized container
+            // let virtualizerPosition = new THREE.Vector3().setFromMatrixPosition(virtualizerMatrixThree);
+            // this.followingState.stabilizedContainer.position.set(virtualizerPosition.x, virtualizerPosition.y, virtualizerPosition.z);
+            let virtualizerPosition = this.followingState.stabilizedContainer.position.clone().applyMatrix4(this.followingState.stabilizedContainer.parent.matrix);
+
+            this.targetPosition = [virtualizerPosition.x, virtualizerPosition.y, virtualizerPosition.z];
+
+            // wait for a frame to process, such that the target position fully updates to this position
+            setTimeout(() => {
+                if (this.followingState.active) {
+                    // then stop following
+                    this.stopFollowing();
+                }
+            }, 100);
         }
         stopFollowing() {
             this.followingState.active = false;
