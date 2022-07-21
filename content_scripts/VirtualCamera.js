@@ -360,7 +360,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.cameraNode.setLocalMatrix(newCameraMatrix);
             }
 
-            // allows us to schedule code to trigger exactly N times after the camera has updated its position
+            // allows us to schedule code to trigger exactly after the camera has updated its position N times
             // useful for some calculations that require an up-to-date camera. can also be used for animations
             let callbacksToTrigger = [];
             this.afterNFrames.forEach((info) => {
