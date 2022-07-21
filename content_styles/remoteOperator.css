@@ -13,6 +13,10 @@ body > * {
     cursor: pointer;
 }
 
+.hiddenDesktopButton {
+    display: none; /* totally hide this button on desktop because it doesn't do anything */
+}
+
 #canvas {
     background-color: transparent;
     transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0.1, 1);

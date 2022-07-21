@@ -101,6 +101,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.hideOriginCube = true; // don't show a set of cubes at the world origin
         env.addOcclusionGltf = false; // don't add transparent world gltf, because we're already adding the visible mesh
         env.transformControlsSize = 0.3; // gizmos for ground plane anchors are smaller
+        env.defaultShowGroundPlane = true;
+        env.groundWireframeColor = 'rgb(100, 100, 100)'; // make the ground plane subtle
 
         globalStates.groundPlaneOffset = 0.77;
         if (PROXY) {
@@ -296,6 +298,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // document.body.style.pointerEvents = 'none'; // on chrome desktop, body captures pointer some events too early
         // // but children of body need to use pointerEvents
         // document.getElementById('UIButtons').style.pointerEvents = 'auto';
+
+        document.getElementById('groundPlaneResetButton').classList.add('hiddenDesktopButton');
 
         window.addEventListener('resize', function() {
             realityEditor.gui.pocket.onWindowResized(); // reformat pocket tile size/arrangement
