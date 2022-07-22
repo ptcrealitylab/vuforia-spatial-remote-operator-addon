@@ -155,7 +155,9 @@ module.exports = function makeStreamRouter(app) {
                 }
 
                 if (msg.role === 'provider') {
-                    providers.push(wsId);
+                    if (!providers.includes(wsId)) {
+                        providers.push(wsId);
+                    }
                     for (let peerId in idToSocket) {
                         if (providers.includes(peerId)) {
                             continue;
