@@ -9,6 +9,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
 
     const DISPLAY_PERSPECTIVE_CUBES = false;
+    const FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER = 1000; // what point to focus on when we rotate/pan away from following
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, floorOffset) {
@@ -29,6 +30,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.targetVelocity = [0, 0, 0];
             this.distanceToTarget = 1;
             this.preRotateDistanceToTarget = null;
+            this.preStopFollowingDistanceToTarget = null;
+            this.afterNFrames = []; // can be used to trigger delayed actions that gives the camera precise time to update
             this.speedFactors = {
                 translation: kTranslation || 1,
                 rotation: kRotation || 1,
@@ -55,8 +58,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // three.js objects used to calculate the following trajectory
                 unstabilizedContainer: null,
                 stabilizedContainer: null,
-                forwardTargetObject: null,
-                levelTargetObject: null,
+                forwardTargetObject: null, // this is unstabilized
+                levelTargetObject: null, // this is fully stabilized, has height = virtualizer height
+                partiallyStabilizedTargetObject: null // this is actually what we lookAt, in between forwardObj and levelObj
             };
             this.callbacks = {
                 onPanToggled: [],
@@ -104,7 +108,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     } else if (event.button === 2) {
                         this.mouseInput.isRightClick = true;
                         this.triggerRotateCallbacks(true);
-                        this.preRotateDistanceToTarget = this.distanceToTarget;
+                        if (!this.followingState.active) { // we preserve distance to virtualizer if following, not distance to target
+                            this.preRotateDistanceToTarget = this.distanceToTarget;
+                        }
                     }
                     this.mouseInput.first.x = event.pageX;
                     this.mouseInput.first.y = event.pageY;
@@ -122,7 +128,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.mouseInput.last.y = 0;
 
                 if (this.preRotateDistanceToTarget !== null) {
-                    // console.log(this.preRotateDistanceToTarget, this.distanceToTarget);
                     this.zoomBackToPreRotateLevel();
                     this.preRotateDistanceToTarget = null;
                 }
@@ -153,11 +158,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.stopFollowing();
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
-        }
-        deselectTarget() {
-            this.followingState.active = false;
-            this.followingState.selectedId = null;
-            this.stopFollowing();
         }
         adjustEnvVars(distanceToTarget) {
             if (distanceToTarget < 3000) {
@@ -200,6 +200,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (this.preRotateDistanceToTarget === null) { return; }
             let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
             this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preRotateDistanceToTarget));
+        }
+        zoomBackToPreStopFollowLevel() {
+            if (this.preStopFollowingDistanceToTarget === null) { return; }
+            let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
+            this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preStopFollowingDistanceToTarget));
         }
         onStopFollowing(callback) {
             this.callbacks.onStopFollowing.push(callback);
@@ -354,6 +359,18 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             } else {
                 this.cameraNode.setLocalMatrix(newCameraMatrix);
             }
+
+            // allows us to schedule code to trigger exactly after the camera has updated its position N times
+            // useful for some calculations that require an up-to-date camera. can also be used for animations
+            let callbacksToTrigger = [];
+            this.afterNFrames.forEach((info) => {
+                info.n -= 1;
+                if (info.n <= 0) {
+                    callbacksToTrigger.push(info.callback);
+                }
+            });
+            this.afterNFrames = this.afterNFrames.filter(entry => entry.n > 0);
+            callbacksToTrigger.forEach(cb => cb());
         }
         /////////////////////////////
         // FOLLOWING THE VIRTUALIZER
@@ -375,6 +392,37 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
         }
+        deselectTarget() {
+            // set the target position to a point slightly in front of the camera, and then stop following
+            let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
+            if (!selectedNode) { return; }
+            let virtualizerMatrixThree = new THREE.Matrix4();
+            let relativeMatrix = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId()))
+            realityEditor.gui.threejsScene.setMatrixFromArray(virtualizerMatrixThree, relativeMatrix);
+
+            // the new focus of the camera should be the point 1 meter in front of the virtualizer
+            let virtualizerForwardPosition = this.followingState.partiallyStabilizedTargetObject.getWorldPosition();
+
+            this.targetPosition = [virtualizerForwardPosition.x, virtualizerForwardPosition.y, virtualizerForwardPosition.z];
+
+            if (this.preStopFollowingDistanceToTarget === null) {
+                // calculate distance from this.position to virtualizerForwardPosition, so that we can zoom back to this
+                this.preStopFollowingDistanceToTarget = magnitude(add(this.position, negate(this.targetPosition)));
+            }
+
+            // need to allow the camera position to update once to actually lookAt the targetPosition before we stop
+            this.afterOneFrame(() => {
+                if (this.followingState.active) {
+                    this.stopFollowing();
+                }
+            });
+        }
+        afterOneFrame(callback) {
+            this.afterNFrames.push({
+                n: 1,
+                callback: callback
+            });
+        }
         stopFollowing() {
             this.followingState.active = false;
             this.followingState.selectedId = null;
@@ -383,10 +431,19 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.followingState.virtualizerId = null;
             }
 
+            if (this.preStopFollowingDistanceToTarget !== null) {
+                this.zoomBackToPreStopFollowLevel();
+                this.preRotateDistanceToTarget = this.preStopFollowingDistanceToTarget;
+                this.preStopFollowingDistanceToTarget = null;
+            }
+
             this.callbacks.onStopFollowing.forEach(cb => cb());
         }
         // trigger this in the main update loop each frame while we are following, to perform the following camera motion
         updateFollowing() {
+            // don't update parametric position while we are disengaging from a follow, otherwise the target velocity goes crazy
+            if (this.preStopFollowingDistanceToTarget !== null) { return; }
+
             // check that the sceneNode exists with its worldMatrix positioned at the virtualizer
             let targetPosition = realityEditor.sceneGraph.getWorldPosition(this.followingState.selectedId);
             if (!targetPosition) { this.stopFollowing(); return; }
@@ -428,6 +485,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let stabilizedHeight = virtualizerPosition.z * stabilizationPercent + tiltedForwardPosition.z * (1 - stabilizationPercent);
             let stabilizedTargetPosition = new THREE.Vector3(this.followingState.levelTargetObject.position.x, this.followingState.levelTargetObject.position.y, stabilizedHeight);
 
+            if (this.followingState.partiallyStabilizedTargetObject) {
+                // set before doing localToWorld, since both are children of the threeJsContainer
+                this.followingState.partiallyStabilizedTargetObject.position.set(stabilizedTargetPosition.x, stabilizedTargetPosition.y, stabilizedTargetPosition.z);
+            }
+
             // 6. rotate the stabilized container to lookAt the (partially stabilized depending on distance) levelTargetObject
             this.threeJsContainer.localToWorld(stabilizedTargetPosition); // THREE.lookAt takes in world coordinates, so requires a transform
             this.followingState.stabilizedContainer.lookAt(stabilizedTargetPosition.x, stabilizedTargetPosition.y, stabilizedTargetPosition.z);
@@ -442,7 +504,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                 // These boxes could be groups / empty objects rather than meshes, but we have them to help debug
                 let forwardTarget = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({color: '#0000ff'}));
-                forwardTarget.position.set(0, 0, 3000);
+                forwardTarget.position.set(0, 0, FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER);
                 forwardTarget.name = 'forwardFollowTargetObject';
                 forwardTarget.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.followingState.unstabilizedContainer.add(forwardTarget);
@@ -474,6 +536,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                 // set initial positions of objects otherwise camera following will break
                 this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
+            }
+
+            if (!this.followingState.partiallyStabilizedTargetObject) {
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({color: '#00ffff'}));
+                obj.name = 'partiallyStabilizedFollowTargetObject';
+                obj.visible = DISPLAY_PERSPECTIVE_CUBES;
+                this.threeJsContainer.add(obj);
+                this.followingState.partiallyStabilizedTargetObject = obj;
             }
         }
         // actually moves the camera to be located at the positionObject and looking at the targetObject
