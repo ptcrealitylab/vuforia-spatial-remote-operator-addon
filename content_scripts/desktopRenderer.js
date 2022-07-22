@@ -117,6 +117,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     z: (navmesh.maxZ + navmesh.minZ) / 2,
                 };
                 realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
+                    let endMarker = document.createElement('div');
+                    endMarker.style.display = 'none';
+                    endMarker.id = 'gltf-added';
+                    document.body.appendChild(endMarker);
+
                     gltf = createdMesh;
                     gltf.name = 'areaTargetMesh';
 
