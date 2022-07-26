@@ -204,9 +204,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                         startY: touchPosition.y
                     };
                 }
-            } else if (code === keyboard.keyCodes.P) {
-                console.log('Key P pressed - toggle positioning mode');
-                realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode();
             }
         });
         keyboard.onKeyUp(function(code) {
