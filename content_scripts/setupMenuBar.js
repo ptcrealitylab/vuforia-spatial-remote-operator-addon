@@ -7,7 +7,8 @@ createNameSpace('realityEditor.gui');
         View: 'View',
         Camera: 'Camera',
         History: 'History',
-        Help: 'Help'
+        Help: 'Help',
+        Develop: 'Develop'
     });
     exports.MENU = MENU;
 
@@ -29,6 +30,9 @@ createNameSpace('realityEditor.gui');
         OrbitCamera: 'Orbit Camera',
         ResetCameraPosition: 'Reset Camera Position',
         GettingStarted: 'Getting Started',
+        ShowDeveloperMenu: 'Show Developer Menu',
+        DebugAvatarConnections: 'Debug Avatar Connections',
+        ViewCones: 'Show View Cones'
     });
     exports.ITEM = ITEM;
 
@@ -47,6 +51,9 @@ createNameSpace('realityEditor.gui');
         menuBar.addMenu(new Menu(MENU.View));
         menuBar.addMenu(new Menu(MENU.Camera));
         menuBar.addMenu(new Menu(MENU.History));
+        let developMenu = new Menu(MENU.Develop); // keep a reference, so we can show/hide it on demand
+        menuBar.addMenu(developMenu);
+        menuBar.hideMenu(developMenu);
         menuBar.addMenu(new Menu(MENU.Help));
 
         const togglePointClouds = new MenuItem(ITEM.PointClouds, { shortcutKey: 'M', toggle: true, defaultVal: true, disabled: true }, (value) => {
@@ -62,6 +69,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleModelTexture = new MenuItem(ITEM.ModelTexture, { shortcutKey: 'Y', toggle: true, defaultVal: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleModelTexture);
+
+        const toggleViewCones = new MenuItem(ITEM.ViewCones, { shortcutKey: 'K', toggle: true, defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.View, toggleViewCones);
 
         const toggleUnityVirtualizers = new MenuItem(ITEM.UnityVirtualizers, { shortcutKey: 'V', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleUnityVirtualizers);
@@ -98,6 +108,20 @@ createNameSpace('realityEditor.gui');
             window.open('https://spatialtoolbox.vuforia.com/', '_blank');
         });
         menuBar.addItemToMenu(MENU.Help, gettingStarted);
+
+        const debugAvatars = new MenuItem(ITEM.DebugAvatarConnections, { toggle: true }, (checked) => {
+            realityEditor.avatarObjects.toggleDebugMode(checked);
+        });
+        menuBar.addItemToMenu(MENU.Develop, debugAvatars);
+
+        const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
+            if (checked) {
+                menuBar.unhideMenu(developMenu);
+            } else {
+                menuBar.hideMenu(developMenu);
+            }
+        });
+        menuBar.addItemToMenu(MENU.Help, showDeveloper);
 
         document.body.appendChild(menuBar.domElement);
 
