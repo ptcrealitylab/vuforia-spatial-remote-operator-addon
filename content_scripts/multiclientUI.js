@@ -15,6 +15,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let isCameraSubscriptionActiveForObject = {};
 
     const USE_ICOSAHEDRON = false;
+    let showViewCones = false;
 
     const wireVertex = `
         attribute vec3 center;
@@ -86,6 +87,20 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 realityEditor.avatarObjects.setBeamOff(touchPosition.x, touchPosition.y);
             }
         });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ViewCones, (toggled) => {
+            showViewCones = toggled;
+
+            Object.keys(allConnectedCameras).forEach(function(editorId) {
+                // let cameraMatrix = allConnectedCameras[editorId];
+                let coneMesh = realityEditor.gui.threejsScene.getObjectByName('camera_' + editorId + '_coneMesh');
+                let coneMesh2 = realityEditor.gui.threejsScene.getObjectByName('camera_' + editorId + '_coneMesh2');
+                if (coneMesh && coneMesh2) {
+                    coneMesh.visible = showViewCones;
+                    coneMesh2.visible = showViewCones;
+                }
+            });
+        });
     }
 
     function setupWorldSocketSubscriptionsIfNeeded(objectKey) {
@@ -127,6 +142,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     let id = Math.abs(hashCode(editorId));
                     const color = `hsl(${(id % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
 
+                    // render either a simple box, or a more complicated icosahedron, located at the remote camera position
                     let mesh;
                     if (USE_ICOSAHEDRON) {
                         const geo = new THREE.IcosahedronBufferGeometry(100);
@@ -160,35 +176,41 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                     const fov = 0.1 * Math.PI;
                     const points = [
-                      // new THREE.Vector2(100 * Math.sin(fov), 100 * Math.cos(fov)),
-                      new THREE.Vector2(0, 0),
-                      new THREE.Vector2(15 * 1000 * Math.sin(fov), 15 * 1000 * Math.cos(fov)),
+                        // new THREE.Vector2(100 * Math.sin(fov), 100 * Math.cos(fov)),
+                        new THREE.Vector2(0, 0),
+                        new THREE.Vector2(15 * 1000 * Math.sin(fov), 15 * 1000 * Math.cos(fov)),
                     ];
                     const coneGeo = new THREE.LatheGeometry(points, 4);
                     const coneMesh = new THREE.Mesh(
-                      coneGeo,
-                      new THREE.MeshBasicMaterial({
-                        color: new THREE.Color(color),
-                        transparent: true,
-                        depthWrite: false,
-                        opacity: 0.05,
-                      })
+                        coneGeo,
+                        new THREE.MeshBasicMaterial({
+                            color: new THREE.Color(color),
+                            transparent: true,
+                            depthWrite: false,
+                            opacity: 0.05,
+                        })
                     );
+                    coneMesh.name = 'camera_' + editorId + '_coneMesh';
                     coneMesh.rotation.x = -Math.PI / 2;
                     coneMesh.rotation.y = Math.PI / 4;
                     coneMesh.position.z = 0; // 7.5 * 1000;
 
                     const coneMesh2 = new THREE.Mesh(
-                      coneGeo,
-                      new THREE.MeshBasicMaterial({
-                        color: new THREE.Color(color),
-                        wireframe: true,
-                      })
+                        coneGeo,
+                        new THREE.MeshBasicMaterial({
+                            color: new THREE.Color(color),
+                            wireframe: true,
+                        })
                     );
+                    coneMesh2.name = 'camera_' + editorId + '_coneMesh2';
                     coneMesh2.rotation.x = -Math.PI / 2;
                     coneMesh2.rotation.y = Math.PI / 4;
                     coneMesh2.position.z = 0; // 7.5 * 1000;
 
+                    if (!showViewCones) {
+                        coneMesh.visible = false;
+                        coneMesh2.visible = false;
+                    }
 
                     existingMesh = new THREE.Group();
                     existingMesh.add(coneMesh);

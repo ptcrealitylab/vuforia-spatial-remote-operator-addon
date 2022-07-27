@@ -39,6 +39,16 @@ createNameSpace('realityEditor.gui');
             this.domElement.appendChild(menu.domElement);
             menu.onMenuTitleClicked = this.onMenuTitleClicked.bind(this);
         }
+        hideMenu(menu) {
+            if (menu.isHidden) { return; }
+            menu.isHidden = true;
+            this.redraw();
+        }
+        unhideMenu(menu) {
+            if (!menu.isHidden) { return; }
+            menu.isHidden = false;
+            this.redraw();
+        }
         onMenuTitleClicked(menu) {
             if (menu.isOpen) {
                 if (this.openMenu && this.openMenu !== menu) {
@@ -89,9 +99,13 @@ createNameSpace('realityEditor.gui');
             return match;
         }
         redraw() {
+            let numHidden = 0;
             // tell each menu to redraw
             this.menus.forEach((menu, index) => {
-                menu.redraw(index);
+                menu.redraw(index - numHidden);
+                if (menu.isHidden) {
+                    numHidden++;
+                }
             });
         }
     }
@@ -101,6 +115,7 @@ createNameSpace('realityEditor.gui');
             this.name = name;
             this.items = [];
             this.isOpen = false;
+            this.isHidden = false;
             this.buildDom();
             this.menuIndex = 0;
             this.onMenuTitleClicked = null; // MenuBar can inject callback here to coordinate multiple menus
@@ -152,6 +167,12 @@ createNameSpace('realityEditor.gui');
             this.items.forEach((item, itemIndex) => {
                 item.redraw(itemIndex);
             });
+
+            if (this.isHidden) {
+                this.domElement.style.display = 'none';
+            } else {
+                this.domElement.style.display = '';
+            }
         }
     }
 
