@@ -75,7 +75,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // while shift is down, turn on the laser beam
             if (code === keyboard.keyCodes.SHIFT) {
                 let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
-                realityEditor.avatarObjects.setBeamOn(touchPosition.x, touchPosition.y);
+                realityEditor.avatar.setBeamOn(touchPosition.x, touchPosition.y);
             }
         });
         keyboard.onKeyUp(function(code) {
@@ -84,7 +84,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // when shift is released, turn off the laser beam
             if (code === keyboard.keyCodes.SHIFT) {
                 let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
-                realityEditor.avatarObjects.setBeamOff(touchPosition.x, touchPosition.y);
+                realityEditor.avatar.setBeamOff(touchPosition.x, touchPosition.y);
             }
         });
 
@@ -221,7 +221,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     existingMesh.matrixAutoUpdate = false;
                     realityEditor.gui.threejsScene.addToScene(existingMesh);
                 }
-                realityEditor.gui.threejsScene.setMatrixFromArray(existingMesh.matrix, cameraMatrix);
+
+                const ANIMATE = false;
+                if (ANIMATE) {
+                    // let animatedMatrix = realityEditor.gui.ar.utilities.tweenMatrix(existingMesh.matrix.elements, cameraMatrix, 0.05);
+                    let animatedMatrix = realityEditor.gui.ar.utilities.animationVectorLinear(existingMesh.matrix.elements, cameraMatrix, 30);
+                    realityEditor.gui.threejsScene.setMatrixFromArray(existingMesh.matrix, animatedMatrix);
+                } else {
+                    realityEditor.gui.threejsScene.setMatrixFromArray(existingMesh.matrix, cameraMatrix);
+                }
             });
         } catch (e) {
             console.warn(e);
