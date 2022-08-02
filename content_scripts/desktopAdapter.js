@@ -630,7 +630,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             let object = objects[objectKey];
 
             // we already added world objects. also ignore the avatar objects
-            if (object.isWorldObject || object.type === 'world' || realityEditor.avatarObjects.isAvatarObject(object)) {
+            if (object.isWorldObject || object.type === 'world' || realityEditor.avatar.utils.isAvatarObject(object)) {
                 return;
             }
 

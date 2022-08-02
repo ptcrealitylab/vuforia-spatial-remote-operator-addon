@@ -110,7 +110,7 @@ createNameSpace('realityEditor.gui');
         menuBar.addItemToMenu(MENU.Help, gettingStarted);
 
         const debugAvatars = new MenuItem(ITEM.DebugAvatarConnections, { toggle: true }, (checked) => {
-            realityEditor.avatarObjects.toggleDebugMode(checked);
+            realityEditor.avatar.toggleDebugMode(checked);
         });
         menuBar.addItemToMenu(MENU.Develop, debugAvatars);
 
