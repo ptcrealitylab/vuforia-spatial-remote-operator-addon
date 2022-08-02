@@ -297,7 +297,11 @@ void main() {
                 texture: this.texture.image.toDataURL(),
                 textureDepth: this.textureDepth.image.toDataURL(),
             };
-            window.localStorage.setItem(key, JSON.stringify(serialization));
+            try {
+                window.localStorage.setItem(key, JSON.stringify(serialization));
+            } catch (e) {
+                console.error('Unable to persist patch', e);
+            }
 
             return {
                 key,
@@ -936,7 +940,11 @@ void main() {
                 let b = parseFloat(keyB.split('-')[1]);
                 return b - a;
             });
+            if (keys.length === 0) {
+                return;
+            }
             const key = keys[0];
+
             window.localStorage.removeItem(key);
 
             if (this.patches[key]) {
