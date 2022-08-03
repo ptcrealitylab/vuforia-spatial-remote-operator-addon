@@ -54,7 +54,7 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.View, togglePointClouds);
 
-        const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: true, disabled: true }, null);
+        const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
 
         const toggleModelVisibility = new MenuItem(ITEM.ModelVisibility, { shortcutKey: 'T', toggle: true, defaultVal: true }, null); // other module can attach a callback later
@@ -75,7 +75,7 @@ createNameSpace('realityEditor.gui');
         const resetRzvHistory = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, resetRzvHistory);
 
-        const toggleRzvHistory = new MenuItem(ITEM.TogglePaths, { shortcutKey: 'E', toggle: true, defaultVal: true, disabled: true }, null);
+        const toggleRzvHistory = new MenuItem(ITEM.TogglePaths, { shortcutKey: 'E', toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, toggleRzvHistory);
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);

@@ -587,7 +587,7 @@ void main() {
             this.cameras = {};
             this.patches = [];
             this.visible = true;
-            this.spaghettiVisible = true;
+            this.spaghettiVisible = false;
             this.floorOffset = floorOffset;
             this.depthCanvasCache = {};
             this.colorCanvasCache = {};
@@ -864,6 +864,7 @@ void main() {
             }
             this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
+            this.cameras[id].historyMesh.visible = this.spaghettiVisible;
 
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
