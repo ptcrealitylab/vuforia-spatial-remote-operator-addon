@@ -17,6 +17,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.historyLineContainer = new THREE.Group();
             this.historyLineContainer.position.y = -floorOffset;
             this.historyLineContainer.scale.set(1000, 1000, 1000);
+            this.historyLineContainer.visible = this.historyLineMeshesVisible;
             realityEditor.gui.threejsScene.addToScene(this.historyLineContainer);
 
             window.rzv = this;
