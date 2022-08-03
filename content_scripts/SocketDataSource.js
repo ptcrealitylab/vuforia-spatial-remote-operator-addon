@@ -1,13 +1,27 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 (function(exports) {
+    const PROXY = window.location.host === 'toolboxedge.net';
+    const decoder = new TextDecoder();
+
     exports.SocketDataSource = class SocketDataSource {
         constructor() {
             this.lastDataTime = -1;
             this.poses = [];
             this.onMessage = this.onMessage.bind(this);
+{
+            if (PROXY) {
+                const ws = realityEditor.cloud.socket;
 
-            if (window.location.hostname !== 'toolboxedge.net') {
+                ws.on('message', (route, body, cbObj, bin) => {
+                    if (body.id !== 'root') {
+                        return;
+                    }
+
+                    const data = decoder.decode(bin.data);
+                    this.onMessage({data});
+                });
+            } else {
                 const url = 'ws://' + window.location.hostname + ':31337/';
                 this.socket = new WebSocket(url);
 
