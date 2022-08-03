@@ -5,19 +5,20 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
         constructor() {
             this.lastDataTime = -1;
             this.poses = [];
-
-            const url = 'ws://' + window.location.hostname + ':31337/';
-            // this.socket = new WebSocket(url);
-
             this.onMessage = this.onMessage.bind(this);
 
-            // this.socket.addEventListener('message', this.onMessage);
+            if (window.location.hostname !== 'toolboxedge.net') {
+                const url = 'ws://' + window.location.hostname + ':31337/';
+                this.socket = new WebSocket(url);
+
+                this.socket.addEventListener('message', this.onMessage);
+            }
         }
 
         onMessage(event) {
-            
+
             try {
-                
+
                 // console.log('Message received', event.data);
 
                 let msg = JSON.parse(event.data);
@@ -36,11 +37,11 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
                 // }
 
                 this.handlePoint(msg);
-                
+
             } catch (error) {
                 console.warn('Could not parse message: ' , error);
             }
-            
+
         }
 
         handlePoint(msg) {
