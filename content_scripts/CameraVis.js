@@ -5,6 +5,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = true;
+    const FIRST_PERSON_CANVAS = true;
     const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
     const PROXY = window.location.host === 'toolboxedge.net';
     const ShaderMode = {
@@ -821,10 +822,30 @@ void main() {
                 cacheId = 'prov' + id;
             }
 
-            const camera = this.cameras[cacheId];
-            if (camera) {
-                camera.setShaderMode(ShaderMode.FIRST_PERSON);
-                camera.historyMesh.visible = false;
+            if (FIRST_PERSON_CANVAS) {
+                const doShowCanvas = !document.getElementById('colorCanvas' + cacheId) && !this.showCanvasTimeout;
+                if (this.colorCanvasCache[cacheId] && doShowCanvas) {
+                    let canvas = this.colorCanvasCache[cacheId].canvas;
+                    canvas.style.position = 'absolute';
+                    canvas.style.left = '0';
+                    canvas.style.top = '0';
+                    canvas.style.width = '100vw';
+                    canvas.style.height = '100vh';
+                    canvas.style.transform = 'rotate(180deg)';
+                    // canvas.style.transition = 'opacity 1.0s ease-in-out';
+                    // canvas.style.opacity = '0';
+                    canvas.id = 'colorCanvas' + cacheId;
+                    this.showCanvasTimeout = setTimeout(() => {
+                        document.body.appendChild(canvas);
+                        this.showCanvasTimeout = null;
+                    }, 300);
+                }
+            } else {
+                const camera = this.cameras[cacheId];
+                if (camera) {
+                    camera.setShaderMode(ShaderMode.FIRST_PERSON);
+                    camera.historyMesh.visible = false;
+                }
             }
         }
 
@@ -834,10 +855,17 @@ void main() {
                 cacheId = 'prov' + id;
             }
 
-            const camera = this.cameras[cacheId];
-            if (this.cameras[cacheId]) {
-                this.cameras[cacheId].setShaderMode(ShaderMode.SOLID);
-                camera.historyMesh.visible = this.spaghettiVisible;
+            if (FIRST_PERSON_CANVAS) {
+                let canvas = document.getElementById('colorCanvas' + cacheId);
+                if (canvas && canvas.parentElement) {
+                    canvas.parentElement.removeChild(canvas);
+                }
+            } else {
+                const camera = this.cameras[cacheId];
+                if (this.cameras[cacheId]) {
+                    this.cameras[cacheId].setShaderMode(ShaderMode.SOLID);
+                    camera.historyMesh.visible = this.spaghettiVisible;
+                }
             }
         }
 
