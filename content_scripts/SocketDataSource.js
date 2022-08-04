@@ -9,7 +9,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
             this.lastDataTime = -1;
             this.poses = [];
             this.onMessage = this.onMessage.bind(this);
-{
+
             if (PROXY) {
                 const ws = realityEditor.cloud.socket;
 
