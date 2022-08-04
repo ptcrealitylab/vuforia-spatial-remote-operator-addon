@@ -1,11 +1,15 @@
 createNameSpace('realityEditor.device.cameraVis');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
+import {rvl} from '../../thirdPartyCode/rvl/index.js';
 
 (function(exports) {
     const debug = false;
-    const ZDEPTH = true;
+    const ZDEPTH = false;
     const FIRST_PERSON_CANVAS = true;
+    const DEPTH_REPR_PNG = false;
+    const DEPTH_WIDTH = 256;
+    const DEPTH_HEIGHT = 144;
     const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
     const PROXY = window.location.host === 'toolboxedge.net';
     const ShaderMode = {
@@ -721,6 +725,13 @@ void main() {
                     ws.addEventListener('message', async (msg) => {
                         const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                         const id = bytes[0];
+                        if (textureKey === 'textureDepth' && !DEPTH_REPR_PNG) {
+                            const rvlBytes = new Uint8Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
+                            const rawDepth = rvl.decompress(rvlBytes);
+                            this.renderPointCloudRawDepth(id, rawDepth);
+                            return;
+                        }
+
                         const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
                         const imageUrl = URL.createObjectURL(imageBlob);
                         this.renderPointCloud(id, textureKey, imageUrl);
@@ -779,11 +790,6 @@ void main() {
                     canvas.width = image.width;
                     canvas.height = image.height;
                     context.drawImage(image, 0, 0, image.width, image.height);
-                    tex.image = canvas;
-                    if (this.voxelizer) {
-                        this.voxelizer.raycastDepthTexture(
-                            this.cameras[id].phone, canvas, context);
-                    }
                 } else {
                     if (!this.colorCanvasCache.hasOwnProperty(id)) {
                         let canvas = document.createElement('canvas');
@@ -796,24 +802,94 @@ void main() {
                     canvas.width = image.width;
                     canvas.height = image.height;
                     context.drawImage(image, 0, 0, image.width, image.height);
-                    tex.image = canvas;
-                    // tex.image = image;
                 }
-                tex.needsUpdate = true;
-                // let end = window.performance.now();
-                if (textureKey === 'texture') {
-                    // We know that capture takes 30ms
-                    // Transmission takes ??s
-                    this.cameras[id].setTime(start + 40);
-                }
-                this.cameras[id].loading[textureKey] = false;
-                // window.latencies[textureKey].push(end - start);
+                this.finishRenderPointCloudCanvas(id, textureKey, start);
                 URL.revokeObjectURL(imageUrl);
             };
             image.onerror = (e) => {
                 console.error(e);
             };
             image.src = imageUrl;
+        }
+
+        renderPointCloudRawDepth(id, rawDepth) {
+            const textureKey = 'textureDepth';
+
+            if (!this.cameras[id]) {
+                this.createCameraVis(id);
+            }
+            if (this.cameras[id].loading[textureKey]) {
+                return;
+            }
+            this.cameras[id].loading[textureKey] = true;
+            const tex = this.cameras[id][textureKey];
+            tex.dispose();
+
+            if (!this.depthCanvasCache.hasOwnProperty(id)) {
+                let canvas = document.createElement('canvas');
+                let context = canvas.getContext('2d');
+                let imageData = context.createImageData(DEPTH_WIDTH, DEPTH_HEIGHT);
+                this.depthCanvasCache[id] = {
+                    canvas,
+                    context,
+                    imageData,
+                };
+            }
+
+            let {canvas, context, imageData} = this.depthCanvasCache[id];
+            canvas.width = DEPTH_WIDTH;
+            canvas.height = DEPTH_HEIGHT;
+            for (let i = 0; i < DEPTH_WIDTH * DEPTH_HEIGHT; i++) {
+                let depthM = rawDepth[i] * 5 / (1 << 14);
+                let r = (depthM) & 0xff;
+                let g = (depthM * 256) & 0xff;
+                let b = (depthM * 256 * 256) & 0xff;
+                imageData.data[4 * i + 0] = r;
+                imageData.data[4 * i + 1] = g;
+                imageData.data[4 * i + 2] = b;
+                imageData.data[4 * i + 3] = 255;
+            }
+
+            context.putImageData(imageData, 0, 0);
+            this.finishRenderPointCloudCanvas(id, textureKey, -1);
+        }
+
+        finishRenderPointCloudCanvas(id, textureKey, start) {
+            const tex = this.cameras[id][textureKey];
+
+            if (textureKey === 'textureDepth') {
+                if (!this.depthCanvasCache.hasOwnProperty(id)) {
+                    let canvas = document.createElement('canvas');
+                    this.depthCanvasCache[id] = {
+                        canvas,
+                        context: canvas.getContext('2d'),
+                    };
+                }
+                let {canvas, context} = this.depthCanvasCache[id];
+                tex.image = canvas;
+                if (this.voxelizer) {
+                    this.voxelizer.raycastDepthTexture(
+                        this.cameras[id].phone, canvas, context);
+                }
+            } else {
+                if (!this.colorCanvasCache.hasOwnProperty(id)) {
+                    let canvas = document.createElement('canvas');
+                    this.colorCanvasCache[id] = {
+                        canvas,
+                        context: canvas.getContext('2d'),
+                    };
+                }
+                let {canvas} = this.colorCanvasCache[id];
+                tex.image = canvas;
+            }
+            tex.needsUpdate = true;
+            // let end = window.performance.now();
+            if (textureKey === 'texture') {
+                // We know that capture takes 30ms
+                // Transmission takes ??s
+                this.cameras[id].setTime(start + 40);
+            }
+            this.cameras[id].loading[textureKey] = false;
         }
 
         showFullscreenColorCanvas(id) {
