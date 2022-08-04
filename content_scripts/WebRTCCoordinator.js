@@ -1,7 +1,10 @@
 createNameSpace('realityEditor.device.cameraVis');
 
+import {rvl} from '../../thirdPartyCode/rvl/index.js';
+
 (function(exports) {
     const PROXY = window.location.host === 'toolboxedge.net';
+    const DEPTH_REPR_PNG = false;
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
@@ -359,24 +362,32 @@ createNameSpace('realityEditor.device.cameraVis');
                 return;
             }
 
-            switch (bytes[0]) {
-            case 0xff: {
-                const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/jpeg'}));
-                // Color is always JPEG which has first byte 0x89
-                this.cameraVisCoordinator.renderPointCloud(id, 'texture', imageUrl);
-            }
-                break;
+            if (DEPTH_REPR_PNG) {
+                switch (bytes[0]) {
+                case 0xff: {
+                    const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/jpeg'}));
+                    // Color is always JPEG which has first byte 0xff
+                    this.cameraVisCoordinator.renderPointCloud(id, 'texture', imageUrl);
+                }
+                    break;
 
-            case 0x89: {
-                const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/png'}));
-                // Depth is always PNG which has first byte 0x89
-                this.cameraVisCoordinator.renderPointCloud(id, 'textureDepth', imageUrl);
-            }
-                break;
-
-            default:
-                console.warn('Unknown image nonsense', event);
-                break;
+                case 0x89: {
+                    const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/png'}));
+                    // Depth is always PNG which has first byte 0x89
+                    this.cameraVisCoordinator.renderPointCloud(id, 'textureDepth', imageUrl);
+                }
+                    break;
+                }
+            } else {
+                // jpeg start of image, chance of this happening from rvl is probably 0 but at most 1/(1 << 16)
+                if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+                    const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/jpeg'}));
+                    // Color is always JPEG which has first byte 0xff
+                    this.cameraVisCoordinator.renderPointCloud(id, 'texture', imageUrl);
+                } else {
+                    const rawDepth = rvl.decompress(bytes);
+                    this.cameraVisCoordinator.renderPointCloudRawDepth(id, rawDepth);
+                }
             }
         }
 
