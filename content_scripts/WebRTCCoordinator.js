@@ -4,7 +4,7 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
 
 (function(exports) {
     const PROXY = window.location.host === 'toolboxedge.net';
-    const DEPTH_REPR_PNG = false;
+    const DEPTH_REPR_FORCE_PNG = false;
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
@@ -362,7 +362,7 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
                 return;
             }
 
-            if (DEPTH_REPR_PNG) {
+            if (DEPTH_REPR_FORCE_PNG) {
                 switch (bytes[0]) {
                 case 0xff: {
                     const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/jpeg'}));
@@ -384,6 +384,10 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
                     const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/jpeg'}));
                     // Color is always JPEG which has first byte 0xff
                     this.cameraVisCoordinator.renderPointCloud(id, 'texture', imageUrl);
+                // PNG header for depth just in case
+                } else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+                    const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/png'}));
+                    this.cameraVisCoordinator.renderPointCloud(id, 'textureDepth', imageUrl);
                 } else {
                     const rawDepth = rvl.decompress(bytes);
                     this.cameraVisCoordinator.renderPointCloudRawDepth(id, rawDepth);
