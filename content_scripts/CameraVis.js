@@ -42,7 +42,7 @@ void main() {
 
   vec4 color = texture2D(mapDepth, vUv);
   ${(!ZDEPTH) ? `
-  float depth = (color.r * 255.0 + color.g + color.b / 255.0) * 1000.0;
+  float depth = 5000.0 * (color.r + color.g / 255.0 + color.b / (255.0 * 255.0));
   float z = depth - 0.05;
   ` : `
   // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
@@ -840,10 +840,13 @@ void main() {
             canvas.width = DEPTH_WIDTH;
             canvas.height = DEPTH_HEIGHT;
             for (let i = 0; i < DEPTH_WIDTH * DEPTH_HEIGHT; i++) {
-                let depthM = rawDepth[i] * 5 / (1 << 14);
-                let r = (depthM) & 0xff;
-                let g = (depthM * 256) & 0xff;
-                let b = (depthM * 256 * 256) & 0xff;
+                // We get 14 bits of depth information from the RVL-encoded
+                // depth buffer. Note that this means the blue channel is
+                // always zero
+                let depth24Bits = rawDepth[i] << (24 - 14); // * 5 / (1 << 14);
+                let b = depth24Bits & 0xff;
+                let g = (depth24Bits >> 8) & 0xff;
+                let r = (depth24Bits >> 16) & 0xff;
                 imageData.data[4 * i + 0] = r;
                 imageData.data[4 * i + 1] = g;
                 imageData.data[4 * i + 2] = b;
