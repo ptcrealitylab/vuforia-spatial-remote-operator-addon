@@ -1,7 +1,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 (function(exports) {
-    const PROXY = window.location.host === 'toolboxedge.net';
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const decoder = new TextDecoder();
 
     exports.SocketDataSource = class SocketDataSource {
