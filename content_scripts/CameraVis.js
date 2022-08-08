@@ -11,7 +11,7 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
     const DEPTH_WIDTH = 256;
     const DEPTH_HEIGHT = 144;
     const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
-    const PROXY = window.location.host === 'toolboxedge.net';
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const ShaderMode = {
         SOLID: 'SOLID',
         POINT: 'POINT',

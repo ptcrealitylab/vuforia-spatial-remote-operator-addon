@@ -18,7 +18,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
 (function(exports) {
     const ENABLE_VOXELIZER = false;
-    const PROXY = window.location.host === 'toolboxedge.net';
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
 
     /**
      * @type {Canvas} - the DOM element where the images streamed from a reality zone are rendered

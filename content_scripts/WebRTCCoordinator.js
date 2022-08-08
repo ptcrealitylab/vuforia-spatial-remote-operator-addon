@@ -3,7 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 
 (function(exports) {
-    const PROXY = window.location.host === 'toolboxedge.net';
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const DEPTH_REPR_FORCE_PNG = false;
 
     const encoder = new TextEncoder();
