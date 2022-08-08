@@ -6,6 +6,7 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
 (function(exports) {
     const debug = false;
     const ZDEPTH = false;
+    const ENABLE_PICTURE_IN_PICTURE = false;
     const FIRST_PERSON_CANVAS = true;
     const DEPTH_REPR_PNG = false;
     const DEPTH_WIDTH = 256;
@@ -642,7 +643,7 @@ void main() {
             this.onPointerDown = this.onPointerDown.bind(this);
 
             let threejsCanvas = document.getElementById('mainThreejsCanvas');
-            if (threejsCanvas) {
+            if (threejsCanvas && ENABLE_PICTURE_IN_PICTURE) {
                 threejsCanvas.addEventListener('pointerdown', this.onPointerDown);
             }
 
