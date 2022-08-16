@@ -5,6 +5,7 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
 (function(exports) {
     const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const DEPTH_REPR_FORCE_PNG = false;
+    const DEBUG = false;
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
@@ -72,7 +73,10 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
                 console.warn('ws parse error', e, event);
                 return;
             }
-            console.log('webrtc msg', msg);
+            if (DEBUG) {
+                console.log('webrtc msg', msg);
+            }
+
             if (msg.command === 'joinNetwork') {
                 if (msg.role === 'provider') {
                     this.initConnection(msg.src);
@@ -93,7 +97,9 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
             }
 
             if (msg.dest !== this.consumerId) {
-                console.warn('discarding not mine', msg);
+                if (DEBUG) {
+                    console.warn('discarding not mine', msg);
+                }
                 return;
             }
 
@@ -157,7 +163,9 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
 
         async onSignallingMessage(msg) {
             if (msg.command === 'newIceCandidate') {
-                console.log('webrtc remote candidate', msg);
+                if (DEBUG) {
+                    console.log('webrtc remote candidate', msg);
+                }
                 this.localConnection.addIceCandidate(msg.candidate)
                     .catch(this.onWebRTCError);
                 return;
@@ -204,7 +212,10 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
             }
 
             this.localConnection.addEventListener('icecandidate', (e) => {
-                console.log('webrtc local candidate', e);
+                if (DEBUG) {
+                    console.log('webrtc local candidate', e);
+                }
+
                 if (!e.candidate) {
                     return;
                 }
@@ -218,14 +229,20 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
             });
 
             this.localConnection.addEventListener('datachannel', (e) => {
-                console.log('webrtc datachannel', e);
+                if (DEBUG) {
+                    console.log('webrtc datachannel', e);
+                }
+
                 this.sendChannel = e.channel;
                 this.sendChannel.addEventListener('open', this.onSendChannelStatusChange);
                 this.sendChannel.addEventListener('close', this.onSendChannelStatusChange);
             });
 
             this.localConnection.addEventListener('track', (e) => {
-                console.log('webrtc track event', e);
+                if (DEBUG) {
+                    console.log('webrtc track event', e);
+                }
+
                 if (e.streams.length === 0) {
                     return;
                 }
@@ -243,7 +260,9 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
                     try {
                         elt.play();
                     } catch (err) {
-                        console.log('autoplay failed', err);
+                        if (DEBUG) {
+                            console.log('autoplay failed', err);
+                        }
                     }
                 }, 250);
                 elt.addEventListener('play', function clearAutoplayInterval() {
@@ -291,7 +310,9 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
             }
 
             const state = this.sendChannel.readyState;
-            console.log('webrtc onSendChannelStatusChange', state);
+            if (DEBUG) {
+                console.log('webrtc onSendChannelStatusChange', state);
+            }
         }
 
         onReceiveChannelStatusChange() {
@@ -300,7 +321,9 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
             }
 
             const state = this.receiveChannel.readyState;
-            console.log('webrtc onReceiveChannelStatusChange', state);
+            if (DEBUG) {
+                console.log('webrtc onReceiveChannelStatusChange', state);
+            }
 
             if (state === 'open') {
                 // create cameravis with receiveChannel
