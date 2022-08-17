@@ -129,7 +129,7 @@ module.exports = function makeStreamRouter(app) {
         let wsId;
 
         ws.on('message', function(msgRaw) {
-            console.log('signal ws message', msgRaw);
+            // console.log('signal ws message', msgRaw);
             let msg;
             try {
                 msg = JSON.parse(msgRaw);
@@ -167,6 +167,11 @@ module.exports = function makeStreamRouter(app) {
                 }
             }
 
+            if (msg.command === 'leaveNetwork') {
+                onClose(msg.src);
+                return;
+            }
+
             if (msg.dest) {
                 if (!idToSocket.hasOwnProperty(msg.dest)) {
                     console.warn('missing dest', msg.dest);
@@ -176,10 +181,14 @@ module.exports = function makeStreamRouter(app) {
             }
         });
 
-        ws.on('close', function() {
+        const onClose = function(wsId) {
             delete idToSocket[wsId];
             providers = providers.filter(provId => provId !== wsId);
             consumers = consumers.filter(conId => conId !== wsId);
+        };
+
+        ws.on('close', function() {
+            onClose(wsId);
         });
 
         ws.on('error', function(e) {
