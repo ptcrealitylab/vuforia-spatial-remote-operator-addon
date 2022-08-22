@@ -2,6 +2,7 @@ createNameSpace('realityEditor.device.cameraVis');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
+import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
 (function(exports) {
     const debug = false;
@@ -44,7 +45,7 @@ void main() {
   vec4 color = texture2D(mapDepth, vUv);
   ${(!ZDEPTH) ? `
   float depth = 5000.0 * (color.r + color.g / 255.0 + color.b / (255.0 * 255.0));
-  float z = depth - 0.05;
+  float z = depth - 1.0;
   ` : `
   // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
   int r = int(color.r * 255.0);
@@ -112,6 +113,8 @@ uniform float time;
 varying vec2 vUv;
 // Position of this pixel relative to the camera in proper (millimeter) coordinates
 varying vec4 pos;
+uniform float depthMin;
+uniform float depthMax;
 
 void main() {
   // Depth in millimeters
@@ -135,6 +138,10 @@ void main() {
   // camera)
   // alphaDepth is thrown in here to incorporate the depth-based fade
   float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth * alphaHolo;
+
+  // if (depth < depthMin || depth > depthMax) {
+  //     alpha = 0;
+  // }
 
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
@@ -452,6 +459,8 @@ void main() {
 
             let material = new THREE.ShaderMaterial({
                 uniforms: {
+                    depthMin: {value: 0.1},
+                    depthMax: {value: 5.0},
                     time: {value: window.performance.now()},
                     map: {value: texture},
                     mapDepth: {value: textureDepth},
@@ -727,8 +736,8 @@ void main() {
                         const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                         const id = bytes[0];
                         if (textureKey === 'textureDepth' && !DEPTH_REPR_PNG) {
-                            const rvlBytes = new Uint8Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                            const rawDepth = rvl.decompress(rvlBytes);
+                            const parser = new RVLParser(await msg.data.slice(1, msg.data.size).arrayBuffer());
+                            const rawDepth = rvl.decompress(parser.currentFrame.rvlBuf);
                             this.renderPointCloudRawDepth(id, rawDepth);
                             return;
                         }

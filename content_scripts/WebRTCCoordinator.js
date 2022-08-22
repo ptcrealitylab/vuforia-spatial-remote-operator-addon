@@ -1,6 +1,7 @@
 createNameSpace('realityEditor.device.cameraVis');
 
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
+import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
 (function(exports) {
     const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
@@ -330,58 +331,18 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
             }
         }
 
-        onReceiveChannelMessage(event) {
+        async onReceiveChannelMessage(event) {
             const id = this.providerId;
-            let bytes = new Uint8Array(event.data);
+            let bytes = event.data
+            if (bytes instanceof ArrayBuffer) {
+                bytes = new Uint8Array(event.data);
+            }
             if (bytes.length < 1000) {
                 // const decoder = new TextDecoder();
                 const matricesMsg = decoder.decode(bytes);
                 // blah blah it's matrix
                 const matrices = JSON.parse(matricesMsg);
-                let cameraNode = new realityEditor.sceneGraph.SceneNode(id + '-camera');
-                cameraNode.setLocalMatrix(matrices.camera);
-                cameraNode.updateWorldMatrix();
-
-                let gpNode = new realityEditor.sceneGraph.SceneNode(id + '-gp');
-                gpNode.needsRotateX = true;
-                let gpRxNode = new realityEditor.sceneGraph.SceneNode(id + '-gp' + 'rotateX');
-                gpRxNode.addTag('rotateX');
-                gpRxNode.setParent(gpNode);
-
-                const c = Math.cos(-Math.PI / 2);
-                const s = Math.sin(-Math.PI / 2);
-                let rxMat = [
-                    1, 0, 0, 0,
-                    0, c, -s, 0,
-                    0, s, c, 0,
-                    0, 0, 0, 1
-                ];
-                gpRxNode.setLocalMatrix(rxMat);
-
-                // let gpNode = realityEditor.sceneGraph.getSceneNodeById(
-                //     realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
-                // if (!gpNode) {
-                //     gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
-                // }
-                gpNode.setLocalMatrix(matrices.groundplane);
-                gpNode.updateWorldMatrix();
-                // gpRxNode.updateWorldMatrix();
-
-                let sceneNode = new realityEditor.sceneGraph.SceneNode(id);
-                sceneNode.setParent(realityEditor.sceneGraph.getSceneNodeById('ROOT'));
-
-                let initialVehicleMatrix = [
-                    -1, 0, 0, 0,
-                    0, 1, 0, 0,
-                    0, 0, -1, 0,
-                    0, 0, 0, 1,
-                ];
-
-                sceneNode.setPositionRelativeTo(cameraNode, initialVehicleMatrix);
-                sceneNode.updateWorldMatrix();
-
-                let cameraMat = sceneNode.getMatrixRelativeTo(gpRxNode);
-                this.cameraVisCoordinator.updateMatrix(id, new Float32Array(cameraMat));
+                this.onMatrices(id, matrices);
                 return;
             }
 
@@ -412,10 +373,85 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
                     const imageUrl = URL.createObjectURL(new Blob([event.data], {type: 'image/png'}));
                     this.cameraVisCoordinator.renderPointCloud(id, 'textureDepth', imageUrl);
                 } else {
-                    const rawDepth = rvl.decompress(bytes);
+                    // if (!window.timings) {
+                    //     window.timings = {
+                    //         parseFrame: [],
+                    //         parseDepth: [],
+                    //         parseMats: [],
+                    //         doMats: [],
+                    //         doDepth: [],
+                    //     };
+                    // }
+                    // let start = window.performance.now();
+                    const parser = new RVLParser(bytes.buffer);
+                    // let parseFrame = window.performance.now();
+                    const rawDepth = parser.getFrameRawDepth(parser.currentFrame);
+                    // let parseDepth = window.performance.now();
+                    const matricesMsg = decoder.decode(parser.currentFrame.payload);
+                    const matrices = JSON.parse(matricesMsg);
+                    // let parseMats = window.performance.now();
+                    this.onMatrices(id, matrices);
+                    // let doMats = window.performance.now();
+                    if (!rawDepth) {
+                        console.warn('RVL depth unparsed');
+                        return;
+                    }
                     this.cameraVisCoordinator.renderPointCloudRawDepth(id, rawDepth);
+                    // let doDepth = window.performance.now();
+                    // window.timings.parseFrame.push(parseFrame - start);
+                    // window.timings.parseDepth.push(parseDepth - parseFrame);
+                    // window.timings.parseMats.push(parseMats - parseDepth);
+                    // window.timings.doMats.push(doMats - parseMats);
+                    // window.timings.doDepth.push(doDepth - doMats);
                 }
             }
+        }
+
+        onMatrices(id, matrices) {
+            let cameraNode = new realityEditor.sceneGraph.SceneNode(id + '-camera');
+            cameraNode.setLocalMatrix(matrices.camera);
+            cameraNode.updateWorldMatrix();
+
+            let gpNode = new realityEditor.sceneGraph.SceneNode(id + '-gp');
+            gpNode.needsRotateX = true;
+            let gpRxNode = new realityEditor.sceneGraph.SceneNode(id + '-gp' + 'rotateX');
+            gpRxNode.addTag('rotateX');
+            gpRxNode.setParent(gpNode);
+
+            const c = Math.cos(-Math.PI / 2);
+            const s = Math.sin(-Math.PI / 2);
+            let rxMat = [
+                1, 0, 0, 0,
+                0, c, -s, 0,
+                0, s, c, 0,
+                0, 0, 0, 1
+            ];
+            gpRxNode.setLocalMatrix(rxMat);
+
+            // let gpNode = realityEditor.sceneGraph.getSceneNodeById(
+            //     realityEditor.sceneGraph.NAMES.GROUNDPLANE + realityEditor.sceneGraph.TAGS.ROTATE_X);
+            // if (!gpNode) {
+            //     gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
+            // }
+            gpNode.setLocalMatrix(matrices.groundplane);
+            gpNode.updateWorldMatrix();
+            // gpRxNode.updateWorldMatrix();
+
+            let sceneNode = new realityEditor.sceneGraph.SceneNode(id);
+            sceneNode.setParent(realityEditor.sceneGraph.getSceneNodeById('ROOT'));
+
+            let initialVehicleMatrix = [
+                -1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, -1, 0,
+                0, 0, 0, 1,
+            ];
+
+            sceneNode.setPositionRelativeTo(cameraNode, initialVehicleMatrix);
+            sceneNode.updateWorldMatrix();
+
+            let cameraMat = sceneNode.getMatrixRelativeTo(gpRxNode);
+            this.cameraVisCoordinator.updateMatrix(id, new Float32Array(cameraMat));
         }
 
         onWebRTCError(e) {
