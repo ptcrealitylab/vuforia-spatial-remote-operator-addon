@@ -495,6 +495,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             if (typeof msgContent.id !== 'undefined' &&
                 typeof msgContent.ip !== 'undefined') {
 
+                if (typeof realityEditor.network.discovery !== 'undefined') {
+                    realityEditor.network.discovery.processHeartbeat(msgContent);
+                }
+
                 let primaryWorldId = getPrimaryWorldId();
                 if (!primaryWorldId) {
                     realityEditor.network.addHeartbeatObject(msgContent);
