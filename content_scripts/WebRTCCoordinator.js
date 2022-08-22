@@ -337,6 +337,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             if (bytes instanceof ArrayBuffer) {
                 bytes = new Uint8Array(event.data);
             }
+            if (bytes.length === 0) {
+                return;
+            }
+
             if (bytes.length < 1000) {
                 // const decoder = new TextDecoder();
                 const matricesMsg = decoder.decode(bytes);
