@@ -198,6 +198,12 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                         'stun:stun.l.google.com:19302',
                         'stun:stun4.l.google.com:19305',
                     ],
+                }, {
+                    urls: [
+                        'turn:openrelay.metered.ca:443'
+                    ],
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject',
                 }],
             });
 
