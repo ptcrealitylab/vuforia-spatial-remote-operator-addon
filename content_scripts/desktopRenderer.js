@@ -17,7 +17,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
  */
 
 (function(exports) {
-    const ENABLE_VOXELIZER = false;
     const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
 
     /**
@@ -116,7 +115,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     y: navmesh.minY,
                     z: (navmesh.maxZ + navmesh.minZ) / 2,
                 };
-                realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
+                realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh) {
                     let endMarker = document.createElement('div');
                     endMarker.style.display = 'none';
                     endMarker.id = 'gltf-added';
@@ -143,12 +142,32 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     realityEditor.worldObjects.setOrigin(objectKey, identity);
 
                     let realityZoneVoxelizer;
-                    if (ENABLE_VOXELIZER) {
-                        realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, wireframe, navmesh);
+                    function enableVoxelizer() {
+                        if (realityZoneVoxelizer) {
+                            realityZoneVoxelizer.remove();
+                        }
+                        realityZoneVoxelizer = new realityEditor.gui.ar.desktopRenderer.RealityZoneVoxelizer(floorOffset, createdMesh, navmesh);
                         realityZoneVoxelizer.add();
+                        cameraVisCoordinator.voxelizer = realityZoneVoxelizer;
                     }
+                    function disableVoxelizer() {
+                        if (!realityZoneVoxelizer) {
+                            return;
+                        }
 
-                    cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset, realityZoneVoxelizer);
+                        realityZoneVoxelizer.remove();
+                        realityZoneVoxelizer = null;
+                        cameraVisCoordinator.voxelizer = null;
+                    }
+                    realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Voxelizer, (toggled) => {
+                        if (toggled) {
+                            enableVoxelizer();
+                        } else {
+                            disableVoxelizer();
+                        }
+                    });
+
+                    cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
                     cameraVisCoordinator.connect();
                     cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                         console.log('onCameraVisCreated', cameraVis);
@@ -268,7 +287,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let isVirtualizerRenderingIn2D = {};
     exports.getVirtualizers2DRenderingState = function() {
         return isVirtualizerRenderingIn2D;
-    }
+    };
 
     /**
      * Updates canvas size for resize events

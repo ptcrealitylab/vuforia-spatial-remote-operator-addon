@@ -601,8 +601,8 @@ void main() {
     }
 
     exports.CameraVisCoordinator = class CameraVisCoordinator {
-        constructor(floorOffset, voxelizer) {
-            this.voxelizer = voxelizer;
+        constructor(floorOffset) {
+            this.voxelizer = null;
             this.cameras = {};
             this.patches = [];
             this.visible = true;
@@ -865,6 +865,16 @@ void main() {
 
             context.putImageData(imageData, 0, 0);
             this.finishRenderPointCloudCanvas(id, textureKey, -1);
+
+            if (this.voxelizer) {
+                this.voxelizer.raycastDepth(
+                    this.cameras[id].phone, {
+                        width: DEPTH_WIDTH,
+                        height: DEPTH_HEIGHT,
+                    },
+                    rawDepth
+                );
+            }
         }
 
         finishRenderPointCloudCanvas(id, textureKey, start) {
@@ -880,10 +890,6 @@ void main() {
                 }
                 let {canvas, context} = this.depthCanvasCache[id];
                 tex.image = canvas;
-                if (this.voxelizer) {
-                    this.voxelizer.raycastDepthTexture(
-                        this.cameras[id].phone, canvas, context);
-                }
             } else {
                 if (!this.colorCanvasCache.hasOwnProperty(id)) {
                     let canvas = document.createElement('canvas');
