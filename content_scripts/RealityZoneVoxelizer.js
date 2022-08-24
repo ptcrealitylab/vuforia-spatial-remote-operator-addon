@@ -2,10 +2,9 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
+import { BufferGeometryUtils } from '../../thirdPartyCode/three/BufferGeometryUtils.module.js';
 
 (function(exports) {
-    const ZDEPTH = true;
-
     class OctTree {
         constructor({minX, maxX, minY, maxY, minZ, maxZ}) {
             this.minX = minX;
@@ -164,8 +163,23 @@ import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
     exports.RealityZoneVoxelizer = class RealityZoneVoxelizer {
         constructor(floorOffset, gltf, navmesh) {
             this.floorOffset = floorOffset;
-            this.gltf = gltf;
-            this.bvh = new MeshBVH(this.gltf.geometry);
+
+            let geometries = [];
+            gltf.traverse(obj => {
+                if (obj.geometry) {
+                    let geo = obj.geometry.clone();
+                    geo.deleteAttribute('uv'); // Messes with merge if present in some geometries but not others
+                    geometries.push(geo);
+                }
+            });
+
+            let geometry = geometries[0];
+            if (geometries.length > 1) {
+                const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries);
+                geometry = mergedGeometry;
+            }
+
+            this.bvh = new MeshBVH(geometry);
             this.navmesh = navmesh;
             this.raycaster = new THREE.Raycaster();
             this.container = new THREE.Group();
@@ -194,14 +208,12 @@ import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
 
             this.boxes = [];
             this.voxOct = null;
-
-            realityEditor.gui.threejsScene.addToScene(this.container);
         }
 
         add() {
+            realityEditor.gui.threejsScene.addToScene(this.container);
+
             this.boxesMesh.count = 0;
-            this.gltf.position.set(0, 0, 0);
-            this.gltf.scale.set(1, 1, 1);
 
             let startRes = this.res * 8;
 
@@ -243,6 +255,10 @@ import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
             }
             this.res = boxScale;
             this.container.add(this.boxesMesh);
+        }
+
+        remove() {
+            realityEditor.gui.threejsScene.removeFromScene(this.container);
         }
 
         removeOct(x, y, z) {
@@ -320,11 +336,8 @@ import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
             return this.bvh.intersectsBox(box, new THREE.Matrix4());
         }
 
-        raycastDepthTexture(mesh, canvas, context) {
+        raycastDepth(mesh, {width, height}, rawDepth) {
             const matrixWorld = mesh.matrix;
-            const width = canvas.width;
-            const height = canvas.height;
-            const imageData = context.getImageData(0, 0, width, height).data;
             const XtoZ = 1920.0 / 1448.24976; // width over focal length
             const YtoZ = 1080.0 / 1448.24976;
             let res = 16;
@@ -343,41 +356,8 @@ import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
                         y / height,
                         1
                     );
-                    let r = imageData[4 * (width * y + x) + 0];
-                    let g = imageData[4 * (width * y + x) + 1];
-                    let b = imageData[4 * (width * y + x) + 2];
-
-                    let depth;
-                    if (ZDEPTH) {
-                        depth = ((r & 1) |
-                            ((g & 1) << 1) |
-                            ((b & 1) << 2) |
-                            ((r & (1 << 1)) << (3 - 1)) |
-                            ((g & (1 << 1)) << (4 - 1)) |
-                            ((b & (1 << 1)) << (5 - 1)) |
-                            ((r & (1 << 2)) << (6 - 2)) |
-                            ((g & (1 << 2)) << (7 - 2)) |
-                            ((b & (1 << 2)) << (8 - 2)) |
-                            ((r & (1 << 3)) << (9 - 3)) |
-                            ((g & (1 << 3)) << (10 - 3)) |
-                            ((b & (1 << 3)) << (11 - 3)) |
-                            ((r & (1 << 4)) << (12 - 4)) |
-                            ((g & (1 << 4)) << (13 - 4)) |
-                            ((b & (1 << 4)) << (14 - 4)) |
-                            ((r & (1 << 5)) << (15 - 5)) |
-                            ((g & (1 << 5)) << (16 - 5)) |
-                            ((b & (1 << 5)) << (17 - 5)) |
-                            ((r & (1 << 6)) << (18 - 6)) |
-                            ((g & (1 << 6)) << (19 - 6)) |
-                            ((b & (1 << 6)) << (20 - 6)) |
-                            ((r & (1 << 7)) << (21 - 7)) |
-                            ((g & (1 << 7)) << (22 - 7)) |
-                            ((b & (1 << 7)) << (23 - 7))) * 1000 / (1 << (24 - 4));
-                    } else {
-                        depth = (r + g / 256.0 + b / (256.0 * 256.0)) * 1000.0;
-                    }
-
-                    const z = depth - 0.01;
+                    let depth = rawDepth[y * width + x];
+                    const z = depth;
                     ray.x = -(x / width - 0.5) * z * XtoZ;
                     ray.y = -(y / height - 0.5) * z * YtoZ;
                     ray.z = z;
