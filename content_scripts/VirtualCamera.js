@@ -220,7 +220,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.stopFollowing();
             }
 
-            let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
+            // Add following-specific velocities then reset for addition of mouse control
+            this.position = add(this.position, this.velocity);
+            this.targetPosition = add(this.targetPosition, this.targetVelocity);
+
+            this.velocity = [0, 0, 0];
+            this.targetVelocity = [0, 0, 0];
+
             // move camera to cameraPosition and look at cameraTargetPosition
             let newCameraLookAtMatrix = lookAt(this.position[0], this.position[1], this.position[2], this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 0, 1, 0);
 
