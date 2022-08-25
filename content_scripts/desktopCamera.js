@@ -215,7 +215,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             unityCamera = new realityEditor.device.VirtualCamera(unityCameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
         }
 
-        update();
+        onFrame();
 
         // disable right-click context menu so we can use right-click to rotate camera
         document.addEventListener('contextmenu', event => event.preventDefault());
@@ -506,13 +506,23 @@ createNameSpace('realityEditor.device.desktopCamera');
     }
 
     /**
-     * Main update loop
+     * Update loop governed by requestAnimationFrame
      */
-    function update() {
-
+    function onFrame() {
+        update(false);
+        requestAnimationFrame(onFrame);
+    }
+    /**
+     * Main update function
+     * @param forceCameraUpdate - Whether this update forces virtualCamera to
+     * update even if it's in 2d (locked follow) mode
+     */
+    function update(forceCameraUpdate) {
         if (virtualCamera) {
             try {
-                virtualCamera.update();
+                if (forceCameraUpdate || !virtualCamera.isRendering2DVideo()) {
+                    virtualCamera.update();
+                }
 
                 let worldObject = realityEditor.worldObjects.getBestWorldObject();
                 if (worldObject) {
@@ -551,9 +561,8 @@ createNameSpace('realityEditor.device.desktopCamera');
                 }
             }
         }
-
-        requestAnimationFrame(update);
     }
 
+    exports.update = update;
     exports.initService = initService;
 })(realityEditor.device.desktopCamera);

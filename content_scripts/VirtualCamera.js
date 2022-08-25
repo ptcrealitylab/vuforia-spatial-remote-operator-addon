@@ -350,7 +350,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
 
-            let shouldSmoothCamera = !(this.followingState.active && this.followingState.currentlyRendering2DVideo);
+            let shouldSmoothCamera = !this.isRendering2DVideo();
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
@@ -372,6 +372,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.afterNFrames = this.afterNFrames.filter(entry => entry.n > 0);
             callbacksToTrigger.forEach(cb => cb());
         }
+
+        isRendering2DVideo() {
+            return (this.followingState.active && this.followingState.currentlyRendering2DVideo);
+        }
+
         /////////////////////////////
         // FOLLOWING THE VIRTUALIZER
         /////////////////////////////
