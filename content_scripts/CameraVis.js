@@ -532,6 +532,9 @@ void main() {
 
         setMatrix(newMatrix) {
             setMatrixFromArray(this.phone.matrix, newMatrix);
+            this.texture.needsUpdate = true;
+            this.textureDepth.needsUpdate = true;
+
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
             let nextHistoryPoint = new THREE.Vector3(
                 newMatrix[12],
@@ -901,7 +904,7 @@ void main() {
                 let {canvas} = this.colorCanvasCache[id];
                 tex.image = canvas;
             }
-            tex.needsUpdate = true;
+            // tex.needsUpdate = true;
             // let end = window.performance.now();
             if (textureKey === 'texture') {
                 // We know that capture takes 30ms
