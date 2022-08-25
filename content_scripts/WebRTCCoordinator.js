@@ -1,6 +1,5 @@
 createNameSpace('realityEditor.device.cameraVis');
 
-import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
 (function(exports) {
@@ -339,7 +338,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
         async onReceiveChannelMessage(event) {
             const id = this.providerId;
-            let bytes = event.data
+            let bytes = event.data;
             if (bytes instanceof ArrayBuffer) {
                 bytes = new Uint8Array(event.data);
             }
