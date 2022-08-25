@@ -59,6 +59,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
+        const renderingFlagName = 'loadingWorldMesh';
+        realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
+
         // when a new object is detected, check if we need to create a socket connection with its server
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
             if (isGlbLoaded) { return; } // only do this for the first world object detected
@@ -116,6 +119,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     z: (navmesh.maxZ + navmesh.minZ) / 2,
                 };
                 realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh) {
+
+                    realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
+
                     let endMarker = document.createElement('div');
                     endMarker.style.display = 'none';
                     endMarker.id = 'gltf-added';
