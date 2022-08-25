@@ -198,6 +198,12 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                         'stun:stun.l.google.com:19302',
                         'stun:stun4.l.google.com:19305',
                     ],
+                }, {
+                    urls: [
+                        'turn:openrelay.metered.ca:443'
+                    ],
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject',
                 }],
             });
 
@@ -337,6 +343,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             if (bytes instanceof ArrayBuffer) {
                 bytes = new Uint8Array(event.data);
             }
+            if (bytes.length === 0) {
+                return;
+            }
+
             if (bytes.length < 1000) {
                 // const decoder = new TextDecoder();
                 const matricesMsg = decoder.decode(bytes);

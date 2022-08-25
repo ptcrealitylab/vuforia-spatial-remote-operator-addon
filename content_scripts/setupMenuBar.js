@@ -20,6 +20,7 @@ createNameSpace('realityEditor.gui');
         UnityVirtualizers: 'Unity Virtualizers',
         SurfaceAnchors: 'Surface Anchors',
         VideoPlayback: 'Video Timeline',
+        Voxelizer: 'Model Voxelizer',
         Follow1stPerson: 'Follow 1st-Person',
         Follow3rdPerson: 'Follow 3rd-Person',
         StopFollowing: 'Stop Following',
@@ -93,6 +94,9 @@ createNameSpace('realityEditor.gui');
 
         const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, undoPatch);
+
+        const toggleVoxelizer = new MenuItem(ITEM.Voxelizer, { shortcutKey: '', toggle: true, defaultVal: false }, null); // other module can attach a callback later
+        menuBar.addItemToMenu(MENU.History, toggleVoxelizer);
 
         const stopFollowing = new MenuItem(ITEM.StopFollowing, { shortcutKey: '_0', toggle: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, stopFollowing);
