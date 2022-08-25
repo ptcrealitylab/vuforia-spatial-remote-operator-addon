@@ -200,10 +200,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     ],
                 }, {
                     urls: [
-                        'turn:openrelay.metered.ca:443'
+                        'turn:turn.meta.ptc.io:443'
                     ],
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject',
+                    username: 'test',
+                    credential: 'uWmkoS44agy7GTN',
                 }],
             });
 
