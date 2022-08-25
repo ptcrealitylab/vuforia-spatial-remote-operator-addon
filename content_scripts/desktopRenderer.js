@@ -60,7 +60,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     function initService() {
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
-        realityEditor.device.environment.variables.suppressObjectRendering = true; // hide tools until the model is loaded
+        const renderingFlagName = 'loadingWorldMesh';
+        realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
 
         // when a new object is detected, check if we need to create a socket connection with its server
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
@@ -120,7 +121,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 };
                 realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh, wireframe) {
                     
-                    realityEditor.device.environment.variables.suppressObjectRendering = false; // stop hiding tools
+                    realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
                     
                     let endMarker = document.createElement('div');
                     endMarker.style.display = 'none';
