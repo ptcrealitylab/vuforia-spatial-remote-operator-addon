@@ -491,13 +491,13 @@ void main() {
             this.phone.add(mesh);
         }
 
-        update(mat) {
+        update(mat, delayed) {
             let now = performance.now();
             if (this.shaderMode === ShaderMode.HOLO) {
                 this.material.uniforms.time.value = window.performance.now();
             }
             this.lastUpdate = now;
-            if (this.time > now) {
+            if (this.time > now || !delayed) {
                 this.setMatrix(mat);
                 return;
             }
@@ -674,7 +674,7 @@ void main() {
                     // if (pktType === PKT_MATRIX) {
                     const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
                     // }
-                    this.updateMatrix(id, mat);
+                    this.updateMatrix(id, mat, true);
                 });
             } else {
                 const ws = new WebSocket(url);
@@ -682,16 +682,16 @@ void main() {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
                     const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                    this.updateMatrix(id, mat);
+                    this.updateMatrix(id, mat, true);
                 });
             }
         }
 
-        updateMatrix(id, mat) {
+        updateMatrix(id, mat, delayed) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
             }
-            this.cameras[id].update(mat);
+            this.cameras[id].update(mat, delayed);
 
             let now = performance.now();
             for (let camera of Object.values(this.cameras)) {
@@ -967,7 +967,7 @@ void main() {
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
             this.renderPointCloud(id, 'texture', textureUrl);
             this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
-            this.updateMatrix(id, matrix);
+            this.updateMatrix(id, matrix, true);
         }
 
         hidePointCloud(id) {
