@@ -560,6 +560,8 @@ void main() {
             if (this.sceneGraphNode) {
                 this.sceneGraphNode.setLocalMatrix(newMatrix);
             }
+
+            realityEditor.device.desktopCamera.update(true);
         }
 
         hideNearCamera() {
