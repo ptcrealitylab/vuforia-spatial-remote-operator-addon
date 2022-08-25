@@ -321,7 +321,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             const UPPER_ANGLE = Math.PI * 0.8; // soft upper bound
             const LOWER_ANGLE = Math.PI * 0.2; // soft lower bound
-            if (verticalAngle > LOWER_ANGLE && verticalAngle < UPPER_ANGLE) {
+            if (this.isRendering2DVideo() || (verticalAngle > LOWER_ANGLE && verticalAngle < UPPER_ANGLE)) {
                 // if within soft bounds, move the camera as usual
                 this.position = add(this.position, this.velocity);
                 this.targetPosition = add(this.targetPosition, this.targetVelocity);
