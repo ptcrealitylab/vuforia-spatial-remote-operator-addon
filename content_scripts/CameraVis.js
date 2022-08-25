@@ -8,7 +8,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     const debug = false;
     const ZDEPTH = false;
     const ENABLE_PICTURE_IN_PICTURE = false;
-    const FIRST_PERSON_CANVAS = true;
+    const FIRST_PERSON_CANVAS = false;
     const DEPTH_REPR_PNG = false;
     const DEPTH_WIDTH = 256;
     const DEPTH_HEIGHT = 144;
