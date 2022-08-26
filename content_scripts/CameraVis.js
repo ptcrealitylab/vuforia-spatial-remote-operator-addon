@@ -532,6 +532,7 @@ void main() {
 
         setMatrix(newMatrix) {
             setMatrixFromArray(this.phone.matrix, newMatrix);
+            this.phone.updateMatrixWorld(true);
             this.texture.needsUpdate = true;
             this.textureDepth.needsUpdate = true;
 
@@ -561,7 +562,23 @@ void main() {
                 this.sceneGraphNode.setLocalMatrix(newMatrix);
             }
 
-            realityEditor.device.desktopCamera.update(true);
+            if (this.shaderMode === ShaderMode.FIRST_PERSON) {
+                let matrix = this.phone.matrixWorld.clone();
+
+                let initialVehicleMatrix = new THREE.Matrix4().fromArray([
+                    -1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, -1, 0,
+                    0, 0, 0, 1,
+                ]);
+                matrix.multiply(initialVehicleMatrix);
+                let eye = new THREE.Vector3(0, 0, 0);
+                eye.applyMatrix4(matrix);
+                let target = new THREE.Vector3(0, 0, -1);
+                target.applyMatrix4(matrix);
+                matrix.lookAt(eye, target, new THREE.Vector3(0, 1, 0));
+                realityEditor.sceneGraph.setCameraPosition(matrix.elements);
+            }
         }
 
         hideNearCamera() {
