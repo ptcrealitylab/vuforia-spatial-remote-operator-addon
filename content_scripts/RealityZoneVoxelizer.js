@@ -2,7 +2,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
-import { BufferGeometryUtils } from '../../thirdPartyCode/three/BufferGeometryUtils.module.js';
+import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometryUtils.module.js';
 
 (function(exports) {
     class OctTree {
@@ -175,7 +175,7 @@ import { BufferGeometryUtils } from '../../thirdPartyCode/three/BufferGeometryUt
 
             let geometry = geometries[0];
             if (geometries.length > 1) {
-                const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries);
+                const mergedGeometry = mergeBufferGeometries(geometries);
                 geometry = mergedGeometry;
             }
 
