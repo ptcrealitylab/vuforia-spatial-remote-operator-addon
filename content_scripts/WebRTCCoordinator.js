@@ -125,12 +125,19 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
         initConnection(otherId) {
             const conn = this.webrtcConnections[otherId];
-            const goodConnStates = ['new', 'connecting', 'connected'];
-            if (conn && goodConnStates.includes(conn.connectionState)) {
-                if (!conn.offered) {
-                    conn.connect();
+            const goodChannelStates = ['connecting', 'open'];
+
+            if (conn) {
+                // connection already as good as it gets
+                if (conn.receiveChannel &&
+                    goodChannelStates.includes(conn.receiveChannel.readyState)) {
+                    return;
                 }
-                return;
+
+                // This was initiated by the provider side, don't mess with it
+                if (!conn.offered) {
+                    return;
+                }
             }
 
             let newConn = new WebRTCConnection(
