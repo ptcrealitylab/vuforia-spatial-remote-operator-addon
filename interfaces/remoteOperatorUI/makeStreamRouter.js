@@ -158,11 +158,18 @@ module.exports = function makeStreamRouter(app) {
                     if (!providers.includes(wsId)) {
                         providers.push(wsId);
                     }
+                    // idToSocket may have duplicates
+                    let socketsSentTo = [];
                     for (let peerId in idToSocket) {
                         if (providers.includes(peerId)) {
                             continue;
                         }
-                        idToSocket[peerId].send(JSON.stringify(msg));
+                        let sock = idToSocket[peerId];
+                        if (socketsSentTo.includes(sock)) {
+                            continue;
+                        }
+                        socketsSentTo.push(sock);
+                        sock.send(JSON.stringify(msg));
                     }
                 }
             }
