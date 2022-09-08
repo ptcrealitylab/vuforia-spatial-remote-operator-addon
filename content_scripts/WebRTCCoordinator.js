@@ -124,6 +124,15 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         initConnection(otherId) {
+            const conn = this.webrtcConnections[otherId];
+            const goodConnStates = ['new', 'connecting', 'connected'];
+            if (conn && goodConnStates.includes(conn.connectionState)) {
+                if (!conn.offered) {
+                    conn.connect();
+                }
+                return;
+            }
+
             let newConn = new WebRTCConnection(
                 this.cameraVisCoordinator,
                 this.ws,
