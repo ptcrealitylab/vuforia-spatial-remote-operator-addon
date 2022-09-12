@@ -406,7 +406,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             realityEditor.gui.threejsScene.setMatrixFromArray(virtualizerMatrixThree, relativeMatrix);
 
             // the new focus of the camera should be the point 1 meter in front of the virtualizer
-            let virtualizerForwardPosition = this.followingState.partiallyStabilizedTargetObject.getWorldPosition();
+            let virtualizerForwardPosition = this.followingState.partiallyStabilizedTargetObject.getWorldPosition(new THREE.Vector3());
 
             this.targetPosition = [virtualizerForwardPosition.x, virtualizerForwardPosition.y, virtualizerForwardPosition.z];
 
