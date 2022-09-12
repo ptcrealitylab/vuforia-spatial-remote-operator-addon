@@ -81,6 +81,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let scrollTimeout = null;
             window.addEventListener('wheel', function(event) {
                 this.mouseInput.unprocessedScroll += event.deltaY;
+                if (this.followingState && this.followingState.currentlyRendering2DVideo) {
+                    this.followingState.currentlyRendering2DVideo = false;
+                    realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                }
                 event.preventDefault();
 
                 // update scale callbacks based on whether you've scrolled in this 150ms time period
@@ -148,6 +152,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                     this.mouseInput.unprocessedDX += xOffset;
                     this.mouseInput.unprocessedDY += yOffset;
+
+                    if (this.followingState && this.followingState.currentlyRendering2DVideo) {
+                        this.followingState.currentlyRendering2DVideo = false;
+                        realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                    }
 
                     this.mouseInput.last.x = event.pageX;
                     this.mouseInput.last.y = event.pageY;
