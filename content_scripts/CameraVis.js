@@ -94,6 +94,33 @@ void main() {
   gl_PointSize = pointSizeBase + pointSize * depth * depthScale + glPosScale / gl_Position.w;
 }`;
 
+    const firstPersonVertexShader = `
+uniform sampler2D map;
+
+uniform float width;
+uniform float height;
+uniform float glPosScale;
+
+varying vec2 vUv;
+varying vec4 pos;
+
+const float XtoZ = 1920.0 / 1448.24976; // width over focal length
+const float YtoZ = 1080.0 / 1448.24976;
+
+void main() {
+  vUv = vec2(position.x / width, position.y / height);
+
+  float z = 100.0;
+
+  pos = vec4(
+    (position.x / width - 0.5) * z * XtoZ,
+    (position.y / height - 0.5) * z * YtoZ,
+    -z,
+    1.0);
+
+  gl_Position = projectionMatrix * modelViewMatrix * pos;
+}`;
+
     const pointFragmentShader = `
 uniform sampler2D map;
 
@@ -457,6 +484,11 @@ void main() {
                 break;
             }
 
+            let chosenVertexShader = vertexShader;
+            if (shaderMode === ShaderMode.FIRST_PERSON) {
+                chosenVertexShader = firstPersonVertexShader;
+            }
+
             let material = new THREE.ShaderMaterial({
                 uniforms: {
                     depthMin: {value: 0.1},
@@ -471,7 +503,7 @@ void main() {
                     // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                 },
-                vertexShader,
+                vertexShader: chosenVertexShader,
                 fragmentShader,
                 // blending: THREE.AdditiveBlending,
                 depthTest: shaderMode !== ShaderMode.FIRST_PERSON,
@@ -913,7 +945,7 @@ void main() {
                         context: canvas.getContext('2d'),
                     };
                 }
-                let {canvas, context} = this.depthCanvasCache[id];
+                let {canvas} = this.depthCanvasCache[id];
                 tex.image = canvas;
             } else {
                 if (!this.colorCanvasCache.hasOwnProperty(id)) {
