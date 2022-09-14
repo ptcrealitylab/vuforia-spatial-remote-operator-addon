@@ -173,13 +173,17 @@ void main() {
   // dot of pos.xyz and the normal is to what extent this pixel is flat
   // relative to the camera (alternatively, how much it's pointing at the
   // camera)
+  // Roughly calculated curve such that fading starts at 45 degrees and is done
+  // by ~78
+  float alphaNorm = clamp(1.75 * abs(dot(normalize(pos.xyz), normal)) - 0.2, 0.0, 1.0);
   // alphaDepth is thrown in here to incorporate the depth-based fade
-  float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth;
+  float alpha = alphaNorm * alphaDepth;
 
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
 
   gl_FragColor = vec4(color.rgb, alpha);
+  // gl_FragColor = vec4(alphaNorm, alphaNorm, alphaDepth, 1.0);
 }`;
 
 
