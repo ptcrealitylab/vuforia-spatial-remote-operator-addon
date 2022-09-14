@@ -479,7 +479,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         } else if (hipKneeLeftScore < 2) {
             skel.angles.hipKneeLeft[5] = 1;
         } else {
-            skel.angles.hipKneeLeft[5] == 2;
+            skel.angles.hipKneeLeft[5] = 2;
         }
         return hipKneeLeftScore;
     }
@@ -502,7 +502,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         } else if (hipKneeRightScore < 2) {
             skel.angles.hipKneeRight[5] = 1;
         } else {
-            skel.angles.hipKneeRight[5] == 2;
+            skel.angles.hipKneeRight[5] = 2;
         }
         return hipKneeRightScore;
     }
@@ -823,6 +823,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             skel.joints[POSE_NET_JOINTS.RIGHT_SHOULDER],
             skel.joints[POSE_NET_JOINTS.LEFT_SHOULDER],
             skel.joints[POSE_NET_JOINTS.RIGHT_SHOULDER],
+            skel.joints[POSE_NET_JOINTS.LEFT_HIP],
+            skel.joints[POSE_NET_JOINTS.RIGHT_HIP],
         ]);
         skel.joints[POSE_NET_JOINTS.NAVEL] = average([
             skel.joints[POSE_NET_JOINTS.LEFT_SHOULDER],
