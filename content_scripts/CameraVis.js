@@ -913,7 +913,7 @@ void main() {
                         context: canvas.getContext('2d'),
                     };
                 }
-                let {canvas, context} = this.depthCanvasCache[id];
+                let {canvas} = this.depthCanvasCache[id];
                 tex.image = canvas;
             } else {
                 if (!this.colorCanvasCache.hasOwnProperty(id)) {
