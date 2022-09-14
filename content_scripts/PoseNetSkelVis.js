@@ -90,6 +90,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.container.add(bone);
             }
 
+            // Hide the shoulder-hip connections manually
+            this.bones[5].visible = false;
+            this.bones[7].visible = false;
+
             this.redMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0xFF0000});
             this.yellowMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0xFFFF00});
             this.greenMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0x00ff00});
