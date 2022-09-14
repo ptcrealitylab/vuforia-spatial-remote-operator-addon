@@ -364,7 +364,7 @@ void main() {
             let debugDepth = new THREE.MeshBasicMaterial({
                 map: this.textureDepth,
             });
-            let debugDepthCube = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), debugDepth);
+            let debugDepthCube = new THREE.Mesh(new THREE.PlaneGeometry(500, 500 * DEPTH_HEIGHT / DEPTH_WIDTH), debugDepth);
             this.container.add(debugDepthCube);
             debugDepthCube.position.set(400, 250, -1000);
 
