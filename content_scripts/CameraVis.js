@@ -340,12 +340,12 @@ void main() {
             phone.frustumCulled = false;
 
             let texture = new THREE.Texture();
-            texture.minFilter = THREE.NearestFilter;
-            texture.magFilter = THREE.NearestFilter;
+            // texture.minFilter = THREE.NearestFilter;
+            // texture.magFilter = THREE.NearestFilter;
 
             let textureDepth = new THREE.Texture();
-            textureDepth.minFilter = THREE.NearestFilter;
-            textureDepth.magFilter = THREE.NearestFilter;
+            // textureDepth.minFilter = THREE.NearestFilter;
+            // textureDepth.magFilter = THREE.NearestFilter;
 
             texture.image = textureImage;
             textureDepth.image = textureDepthImage;
