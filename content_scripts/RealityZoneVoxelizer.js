@@ -356,7 +356,7 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                         y / height,
                         1
                     );
-                    let depth = rawDepth[y * width + x];
+                    let depth = rawDepth[y * width + x] * 5000 / (1 << 14);
                     const z = depth;
                     ray.x = -(x / width - 0.5) * z * XtoZ;
                     ray.y = -(y / height - 0.5) * z * YtoZ;
