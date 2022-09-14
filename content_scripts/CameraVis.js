@@ -266,12 +266,20 @@ void main() {
             this.phone.add(this.cameraMeshGroup);
 
             this.texture = new THREE.Texture();
-            this.texture.minFilter = THREE.NearestFilter;
-            this.texture.magFilter = THREE.NearestFilter;
+            this.texture.minFilter = THREE.LinearFilter;
+            this.texture.magFilter = THREE.LinearFilter;
+            this.texture.generateMipmaps = false;
+            this.texture.isVideoTexture = true;
+            this.texture.update = function() {
+            };
 
             this.textureDepth = new THREE.Texture();
-            this.textureDepth.minFilter = THREE.NearestFilter;
-            this.textureDepth.magFilter = THREE.NearestFilter;
+            this.textureDepth.minFilter = THREE.LinearFilter;
+            this.textureDepth.magFilter = THREE.LinearFilter;
+            this.textureDepth.generateMipmaps = false;
+            this.textureDepth.isVideoTexture = true;
+            this.textureDepth.update = function() {
+            };
 
             this.material = null;
             this.mesh = null;
@@ -346,10 +354,16 @@ void main() {
             let texture = new THREE.Texture();
             // texture.minFilter = THREE.NearestFilter;
             // texture.magFilter = THREE.NearestFilter;
+            // texture.minFilter = THREE.LinearFilter;
+            // texture.magFilter = THREE.LinearFilter;
+            // texture.generateMipmaps = false;
 
             let textureDepth = new THREE.Texture();
             // textureDepth.minFilter = THREE.NearestFilter;
             // textureDepth.magFilter = THREE.NearestFilter;
+            // textureDepth.minFilter = THREE.LinearFilter;
+            // textureDepth.magFilter = THREE.LinearFilter;
+            // textureDepth.generateMipmaps = false;
 
             texture.image = textureImage;
             textureDepth.image = textureDepthImage;
