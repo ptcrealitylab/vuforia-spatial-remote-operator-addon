@@ -409,7 +409,7 @@ void main() {
 
             let geometry;
             if (shaderMode !== ShaderMode.POINT) {
-                geometry = new THREE.PlaneBufferGeometry(width, height, width / 5, height / 5);
+                geometry = new THREE.PlaneBufferGeometry(width, height, DEPTH_WIDTH / 2, DEPTH_HEIGHT / 2);
                 geometry.translate(width / 2, height / 2);
             } else {
                 geometry = new THREE.BufferGeometry();
