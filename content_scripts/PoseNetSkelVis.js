@@ -70,7 +70,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.bones = [];
             this.ghost = (typeof skel.id === 'string') && skel.id.includes('ghost');
             this.createSpheres();
-            this.createHistoryLine(historyLineContainer);
+            this.historyLineContainer = historyLineContainer;
+            this.historyLineMeshes = [];
+            this.createNewHistoryLine();
             this.update(skel);
         }
 
@@ -99,20 +101,21 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.greenMaterial = new THREE.MeshBasicMaterial({color: this.ghost ? 0x777777 : 0x00ff00});
         }
 
-        createHistoryLine(container) {
+        createNewHistoryLine() {
             this.historyLine = new realityEditor.device.meshLine.MeshLine();
             const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
                 color: this.ghost ? 0x777777 : 0xffff00,
-                // opacity: 0.6,
+                opacity: 0.6,
                 lineWidth: 14,
                 // depthWrite: false,
                 transparent: false,
                 side: THREE.DoubleSide,
             });
-            this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);
+            let newMesh = new THREE.Mesh(this.historyLine, lineMat);
+            this.historyLineMeshes.push(newMesh);
             this.historyPoints = [];
             this.historyLine.setPoints(this.historyPoints);
-            container.add(this.historyMesh);
+            this.historyLineContainer.add(newMesh);
         }
 
         update(skel) {
@@ -130,11 +133,20 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 sphere.position.z = joint.z;
             }
 
-            this.historyPoints.push(new THREE.Vector3(
+            let newPoint = new THREE.Vector3(
                 this.spheres[0].position.x,
                 this.spheres[0].position.y + 0.4,
                 this.spheres[0].position.z,
-            ));
+            );
+
+            if (this.historyPoints.length > 0) {
+                let oldPoint = this.historyPoints[this.historyPoints.length - 1];
+                if (newPoint.distanceToSquared(oldPoint) > 4) {
+                    this.createNewHistoryLine();
+                }
+            }
+
+            this.historyPoints.push(newPoint);
             this.historyLine.setPoints(this.historyPoints);
 
             for (let i = 0; i < this.bones.length; i++) {
