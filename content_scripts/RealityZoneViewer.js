@@ -71,8 +71,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             for (let id in this.skelVisses) {
                 const skelVis = this.skelVisses[id];
                 if (!skelVis.updated ||
-                    Date.now() - skelVis.lastUpdate > 1500) {
-                    this.historyLineMeshes.push(skelVis.historyMesh);
+                    Date.now() - skelVis.lastUpdate > 500) {
+                    this.historyLineMeshes.push(...skelVis.historyLineMeshes);
                     this.skelVisses[id].removeFromScene();
                     delete this.skelVisses[id];
                 }
