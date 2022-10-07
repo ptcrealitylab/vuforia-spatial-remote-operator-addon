@@ -614,9 +614,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // TODO: ensure that visibleObjects that aren't known objects get filtered out
 
-        // trigger main update function after a 100ms delay, to synchronize with the approximate lag of the realityZone image processing
-        // updateAfterDelay(visibleMatrixCopy, 100);
-        updateAfterDelay(getVisibleObjects(), 100);
+        realityEditor.gui.ar.draw.update(getVisibleObjects());
 
         // repeat loop on next render
         requestAnimationFrame(update);
@@ -667,12 +665,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         });
 
         return tempVisibleObjects;
-    }
-
-    function updateAfterDelay(matrices, delayInMs) {
-        setTimeout(function() {
-            realityEditor.gui.ar.draw.update(matrices);
-        }, delayInMs);
     }
 
     /**
