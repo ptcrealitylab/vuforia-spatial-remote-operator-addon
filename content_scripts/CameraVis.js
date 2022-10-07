@@ -652,7 +652,8 @@ void main() {
             this.colorCanvasCache = {};
             this.showCanvasTimeout = null;
             this.callbacks = {
-                onCameraVisCreated: []
+                onCameraVisCreated: [],
+                onCameraVisRemoved: [],
             };
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
@@ -739,8 +740,12 @@ void main() {
                     camera.mesh.visible = false;
                     continue;
                 }
-                if (now - camera.lastUpdate > 2000) {
-                    camera.mesh.visible = false;
+                if (now - camera.lastUpdate > 5000) {
+                    camera.remove();
+                    delete this.cameras[camera.id];
+                    this.callbacks.onCameraVisRemoved.forEach(cb => {
+                        cb(camera);
+                    });
                 } else if (!camera.mesh.visible) {
                     camera.mesh.visible = true;
                 }
@@ -1026,6 +1031,10 @@ void main() {
 
         onCameraVisCreated(cb) {
             this.callbacks.onCameraVisCreated.push(cb);
+        }
+
+        onCameraVisRemoved(cb) {
+            this.callbacks.onCameraVisRemoved.push(cb);
         }
 
         createCameraVis(id) {
