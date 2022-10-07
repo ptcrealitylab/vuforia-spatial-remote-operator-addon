@@ -222,7 +222,13 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 }],
             });
 
-            this.receiveChannel = this.localConnection.createDataChannel('sendChannel');
+            this.receiveChannel = this.localConnection.createDataChannel(
+                'sendChannel',
+                {
+                    ordered: false,
+                    maxRetransmits: 0,
+                },
+            );
             this.receiveChannel.binaryType = 'arraybuffer';
             this.receiveChannel.onopen = this.onReceiveChannelStatusChange;
             this.receiveChannel.onclose = this.onReceiveChannelStatusChange;
