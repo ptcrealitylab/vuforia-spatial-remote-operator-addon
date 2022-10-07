@@ -27,6 +27,11 @@ createNameSpace('realityEditor.device.desktopStats');
     let isVisible = false;
 
     function initService() {
+        if (!realityEditor.device.desktopAdapter) {
+            setTimeout(initService, 50);
+            return;
+        }
+
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
         // wait until the menubar is initialized
