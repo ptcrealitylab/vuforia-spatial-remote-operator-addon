@@ -115,7 +115,17 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         restyleForDesktop();
         modifyGlobalNamespace();
-        realityEditor.gui.setupMenuBar();
+
+        function setupMenuBarWhenReady() {
+            if (realityEditor.gui.setupMenuBar) {
+                realityEditor.gui.setupMenuBar();
+                setupMenuBarItems();
+                return;
+            }
+            setTimeout(setupMenuBarWhenReady, 50);
+        }
+
+        setupMenuBarWhenReady();
 
         // TODO realtime interactions between remote operator and AR clients need to be re-tested and possibly fixed
         setTimeout(function() {
@@ -155,7 +165,37 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
 
         // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
+        let keyboard = new realityEditor.device.KeyboardListener();
+        keyboard.onKeyDown(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
 
+            // if hold press S while dragging an element, scales it
+            if (code === keyboard.keyCodes.S) {
+                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
+
+                if (!realityEditor.device.editingState.syntheticPinchInfo) {
+                    realityEditor.device.editingState.syntheticPinchInfo = {
+                        startX: touchPosition.x,
+                        startY: touchPosition.y
+                    };
+                }
+            }
+        });
+        keyboard.onKeyUp(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            if (code === keyboard.keyCodes.S) {
+                realityEditor.device.editingState.syntheticPinchInfo = null;
+                globalCanvas.hasContent = true; // force the canvas to be cleared
+            }
+        });
+
+        setTimeout(() => {
+            update();
+        }, 100);
+    }
+
+    function setupMenuBarItems() {
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
             realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode(value);
         });
@@ -189,33 +229,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 deviceDropdown.dom.style.display = 'none';
             }
         }
-
-        let keyboard = new realityEditor.device.KeyboardListener();
-        keyboard.onKeyDown(function(code) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-            // if hold press S while dragging an element, scales it
-            if (code === keyboard.keyCodes.S) {
-                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
-
-                if (!realityEditor.device.editingState.syntheticPinchInfo) {
-                    realityEditor.device.editingState.syntheticPinchInfo = {
-                        startX: touchPosition.x,
-                        startY: touchPosition.y
-                    };
-                }
-            }
-        });
-        keyboard.onKeyUp(function(code) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-            if (code === keyboard.keyCodes.S) {
-                realityEditor.device.editingState.syntheticPinchInfo = null;
-                globalCanvas.hasContent = true; // force the canvas to be cleared
-            }
-        });
-
-        update();
     }
 
     /**
