@@ -180,6 +180,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
                     });
 
+                    cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
+                        console.log('onCameraVisRemoved', cameraVis);
+                        cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
+                            return sceneNode !== cameraVis.sceneGraphNode;
+                        });
+                    });
+
                     realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
                     realityZoneViewer.draw();
 
