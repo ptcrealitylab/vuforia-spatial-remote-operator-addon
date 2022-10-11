@@ -110,13 +110,13 @@ createNameSpace('realityEditor.videoPlayback');
         }
         updateDomForMonth(monthIndex, year) {
             let date = new Date(year, monthIndex);
-            console.log('new date = ' + date.toString());
+            console.debug('new date = ' + date.toString());
             let monthName = this.monthNames[monthIndex];
             document.getElementById('calMonthName').innerText = monthName + ' ' + year;
             let calDates = document.getElementById('calDates');
             let numDays = this.daysInMonth(monthIndex, year);
-            console.log(monthName + ' has ' + numDays + ' days');
-            console.log(date.getDate() + ' is a ' + this.weekDayNames[date.getDay()]);
+            console.debug(monthName + ' has ' + numDays + ' days');
+            console.debug(date.getDate() + ' is a ' + this.weekDayNames[date.getDay()]);
             let dayOneIndex = date.getDay();
             let searching = true;
             let isNextMonth = false;
@@ -197,7 +197,7 @@ createNameSpace('realityEditor.videoPlayback');
             }
 
             this.selectedDate.day = parseInt(elt.getAttribute('dayNumber'));
-            console.log('selected day: ' + this.selectedDate.day);
+            console.debug('selected day: ' + this.selectedDate.day);
 
             this.dateWhenSelected.day = this.selectedDate.day;
             this.dateWhenSelected.month = this.selectedDate.month;
