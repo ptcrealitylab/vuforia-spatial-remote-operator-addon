@@ -153,7 +153,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
         var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 0.1, 300000);
-        console.log('calculated desktop projection matrix:', desktopProjectionMatrix);
+        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
 
         unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 0.1, 300000);
 
@@ -235,13 +235,12 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      * Builds a projection matrix from field of view, aspect ratio, and near and far planes
      */
     function projectionMatrixFrom(vFOV, aspect, near, far) {
-        console.log(Math.DEG2RAD);
         var top = near * Math.tan((Math.PI / 180) * 0.5 * vFOV );
-        console.log('top', top);
+        console.debug('top', top);
         var height = 2 * top;
         var width = aspect * height;
         var left = -0.5 * width;
-        console.log(vFOV, aspect, near, far);
+        console.debug(vFOV, aspect, near, far);
         return makePerspective( left, left + width, top, top - height, near, far );
     }
 
