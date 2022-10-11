@@ -169,7 +169,7 @@ createNameSpace('realityEditor.videoPlayback');
             // reset highlights, and re-select a date if you scrolled the month since it was selected
             if (this.selectedDate.month === this.dateWhenSelected.month &&
                 this.selectedDate.year === this.dateWhenSelected.year) {
-                Array.from(calDates.children).forEach((elt, i) => {
+                Array.from(calDates.children).forEach((elt) => {
                     let dayNumber = parseInt(elt.getAttribute('dayNumber'));
                     if (dayNumber === this.dateWhenSelected.day) {
                         this.selectDate(elt);
@@ -178,7 +178,7 @@ createNameSpace('realityEditor.videoPlayback');
             }
 
             // reset highlights
-            Array.from(calDates.children).forEach((elt, i) => {
+            Array.from(calDates.children).forEach((elt) => {
                 elt.classList.remove('highlightedDate');
             });
             this.highlightDates(this.highlightedDates);
