@@ -17,7 +17,7 @@ createNameSpace('realityEditor.videoPlayback');
             this.timelineController = new playback.TimelineController();
             this.database = new playback.TimelineDatabase();
             let _videoSources = new playback.VideoSources((videoInfo, trackInfo) => {
-                console.log('VideoPlaybackCoordinator got trackInfo', trackInfo);
+                console.debug('VideoPlaybackCoordinator got trackInfo', trackInfo);
                 for (const [trackId, trackData] of Object.entries(trackInfo.tracks)) {
                     let track = new playback.DataTrack(trackId, playback.TRACK_TYPES.VIDEO_3D);
                     for (const [segmentId, segmentData] of Object.entries(trackData.segments)) {
@@ -37,7 +37,7 @@ createNameSpace('realityEditor.videoPlayback');
                     }
                     this.database.addTrack(track);
                 }
-                console.log(this.database);
+                console.debug('VideoPlaybackCoordinator database', this.database);
 
                 // this.timeline.loadTracks(trackInfo);
                 this.timelineController.setDatabase(this.database);
