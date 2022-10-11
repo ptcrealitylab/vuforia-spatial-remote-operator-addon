@@ -357,15 +357,21 @@ createNameSpace('realityEditor.device.desktopCamera');
     function addSensitivitySlidersToMenu() {
         // add sliders for strafe, rotate, and zoom sensitivity
         realityEditor.gui.settings.addSlider('Zoom Sensitivity', 'how fast scroll wheel zooms camera', 'cameraZoomSensitivity',  '../../../svg/cameraZoom.svg', 0.5, function(newValue) {
-            console.log('zoom value = ' + newValue);
+            if (DEBUG) {
+                console.log('zoom value = ' + newValue);
+            }
         });
 
         realityEditor.gui.settings.addSlider('Pan Sensitivity', 'how fast keybord pans camera', 'cameraPanSensitivity',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('pan value = ' + newValue);
+            if (DEBUG) {
+                console.log('pan value = ' + newValue);
+            }
         });
 
         realityEditor.gui.settings.addSlider('Rotate Sensitivity', 'how fast right-click dragging rotates camera', 'cameraRotateSensitivity',  '../../../svg/cameraRotate.svg', 0.5, function(newValue) {
-            console.log('rotate value = ' + newValue);
+            if (DEBUG) {
+                console.log('rotate value = ' + newValue);
+            }
         });
     }
 
