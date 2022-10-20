@@ -48,7 +48,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     let gltf = null;
     let staticModelMode = false;
-    let realityZoneViewer = null;
     let videoPlayback = null;
     let cameraVisCoordinator = null;
     let cameraVisSceneNodes = [];
@@ -187,9 +186,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         });
                     });
 
-                    realityZoneViewer = new realityEditor.gui.ar.desktopRenderer.RealityZoneViewer(floorOffset);
-                    realityZoneViewer.draw();
-
                     if (!PROXY) {
                         videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
                         videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
@@ -255,13 +251,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
-            if (!realityZoneViewer) { return; }
-            realityZoneViewer.resetHistory();
+            if (!realityEditor.humanPose.draw) { return; }
+            realityEditor.humanPose.draw.resetHistory();
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (toggled) => {
-            if (!realityZoneViewer) { return; }
-            realityZoneViewer.toggleHistory(toggled);
+            if (!realityEditor.humanPose.draw) { return; }
+            realityEditor.humanPose.draw.setHistoryVisible(toggled);
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(
