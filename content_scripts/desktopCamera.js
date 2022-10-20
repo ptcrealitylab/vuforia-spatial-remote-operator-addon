@@ -538,8 +538,8 @@ createNameSpace('realityEditor.device.desktopCamera');
                     let sceneNode = realityEditor.sceneGraph.getSceneNodeById(cameraTargetElementId);
                     sceneNode.setLocalMatrix(virtualCamera.getTargetMatrix());
 
+                    const THREE = realityEditor.gui.threejsScene.THREE;
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
-                        const THREE = realityEditor.gui.threejsScene.THREE;
                         cameraTargetIcon = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
                         cameraTargetIcon.name = 'cameraTargetElement';
                         cameraTargetIcon.matrixAutoUpdate = false;
@@ -547,7 +547,11 @@ createNameSpace('realityEditor.device.desktopCamera');
                         realityEditor.gui.threejsScene.addToScene(cameraTargetIcon, {worldObjectId: worldId}); //{worldObjectId: areaTargetNode.id, occluded: true});
                     }
                     if (cameraTargetIcon) {
-                        realityEditor.gui.threejsScene.setMatrixFromArray(cameraTargetIcon.matrix, sceneNode.worldMatrix); //virtualCamera.getTargetMatrix());
+                        // move the cameraTargetIcon to the center of the view, but scale it down if we zoom too close so it doesn't become obnoxious
+                        const cursorScale = Math.min(1.0, realityEditor.sceneGraph.getDistanceToCamera(cameraTargetElementId) / 1000);
+                        let limitedScaleCursorMatrix = realityEditor.gui.ar.utilities.copyMatrix(sceneNode.worldMatrix);
+                        [0, 5, 10].forEach(index => limitedScaleCursorMatrix[index] *= cursorScale);
+                        realityEditor.gui.threejsScene.setMatrixFromArray(cameraTargetIcon.matrix, limitedScaleCursorMatrix);
                     }
 
                     if (unityCamera) {
