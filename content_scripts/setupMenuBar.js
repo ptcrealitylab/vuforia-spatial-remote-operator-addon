@@ -33,7 +33,10 @@ createNameSpace('realityEditor.gui');
         GettingStarted: 'Getting Started',
         ShowDeveloperMenu: 'Show Developer Menu',
         DebugAvatarConnections: 'Debug Avatar Connections',
-        ViewCones: 'Show View Cones'
+        ViewCones: 'Show View Cones',
+        ResetClones: 'Reset Clones',
+        ToggleRecordClones: 'Toggle Clone Recording',
+        AdvanceCloneMaterial: 'Next Clone Lens',
     });
     exports.ITEM = ITEM;
 
@@ -83,11 +86,20 @@ createNameSpace('realityEditor.gui');
         const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
 
-        const resetRzvHistory = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, resetRzvHistory);
+        const toggleRzvHistoryCloneRecording = new MenuItem(ITEM.ToggleRecordClones, { toggle: true, defaultVal: false, disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, toggleRzvHistoryCloneRecording);
 
-        const toggleRzvHistory = new MenuItem(ITEM.TogglePaths, { shortcutKey: 'E', toggle: true, defaultVal: false, disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, toggleRzvHistory);
+        const rzvAdvanceCloneMaterial = new MenuItem(ITEM.AdvanceCloneMaterial, { disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, rzvAdvanceCloneMaterial);
+
+        const resetRzvHistoryClones = new MenuItem(ITEM.ResetClones, { disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, resetRzvHistoryClones);
+
+        const toggleRzvHistoryLines = new MenuItem(ITEM.TogglePaths, { shortcutKey: 'E', toggle: true, defaultVal: false, disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, toggleRzvHistoryLines);
+
+        const resetRzvHistoryLines = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, resetRzvHistoryLines);
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, clonePatch);
