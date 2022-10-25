@@ -1048,6 +1048,11 @@ void main() {
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
+
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetClones, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ToggleRecordClones, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCloneMaterial, true);
+
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);

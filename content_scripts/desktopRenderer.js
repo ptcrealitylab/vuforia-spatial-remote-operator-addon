@@ -252,12 +252,27 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
             if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.resetHistory();
+            realityEditor.humanPose.draw.resetHistoryLines();
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (toggled) => {
             if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.setHistoryVisible(toggled);
+            realityEditor.humanPose.draw.setHistoryLinesVisible(toggled);
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetClones, () => {
+            if (!realityEditor.humanPose.draw) { return; }
+            realityEditor.humanPose.draw.resetHistoryClones();
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleRecordClones, (toggled) => {
+            if (!realityEditor.humanPose.draw) { return; }
+            realityEditor.humanPose.draw.setRecordingClonesEnabled(toggled);
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.AdvanceCloneMaterial, () => {
+            if (!realityEditor.humanPose.draw) { return; }
+            realityEditor.humanPose.draw.advanceCloneMaterial();
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(
