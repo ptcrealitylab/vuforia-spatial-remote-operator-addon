@@ -10,7 +10,7 @@ createNameSpace('realityEditor.device.multiclientUI');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
-(function(exports) {
+(function() {
     let allConnectedCameras = {};
     let isCameraSubscriptionActiveForObject = {};
 
@@ -131,7 +131,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     // helper function to generate an integer hash from a string (https://stackoverflow.com/a/15710692)
     function hashCode(s) {
-        return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+        return s.split("").reduce(function(a, b) {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+        }, 0);
     }
 
     function update() {

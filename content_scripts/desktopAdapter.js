@@ -6,6 +6,8 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
+/* globals globalCanvas */
+
 createNameSpace('realityEditor.device.desktopAdapter');
 
 /**
@@ -501,7 +503,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         async function getUndownloadedObjectWorldId(beat) {
             // download the object data from its server
-            let url =  realityEditor.network.getURL(beat.ip, realityEditor.network.getPort(beat), '/object/' + beat.id)
+            let url =  realityEditor.network.getURL(beat.ip, realityEditor.network.getPort(beat), '/object/' + beat.id);
             let response = null;
             try {
                 response = await httpGet(url);
@@ -769,7 +771,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 // console.log('zoneDiscoveredListener', message);
 
                 // create a new web socket with the zone at the specified address received over UDP
-                let potentialZoneAddress =  realityEditor.network.getURL(message.ip, realityEditor.network.getPort(message), '')
+                let potentialZoneAddress =  realityEditor.network.getURL(message.ip, realityEditor.network.getPort(message), '');
 
                 var alreadyContainsIP = zoneDropdown.selectables.map(function(selectableObj) {
                     return selectableObj.id;
@@ -894,7 +896,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // lazily instantiate the socket to the server if it doesn't exist yet
         var socketsIps = realityEditor.network.realtime.getSocketIPsForSet('nativeAPI');
         // var hostedServerIP = 'http://127.0.0.1:' + window.location.port;
-        var hostedServerIP = window.location.protocol+'//' + window.location.host; //'http://127.0.0.1:' + window.location.port;
+        var hostedServerIP = window.location.protocol + '//' + window.location.host; //'http://127.0.0.1:' + window.location.port;
 
         if (socketsIps.indexOf(hostedServerIP) < 0) {
             realityEditor.network.realtime.createSocketInSet('nativeAPI', hostedServerIP);
