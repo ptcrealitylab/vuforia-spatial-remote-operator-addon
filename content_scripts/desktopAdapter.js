@@ -164,31 +164,15 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
 
-        // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
-        let keyboard = new realityEditor.device.KeyboardListener();
-        keyboard.onKeyDown(function(code) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-            // if hold press S while dragging an element, scales it
-            if (code === keyboard.keyCodes.S) {
-                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
-
-                if (!realityEditor.device.editingState.syntheticPinchInfo) {
-                    realityEditor.device.editingState.syntheticPinchInfo = {
-                        startX: touchPosition.x,
-                        startY: touchPosition.y
-                    };
-                }
+        function setupKeyboardWhenReady() {
+            if (realityEditor.device.KeyboardListener) {
+                setupKeyboard();
+                return;
             }
-        });
-        keyboard.onKeyUp(function(code) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+            setTimeout(setupKeyboardWhenReady, 50);
+        }
 
-            if (code === keyboard.keyCodes.S) {
-                realityEditor.device.editingState.syntheticPinchInfo = null;
-                globalCanvas.hasContent = true; // force the canvas to be cleared
-            }
-        });
+        setupKeyboardWhenReady();
 
         setTimeout(() => {
             update();
@@ -229,6 +213,34 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 deviceDropdown.dom.style.display = 'none';
             }
         }
+    }
+
+    // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
+    function setupKeyboard() {
+        let keyboard = new realityEditor.device.KeyboardListener();
+        keyboard.onKeyDown(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // if hold press S while dragging an element, scales it
+            if (code === keyboard.keyCodes.S) {
+                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
+
+                if (!realityEditor.device.editingState.syntheticPinchInfo) {
+                    realityEditor.device.editingState.syntheticPinchInfo = {
+                        startX: touchPosition.x,
+                        startY: touchPosition.y
+                    };
+                }
+            }
+        });
+        keyboard.onKeyUp(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            if (code === keyboard.keyCodes.S) {
+                realityEditor.device.editingState.syntheticPinchInfo = null;
+                globalCanvas.hasContent = true; // force the canvas to be cleared
+            }
+        });
     }
 
     /**

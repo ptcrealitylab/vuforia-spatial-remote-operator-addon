@@ -56,6 +56,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
      * Public init method to enable rendering if isDesktop
      */
     function initService() {
+        if (!realityEditor.device.desktopAdapter) {
+            setTimeout(initService, 100);
+            return;
+        }
+
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
         const renderingFlagName = 'loadingWorldMesh';

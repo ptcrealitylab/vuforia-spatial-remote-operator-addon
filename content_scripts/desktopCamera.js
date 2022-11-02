@@ -123,6 +123,13 @@ createNameSpace('realityEditor.device.desktopCamera');
      * Public init method to enable rendering if isDesktop
      */
     function initService(floorOffset) {
+        if (!realityEditor.device.desktopAdapter) {
+            setTimeout(function() {
+                initService(floorOffset);
+            }, 100);
+            return;
+        }
+
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
         if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
