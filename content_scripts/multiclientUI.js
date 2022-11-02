@@ -58,6 +58,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     window.wireMat = wireMat;
 
     function initService() {
+        if (!realityEditor.device.desktopAdapter || !realityEditor.device.KeyboardListener || !realityEditor.gui.getMenuBar) {
+            setTimeout(initService, 100);
+            return;
+        }
+
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
