@@ -478,8 +478,9 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                     if (req.readyState === 4) {
                         if (req.status !== 200) {
                             reject('Invalid status code <' + req.status + '>');
+                        } else {
+                            resolve(JSON.parse(req.responseText));
                         }
-                        resolve(JSON.parse(req.responseText));
                     }
                 };
                 req.send();
