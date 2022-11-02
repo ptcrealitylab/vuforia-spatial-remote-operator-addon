@@ -43,7 +43,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         pan: false,
         rotate: false,
         scale: false
-    }
+    };
 
     let staticInteractionCursor = null;
     let interactionCursor = null;
@@ -105,16 +105,6 @@ createNameSpace('realityEditor.device.desktopCamera');
             c, 0, s, 0,
             0, 1, 0, 0,
             -s, 0, c, 0,
-            0, 0, 0, 1
-        ];
-    }
-
-    function makeGroundPlaneRotationZ(theta) {
-        var c = Math.cos(theta), s = Math.sin(theta);
-        return [
-            c, -s, 0, 0,
-            s, c, 0, 0,
-            0, 0, 1, 0,
             0, 0, 0, 1
         ];
     }
@@ -326,12 +316,12 @@ createNameSpace('realityEditor.device.desktopCamera');
     function chooseFollowTarget(index) {
         let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
         if (virtualizerSceneNodes.length === 0) { return null; }
-        index = Math.min(index, virtualizerSceneNodes.length-1);
+        index = Math.min(index, virtualizerSceneNodes.length - 1);
         const thisVirtualizerId = parseInt(virtualizerSceneNodes[index].id.match(/\d+/)[0]); // TODO: extract this in a less fragile way
         return {
             id: thisVirtualizerId,
             sceneNode: virtualizerSceneNodes[index]
-        }
+        };
     }
 
     // initialDistance is optional – if included, it will change the camera distance, if not it will keep it the same
