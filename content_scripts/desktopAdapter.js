@@ -73,7 +73,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     }
 
     function isDesktop() {
-        return window.navigator.userAgent.indexOf('Mobile') === -1 || window.navigator.userAgent.indexOf('Macintosh') > -1;
+        const userAgent = window.navigator.userAgent;
+        const isWebView = userAgent.includes('Mobile') && !userAgent.includes('Safari');
+        const isMac = userAgent.includes('Macintosh');
+
+        return (!isWebView) || isMac;
     }
 
     let env = realityEditor.device.environment.variables;
