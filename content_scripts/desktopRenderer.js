@@ -82,7 +82,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (isConnectedViaIp) {
                     allCriteriaMet = isSameIp && isWorldObject; // Connecting to same world object running on remote operator (excluding when connecting via domain name)
                 } else {
-                    allCriteriaMet = isWorldObject;
+                    allCriteriaMet = isWorldObject; // Otherwise, connect to first available world object
                 }
             }
 
