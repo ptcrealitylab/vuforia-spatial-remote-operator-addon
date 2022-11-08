@@ -71,12 +71,25 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (isGlbLoaded) { return; } // only do this for the first world object detected
 
             let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId();
-            let criteriaMet = primaryWorldId ? (objectKey === primaryWorldId) : (object.isWorldObject || object.type === 'world' );
+            let isConnectedViaIp = window.location.hostname.split('').every(char => '0123456789.'.includes(char)); // Already know hostname is valid, this is enough to check for IP
+            let isSameIp = object.ip === window.location.hostname;
+            let isWorldObject = object.isWorldObject || object.type === 'world';
 
-            if (!criteriaMet) {
-                return;
+            let allCriteriaMet;
+            if (primaryWorldId) {
+                allCriteriaMet = objectKey === primaryWorldId; // Connecting to specific world object via search param
+            } else {
+                if (isConnectedViaIp) {
+                    allCriteriaMet = isSameIp && isWorldObject; // Connecting to same world object running on remote operator (excluding when connecting via domain name)
+                } else {
+                    allCriteriaMet = isWorldObject;
+                }
             }
 
+            if (!allCriteriaMet) {
+                return;
+            }
+            
             if (objectKey.includes('_local')) {
                 console.warn('Rejected local world object');
                 return;
