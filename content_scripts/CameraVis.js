@@ -655,6 +655,8 @@ void main() {
                 onCameraVisCreated: [],
                 onCameraVisRemoved: [],
             };
+            
+            window.requestAnimationFrame(() => this.onAnimationFrame());
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -700,6 +702,26 @@ void main() {
             this.startWebRTC();
             this.restorePatches();
         }
+        
+        onAnimationFrame() {
+            let now = performance.now();
+            for (let camera of Object.values(this.cameras)) {
+                if (camera.mesh.__hidden) {
+                    camera.mesh.visible = false;
+                    continue;
+                }
+                if (now - camera.lastUpdate > 5000) {
+                    camera.remove();
+                    delete this.cameras[camera.id];
+                    this.callbacks.onCameraVisRemoved.forEach(cb => {
+                        cb(camera);
+                    });
+                } else if (!camera.mesh.visible) {
+                    camera.mesh.visible = true;
+                }
+            }
+            window.requestAnimationFrame(() => this.onAnimationFrame());
+        }
 
         connectWsToMatrix(url) {
             if (PROXY) {
@@ -733,23 +755,6 @@ void main() {
                 this.createCameraVis(id);
             }
             this.cameras[id].update(mat, delayed);
-
-            let now = performance.now();
-            for (let camera of Object.values(this.cameras)) {
-                if (camera.mesh.__hidden) {
-                    camera.mesh.visible = false;
-                    continue;
-                }
-                if (now - camera.lastUpdate > 5000) {
-                    camera.remove();
-                    delete this.cameras[camera.id];
-                    this.callbacks.onCameraVisRemoved.forEach(cb => {
-                        cb(camera);
-                    });
-                } else if (!camera.mesh.visible) {
-                    camera.mesh.visible = true;
-                }
-            }
         }
 
         connect() {
