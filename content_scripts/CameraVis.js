@@ -656,7 +656,8 @@ void main() {
                 onCameraVisRemoved: [],
             };
             
-            window.requestAnimationFrame(() => this.onAnimationFrame());
+            this.onAnimationFrame = this.onAnimationFrame.bind(this);
+            window.requestAnimationFrame(this.onAnimationFrame);
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -720,7 +721,7 @@ void main() {
                     camera.mesh.visible = true;
                 }
             }
-            window.requestAnimationFrame(() => this.onAnimationFrame());
+            window.requestAnimationFrame(this.onAnimationFrame);
         }
 
         connectWsToMatrix(url) {
