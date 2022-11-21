@@ -104,7 +104,7 @@ createNameSpace('realityEditor.gui');
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, clonePatch);
 
-        const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '', disabled: true }, null);
+        const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '' }, null);
         menuBar.addItemToMenu(MENU.History, undoPatch);
 
         const toggleVoxelizer = new MenuItem(ITEM.Voxelizer, { shortcutKey: '', toggle: true, defaultVal: false }, null); // other module can attach a callback later
