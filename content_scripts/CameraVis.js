@@ -1082,7 +1082,6 @@ void main() {
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.UndoPatch, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
