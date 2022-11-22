@@ -3,6 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
+import { MeshPath } from '../../src/gui/ar/meshPath.js';
 
 (function(exports) {
     const debug = false;
@@ -248,6 +249,7 @@ void main() {
                 }
             }
             const color = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+            const colorDarker = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 30%)`;
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';
@@ -294,18 +296,28 @@ void main() {
             this.matrices = [];
             this.loading = {};
 
-            this.historyLine = new realityEditor.device.meshLine.MeshLine();
-            const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
-                color: color,
-                opacity: 0.6,
-                lineWidth: 20,
-                // depthWrite: false,
-                transparent: true,
-                side: THREE.DoubleSide,
-            });
-            this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);
+            // this.historyLine = new realityEditor.device.meshLine.MeshLine();
+            // const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
+            //     color: color,
+            //     opacity: 0.6,
+            //     lineWidth: 20,
+            //     // depthWrite: false,
+            //     transparent: true,
+            //     side: THREE.DoubleSide,
+            // });
+            // this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);
             this.historyPoints = [];
-            this.historyLine.setPoints(this.historyPoints);
+            // this.historyLine.setPoints(this.historyPoints);
+
+            this.historyMesh = new MeshPath(this.historyPoints, {
+                topColor: color,
+                wallColor: colorDarker,
+                width_mm: 30,
+                height_mm: 30,
+                bottomScale: 1,
+                usePerVertexColors: false
+            });
+            
             this.container.add(this.historyMesh);
         }
 
@@ -573,7 +585,7 @@ void main() {
 
             if (addToHistory) {
                 this.historyPoints.push(nextHistoryPoint);
-                this.historyLine.setPoints(this.historyPoints);
+                this.historyMesh.setPoints(this.historyPoints);
             }
 
             if (this.sceneGraphNode) {
@@ -670,7 +682,7 @@ void main() {
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
                 for (let camera of Object.values(this.cameras)) {
                     camera.historyPoints = [];
-                    camera.historyLine.setPoints(camera.historyPoints);
+                    camera.historyMesh.setPoints(camera.historyPoints);
                 }
             });
 
