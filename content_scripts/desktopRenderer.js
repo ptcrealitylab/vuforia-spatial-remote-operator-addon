@@ -89,7 +89,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (!allCriteriaMet) {
                 return;
             }
-            
+
             if (objectKey.includes('_local')) {
                 console.warn('Rejected local world object');
                 return;
@@ -182,39 +182,49 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         realityZoneVoxelizer = null;
                         cameraVisCoordinator.voxelizer = null;
                     }
-                    realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Voxelizer, (toggled) => {
-                        if (toggled) {
-                            enableVoxelizer();
-                        } else {
-                            disableVoxelizer();
+
+                    function setupMenuBar() {
+                        if (!realityEditor.gui.getMenuBar) {
+                            setTimeout(setupMenuBar, 100);
+                            return;
                         }
-                    });
 
-                    cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
-                    cameraVisCoordinator.connect();
-                    cameraVisCoordinator.onCameraVisCreated(cameraVis => {
-                        console.log('onCameraVisCreated', cameraVis);
-                        cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
-                    });
-
-                    cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
-                        console.log('onCameraVisRemoved', cameraVis);
-                        cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
-                            return sceneNode !== cameraVis.sceneGraphNode;
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.Voxelizer, (toggled) => {
+                            if (toggled) {
+                                enableVoxelizer();
+                            } else {
+                                disableVoxelizer();
+                            }
                         });
-                    });
 
-                    if (!PROXY) {
-                        videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
-                        videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                        videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
-                        videoPlayback.load();
-                        window.videoPlayback = videoPlayback;
-
-                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
-                            videoPlayback.toggleVisibility(toggled);
+                        cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
+                        cameraVisCoordinator.connect();
+                        cameraVisCoordinator.onCameraVisCreated(cameraVis => {
+                            console.log('onCameraVisCreated', cameraVis);
+                            cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
                         });
+
+                        cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
+                            console.log('onCameraVisRemoved', cameraVis);
+                            cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
+                                return sceneNode !== cameraVis.sceneGraphNode;
+                            });
+                        });
+
+                        if (!PROXY) {
+                            videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
+                            videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                            videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                            videoPlayback.load();
+                            window.videoPlayback = videoPlayback;
+
+                            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                                videoPlayback.toggleVisibility(toggled);
+                            });
+                        }
                     }
+
+                    setupMenuBar();
                 });
             }
 
