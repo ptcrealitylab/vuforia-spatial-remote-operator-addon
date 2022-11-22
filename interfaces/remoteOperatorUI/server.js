@@ -6,11 +6,16 @@ const path = require('path');
 const os = require('os');
 const server = require('@libraries/hardwareInterfaces');
 
-const DEBUG_DISABLE_VIDEO_RECORDING = os.platform() === 'ios';
+let DEBUG_DISABLE_VIDEO_RECORDING = os.platform() === 'ios';
 
 let VideoServer;
 if (!DEBUG_DISABLE_VIDEO_RECORDING) {
-    VideoServer = require('./VideoServer.js');
+    try {
+        VideoServer = require('./VideoServer.js');
+    } catch (e) {
+        console.warn('VideoServer unavailable', e);
+        DEBUG_DISABLE_VIDEO_RECORDING = true;
+    }
 }
 
 module.exports.start = function start() {
