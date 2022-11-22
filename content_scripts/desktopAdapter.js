@@ -158,10 +158,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         }
 
         const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
-        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 0.1, 300000);
+        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 10, 300000);
         console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
 
-        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 0.1, 300000);
+        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 10, 300000);
 
         // noinspection JSSuspiciousNameCombination
         globalStates.height = window.innerWidth;
