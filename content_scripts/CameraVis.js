@@ -263,9 +263,6 @@ void main() {
             cone.cameraVisId = this.id;
             this.cameraMeshGroup.add(cone);
 
-            this.positionalAudio = new THREE.PositionalAudio(realityEditor.gui.threejsScene.getAudioListener());
-            this.cameraMeshGroup.add(this.positionalAudio);
-
             this.phone.add(this.cameraMeshGroup);
 
             this.texture = new THREE.Texture();
@@ -632,16 +629,6 @@ void main() {
 
             this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
             this.mesh.material = this.material;
-        }
-
-        /**
-         * Adds the audio source to our THREE.PositionalAudio
-         * @param {HTMLMediaElement} mediaElement
-         */
-        setMediaElementSource(mediaElement) {
-            this.positionalAudio.setMediaElementSource(mediaElement);
-            this.positionalAudio.setRefDistance(250);
-            this.positionalAudio.setRolloffFactor(0.3);
         }
 
         add() {
@@ -1046,13 +1033,6 @@ void main() {
             if (camera.mesh) {
                 camera.mesh.visible = false;
             }
-        }
-
-        setMediaElementSource(id, mediaElement) {
-            if (!this.cameras[id]) {
-                this.createCameraVis(id);
-            }
-            this.cameras[id].setMediaElementSource(mediaElement);
         }
 
         onCameraVisCreated(cb) {
