@@ -298,8 +298,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     clearInterval(autoplayWhenAvailableInterval);
                     elt.removeEventListener('play', clearAutoplayInterval);
                 });
-
-                this.cameraVisCoordinator.setMediaElementSource(this.providerId, elt);
+                document.body.appendChild(elt);
             });
         }
 
