@@ -46,7 +46,6 @@ void main() {
   vec4 color = texture2D(mapDepth, vUv);
   ${(!ZDEPTH) ? `
   float depth = 5000.0 * (color.r + color.g / 255.0 + color.b / (255.0 * 255.0));
-  float z = depth - 1.0;
   ` : `
   // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
   int r = int(color.r * 255.0);
@@ -78,12 +77,10 @@ void main() {
       ((g & (1 << 7)) << (22 - 7)) |
       ((b & (1 << 7)) << (23 - 7))) *
       (5000.0 / float(1 << 24));
+  `}
+  float z = (depth - 10.0) * 0.97;
 
   // Projection code by @kcmic
-
-  float z = depth - 1.0;
-  `}
-
   pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
     (position.y / height - 0.5) * z * YtoZ,
@@ -164,7 +161,7 @@ void main() {
   float depth = -pos.z;
 
   // Fade out beginning at 4.5 meters and be gone after 5.0
-  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
+  float alphaDepth = clamp(2.0 * (4.7 - depth / 1000.0), 0.0, 1.0);
 
   // Normal vector of the depth mesh based on pos
   // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
