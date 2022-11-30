@@ -3,7 +3,6 @@ createNameSpace('realityEditor.device.cameraVis');
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
-import { MeshPath } from '../../src/gui/ar/meshPath.js';
 import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
 
 (function(exports) {
@@ -214,7 +213,7 @@ void main() {
         );
     }
 
-    // https://www.30secondsofcode.org/js/s/hsl-to-rgb
+    // author: https://www.30secondsofcode.org/js/s/hsl-to-rgb
     // input ranges: H: [0, 360], S: [0, 100], L: [0, 100]
     // output ranges: [0, 255]
     function HSLToRGB(h, s, l) {
@@ -313,18 +312,15 @@ void main() {
             this.loading = {};
 
             this.historyPoints = [];
+            // note: we will color the path in each point, rather than in the constructor
             this.historyMesh = new SpaghettiMeshPath(this.historyPoints, {
                 width_mm: 30,
                 height_mm: 30,
-                // horizontalColor: color,
-                // wallColor: colorDarker,
                 usePerVertexColors: true,
-                colorBlending: false,
-                wallBrightness: 0.6,
-                // opacity: 0.8,
+                wallBrightness: 0.6
             });
             
-            // we add the historyMesh to scene because it gets messed up by rotation if added to this.container
+            // we add the historyMesh to scene because crossing up vector gets messed up by rotation if added to this.container
             realityEditor.gui.threejsScene.addToScene(this.historyMesh);
         }
 
