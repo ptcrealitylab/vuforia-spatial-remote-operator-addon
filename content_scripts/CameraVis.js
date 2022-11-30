@@ -363,6 +363,19 @@ void main() {
             } catch (e) {
                 console.error('Unable to persist patch', e);
             }
+            fetch('history/patches', {
+                method: 'POST',
+                headers: {
+                    'Content-type': 'application/json',
+                },
+                body: JSON.stringify(serialization),
+            }).then(res => {
+                return res.text();
+            }).then(text => {
+                console.log('patch persisted', text);
+            }).catch(e => {
+                console.error('patch persist error', e);
+            });
 
             return {
                 key,
@@ -1297,6 +1310,24 @@ void main() {
             });
         }
 
+        restorePatch(serialization) {
+            const containerMatrix = new THREE.Matrix4().fromArray(serialization.container);
+            const phoneMatrix = new THREE.Matrix4().fromArray(serialization.phone);
+            const textureImage = document.createElement('img');
+            textureImage.src = serialization.texture;
+            const textureDepthImage = document.createElement('img');
+            textureDepthImage.src = serialization.textureDepth;
+
+            const patch = CameraVis.createPatch(
+                containerMatrix,
+                phoneMatrix,
+                textureImage,
+                textureDepthImage
+            );
+            realityEditor.gui.threejsScene.addToScene(patch);
+            this.patches[serialization.key] = patch;
+        }
+
         restorePatches() {
             const keys = Object.keys(window.localStorage).filter(key => {
                 return key.startsWith(PATCH_KEY_PREFIX);
@@ -1304,22 +1335,21 @@ void main() {
 
             for (const key of keys) {
                 const serialization = JSON.parse(window.localStorage[key]);
-                const containerMatrix = new THREE.Matrix4().fromArray(serialization.container);
-                const phoneMatrix = new THREE.Matrix4().fromArray(serialization.phone);
-                const textureImage = document.createElement('img');
-                textureImage.src = serialization.texture;
-                const textureDepthImage = document.createElement('img');
-                textureDepthImage.src = serialization.textureDepth;
-
-                const patch = CameraVis.createPatch(
-                    containerMatrix,
-                    phoneMatrix,
-                    textureImage,
-                    textureDepthImage
-                );
-                realityEditor.gui.threejsScene.addToScene(patch);
-                this.patches[key] = patch;
+                this.restorePatch(serialization);
             }
+
+            fetch('history/patches').then(res => {
+                return res.json();
+            }).then(patches => {
+                for (let patch of patches) {
+                    if (window.localStorage.hasOwnProperty(patch.key)) {
+                        continue;
+                    }
+
+                    const serialization = JSON.parse(patch);
+                    this.restorePatch(serialization);
+                }
+            });
         }
 
         undoPatch() {
@@ -1337,6 +1367,16 @@ void main() {
             const key = keys[0];
 
             window.localStorage.removeItem(key);
+
+            fetch(`history/patches/${key}`, {
+                method: 'DELETE',
+            }).then(res => {
+                return res.text();
+            }).then(text => {
+                console.log('patch deleted', text);
+            }).catch(e => {
+                console.error('patch delete error', e);
+            });
 
             if (this.patches[key]) {
                 realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
