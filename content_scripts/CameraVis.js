@@ -111,8 +111,6 @@ uniform float time;
 varying vec2 vUv;
 // Position of this pixel relative to the camera in proper (millimeter) coordinates
 varying vec4 pos;
-uniform float depthMin;
-uniform float depthMax;
 
 void main() {
   // Depth in millimeters
@@ -137,10 +135,6 @@ void main() {
   // alphaDepth is thrown in here to incorporate the depth-based fade
   float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth * alphaHolo;
 
-  // if (depth < depthMin || depth > depthMax) {
-  //     alpha = 0;
-  // }
-
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
 
@@ -155,6 +149,8 @@ uniform sampler2D map;
 varying vec2 vUv;
 // Position of this pixel relative to the camera in proper (millimeter) coordinates
 varying vec4 pos;
+uniform float depthMin;
+uniform float depthMax;
 
 void main() {
   // Depth in millimeters
@@ -176,6 +172,8 @@ void main() {
   float alphaNorm = clamp(1.75 * abs(dot(normalize(pos.xyz), normal)) - 0.2, 0.0, 1.0);
   // alphaDepth is thrown in here to incorporate the depth-based fade
   float alpha = alphaNorm * alphaDepth;
+
+  alpha = alpha * (1.0 - step(depthMax, depth)) * step(depthMin, depth);
 
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
@@ -489,8 +487,8 @@ void main() {
 
             let material = new THREE.ShaderMaterial({
                 uniforms: {
-                    depthMin: {value: 0.1},
-                    depthMax: {value: 5.0},
+                    depthMin: {value: 100},
+                    depthMax: {value: 5000},
                     time: {value: window.performance.now()},
                     map: {value: texture},
                     mapDepth: {value: textureDepth},
