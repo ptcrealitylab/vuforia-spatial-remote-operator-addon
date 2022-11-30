@@ -4,6 +4,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 import { MeshPath } from '../../src/gui/ar/meshPath.js';
+import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
 
 (function(exports) {
     const debug = false;
@@ -213,6 +214,19 @@ void main() {
         );
     }
 
+    // https://www.30secondsofcode.org/js/s/hsl-to-rgb
+    // input ranges: H: [0, 360], S: [0, 100], L: [0, 100]
+    // output ranges: [0, 255]
+    function HSLToRGB(h, s, l) {
+        s /= 100;
+        l /= 100;
+        const k = n => (n + h / 30) % 12;
+        const a = s * Math.min(l, 1 - l);
+        const f = n =>
+            l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+        return [255 * f(0), 255 * f(8), 255 * f(4)];
+    }
+
     class CameraVis {
         constructor(id, floorOffset) {
             this.id = id;
@@ -223,6 +237,7 @@ void main() {
             this.container.rotation.x = Math.PI / 2;
 
             this.container.updateMatrix();
+            this.container.updateMatrixWorld(true);
             this.container.matrixAutoUpdate = false;
 
             this.container.name = 'CameraVisContainer_' + id;
@@ -248,8 +263,9 @@ void main() {
                     colorId ^= id.charCodeAt(i);
                 }
             }
-            const color = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
-            const colorDarker = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 30%)`;
+            let hue = ((colorId / 29) % Math.PI) * 360 / Math.PI;
+            const color = `hsl(${hue}, 100%, 50%)`;
+            this.colorRGB = HSLToRGB(hue, 100, 50); // used to add points to the SpaghettiMeshLine
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';
@@ -296,29 +312,20 @@ void main() {
             this.matrices = [];
             this.loading = {};
 
-            // this.historyLine = new realityEditor.device.meshLine.MeshLine();
-            // const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
-            //     color: color,
-            //     opacity: 0.6,
-            //     lineWidth: 20,
-            //     // depthWrite: false,
-            //     transparent: true,
-            //     side: THREE.DoubleSide,
-            // });
-            // this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);
             this.historyPoints = [];
-            // this.historyLine.setPoints(this.historyPoints);
-
-            this.historyMesh = new MeshPath(this.historyPoints, {
-                topColor: color,
-                wallColor: colorDarker,
+            this.historyMesh = new SpaghettiMeshPath(this.historyPoints, {
                 width_mm: 30,
                 height_mm: 30,
-                bottomScale: 1,
-                usePerVertexColors: false
+                // horizontalColor: color,
+                // wallColor: colorDarker,
+                usePerVertexColors: true,
+                colorBlending: false,
+                wallBrightness: 0.6,
+                // opacity: 0.8,
             });
             
-            this.container.add(this.historyMesh);
+            // we add the historyMesh to scene because it gets messed up by rotation if added to this.container
+            realityEditor.gui.threejsScene.addToScene(this.historyMesh);
         }
 
         /**
@@ -567,11 +574,21 @@ void main() {
             this.textureDepth.needsUpdate = true;
 
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
-            let nextHistoryPoint = new THREE.Vector3(
-                newMatrix[12],
-                newMatrix[13],
-                newMatrix[14],
-            );
+            let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
+
+            // history point needs to be transformed into the groundPlane coordinate system
+            let worldHistoryPoint = this.container.localToWorld(localHistoryPoint);
+            let rootNode = realityEditor.sceneGraph.getSceneNodeById('ROOT');
+            let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let gpHistoryPoint = realityEditor.sceneGraph.convertToNewCoordSystem(worldHistoryPoint, rootNode, gpNode);
+
+            let nextHistoryPoint = {
+                x: gpHistoryPoint.x,
+                y: gpHistoryPoint.y,
+                z: gpHistoryPoint.z,
+                color: this.colorRGB,
+                timestamp: Date.now()
+            }
 
             let addToHistory = this.historyPoints.length === 0;
             if (this.historyPoints.length > 0) {
