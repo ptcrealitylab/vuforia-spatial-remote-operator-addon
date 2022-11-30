@@ -410,6 +410,21 @@ void main() {
             textureDepth.needsUpdate = true;
 
             let mesh = CameraVis.createPointCloud(texture, textureDepth, ShaderMode.SOLID);
+            mesh.material.uniforms.depthMax.value = 100;
+
+            let lastTime = -1;
+            function patchLoading(time) {
+                if (lastTime < 0) {
+                    lastTime = time;
+                }
+                let dt = time - lastTime;
+                lastTime = time;
+                mesh.material.uniforms.depthMax.value += 5 * dt;
+                if (mesh.material.uniforms.depthMax.value < 5000) {
+                    window.requestAnimationFrame(patchLoading, 33);
+                }
+            }
+            window.requestAnimationFrame(patchLoading);
 
             phone.add(mesh);
             patch.add(phone);
