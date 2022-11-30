@@ -718,7 +718,7 @@ void main() {
                 onCameraVisCreated: [],
                 onCameraVisRemoved: [],
             };
-            
+
             this.onAnimationFrame = this.onAnimationFrame.bind(this);
             window.requestAnimationFrame(this.onAnimationFrame);
 
@@ -766,7 +766,7 @@ void main() {
             this.startWebRTC();
             this.restorePatches();
         }
-        
+
         onAnimationFrame() {
             let now = performance.now();
             for (let camera of Object.values(this.cameras)) {
