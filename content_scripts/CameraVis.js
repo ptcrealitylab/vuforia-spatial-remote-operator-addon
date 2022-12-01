@@ -314,8 +314,8 @@ void main() {
             this.historyPoints = [];
             // note: we will color the path in each point, rather than in the constructor
             this.historyMesh = new SpaghettiMeshPath(this.historyPoints, {
-                width_mm: 30,
-                height_mm: 30,
+                widthMm: 30,
+                heightMm: 30,
                 usePerVertexColors: true,
                 wallBrightness: 0.6
             });
