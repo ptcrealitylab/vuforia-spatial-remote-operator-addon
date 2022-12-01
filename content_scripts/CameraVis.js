@@ -578,6 +578,8 @@ void main() {
             let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
             let gpHistoryPoint = realityEditor.sceneGraph.convertToNewCoordSystem(worldHistoryPoint, rootNode, gpNode);
 
+            realityEditor.gui.ar.desktopRenderer.setBubbleCenter(gpHistoryPoint.x, gpHistoryPoint.y, gpHistoryPoint.z, this.phone.matrixWorld);
+
             let nextHistoryPoint = {
                 x: gpHistoryPoint.x,
                 y: gpHistoryPoint.y,

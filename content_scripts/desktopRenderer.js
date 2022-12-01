@@ -125,11 +125,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                 realityEditor.device.desktopCamera.initService(floorOffset);
 
-                let ceilingHeight = Math.max(
-                    navmesh.maxY - navmesh.minY,
-                    navmesh.maxX - navmesh.minX,
-                    navmesh.maxZ - navmesh.minZ
-                );
+                let ceilingHeight = 2;
+                // let ceilingHeight = Math.max(
+                //     navmesh.maxY - navmesh.minY,
+                //     navmesh.maxX - navmesh.minX,
+                //     navmesh.maxZ - navmesh.minZ
+                // );
                 let center = {
                     x: (navmesh.maxX + navmesh.minX) / 2,
                     y: navmesh.minY,
@@ -455,6 +456,29 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     exports.getCameraVisSceneNodes = () => {
         return cameraVisSceneNodes;
     };
+    
+    exports.setBubbleCenter = function(x, y, z, cameraVisMatrix) {
+        if (!gltf || typeof gltf.traverse === 'undefined') return;
+        const utils = realityEditor.gui.ar.utilities;
+        const SCALE = 1000;
+        let groundPlaneSceneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+        let worldSceneNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
+        let cameraMatrix = realityEditor.sceneGraph.convertToNewCoordSystem(cameraVisMatrix, worldSceneNode, groundPlaneSceneNode);
+        // compute dot product of camera forward and new tool forward to see whether it's facing towards or away from you
+        let cameraForward = utils.normalize(utils.getForwardVector(cameraMatrix.elements));
+
+        gltf.traverse(child => {
+            if (!child.material || !child.material.uniforms) return;
+
+            // console.log('set: ', child.material.uniforms['bubble'].value);
+            child.material.uniforms['coneTipPoint'].value = new THREE.Vector3(x/SCALE, y/SCALE, z/SCALE);
+            
+            child.material.uniforms['coneDirection'].value = new THREE.Vector3(cameraForward[0], cameraForward[1], cameraForward[2]);
+            // console.log('set: ', child.material.uniforms['bubble'].value);
+            // child.material.uniforms['bubble'].value = new THREE.Vector3(x/SCALE, y/SCALE, z/SCALE);
+
+        });
+    }
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
