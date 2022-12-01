@@ -19,8 +19,17 @@ import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
         SOLID: 'SOLID',
         POINT: 'POINT',
         HOLO: 'HOLO',
+        DIFF: 'DIFF',
         FIRST_PERSON: 'FIRST_PERSON',
     };
+
+    const enabledShaderModes = [
+        ShaderMode.SOLID,
+        ShaderMode.DIFF,
+        ShaderMode.POINT,
+        ShaderMode.HOLO,
+    ];
+
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -239,6 +248,8 @@ void main() {
     class CameraVis {
         constructor(id, floorOffset) {
             this.id = id;
+            this.firstPersonMode = false;
+            this.shaderMode = ShaderMode.SOLID;
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
             // this.container.rotation.y = Math.PI;
@@ -491,6 +502,7 @@ void main() {
             }
             mesh.scale.set(-1, 1, -1);
             mesh.frustumCulled = false;
+            mesh.layers.enable(2);
 
             return mesh;
         }
@@ -510,6 +522,7 @@ void main() {
                 fragmentShader = firstPersonFragmentShader;
                 break;
             case ShaderMode.SOLID:
+            case ShaderMode.DIFF:
             default:
                 fragmentShader = solidFragmentShader;
                 break;
@@ -588,6 +601,20 @@ void main() {
             this.setMatrix(latest.matrix);
         }
 
+        getSceneNodeMatrix() {
+            let matrix = this.phone.matrixWorld.clone();
+
+            let initialVehicleMatrix = new THREE.Matrix4().fromArray([
+                -1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, -1, 0,
+                0, 0, 0, 1,
+            ]);
+            matrix.multiply(initialVehicleMatrix);
+
+            return matrix;
+        }
+
         setMatrix(newMatrix) {
             setMatrixFromArray(this.phone.matrix, newMatrix);
             this.phone.updateMatrixWorld(true);
@@ -632,22 +659,18 @@ void main() {
                 this.sceneGraphNode.setLocalMatrix(newMatrix);
             }
 
-            if (this.shaderMode === ShaderMode.FIRST_PERSON) {
-                let matrix = this.phone.matrixWorld.clone();
-
-                let initialVehicleMatrix = new THREE.Matrix4().fromArray([
-                    -1, 0, 0, 0,
-                    0, 1, 0, 0,
-                    0, 0, -1, 0,
-                    0, 0, 0, 1,
-                ]);
-                matrix.multiply(initialVehicleMatrix);
+            if (this.firstPersonMode) {
+                let matrix = this.getSceneNodeMatrix();
                 let eye = new THREE.Vector3(0, 0, 0);
                 eye.applyMatrix4(matrix);
                 let target = new THREE.Vector3(0, 0, -1);
                 target.applyMatrix4(matrix);
                 matrix.lookAt(eye, target, new THREE.Vector3(0, 1, 0));
                 realityEditor.sceneGraph.setCameraPosition(matrix.elements);
+            }
+
+            if (this.shaderMode === ShaderMode.DIFF) {
+                realityEditor.device.visualDiff.showDiff(this);
             }
         }
 
@@ -677,10 +700,29 @@ void main() {
         }
 
         setShaderMode(shaderMode) {
-            this.shaderMode = shaderMode;
+            if (shaderMode !== this.shaderMode) {
+                this.shaderMode = shaderMode;
 
-            this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
-            this.mesh.material = this.material;
+                if (this.matDiff) {
+                    this.matDiff = null;
+                }
+                this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
+                this.mesh.material = this.material;
+            }
+        }
+
+        enableFirstPersonMode() {
+            this.firstPersonMode = true;
+            if (this.shaderMode === ShaderMode.SOLID) {
+                this.setShaderMode(ShaderMode.FIRST_PERSON);
+            }
+        }
+
+        disableFirstPersonMode() {
+            this.firstPersonMode = false;
+            if (this.shaderMode === ShaderMode.FIRST_PERSON) {
+                this.setShaderMode(ShaderMode.SOLID);
+            }
         }
 
         add() {
@@ -699,6 +741,7 @@ void main() {
             this.patches = [];
             this.visible = true;
             this.spaghettiVisible = false;
+            this.currentShaderModeIndex = 0;
             this.floorOffset = floorOffset;
             this.depthCanvasCache = {};
             this.colorCanvasCache = {};
@@ -1044,7 +1087,7 @@ void main() {
             } else {
                 const camera = this.cameras[cacheId];
                 if (camera) {
-                    camera.setShaderMode(ShaderMode.FIRST_PERSON);
+                    camera.enableFirstPersonMode();
                     camera.historyMesh.visible = false;
                 }
             }
@@ -1064,7 +1107,7 @@ void main() {
             } else {
                 const camera = this.cameras[cacheId];
                 if (this.cameras[cacheId]) {
-                    this.cameras[cacheId].setShaderMode(ShaderMode.SOLID);
+                    camera.disableFirstPersonMode();
                     camera.historyMesh.visible = this.spaghettiVisible;
                 }
             }
@@ -1102,6 +1145,7 @@ void main() {
             this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
             this.cameras[id].historyMesh.visible = this.spaghettiVisible;
+            this.cameras[id].setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
 
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
@@ -1110,6 +1154,8 @@ void main() {
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetClones, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ToggleRecordClones, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCloneMaterial, true);
+
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCameraShader, true);
 
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
@@ -1188,6 +1234,14 @@ void main() {
             if (this.patches[key]) {
                 realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
                 delete this.patches[key];
+            }
+        }
+
+        advanceShaderMode() {
+            this.currentShaderModeIndex = (this.currentShaderModeIndex + 1) % enabledShaderModes.length;
+
+            for (let camera of Object.values(this.cameras)) {
+                camera.setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
             }
         }
     };
