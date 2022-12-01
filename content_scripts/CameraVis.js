@@ -340,7 +340,7 @@ void main() {
                 usePerVertexColors: true,
                 wallBrightness: 0.6
             });
-            
+
             // we add the historyMesh to scene because crossing up vector gets messed up by rotation if added to this.container
             realityEditor.gui.threejsScene.addToScene(this.historyMesh);
         }
@@ -649,7 +649,7 @@ void main() {
                 z: gpHistoryPoint.z,
                 color: this.colorRGB,
                 timestamp: Date.now()
-            }
+            };
 
             let addToHistory = this.historyPoints.length === 0;
             if (this.historyPoints.length > 0) {
@@ -954,8 +954,10 @@ void main() {
                         };
                     }
                     let {canvas, context} = this.depthCanvasCache[id];
-                    canvas.width = image.width;
-                    canvas.height = image.height;
+                    if (canvas.width !== image.width || canvas.height !== image.height) {
+                        canvas.width = image.width;
+                        canvas.height = image.height;
+                    }
                     context.drawImage(image, 0, 0, image.width, image.height);
                 } else {
                     if (!this.colorCanvasCache.hasOwnProperty(id)) {
@@ -966,8 +968,10 @@ void main() {
                         };
                     }
                     let {canvas, context} = this.colorCanvasCache[id];
-                    canvas.width = image.width;
-                    canvas.height = image.height;
+                    if (canvas.width !== image.width || canvas.height !== image.height) {
+                        canvas.width = image.width;
+                        canvas.height = image.height;
+                    }
                     context.drawImage(image, 0, 0, image.width, image.height);
                 }
                 this.finishRenderPointCloudCanvas(id, textureKey, start);
