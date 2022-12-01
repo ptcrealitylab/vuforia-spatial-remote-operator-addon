@@ -211,6 +211,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                             });
                         });
 
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.AdvanceCameraShader, () => {
+                            cameraVisCoordinator.advanceShaderMode();
+                        });
+
                         if (!PROXY) {
                             videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
                             videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
