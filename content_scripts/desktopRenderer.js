@@ -229,6 +229,10 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                             }
                         });
 
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.AdvanceCameraShader, () => {
+                            cameraVisCoordinator.advanceShaderMode();
+                        });
+
                         if (!PROXY) {
                             videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
                             videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
