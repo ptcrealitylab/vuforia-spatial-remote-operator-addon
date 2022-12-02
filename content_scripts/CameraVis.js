@@ -577,8 +577,10 @@ void main() {
             let rootNode = realityEditor.sceneGraph.getSceneNodeById('ROOT');
             let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
             let gpHistoryPoint = realityEditor.sceneGraph.convertToNewCoordSystem(worldHistoryPoint, rootNode, gpNode);
+            let gpCameraMatrix = realityEditor.sceneGraph.convertToNewCoordSystem(this.phone.matrixWorld, rootNode, gpNode);
 
-            realityEditor.gui.ar.desktopRenderer.setBubbleCenter(gpHistoryPoint.x, gpHistoryPoint.y, gpHistoryPoint.z, this.phone.matrixWorld);
+            // realityEditor.gui.ar.desktopRenderer.setBubbleCenter(gpHistoryPoint.x, gpHistoryPoint.y, gpHistoryPoint.z, this.phone.matrixWorld);
+            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(gpCameraMatrix);
 
             let nextHistoryPoint = {
                 x: gpHistoryPoint.x,
