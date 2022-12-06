@@ -155,6 +155,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         virtualCamera.onRotateToggled(function(isRotating) {
             if (isRotating && !knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = true;
+                knownInteractionStates.pan = false; // stop panning if you start rotating
                 // console.log('start rotate');
                 rotateToggled();
             } else if (!isRotating && knownInteractionStates.rotate) {
