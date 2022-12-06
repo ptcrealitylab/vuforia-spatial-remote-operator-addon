@@ -483,82 +483,118 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     function array3ToXYZ(arr3) {
         return new THREE.Vector3(arr3[0], arr3[1], arr3[2]);
     }
+
+    // window.xval = 0;
+    // window.yval = 0;
+    // window.zval = 0;
+    
+    let counter = 0;
+    const maxCount = 30;
+
+    const UNIFORMS = Object.freeze({
+        coneTipPoint: 'coneTipPoint',
+        coneDirection: 'coneDirection',
+        coneHeight: 'coneHeight',
+        coneBaseRadius: 'coneBaseRadius',
+        p: 'p',
+        l: 'l',
+        u: 'u',
+        normal1: 'normal1',
+        normal2: 'normal2',
+        normal3: 'normal3',
+        normal4: 'normal4',
+        normal5: 'normal5',
+        normal6: 'normal6',
+        D1: 'D1',
+        D2: 'D2',
+        D3: 'D3',
+        D4: 'D4',
+        D5: 'D5',
+        D6: 'D6'
+    });
+    const SCALE = 1000;
     
     exports.updateAreaGltfForCamera = function(gpCameraMatrix) {
         if (!gltf || typeof gltf.traverse === 'undefined') return;
         const utils = realityEditor.gui.ar.utilities;
-        const UNIFORMS = Object.freeze({
-            coneTipPoint: 'coneTipPoint',
-            coneDirection: 'coneDirection',
-            coneHeight: 'coneHeight',
-            coneBaseRadius: 'coneBaseRadius',
-            p: 'p',
-            l: 'l',
-            u: 'u',
-            normal1: 'normal1',
-            normal2: 'normal2',
-            normal3: 'normal3',
-            normal4: 'normal4',
-            normal5: 'normal5',
-            normal6: 'normal6',
-            D1: 'D1',
-            D2: 'D2',
-            D3: 'D3',
-            D4: 'D4',
-            D5: 'D5',
-            D6: 'D6'
-        });
-        const SCALE = 1000;
+        
+        const VERTICAL_OFFSET = -0.35; // empirically determined
 
         let cameraPosition = new THREE.Vector3(
             gpCameraMatrix.elements[12]/SCALE,
             gpCameraMatrix.elements[13]/SCALE,
             gpCameraMatrix.elements[14]/SCALE
         );
-        let cameraDirection = utils.normalize(utils.getForwardVector(gpCameraMatrix.elements));
-        let cameraUp = utils.normalize(utils.getUpVector(gpCameraMatrix.elements));
+        let cameraPos = [cameraPosition.x, cameraPosition.y + VERTICAL_OFFSET, cameraPosition.z];
+
+        let cameraDirection = utils.normalize(utils.getForwardVector(gpCameraMatrix.elements)); // [0, 0, 1]; // 
+        let cameraLookAtPosition = utils.add(cameraPos, cameraDirection);
+        let cameraUp = utils.normalize(utils.getUpVector(gpCameraMatrix.elements)); // [-1, 0, 0]; // 
         
-        let frustumPlanes = realityEditor.gui.threejsScene.updateFrustum([cameraPosition.x, cameraPosition.y, cameraPosition.z], cameraDirection, cameraUp);
+        // let cameraPos = [cameraPosition.x * window.xval, cameraPosition.y * window.yval, cameraPosition.z * window.zval];
+        
+        // counter++;
+        // if (counter > maxCount) {
+        //     console.log(cameraPos, cameraDirection, cameraUp);
+        //     counter = 0;
+        // }
+
+
+        let frustumPlanes = realityEditor.gui.threejsScene.updateFrustum(cameraPos, cameraLookAtPosition, cameraUp);
 
         gltf.traverse(child => {
-            if (!child.material || !child.material.uniforms) return;
-            
-            // if (typeof child.material.uniforms[UNIFORMS.coneTipPoint] !== 'undefined') {
-            //     child.material.uniforms[UNIFORMS.coneTipPoint].value = cameraPosition;
-            //     child.material.uniforms[UNIFORMS.coneDirection].value = cameraDirection;
-            //     child.material.uniforms[UNIFORMS.coneHeight].value = 5.0; // LiDAR extends for 5 meter range
-            //     child.material.uniforms[UNIFORMS.coneBaseRadius].value = 3.0; // todo: figure out optimal value to match FoV
-            // }
-            //
-            // if (typeof child.material.uniforms[UNIFORMS.p] !== 'undefined') {
-            //     child.material.uniforms[UNIFORMS.p].value = cameraPosition;
-            //     child.material.uniforms[UNIFORMS.l].value = cameraDirection;
-            //
-            //     // p: {value: new THREE.Vector3(0, 0, 0)},
-            //     // l: {value: new THREE.Vector3(1, 0, 0)},
-            //     // u: {value: new THREE.Vector3(0, 1, 0)}
-            // }
-
-            if (typeof child.material.uniforms[UNIFORMS.normal1] !== 'undefined') {
-                child.material.uniforms[UNIFORMS.normal1].value = array3ToXYZ(frustumPlanes.normal1);
-                child.material.uniforms[UNIFORMS.normal2].value = array3ToXYZ(frustumPlanes.normal2);
-                child.material.uniforms[UNIFORMS.normal3].value = array3ToXYZ(frustumPlanes.normal3);
-                child.material.uniforms[UNIFORMS.normal4].value = array3ToXYZ(frustumPlanes.normal4);
-                child.material.uniforms[UNIFORMS.normal5].value = array3ToXYZ(frustumPlanes.normal5);
-                child.material.uniforms[UNIFORMS.normal6].value = array3ToXYZ(frustumPlanes.normal6);
-
-                child.material.uniforms[UNIFORMS.D1].value = frustumPlanes.D1;
-                child.material.uniforms[UNIFORMS.D2].value = frustumPlanes.D2;
-                child.material.uniforms[UNIFORMS.D3].value = frustumPlanes.D3;
-                child.material.uniforms[UNIFORMS.D4].value = frustumPlanes.D4;
-                child.material.uniforms[UNIFORMS.D5].value = frustumPlanes.D5;
-                child.material.uniforms[UNIFORMS.D6].value = frustumPlanes.D6;
-
-                // p: {value: new THREE.Vector3(0, 0, 0)},
-                // l: {value: new THREE.Vector3(1, 0, 0)},
-                // u: {value: new THREE.Vector3(0, 1, 0)}
-            }
+            updateUniforms(child, frustumPlanes);
         });
+    }
+    
+    setInterval(() => {
+        if (window.debugCube) {
+            let cameraPos = [0, 0, 0];
+            let cameraDirection = [0, 0, 1]; // utils.normalize(utils.getForwardVector(gpCameraMatrix.elements));
+            let cameraUp = [-1, 0, 0]; // utils.normalize(utils.getUpVector(gpCameraMatrix.elements));
+            let frustumPlanes = realityEditor.gui.threejsScene.updateFrustum(cameraPos, cameraDirection, cameraUp);
+            updateUniforms(window.debugCube, frustumPlanes);
+        }
+    }, 100);
+    
+    function updateUniforms(child, frustumPlanes) {
+        if (!child.material || !child.material.uniforms) return;
+
+        // if (typeof child.material.uniforms[UNIFORMS.coneTipPoint] !== 'undefined') {
+        //     child.material.uniforms[UNIFORMS.coneTipPoint].value = cameraPosition;
+        //     child.material.uniforms[UNIFORMS.coneDirection].value = cameraDirection;
+        //     child.material.uniforms[UNIFORMS.coneHeight].value = 5.0; // LiDAR extends for 5 meter range
+        //     child.material.uniforms[UNIFORMS.coneBaseRadius].value = 3.0; // todo: figure out optimal value to match FoV
+        // }
+        //
+        // if (typeof child.material.uniforms[UNIFORMS.p] !== 'undefined') {
+        //     child.material.uniforms[UNIFORMS.p].value = cameraPosition;
+        //     child.material.uniforms[UNIFORMS.l].value = cameraDirection;
+        //
+        //     // p: {value: new THREE.Vector3(0, 0, 0)},
+        //     // l: {value: new THREE.Vector3(1, 0, 0)},
+        //     // u: {value: new THREE.Vector3(0, 1, 0)}
+        // }
+
+        if (typeof child.material.uniforms[UNIFORMS.normal1] !== 'undefined') {
+            child.material.uniforms[UNIFORMS.normal1].value = array3ToXYZ(frustumPlanes.normal1);
+            child.material.uniforms[UNIFORMS.normal2].value = array3ToXYZ(frustumPlanes.normal2);
+            child.material.uniforms[UNIFORMS.normal3].value = array3ToXYZ(frustumPlanes.normal3);
+            child.material.uniforms[UNIFORMS.normal4].value = array3ToXYZ(frustumPlanes.normal4);
+            child.material.uniforms[UNIFORMS.normal5].value = array3ToXYZ(frustumPlanes.normal5);
+            child.material.uniforms[UNIFORMS.normal6].value = array3ToXYZ(frustumPlanes.normal6);
+
+            child.material.uniforms[UNIFORMS.D1].value = frustumPlanes.D1;
+            child.material.uniforms[UNIFORMS.D2].value = frustumPlanes.D2;
+            child.material.uniforms[UNIFORMS.D3].value = frustumPlanes.D3;
+            child.material.uniforms[UNIFORMS.D4].value = frustumPlanes.D4;
+            child.material.uniforms[UNIFORMS.D5].value = frustumPlanes.D5;
+            child.material.uniforms[UNIFORMS.D6].value = frustumPlanes.D6;
+
+            // p: {value: new THREE.Vector3(0, 0, 0)},
+            // l: {value: new THREE.Vector3(1, 0, 0)},
+            // u: {value: new THREE.Vector3(0, 1, 0)}
+        }
     }
 
     realityEditor.addons.addCallback('init', initService);
