@@ -9,7 +9,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
-import { UNIFORMS } from '../../src/gui/ViewFrustum.js';
+import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
@@ -52,6 +52,8 @@ import { UNIFORMS } from '../../src/gui/ViewFrustum.js';
     let videoPlayback = null;
     let cameraVisCoordinator = null;
     let cameraVisSceneNodes = [];
+
+    let cameraVisFrustums = [];
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -204,6 +206,9 @@ import { UNIFORMS } from '../../src/gui/ViewFrustum.js';
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
                             cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+
+                            // add to cameraVisFrustums so that material uniforms can be updated
+                            cameraVisFrustums.push(cameraVis.id);
                         });
 
                         cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
@@ -211,6 +216,12 @@ import { UNIFORMS } from '../../src/gui/ViewFrustum.js';
                             cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
                                 return sceneNode !== cameraVis.sceneGraphNode;
                             });
+
+                            // remove from cameraVisFrustums so that material uniforms can be updated
+                            cameraVisFrustums = cameraVisSceneNodes.filter(id => {
+                                return id !== cameraVis.id;
+                            });
+                            realityEditor.gui.threejsScene.removeCameraFrustum(cameraVis.id);
                         });
 
                         if (!PROXY) {
@@ -458,49 +469,43 @@ import { UNIFORMS } from '../../src/gui/ViewFrustum.js';
         return cameraVisSceneNodes;
     };
     
-    function array3ToXYZ(arr3) {
-        return new THREE.Vector3(arr3[0], arr3[1], arr3[2]);
-    }
-    const SCALE = 1000;
-    
     exports.updateAreaGltfForCamera = function(cameraId, gpCameraMatrix) {
         if (!gltf || typeof gltf.traverse === 'undefined') return;
         const utils = realityEditor.gui.ar.utilities;
         
-        const VERTICAL_OFFSET = 0; // -0.35; // empirically determined
-
         let cameraPosition = new THREE.Vector3(
-            gpCameraMatrix.elements[12]/SCALE,
-            gpCameraMatrix.elements[13]/SCALE,
-            gpCameraMatrix.elements[14]/SCALE
+            gpCameraMatrix.elements[12] / 1000,
+            gpCameraMatrix.elements[13] / 1000,
+            gpCameraMatrix.elements[14] / 1000
         );
-        let cameraPos = [cameraPosition.x, cameraPosition.y + VERTICAL_OFFSET, cameraPosition.z];
-
+        let cameraPos = [cameraPosition.x, cameraPosition.y, cameraPosition.z];
         let cameraDirection = utils.normalize(utils.getForwardVector(gpCameraMatrix.elements));
         let cameraLookAtPosition = utils.add(cameraPos, cameraDirection);
         let cameraUp = utils.normalize(utils.getUpVector(gpCameraMatrix.elements));
 
-        let frustumPlanes = realityEditor.gui.threejsScene.updateFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp);
-        frustumPlanes.normal1 = array3ToXYZ(frustumPlanes.normal1);
-        frustumPlanes.normal2 = array3ToXYZ(frustumPlanes.normal2);
-        frustumPlanes.normal3 = array3ToXYZ(frustumPlanes.normal3);
-        frustumPlanes.normal4 = array3ToXYZ(frustumPlanes.normal4);
-        frustumPlanes.normal5 = array3ToXYZ(frustumPlanes.normal5);
-        frustumPlanes.normal6 = array3ToXYZ(frustumPlanes.normal6);
+        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp);
         
         gltf.traverse(child => {
-            updateUniforms(child, frustumPlanes);
+            updateFrustumUniforms(child, cameraId, thisFrustumPlanes);
         });
     }
 
-    function updateUniforms(child, frustumPlanes) {
-        if (!child.material || !child.material.uniforms) return;
+    function updateFrustumUniforms(mesh, cameraId, frustumPlanes) {
+        if (!mesh.material || !mesh.material.uniforms) return;
 
-        if (typeof child.material.uniforms[UNIFORMS.numFrustums] !== 'undefined') {
-            let existingFrustums = child.material.uniforms[UNIFORMS.frustums].value;
-            existingFrustums[0] = frustumPlanes; // todo: get index based on cameraId
-            child.material.uniforms[UNIFORMS.frustums].value = existingFrustums;
-            child.material.needsUpdate = true
+        let cameraFrustumIndex = cameraVisFrustums.indexOf(cameraId);
+        if (cameraFrustumIndex >= MAX_VIEW_FRUSTUMS || cameraFrustumIndex === -1) {
+            return;
+        }
+
+        mesh.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
+
+        if (typeof mesh.material.uniforms[UNIFORMS.frustums] !== 'undefined') {
+            // update this frustum with all of the normals and constants
+            let existingFrustums = mesh.material.uniforms[UNIFORMS.frustums].value;
+            existingFrustums[cameraFrustumIndex] = frustumPlanes;
+            mesh.material.uniforms[UNIFORMS.frustums].value = existingFrustums;
+            mesh.material.needsUpdate = true
         }
     }
 
