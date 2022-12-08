@@ -128,12 +128,11 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
                 realityEditor.device.desktopCamera.initService(floorOffset);
 
-                let ceilingHeight = 2;
-                // let ceilingHeight = Math.max(
-                //     navmesh.maxY - navmesh.minY,
-                //     navmesh.maxX - navmesh.minX,
-                //     navmesh.maxZ - navmesh.minZ
-                // );
+                let ceilingHeight = Math.max(
+                    navmesh.maxY - navmesh.minY,
+                    navmesh.maxX - navmesh.minX,
+                    navmesh.maxZ - navmesh.minZ
+                );
                 let center = {
                     x: (navmesh.maxX + navmesh.minX) / 2,
                     y: navmesh.minY,
@@ -221,7 +220,13 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                             cameraVisFrustums = cameraVisSceneNodes.filter(id => {
                                 return id !== cameraVis.id;
                             });
-                            realityEditor.gui.threejsScene.removeCameraFrustum(cameraVis.id);
+                            realityEditor.gui.threejsScene.removeMaterialCullingFrustum(cameraVis.id);
+                            if (gltf && typeof gltf.traverse !== 'undefined') {
+                                gltf.traverse(child => {
+                                    if (!child.material || !child.material.uniforms) return;
+                                    child.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
+                                });
+                            }
                         });
 
                         if (!PROXY) {
@@ -469,21 +474,21 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         return cameraVisSceneNodes;
     };
     
-    exports.updateAreaGltfForCamera = function(cameraId, gpCameraMatrix) {
+    exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix) {
         if (!gltf || typeof gltf.traverse === 'undefined') return;
         const utils = realityEditor.gui.ar.utilities;
         
         let cameraPosition = new THREE.Vector3(
-            gpCameraMatrix.elements[12] / 1000,
-            gpCameraMatrix.elements[13] / 1000,
-            gpCameraMatrix.elements[14] / 1000
+            cameraWorldMatrix.elements[12] / 1000,
+            cameraWorldMatrix.elements[13] / 1000,
+            cameraWorldMatrix.elements[14] / 1000
         );
         let cameraPos = [cameraPosition.x, cameraPosition.y, cameraPosition.z];
-        let cameraDirection = utils.normalize(utils.getForwardVector(gpCameraMatrix.elements));
+        let cameraDirection = utils.normalize(utils.getForwardVector(cameraWorldMatrix.elements));
         let cameraLookAtPosition = utils.add(cameraPos, cameraDirection);
-        let cameraUp = utils.normalize(utils.getUpVector(gpCameraMatrix.elements));
+        let cameraUp = utils.normalize(utils.getUpVector(cameraWorldMatrix.elements));
 
-        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp);
+        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp);
         
         gltf.traverse(child => {
             updateFrustumUniforms(child, cameraId, thisFrustumPlanes);
