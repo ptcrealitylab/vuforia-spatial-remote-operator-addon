@@ -374,7 +374,7 @@ void main() {
             }).then(text => {
                 console.log('patch persisted', text);
             }).catch(e => {
-                console.error('patch persist error', e);
+                console.warn('Server-side patch persist error', e);
             });
 
             return {
@@ -1349,6 +1349,8 @@ void main() {
                     const serialization = JSON.parse(patch);
                     this.restorePatch(serialization);
                 }
+            }).catch(e => {
+                console.warn('Server-side patch persistence not supported', e);
             });
         }
 
@@ -1375,7 +1377,7 @@ void main() {
             }).then(text => {
                 console.log('patch deleted', text);
             }).catch(e => {
-                console.error('patch delete error', e);
+                console.warn('Server-side patch delete error', e);
             });
 
             if (this.patches[key]) {
