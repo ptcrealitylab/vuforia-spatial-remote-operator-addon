@@ -474,7 +474,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         return cameraVisSceneNodes;
     };
     
-    exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix) {
+    exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix, maxDepthMeters) {
         if (!gltf || typeof gltf.traverse === 'undefined') return;
         const utils = realityEditor.gui.ar.utilities;
         
@@ -488,7 +488,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         let cameraLookAtPosition = utils.add(cameraPos, cameraDirection);
         let cameraUp = utils.normalize(utils.getUpVector(cameraWorldMatrix.elements));
 
-        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp);
+        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp, maxDepthMeters);
         
         gltf.traverse(child => {
             updateFrustumUniforms(child, cameraId, thisFrustumPlanes);
