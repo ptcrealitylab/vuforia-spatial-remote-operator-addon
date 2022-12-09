@@ -9,6 +9,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
+import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
@@ -51,6 +52,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let videoPlayback = null;
     let cameraVisCoordinator = null;
     let cameraVisSceneNodes = [];
+
+    let cameraVisFrustums = [];
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -125,12 +128,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                 realityEditor.device.desktopCamera.initService(floorOffset);
 
-                let ceilingHeight = 2;
-                // let ceilingHeight = Math.max(
-                //     navmesh.maxY - navmesh.minY,
-                //     navmesh.maxX - navmesh.minX,
-                //     navmesh.maxZ - navmesh.minZ
-                // );
+                let ceilingHeight = Math.max(
+                    navmesh.maxY - navmesh.minY,
+                    navmesh.maxX - navmesh.minX,
+                    navmesh.maxZ - navmesh.minZ
+                );
                 let center = {
                     x: (navmesh.maxX + navmesh.minX) / 2,
                     y: navmesh.minY,
@@ -203,6 +205,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
                             cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+
+                            // add to cameraVisFrustums so that material uniforms can be updated
+                            cameraVisFrustums.push(cameraVis.id);
                         });
 
                         cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
@@ -210,6 +215,18 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                             cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
                                 return sceneNode !== cameraVis.sceneGraphNode;
                             });
+
+                            // remove from cameraVisFrustums so that material uniforms can be updated
+                            cameraVisFrustums = cameraVisSceneNodes.filter(id => {
+                                return id !== cameraVis.id;
+                            });
+                            realityEditor.gui.threejsScene.removeMaterialCullingFrustum(cameraVis.id);
+                            if (gltf && typeof gltf.traverse !== 'undefined') {
+                                gltf.traverse(child => {
+                                    if (!child.material || !child.material.uniforms) return;
+                                    child.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
+                                });
+                            }
                         });
 
                         if (!PROXY) {
@@ -457,27 +474,44 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return cameraVisSceneNodes;
     };
     
-    exports.setBubbleCenter = function(x, y, z, cameraVisMatrix) {
+    exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix) {
         if (!gltf || typeof gltf.traverse === 'undefined') return;
         const utils = realityEditor.gui.ar.utilities;
-        const SCALE = 1000;
-        let groundPlaneSceneNode = realityEditor.sceneGraph.getGroundPlaneNode();
-        let worldSceneNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
-        let cameraMatrix = realityEditor.sceneGraph.convertToNewCoordSystem(cameraVisMatrix, worldSceneNode, groundPlaneSceneNode);
-        // compute dot product of camera forward and new tool forward to see whether it's facing towards or away from you
-        let cameraForward = utils.normalize(utils.getForwardVector(cameraMatrix.elements));
+        
+        let cameraPosition = new THREE.Vector3(
+            cameraWorldMatrix.elements[12] / 1000,
+            cameraWorldMatrix.elements[13] / 1000,
+            cameraWorldMatrix.elements[14] / 1000
+        );
+        let cameraPos = [cameraPosition.x, cameraPosition.y, cameraPosition.z];
+        let cameraDirection = utils.normalize(utils.getForwardVector(cameraWorldMatrix.elements));
+        let cameraLookAtPosition = utils.add(cameraPos, cameraDirection);
+        let cameraUp = utils.normalize(utils.getUpVector(cameraWorldMatrix.elements));
 
+        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp);
+        
         gltf.traverse(child => {
-            if (!child.material || !child.material.uniforms) return;
-
-            // console.log('set: ', child.material.uniforms['bubble'].value);
-            child.material.uniforms['coneTipPoint'].value = new THREE.Vector3(x/SCALE, y/SCALE, z/SCALE);
-            
-            child.material.uniforms['coneDirection'].value = new THREE.Vector3(cameraForward[0], cameraForward[1], cameraForward[2]);
-            // console.log('set: ', child.material.uniforms['bubble'].value);
-            // child.material.uniforms['bubble'].value = new THREE.Vector3(x/SCALE, y/SCALE, z/SCALE);
-
+            updateFrustumUniforms(child, cameraId, thisFrustumPlanes);
         });
+    }
+
+    function updateFrustumUniforms(mesh, cameraId, frustumPlanes) {
+        if (!mesh.material || !mesh.material.uniforms) return;
+
+        let cameraFrustumIndex = cameraVisFrustums.indexOf(cameraId);
+        if (cameraFrustumIndex >= MAX_VIEW_FRUSTUMS || cameraFrustumIndex === -1) {
+            return;
+        }
+
+        mesh.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
+
+        if (typeof mesh.material.uniforms[UNIFORMS.frustums] !== 'undefined') {
+            // update this frustum with all of the normals and constants
+            let existingFrustums = mesh.material.uniforms[UNIFORMS.frustums].value;
+            existingFrustums[cameraFrustumIndex] = frustumPlanes;
+            mesh.material.uniforms[UNIFORMS.frustums].value = existingFrustums;
+            mesh.material.needsUpdate = true
+        }
     }
 
     realityEditor.addons.addCallback('init', initService);

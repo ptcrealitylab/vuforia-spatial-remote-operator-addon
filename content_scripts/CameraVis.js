@@ -569,6 +569,8 @@ void main() {
             this.texture.needsUpdate = true;
             this.textureDepth.needsUpdate = true;
 
+            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld);
+
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
             let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
 
@@ -577,8 +579,6 @@ void main() {
             let rootNode = realityEditor.sceneGraph.getSceneNodeById('ROOT');
             let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
             let gpHistoryPoint = realityEditor.sceneGraph.convertToNewCoordSystem(worldHistoryPoint, rootNode, gpNode);
-
-            realityEditor.gui.ar.desktopRenderer.setBubbleCenter(gpHistoryPoint.x, gpHistoryPoint.y, gpHistoryPoint.z, this.phone.matrixWorld);
 
             let nextHistoryPoint = {
                 x: gpHistoryPoint.x,
