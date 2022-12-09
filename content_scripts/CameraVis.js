@@ -166,7 +166,7 @@ void main() {
   float depth = -pos.z;
 
   // Fade out beginning at 4.5 meters and be gone after 5.0
-  float alphaDepth = clamp(2.0 * (4.7 - depth / 1000.0), 0.0, 1.0);
+  float alphaDepth = clamp(2.0 * (5.0 - depth / 1000.0), 0.0, 1.0);
 
   // Normal vector of the depth mesh based on pos
   // Necessary to calculate manually since we're messing with gl_Position in the vertex shader
