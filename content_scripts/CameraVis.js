@@ -417,9 +417,9 @@ void main() {
                 }
                 let dt = time - lastTime;
                 lastTime = time;
-                mesh.material.uniforms.depthMax.value += 5 * dt;
+                mesh.material.uniforms.depthMax.value += 25 * dt;
                 if (mesh.material.uniforms.depthMax.value < 5000) {
-                    window.requestAnimationFrame(patchLoading, 33);
+                    window.requestAnimationFrame(patchLoading);
                 }
             }
             window.requestAnimationFrame(patchLoading);
