@@ -87,7 +87,7 @@ void main() {
       ((b & (1 << 7)) << (23 - 7))) *
       (5000.0 / float(1 << 24));
   `}
-  float z = (depth - 10.0) * 0.97;
+  float z = depth - 1.0;
 
   // Projection code by @kcmic
   pos = vec4(
