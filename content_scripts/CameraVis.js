@@ -267,6 +267,8 @@ void main() {
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
 
+            this.maxDepthMeters = 5; // this goes down if lidar is pointed at a wall/floor/object closer than 5 meters
+
             let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
             // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
             // let parentNode = realityEditor.sceneGraph.getSceneNodeById(elementId);
@@ -621,7 +623,7 @@ void main() {
             this.texture.needsUpdate = true;
             this.textureDepth.needsUpdate = true;
 
-            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld);
+            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
 
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
             let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
@@ -999,7 +1001,11 @@ void main() {
             let {canvas, context, imageData} = this.depthCanvasCache[id];
             canvas.width = DEPTH_WIDTH;
             canvas.height = DEPTH_HEIGHT;
+            let maxDepth14bits = 0;
             for (let i = 0; i < DEPTH_WIDTH * DEPTH_HEIGHT; i++) {
+                if (rawDepth[i] > maxDepth14bits) {
+                    maxDepth14bits = rawDepth[i];
+                }
                 // We get 14 bits of depth information from the RVL-encoded
                 // depth buffer. Note that this means the blue channel is
                 // always zero
@@ -1015,6 +1021,7 @@ void main() {
                 imageData.data[4 * i + 2] = b;
                 imageData.data[4 * i + 3] = 255;
             }
+            this.cameras[id].maxDepthMeters = 5 * (maxDepth14bits / (1 << 14));
 
             context.putImageData(imageData, 0, 0);
             this.finishRenderPointCloudCanvas(id, textureKey, -1);
