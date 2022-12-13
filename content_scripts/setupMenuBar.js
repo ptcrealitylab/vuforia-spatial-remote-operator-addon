@@ -38,6 +38,7 @@ createNameSpace('realityEditor.gui');
         ResetClones: 'Reset Clones',
         ToggleRecordClones: 'Toggle Clone Recording',
         AdvanceCloneMaterial: 'Next Clone Lens',
+        AdvanceCameraShader: 'Next Camera Lens',
     });
     exports.ITEM = ITEM;
 
@@ -92,6 +93,9 @@ createNameSpace('realityEditor.gui');
 
         const rzvAdvanceCloneMaterial = new MenuItem(ITEM.AdvanceCloneMaterial, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, rzvAdvanceCloneMaterial);
+
+        const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
+        menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
 
         const resetRzvHistoryClones = new MenuItem(ITEM.ResetClones, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, resetRzvHistoryClones);

@@ -9,6 +9,7 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
+import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
@@ -51,6 +52,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     let videoPlayback = null;
     let cameraVisCoordinator = null;
     let cameraVisSceneNodes = [];
+
+    let cameraVisFrustums = [];
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -202,6 +205,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
                             cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+
+                            // add to cameraVisFrustums so that material uniforms can be updated
+                            cameraVisFrustums.push(cameraVis.id);
                         });
 
                         cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
@@ -209,6 +215,22 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                             cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
                                 return sceneNode !== cameraVis.sceneGraphNode;
                             });
+
+                            // remove from cameraVisFrustums so that material uniforms can be updated
+                            cameraVisFrustums = cameraVisSceneNodes.filter(id => {
+                                return id !== cameraVis.id;
+                            });
+                            realityEditor.gui.threejsScene.removeMaterialCullingFrustum(cameraVis.id);
+                            if (gltf && typeof gltf.traverse !== 'undefined') {
+                                gltf.traverse(child => {
+                                    if (!child.material || !child.material.uniforms) return;
+                                    child.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
+                                });
+                            }
+                        });
+
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.AdvanceCameraShader, () => {
+                            cameraVisCoordinator.advanceShaderMode();
                         });
 
                         if (!PROXY) {
@@ -455,6 +477,46 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     exports.getCameraVisSceneNodes = () => {
         return cameraVisSceneNodes;
     };
+    
+    exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix, maxDepthMeters) {
+        if (!gltf || typeof gltf.traverse === 'undefined') return;
+        const utils = realityEditor.gui.ar.utilities;
+        
+        let cameraPosition = new THREE.Vector3(
+            cameraWorldMatrix.elements[12] / 1000,
+            cameraWorldMatrix.elements[13] / 1000,
+            cameraWorldMatrix.elements[14] / 1000
+        );
+        let cameraPos = [cameraPosition.x, cameraPosition.y, cameraPosition.z];
+        let cameraDirection = utils.normalize(utils.getForwardVector(cameraWorldMatrix.elements));
+        let cameraLookAtPosition = utils.add(cameraPos, cameraDirection);
+        let cameraUp = utils.normalize(utils.getUpVector(cameraWorldMatrix.elements));
+
+        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp, maxDepthMeters);
+        
+        gltf.traverse(child => {
+            updateFrustumUniforms(child, cameraId, thisFrustumPlanes);
+        });
+    }
+
+    function updateFrustumUniforms(mesh, cameraId, frustumPlanes) {
+        if (!mesh.material || !mesh.material.uniforms) return;
+
+        let cameraFrustumIndex = cameraVisFrustums.indexOf(cameraId);
+        if (cameraFrustumIndex >= MAX_VIEW_FRUSTUMS || cameraFrustumIndex === -1) {
+            return;
+        }
+
+        mesh.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
+
+        if (typeof mesh.material.uniforms[UNIFORMS.frustums] !== 'undefined') {
+            // update this frustum with all of the normals and constants
+            let existingFrustums = mesh.material.uniforms[UNIFORMS.frustums].value;
+            existingFrustums[cameraFrustumIndex] = frustumPlanes;
+            mesh.material.uniforms[UNIFORMS.frustums].value = existingFrustums;
+            mesh.material.needsUpdate = true
+        }
+    }
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
