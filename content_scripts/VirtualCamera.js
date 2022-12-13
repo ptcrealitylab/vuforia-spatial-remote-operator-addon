@@ -6,7 +6,7 @@ createNameSpace('realityEditor.device');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
-(function(exports) {
+(function (exports) {
 
     const DISPLAY_PERSPECTIVE_CUBES = false;
     const FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER = 1000; // what point to focus on when we rotate/pan away from following
@@ -18,6 +18,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.cameraNode = cameraNode;
             this.projectionMatrix = [];
             this.idleOrbitting = false;
+            this.isFlying = false;
 
             this.initialPosition = [0, 0, 0];
             this.position = [1, 1, 1];
@@ -46,6 +47,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 isStrafeRequested: false,
                 first: { x: 0, y: 0 },
                 last: { x: 0, y: 0 }
+            };
+            this.mouseFlyInput = {
+                justSwitched: true,
+                last: {x: 0, y: 0},
+                unprocessedDX: 0,
+                unprocessedDY: 0,
             };
             this.keyboard = new realityEditor.device.KeyboardListener();
             this.followerName = 'cameraFollower' + cameraNode.id;
@@ -79,7 +86,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         addEventListeners() {
 
             let scrollTimeout = null;
-            window.addEventListener('wheel', function(event) {
+            window.addEventListener('wheel', function (event) {
                 this.mouseInput.unprocessedScroll += event.deltaY;
                 if (this.followingState && this.followingState.currentlyRendering2DVideo) {
                     this.followingState.currentlyRendering2DVideo = false;
@@ -94,12 +101,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (scrollTimeout !== null) {
                     clearTimeout(scrollTimeout);
                 }
-                scrollTimeout = setTimeout(function() {
+                scrollTimeout = setTimeout(function () {
                     this.triggerScaleCallbacks(false);
                     this.preRotateDistanceToTarget = null;
 
                 }.bind(this), 150);
-            }.bind(this), {passive: false}); // in order to call preventDefault, wheel needs to be active not passive
+            }.bind(this), { passive: false }); // in order to call preventDefault, wheel needs to be active not passive
 
             document.addEventListener('pointerdown', function (event) {
                 if (event.button === 2 || event.button === 1) { // 2 is right click, 0 is left, 1 is middle button
@@ -144,22 +151,57 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.addEventListener('pointerup', pointerReset);
             document.addEventListener('pointercancel', pointerReset);
 
-            document.addEventListener('pointermove', function(event) {
-                if (this.mouseInput.isPointerDown) {
+            // enter fly mode
+            document.addEventListener('keypress', (e) => {
+                if (e.key === 'f' || e.key === 'F') {
+                    this.isFlying = !this.isFlying;
+                    this.mouseFlyInput.justSwitched = true;
+                    console.log(this.isFlying?'fly mode activate':'normal mode activate');
+                }
+            });
 
-                    let xOffset = event.pageX - this.mouseInput.last.x;
-                    let yOffset = event.pageY - this.mouseInput.last.y;
+            document.addEventListener('pointermove', function (event) {
+                if (this.isFlying) {
+                    // justSwitched stays true for one frame before becoming false
+                    // to prevent x,y offsets being too big and suddenly shifts the camera lookAt position
+                    if (this.mouseFlyInput.justSwitched) {
+                        this.mouseFlyInput.last.x = event.pageX;
+                        this.mouseFlyInput.last.y = event.pageY;
 
-                    this.mouseInput.unprocessedDX += xOffset;
-                    this.mouseInput.unprocessedDY += yOffset;
+                        let xOffset = event.pageX - this.mouseFlyInput.last.x;
+                        let yOffset = event.pageY - this.mouseFlyInput.last.y;
+                        
+                        this.mouseFlyInput.unprocessedDX = xOffset;
+                        this.mouseFlyInput.unprocessedDY = yOffset;
 
-                    if (this.followingState && this.followingState.currentlyRendering2DVideo) {
-                        this.followingState.currentlyRendering2DVideo = false;
-                        realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                        this.mouseFlyInput.justSwitched = false;
+                    } else {
+                        let xOffset = event.pageX - this.mouseFlyInput.last.x;
+                        let yOffset = event.pageY - this.mouseFlyInput.last.y;
+
+                        this.mouseFlyInput.unprocessedDX = xOffset;
+                        this.mouseFlyInput.unprocessedDY = yOffset;
+
+                        this.mouseFlyInput.last.x = event.pageX;
+                        this.mouseFlyInput.last.y = event.pageY;
                     }
+                } else {
+                    if (this.mouseInput.isPointerDown) {
 
-                    this.mouseInput.last.x = event.pageX;
-                    this.mouseInput.last.y = event.pageY;
+                        let xOffset = event.pageX - this.mouseInput.last.x;
+                        let yOffset = event.pageY - this.mouseInput.last.y;
+
+                        this.mouseInput.unprocessedDX += xOffset;
+                        this.mouseInput.unprocessedDY += yOffset;
+
+                        if (this.followingState && this.followingState.currentlyRendering2DVideo) {
+                            this.followingState.currentlyRendering2DVideo = false;
+                            realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                        }
+
+                        this.mouseInput.last.x = event.pageX;
+                        this.mouseInput.last.y = event.pageY;
+                    }
                 }
             }.bind(this));
         }
@@ -315,6 +357,38 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 }
 
                 this.mouseInput.unprocessedDY = 0;
+            }
+
+            let flyingSpeed = 30;
+            if (this.isFlying) {
+                // handle mouse movements
+                let mouseVector = [0, 0, 0];
+                mouseVector = add(mouseVector, scalarMultiply(vCamX, 0.0005 * (2 * Math.PI * this.distanceToTarget) * this.mouseFlyInput.unprocessedDX));
+                this.mouseFlyInput.unprocessedDX = 0;
+                mouseVector = add(mouseVector, scalarMultiply(negate(vCamY), 0.0005 * (2 * Math.PI * this.distanceToTarget) * this.mouseFlyInput.unprocessedDY));
+                this.mouseFlyInput.unprocessedDY = 0;
+                this.targetVelocity = add(this.targetVelocity, mouseVector);
+                // handle WASDQE movements, shift to speed up
+                let transformKeys = {
+                    W: this.keyboard.keyStates[this.keyboard.keyCodes.W] === 'down',
+                    A: this.keyboard.keyStates[this.keyboard.keyCodes.A] === 'down',
+                    S: this.keyboard.keyStates[this.keyboard.keyCodes.S] === 'down',
+                    D: this.keyboard.keyStates[this.keyboard.keyCodes.D] === 'down',
+                    Q: this.keyboard.keyStates[this.keyboard.keyCodes.Q] === 'down',
+                    E: this.keyboard.keyStates[this.keyboard.keyCodes.E] === 'down',
+                };
+                let keyDirection = [transformKeys.S - transformKeys.W, transformKeys.D - transformKeys.A, transformKeys.E - transformKeys.Q];
+                if (magnitude(keyDirection) !== 0) {
+                    let vector = [0, 0, 0];
+                    flyingSpeed = this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down' ? 60 : 30;
+                    let forwardValue = scalarMultiply(forwardVector, keyDirection[0]);
+                    let horizontalValue = scalarMultiply(horizontalVector, keyDirection[1]);
+                    let verticalValue = scalarMultiply([0, 1, 0], keyDirection[2]);
+                    vector = add(vector, add(add(forwardValue, horizontalValue), verticalValue));
+                    vector = scalarMultiply(normalize(vector), flyingSpeed);
+                    this.targetVelocity = add(this.targetVelocity, vector);
+                    this.velocity = add(this.velocity, vector);
+                }
             }
 
             // TODO: add back keyboard controls
@@ -517,14 +591,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.threeJsContainer.add(this.followingState.unstabilizedContainer);
 
                 // These boxes could be groups / empty objects rather than meshes, but we have them to help debug
-                let forwardTarget = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({color: '#0000ff'}));
+                let forwardTarget = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({ color: '#0000ff' }));
                 forwardTarget.position.set(0, 0, FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER);
                 forwardTarget.name = 'forwardFollowTargetObject';
                 forwardTarget.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.followingState.unstabilizedContainer.add(forwardTarget);
                 this.followingState.forwardTargetObject = forwardTarget;
 
-                let level = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({color: '#00ffff'}));
+                let level = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({ color: '#00ffff' }));
                 level.name = 'levelFollowTargetObject';
                 level.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.threeJsContainer.add(level);
@@ -538,12 +612,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.followingState.stabilizedContainer = container;
                 this.threeJsContainer.add(container);
 
-                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({ color: '#ff0000' }));
                 obj.name = 'parametricPositionObject';
                 obj.visible = DISPLAY_PERSPECTIVE_CUBES;
                 container.add(obj);
 
-                let target = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: '#ff0000'}));
+                let target = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({ color: '#ff0000' }));
                 target.name = 'parametricTargetObject';
                 target.visible = DISPLAY_PERSPECTIVE_CUBES;
                 container.add(target);
@@ -553,7 +627,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
 
             if (!this.followingState.partiallyStabilizedTargetObject) {
-                let obj = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({color: '#00ffff'}));
+                let obj = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({ color: '#00ffff' }));
                 obj.name = 'partiallyStabilizedFollowTargetObject';
                 obj.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.threeJsContainer.add(obj);
@@ -663,6 +737,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return [A[0] + B[0], A[1] + B[1], A[2] + B[2]];
     }
 
+    function hadamardProduct(A, B) {
+        return [A[0] * B[0], A[1] * B[1], A[2] * B[2]];
+    }
+
     function magnitude(A) {
         return Math.sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
     }
@@ -685,8 +763,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     function multiplyMatrixVector(M, v) {
         return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
-            M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
-            M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
+        M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
+        M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
     }
 
     function sumOfElementDifferences(M1, M2) {
@@ -702,7 +780,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return Math.log(y) / Math.log(x);
     }
 
-    function clamp(num, min, max){
+    function clamp(num, min, max) {
         return Math.min(Math.max(num, min), max);
     }
 
