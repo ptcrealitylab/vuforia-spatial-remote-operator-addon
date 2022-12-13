@@ -33,6 +33,7 @@ createNameSpace('realityEditor.gui');
         GettingStarted: 'Getting Started',
         ShowDeveloperMenu: 'Show Developer Menu',
         DebugAvatarConnections: 'Debug Avatar Connections',
+        DeleteAllTools: 'Delete All Tools',
         ViewCones: 'Show View Cones',
         ResetClones: 'Reset Clones',
         ToggleRecordClones: 'Toggle Clone Recording',
@@ -129,6 +130,27 @@ createNameSpace('realityEditor.gui');
             realityEditor.avatar.toggleDebugMode(checked);
         });
         menuBar.addItemToMenu(MENU.Develop, debugAvatars);
+
+        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (checked) => {
+            // console.info(objects);
+            // for (let object in objects) {
+            //     let objectKey = object.uuid;
+            //     for (let frame in object.frames) {
+            //         let frameKey = frame.uuid;
+            //         realityEditor.device.deleteFrame(frame, objectKey, frameKey);
+            //     }
+            // }
+            let objectKey = '_WORLD_instantScancm14a1gx_Lesaou7om0z';
+            let object = realityEditor.getObject(objectKey);
+            for (let frame in object.frames) {
+                if (object.frames.hasOwnProperty(frame)) {
+                    console.log(object.frames[frame]);
+                    let frameKey = object.frames[frame].uuid;
+                    realityEditor.device.deleteFrame(frame, objectKey, frameKey);
+                }
+            }
+        })
+        menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
 
         const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
             if (checked) {
