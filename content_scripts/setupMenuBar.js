@@ -39,6 +39,7 @@ createNameSpace('realityEditor.gui');
         ToggleRecordClones: 'Toggle Clone Recording',
         AdvanceCloneMaterial: 'Next Clone Lens',
         AdvanceCameraShader: 'Next Camera Lens',
+        NerfRendering: 'NeRF Rendering',
     });
     exports.ITEM = ITEM;
 
@@ -87,6 +88,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
+
+        const toggleNerfRendering = new MenuItem(ITEM.NerfRendering, { shortcutKey: 'N', toggle: true, defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.View, toggleNerfRendering);
 
         const toggleRzvHistoryCloneRecording = new MenuItem(ITEM.ToggleRecordClones, { toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, toggleRzvHistoryCloneRecording);
