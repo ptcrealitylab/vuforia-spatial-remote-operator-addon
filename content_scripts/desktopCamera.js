@@ -562,6 +562,14 @@ createNameSpace('realityEditor.device.desktopCamera');
                         gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
                     }
                     realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.getMatrixRelativeTo(gpNode));
+
+                    let relativeCameraMatrix = cameraNode.getMatrixRelativeTo(gpNode);
+                    const SCALE = 1 / 1000;
+                    relativeCameraMatrix[12] *= SCALE;
+                    relativeCameraMatrix[13] *= SCALE;
+                    relativeCameraMatrix[14] *= SCALE;
+                    // internally, it won't send it if we haven't enabled nerf rendering mode, so it's ok to do this always
+                    realityEditor.gui.ar.desktopRenderer.sendCameraToNerfStudio(relativeCameraMatrix);
                 }
             } catch (e) {
                 if (DEBUG) {

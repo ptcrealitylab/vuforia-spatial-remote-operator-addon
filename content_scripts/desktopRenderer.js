@@ -54,6 +54,125 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     let cameraVisSceneNodes = [];
 
     let cameraVisFrustums = [];
+    
+    const NERF_STUDIO_WEBSOCKET_URL = 'ws://localhost:7007';
+    const NERF_STUDIO_SOCKET_NAME = 'nerfStudio';
+
+    let useNerfRendering = false;
+    let nerfWebSocket = null;
+    let nerfCanvas = null;
+
+    function connectToNerfStudio() {
+        if (nerfWebSocket) return; // only initialize once
+
+        nerfWebSocket = new WebSocket(NERF_STUDIO_WEBSOCKET_URL);
+
+        nerfWebSocket.onopen = (e => {
+            console.log('opened connection to nerf studio');
+        });
+
+        nerfWebSocket.onclose = (e => {
+            console.log('closed connection to nerf studio');
+        });
+
+        nerfWebSocket.onerror = (e => {
+            console.error('error with nerfstudio websocket', e);
+        });
+
+        // const onConnect = (socket) => {
+        //     // realityEditor.network.realtime.sendMessageToSocketSet('nerfStudio', '/nativeAPI/sendUDPMessage', args.message);
+        //     console.log('connected to nerfStudio socket', NERF_STUDIO_WEBSOCKET_URL);
+        // };
+        
+        // realityEditor.network.realtime.createSocketInSet(NERF_STUDIO_SOCKET_NAME, NERF_STUDIO_WEBSOCKET_URL, onConnect);
+    }
+
+    function sendCameraToNerfStudio(cameraMatrix) {
+        if (!useNerfRendering) return;
+        if (!nerfWebSocket) {
+            console.log('cannot send message, nerf websocket not initialized');
+            return;
+        }
+        if (nerfWebSocket.readyState !== 1) {
+            console.log('websocket readyState is not CONNECTED');
+            return;
+        }
+
+        let defaultMatrix = [
+            0.8768288709363371,
+            -0.48080259056343316,
+            0,
+            0,
+            0.3139440447617337,
+            0.5725326936841874,
+            0.7573938548875155,
+            0,
+            -0.36415692750674244,
+            -0.6641047986351402,
+            0.6529583053906498,
+            0,
+            -0.4129898476856783,
+            -0.7473400792058696,
+            0.6822817432737595,
+            1
+        ];
+
+        let message = {
+            type: 'write', //'toolbox', //'write',
+            path: 'renderingState/camera',
+            data: {
+                metadata: {
+                    "version": 4.5,
+                    "type": "Object",
+                    "generator": "Object3D.toJSON"
+                },
+                object: {
+                    "uuid": "15a0a777-f847-40e6-be32-46ce6af1d19d",
+                    "type": "PerspectiveCamera",
+                    "layers": 1,
+                    "matrix": (cameraMatrix || defaultMatrix),
+                    "fov": 50,
+                    "zoom": 1,
+                    "near": 0.1,
+                    "far": 1000,
+                    "focus": 10,
+                    "aspect": 0.5714285714285714, // todo: calculate
+                    "filmGauge": 35,
+                    "filmOffset": 0,
+                    "timestamp": Date.now(), //1674073427950,
+                    "camera_type": "perspective",
+                    "render_aspect": 1.7777777777777777
+                }
+            }
+        };
+        
+        console.log('send message to nerf studio', message);
+
+        // websocket: ws://localhost:7007
+        // type: 'write'
+        // path: 'renderingState/camera_choice' --> not needed
+        // path: 'renderingState/camera'
+        // data = {
+        // type, path, data
+        // data_packet = sceneTree.metadata.camera.toJSON()
+        // data_packet.object.timestamp, camera_type=perspective, render_aspect=render_width/render_height
+
+
+        // realityEditor.network.realtime.sendMessageToSocketSet(NERF_STUDIO_SOCKET_NAME, '/', message);
+        // // realityEditor.network.realtime.sendMessageToSocketSet(NERF_STUDIO_SOCKET_NAME, 'renderingState/camera', message.data);
+
+        const encodedMessage = msgpack.encode(message);
+
+        // let sockets = realityEditor.network.realtime.getSocketsForSet(NERF_STUDIO_SOCKET_NAME);
+        // sockets.forEach(socket => {
+        //     console.log('socket is emitting', encodedMessage);
+        //     socket.emit(encodedMessage);
+        // });
+
+        nerfWebSocket.send(encodedMessage);
+    }
+    
+    exports.sendCameraToNerfStudio = sendCameraToNerfStudio;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -65,6 +184,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         }
 
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
+
+        // connectToNerfStudio();
 
         const renderingFlagName = 'loadingWorldMesh';
         realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
@@ -325,6 +446,44 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             realityEditor.humanPose.draw.advanceCloneMaterial();
         });
 
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.NerfRendering, (value) => {
+            if (!gltf) { return; }
+            // staticModelMode = value;
+            // if (staticModelMode) {
+            //     gltf.visible = true;
+            //     console.log('show gtlf');
+            // } else {
+            //     gltf.visible = false;
+            //     console.log('hide gltf');
+            // }
+
+            useNerfRendering = value;
+            if (useNerfRendering) {
+                connectToNerfStudio();
+                // show nerf canvas
+                if (!nerfCanvas) {
+                    nerfCanvas = document.createElement('canvas');
+                    nerfCanvas.id = 'nerfCanvas';
+                    nerfCanvas.style.position = 'absolute';
+                    nerfCanvas.style.left = '0';
+                    nerfCanvas.style.top = '0';
+                    nerfCanvas.width = window.innerWidth;
+                    nerfCanvas.height = window.innerHeight;
+                    nerfCanvas.style.width = window.innerWidth + 'px';
+                    nerfCanvas.style.height = window.innerHeight + 'px';
+                    nerfCanvas.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
+                    nerfCanvas.style.transform = 'translateZ(1000px)';
+                    nerfCanvas.style.zIndex = '1000';
+                    nerfCanvas.style.pointerEvents = 'none';
+                    document.body.appendChild(nerfCanvas);
+                }
+                nerfCanvas.style.display = 'inline';
+            } else {
+                // hide nerf canvas
+                nerfCanvas.style.display = 'none';
+            }
+        });
+
         realityEditor.gui.buttons.registerCallbackForButton(
             'logic',
             function onLogicMode() {
@@ -365,7 +524,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
     /**
      * Updates canvas size for resize events
-     */
+    */
     function updateCanvasSize() {
         backgroundCanvas.width = window.innerWidth;
         backgroundCanvas.height = window.innerHeight;
