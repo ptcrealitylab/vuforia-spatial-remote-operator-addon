@@ -346,7 +346,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                 
                 // show nerf canvas
                 if (!nerfCanvas) {
-                    nerfCanvas = document.createElement('canvas');
+                    nerfCanvas = document.createElement('video');
+                    nerfCanvas.setAttribute('autoplay', 'true');
                     nerfCanvas.id = 'nerfCanvas';
                     nerfCanvas.style.position = 'absolute';
                     nerfCanvas.style.left = '0';
@@ -358,6 +359,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     nerfCanvas.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
                     nerfCanvas.style.transform = 'translateZ(1000px)';
                     nerfCanvas.style.zIndex = '1000';
+                    nerfCanvas.style.opacity = '0.8';
                     nerfCanvas.style.pointerEvents = 'none';
                     document.body.appendChild(nerfCanvas);
                 }
