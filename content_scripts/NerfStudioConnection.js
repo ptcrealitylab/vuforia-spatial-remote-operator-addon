@@ -4,7 +4,29 @@ createNameSpace('realityEditor.device');
 (function (exports) {
 
 const NERF_STUDIO_WEBSOCKET_URL = 'ws://localhost:7007';
-const DEBUG_CAMERA_MESSAGE = true;
+const DEBUG_CAMERA_MESSAGE = false;
+
+const ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    {
+    urls: 'stun:openrelay.metered.ca:80',
+    },
+    {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+    },
+    {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+    },
+    {
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+    },
+];
 
 class NerfStudioConnection {
     constructor() {
@@ -120,23 +142,57 @@ class NerfStudioConnection {
         this.websocket.addEventListener('message', (originalCmd) => {
             try {
                 let dataByteArray = new Uint8Array(originalCmd.data);
-                if (dataByteArray.byteLength === 0) {
-                    console.log( ' [ websocket ] skip empty byte array');
-                    return;
-                }
+                originalCmd.data.text().then(blobText => {
+                    // console.log('blobText');
+                    console.log(blobText);
+                    if (blobText.split('data:').length > 1) {
+                        let imageUrl = realityEditor.device.utilities.decodeBase64JpgToBlobUrl(blobText.split('data:')[1].split('base64,')[1]);
+                        console.log('got imageUrl from nerf websocket', imageUrl);
+                        // let nerfCanvas = document.getElementById('nerfCanvas');
+                        // if (nerfCanvas && imageUrl) {
+                        //     nerfCanvas.src = imageUrl;
+                        // }
+                    } else {
+                        if (blobText.includes('path') &&
+                            blobText.includes('write') &&
+                            blobText.includes('answer') &&
+                            blobText.includes('data'))
+                            {
+                                console.log('[webrtc] received answer');
 
-                console.log(' [ websocket ] ', originalCmd);
+                                let sdp = unescape(escape(blobText.split('data')[1]).replaceAll('%uFFFD', '')).replace('typeanswer', '').replace('sdp\x04', '');
 
-                // set the remote description when the offer is received
-                const cmd = msgpack.decode(dataByteArray);
-                if (cmd.path === '/webrtc/answer') {
-                console.log('[webrtc] received answer');
-                const answer = cmd.data;
-                console.log(answer);
-                if (answer !== null) {
-                    this.peerConnection.current.setRemoteDescription(answer);
-                }
-                }
+                                // const answer = blobText.split('data')[1];
+                                const answer = {
+                                    type: 'answer',
+                                    sdp: sdp
+                                }
+
+                                console.log(answer);
+                                if (answer !== null) {
+                                    this.peerConnection.current.setRemoteDescription(answer);
+                                }
+                            }
+                    }
+                    // realityEditor.device.utilities.decodeBase64JpgToBlobUrl(base64String);
+                });
+                // if (dataByteArray.byteLength === 0) {
+                //     // console.log( ' [ websocket ] skip empty byte array');
+                //     return;
+                // }
+
+                // console.log(' [ websocket ] ', originalCmd);
+
+                // // set the remote description when the offer is received
+                // const cmd = msgpack.decode(dataByteArray);
+                // if (cmd.path === '/webrtc/answer') {
+                //     console.log('[webrtc] received answer');
+                //     const answer = cmd.data;
+                //     console.log(answer);
+                //     if (answer !== null) {
+                //         this.peerConnection.current.setRemoteDescription(answer);
+                //     }
+                // }
             } catch (err) {
                 console.warn(err);
             }
@@ -147,65 +203,49 @@ class NerfStudioConnection {
         console.log('getRTCPeerConnection');
 
         const pc = new RTCPeerConnection({
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            {
-            urls: 'stun:openrelay.metered.ca:80',
-            },
-            {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-            },
-            {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-            },
-            {
-            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject',
-            },
-        ],
+            iceServers: ICE_SERVERS,
         });
         // connect video
         pc.addEventListener('track', (evt) => {
         if (evt.track.kind === 'video') {
-            [localVideoRef.current.srcObject] = evt.streams; // uses array destructuring
+            let localVideoRef = document.getElementById('nerfCanvas');
+            if (localVideoRef) {
+                [localVideoRef.srcObject] = evt.streams; // uses array destructuring
+            }
+            // [localVideoRef.current.srcObject] = evt.streams; // uses array destructuring
         }
         });
         pc.addTransceiver('video', { direction: 'recvonly' });
 
         // for updating the status of the peer connection
         pc.oniceconnectionstatechange = () => {
-        // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/connectionState
-        console.log(`[webrtc] connectionState: ${pc.connectionState}`);
-        if (
-            pc.connectionState === 'connecting' ||
-            pc.connectionState === 'connected'
-        ) {
-            console.log('[webrtc] connected');
-            dispatch({
-            type: 'write',
-            path: 'webrtcState/isConnected',
-            data: true,
-            });
-        } else {
-            dispatch({
-            type: 'write',
-            path: 'webrtcState/isConnected',
-            data: false,
-            });
-        }
+            // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/connectionState
+            console.log(`[webrtc] connectionState: ${pc.connectionState}`);
+            if (
+                pc.connectionState === 'connecting' ||
+                pc.connectionState === 'connected'
+            ) {
+                console.log('[webrtc] connected');
+                dispatch({
+                type: 'write',
+                path: 'webrtcState/isConnected',
+                data: true,
+                });
+            } else {
+                dispatch({
+                type: 'write',
+                path: 'webrtcState/isConnected',
+                data: false,
+                });
+            }
         };
 
         pc.onclose = () => {
-        dispatch({
-            type: 'write',
-            path: 'webrtcState/isConnected',
-            data: false,
-        });
+            dispatch({
+                type: 'write',
+                path: 'webrtcState/isConnected',
+                data: false,
+            });
         };
 
         return pc;
@@ -222,28 +262,28 @@ class NerfStudioConnection {
             console.log('[webrtc] set local description');
             return new Promise((resolve) => {
                 if (this.peerConnection.current.iceGatheringState === 'complete') {
-                console.log('[webrtc] ICE gathering complete');
-                resolve();
+                    console.log('[webrtc] ICE gathering complete');
+                    resolve();
                 } else {
-                const checkState = () => {
+                    const checkState = () => {
+                        console.log(
+                        `[webrtc] iceGatheringState: ${this.peerConnection.current.iceGatheringState}`,
+                        );
+                        if (this.peerConnection.current.iceGatheringState === 'complete') {
+                        this.peerConnection.current.removeEventListener(
+                            'icegatheringstatechange',
+                            checkState,
+                        );
+                        resolve();
+                        }
+                    };
                     console.log(
-                    `[webrtc] iceGatheringState: ${this.peerConnection.current.iceGatheringState}`,
+                        '[webrtc] adding listener for `icegatheringstatechange`',
                     );
-                    if (this.peerConnection.current.iceGatheringState === 'complete') {
-                    this.peerConnection.current.removeEventListener(
+                    this.peerConnection.current.addEventListener(
                         'icegatheringstatechange',
                         checkState,
                     );
-                    resolve();
-                    }
-                };
-                console.log(
-                    '[webrtc] adding listener for `icegatheringstatechange`',
-                );
-                this.peerConnection.current.addEventListener(
-                    'icegatheringstatechange',
-                    checkState,
-                );
                 }
             });
         })
