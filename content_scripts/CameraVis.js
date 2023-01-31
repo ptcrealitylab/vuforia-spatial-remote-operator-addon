@@ -739,6 +739,7 @@ void main() {
     exports.CameraVisCoordinator = class CameraVisCoordinator {
         constructor(floorOffset) {
             this.voxelizer = null;
+            this.webRTCCoordinator = null;
             this.cameras = {};
             this.patches = [];
             this.visible = true;
@@ -910,7 +911,7 @@ void main() {
             const network = 'cam' + Math.floor(Math.random() * 1000);
 
             const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(urlBase + 'signalling');
-            const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
+            this.webRTCCoordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 
         renderPointCloud(id, textureKey, imageUrl) {
