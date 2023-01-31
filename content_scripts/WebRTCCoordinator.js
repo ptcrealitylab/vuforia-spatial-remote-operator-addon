@@ -16,6 +16,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.ws = ws;
             this.audioStream = null;
             this.consumerId = consumerId;
+            this.muted = false;
 
             this.webrtcConnections = {};
 
@@ -39,6 +40,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
                 this.audioStream = this.improveAudioStream(stream);
+                this.updateMutedState();
                 for (let conn of Object.values(this.webrtcConnections)) {
                     conn.audioStream = this.audioStream;
                     conn.localConnection.addStream(conn.audioStream);
@@ -55,6 +57,22 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             src.connect(gainNode);
             gainNode.connect(dst);
             return dst.stream;
+        }
+
+        updateMutedState() {
+            for (let track of this.audioStream.getTracks()) {
+                track.enabled = !this.muted;
+            }
+        }
+
+        mute() {
+            this.muted = true;
+            this.updateMutedState();
+        }
+
+        unmute() {
+            this.muted = false;
+            this.updateMutedState();
         }
 
         onWsOpen() {
