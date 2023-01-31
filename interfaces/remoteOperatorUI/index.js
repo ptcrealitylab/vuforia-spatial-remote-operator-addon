@@ -18,6 +18,7 @@ const server = require('@libraries/hardwareInterfaces');
 const utilities = require('@libraries/utilities');
 const Addons = require('@libraries/addons/Addons');
 const LocalUIApp =  require('@libraries/LocalUIApp');
+const server8080 = require('../../../../server.js');
 
 const settings = server.loadHardwareInterface(__dirname);
 
@@ -149,6 +150,8 @@ function startHTTPServer(localUIApp, port) {
                 res.json(JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8', flag: 'r' })));
             }
         });
+
+        server8080.webServer.use('/userinterface', localUIApp.app);
 
         // pass visibleObjects messages to the userinterface
         server.subscribeToMatrixStream(function(visibleObjects) {
