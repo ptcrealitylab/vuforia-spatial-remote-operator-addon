@@ -33,7 +33,12 @@ createNameSpace('realityEditor.gui');
         GettingStarted: 'Getting Started',
         ShowDeveloperMenu: 'Show Developer Menu',
         DebugAvatarConnections: 'Debug Avatar Connections',
-        ViewCones: 'Show View Cones'
+        DeleteAllTools: 'Delete All Tools',
+        ViewCones: 'Show View Cones',
+        ResetClones: 'Reset Clones',
+        ToggleRecordClones: 'Toggle Clone Recording',
+        AdvanceCloneMaterial: 'Next Clone Lens',
+        AdvanceCameraShader: 'Next Camera Lens',
     });
     exports.ITEM = ITEM;
 
@@ -83,16 +88,28 @@ createNameSpace('realityEditor.gui');
         const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
 
-        const resetRzvHistory = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, resetRzvHistory);
+        const toggleRzvHistoryCloneRecording = new MenuItem(ITEM.ToggleRecordClones, { toggle: true, defaultVal: false, disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, toggleRzvHistoryCloneRecording);
 
-        const toggleRzvHistory = new MenuItem(ITEM.TogglePaths, { shortcutKey: 'E', toggle: true, defaultVal: false, disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, toggleRzvHistory);
+        const rzvAdvanceCloneMaterial = new MenuItem(ITEM.AdvanceCloneMaterial, { disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, rzvAdvanceCloneMaterial);
+
+        const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
+        menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
+
+        const resetRzvHistoryClones = new MenuItem(ITEM.ResetClones, { disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, resetRzvHistoryClones);
+
+        const toggleRzvHistoryLines = new MenuItem(ITEM.TogglePaths, { shortcutKey: 'E', toggle: true, defaultVal: false, disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, toggleRzvHistoryLines);
+
+        const resetRzvHistoryLines = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, resetRzvHistoryLines);
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, clonePatch);
 
-        const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '', disabled: true }, null);
+        const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '' }, null);
         menuBar.addItemToMenu(MENU.History, undoPatch);
 
         const toggleVoxelizer = new MenuItem(ITEM.Voxelizer, { shortcutKey: '', toggle: true, defaultVal: false }, null); // other module can attach a callback later
@@ -117,6 +134,27 @@ createNameSpace('realityEditor.gui');
             realityEditor.avatar.toggleDebugMode(checked);
         });
         menuBar.addItemToMenu(MENU.Develop, debugAvatars);
+
+        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (checked) => {
+            // console.info(objects);
+            // for (let object in objects) {
+            //     let objectKey = object.uuid;
+            //     for (let frame in object.frames) {
+            //         let frameKey = frame.uuid;
+            //         realityEditor.device.deleteFrame(frame, objectKey, frameKey);
+            //     }
+            // }
+            let objectKey = '_WORLD_instantScancm14a1gx_Lesaou7om0z';
+            let object = realityEditor.getObject(objectKey);
+            for (let frame in object.frames) {
+                if (object.frames.hasOwnProperty(frame)) {
+                    console.log(object.frames[frame]);
+                    let frameKey = object.frames[frame].uuid;
+                    realityEditor.device.deleteFrame(frame, objectKey, frameKey);
+                }
+            }
+        })
+        menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
 
         const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
             if (checked) {

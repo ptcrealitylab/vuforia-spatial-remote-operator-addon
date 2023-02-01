@@ -3,6 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
+import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
 
 (function(exports) {
     const debug = false;
@@ -18,8 +19,17 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         SOLID: 'SOLID',
         POINT: 'POINT',
         HOLO: 'HOLO',
+        DIFF: 'DIFF',
         FIRST_PERSON: 'FIRST_PERSON',
     };
+
+    const enabledShaderModes = [
+        ShaderMode.SOLID,
+        ShaderMode.DIFF,
+        ShaderMode.POINT,
+        ShaderMode.HOLO,
+    ];
+
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
@@ -45,7 +55,6 @@ void main() {
   vec4 color = texture2D(mapDepth, vUv);
   ${(!ZDEPTH) ? `
   float depth = 5000.0 * (color.r + color.g / 255.0 + color.b / (255.0 * 255.0));
-  float z = depth - 1.0;
   ` : `
   // color.rgb are all 0-1 when we want them to be 0-255 so we can shift out across depth (mm?)
   int r = int(color.r * 255.0);
@@ -77,12 +86,10 @@ void main() {
       ((g & (1 << 7)) << (22 - 7)) |
       ((b & (1 << 7)) << (23 - 7))) *
       (5000.0 / float(1 << 24));
+  `}
+  float z = depth - 1.0;
 
   // Projection code by @kcmic
-
-  float z = depth - 1.0;
-  `}
-
   pos = vec4(
     (position.x / width - 0.5) * z * XtoZ,
     (position.y / height - 0.5) * z * YtoZ,
@@ -113,8 +120,6 @@ uniform float time;
 varying vec2 vUv;
 // Position of this pixel relative to the camera in proper (millimeter) coordinates
 varying vec4 pos;
-uniform float depthMin;
-uniform float depthMax;
 
 void main() {
   // Depth in millimeters
@@ -139,10 +144,6 @@ void main() {
   // alphaDepth is thrown in here to incorporate the depth-based fade
   float alpha = abs(dot(normalize(pos.xyz), normal)) * alphaDepth * alphaHolo;
 
-  // if (depth < depthMin || depth > depthMax) {
-  //     alpha = 0;
-  // }
-
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
 
@@ -157,6 +158,8 @@ uniform sampler2D map;
 varying vec2 vUv;
 // Position of this pixel relative to the camera in proper (millimeter) coordinates
 varying vec4 pos;
+uniform float depthMin;
+uniform float depthMax;
 
 void main() {
   // Depth in millimeters
@@ -179,10 +182,27 @@ void main() {
   // alphaDepth is thrown in here to incorporate the depth-based fade
   float alpha = alphaNorm * alphaDepth;
 
+  alpha = alpha * (1.0 - step(depthMax, depth)) * step(depthMin, depth);
+
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
 
-  gl_FragColor = vec4(color.rgb, alpha);
+  float aspect = 1920.0 / 1080.0;
+  float borderScale = 0.001 * 5000.0 / (depth + 50.0);
+  float border = clamp(
+      (1.0 - step(borderScale, vUv.x)) +
+      (1.0 - step(borderScale * aspect, vUv.y)) +
+      step(1.0 - borderScale, vUv.x) +
+      step(1.0 - borderScale * aspect, vUv.y),
+      0.0,
+      1.0
+  );
+  if (alpha < 0.02 && border < 0.5) {
+      discard; // Necessary to prevent weird transparency errors when overlapping with self
+  }
+  // gl_FragColor = vec4(color.rgb, alpha);
+  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(0.0, 1.0, 0.0, 0.7);
+
   // gl_FragColor = vec4(alphaNorm, alphaNorm, alphaDepth, 1.0);
 }`;
 
@@ -212,9 +232,24 @@ void main() {
         );
     }
 
+    // author: https://www.30secondsofcode.org/js/s/hsl-to-rgb
+    // input ranges: H: [0, 360], S: [0, 100], L: [0, 100]
+    // output ranges: [0, 255]
+    function HSLToRGB(h, s, l) {
+        s /= 100;
+        l /= 100;
+        const k = n => (n + h / 30) % 12;
+        const a = s * Math.min(l, 1 - l);
+        const f = n =>
+            l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+        return [255 * f(0), 255 * f(8), 255 * f(4)];
+    }
+
     class CameraVis {
         constructor(id, floorOffset) {
             this.id = id;
+            this.firstPersonMode = false;
+            this.shaderMode = ShaderMode.SOLID;
             this.container = new THREE.Group();
             // this.container.scale.set(0.001, 0.001, 0.001);
             // this.container.rotation.y = Math.PI;
@@ -222,6 +257,7 @@ void main() {
             this.container.rotation.x = Math.PI / 2;
 
             this.container.updateMatrix();
+            this.container.updateMatrixWorld(true);
             this.container.matrixAutoUpdate = false;
 
             this.container.name = 'CameraVisContainer_' + id;
@@ -230,6 +266,8 @@ void main() {
             this.phone.matrixAutoUpdate = false;
             this.phone.frustumCulled = false;
             this.container.add(this.phone);
+
+            this.maxDepthMeters = 5; // this goes down if lidar is pointed at a wall/floor/object closer than 5 meters
 
             let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
             // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
@@ -247,7 +285,9 @@ void main() {
                     colorId ^= id.charCodeAt(i);
                 }
             }
-            const color = `hsl(${((colorId / 29) % Math.PI) * 360 / Math.PI}, 100%, 50%)`;
+            let hue = ((colorId / 29) % Math.PI) * 360 / Math.PI;
+            const color = `hsl(${hue}, 100%, 50%)`;
+            this.colorRGB = HSLToRGB(hue, 100, 50); // used to add points to the SpaghettiMeshLine
             const mat = new THREE.MeshBasicMaterial({color: color});
             const box = new THREE.Mesh(geo, mat);
             box.name = 'cameraVisCamera';
@@ -294,19 +334,17 @@ void main() {
             this.matrices = [];
             this.loading = {};
 
-            this.historyLine = new realityEditor.device.meshLine.MeshLine();
-            const lineMat = new realityEditor.device.meshLine.MeshLineMaterial({
-                color: color,
-                opacity: 0.6,
-                lineWidth: 20,
-                // depthWrite: false,
-                transparent: true,
-                side: THREE.DoubleSide,
-            });
-            this.historyMesh = new THREE.Mesh(this.historyLine, lineMat);
             this.historyPoints = [];
-            this.historyLine.setPoints(this.historyPoints);
-            this.container.add(this.historyMesh);
+            // note: we will color the path in each point, rather than in the constructor
+            this.historyMesh = new SpaghettiMeshPath(this.historyPoints, {
+                widthMm: 30,
+                heightMm: 30,
+                usePerVertexColors: true,
+                wallBrightness: 0.6
+            });
+
+            // we add the historyMesh to scene because crossing up vector gets messed up by rotation if added to this.container
+            realityEditor.gui.threejsScene.addToScene(this.historyMesh);
         }
 
         /**
@@ -372,6 +410,21 @@ void main() {
             textureDepth.needsUpdate = true;
 
             let mesh = CameraVis.createPointCloud(texture, textureDepth, ShaderMode.SOLID);
+            mesh.material.uniforms.depthMax.value = 100;
+
+            let lastTime = -1;
+            function patchLoading(time) {
+                if (lastTime < 0) {
+                    lastTime = time;
+                }
+                let dt = time - lastTime;
+                lastTime = time;
+                mesh.material.uniforms.depthMax.value += 25 * dt;
+                if (mesh.material.uniforms.depthMax.value < 5000) {
+                    window.requestAnimationFrame(patchLoading);
+                }
+            }
+            window.requestAnimationFrame(patchLoading);
 
             phone.add(mesh);
             patch.add(phone);
@@ -451,6 +504,7 @@ void main() {
             }
             mesh.scale.set(-1, 1, -1);
             mesh.frustumCulled = false;
+            mesh.layers.enable(2);
 
             return mesh;
         }
@@ -470,6 +524,7 @@ void main() {
                 fragmentShader = firstPersonFragmentShader;
                 break;
             case ShaderMode.SOLID:
+            case ShaderMode.DIFF:
             default:
                 fragmentShader = solidFragmentShader;
                 break;
@@ -477,8 +532,8 @@ void main() {
 
             let material = new THREE.ShaderMaterial({
                 uniforms: {
-                    depthMin: {value: 0.1},
-                    depthMax: {value: 5.0},
+                    depthMin: {value: 100},
+                    depthMax: {value: 5000},
                     time: {value: window.performance.now()},
                     map: {value: texture},
                     mapDepth: {value: textureDepth},
@@ -548,18 +603,44 @@ void main() {
             this.setMatrix(latest.matrix);
         }
 
+        getSceneNodeMatrix() {
+            let matrix = this.phone.matrixWorld.clone();
+
+            let initialVehicleMatrix = new THREE.Matrix4().fromArray([
+                -1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, -1, 0,
+                0, 0, 0, 1,
+            ]);
+            matrix.multiply(initialVehicleMatrix);
+
+            return matrix;
+        }
+
         setMatrix(newMatrix) {
             setMatrixFromArray(this.phone.matrix, newMatrix);
             this.phone.updateMatrixWorld(true);
             this.texture.needsUpdate = true;
             this.textureDepth.needsUpdate = true;
 
+            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
+
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
-            let nextHistoryPoint = new THREE.Vector3(
-                newMatrix[12],
-                newMatrix[13],
-                newMatrix[14],
-            );
+            let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
+
+            // history point needs to be transformed into the groundPlane coordinate system
+            let worldHistoryPoint = this.container.localToWorld(localHistoryPoint);
+            let rootNode = realityEditor.sceneGraph.getSceneNodeById('ROOT');
+            let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let gpHistoryPoint = realityEditor.sceneGraph.convertToNewCoordSystem(worldHistoryPoint, rootNode, gpNode);
+
+            let nextHistoryPoint = {
+                x: gpHistoryPoint.x,
+                y: gpHistoryPoint.y,
+                z: gpHistoryPoint.z,
+                color: this.colorRGB,
+                timestamp: Date.now()
+            };
 
             let addToHistory = this.historyPoints.length === 0;
             if (this.historyPoints.length > 0) {
@@ -573,29 +654,25 @@ void main() {
 
             if (addToHistory) {
                 this.historyPoints.push(nextHistoryPoint);
-                this.historyLine.setPoints(this.historyPoints);
+                this.historyMesh.setPoints(this.historyPoints);
             }
 
             if (this.sceneGraphNode) {
                 this.sceneGraphNode.setLocalMatrix(newMatrix);
             }
 
-            if (this.shaderMode === ShaderMode.FIRST_PERSON) {
-                let matrix = this.phone.matrixWorld.clone();
-
-                let initialVehicleMatrix = new THREE.Matrix4().fromArray([
-                    -1, 0, 0, 0,
-                    0, 1, 0, 0,
-                    0, 0, -1, 0,
-                    0, 0, 0, 1,
-                ]);
-                matrix.multiply(initialVehicleMatrix);
+            if (this.firstPersonMode) {
+                let matrix = this.getSceneNodeMatrix();
                 let eye = new THREE.Vector3(0, 0, 0);
                 eye.applyMatrix4(matrix);
                 let target = new THREE.Vector3(0, 0, -1);
                 target.applyMatrix4(matrix);
                 matrix.lookAt(eye, target, new THREE.Vector3(0, 1, 0));
                 realityEditor.sceneGraph.setCameraPosition(matrix.elements);
+            }
+
+            if (this.shaderMode === ShaderMode.DIFF) {
+                realityEditor.device.visualDiff.showDiff(this);
             }
         }
 
@@ -625,10 +702,29 @@ void main() {
         }
 
         setShaderMode(shaderMode) {
-            this.shaderMode = shaderMode;
+            if (shaderMode !== this.shaderMode) {
+                this.shaderMode = shaderMode;
 
-            this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
-            this.mesh.material = this.material;
+                if (this.matDiff) {
+                    this.matDiff = null;
+                }
+                this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
+                this.mesh.material = this.material;
+            }
+        }
+
+        enableFirstPersonMode() {
+            this.firstPersonMode = true;
+            if (this.shaderMode === ShaderMode.SOLID) {
+                this.setShaderMode(ShaderMode.FIRST_PERSON);
+            }
+        }
+
+        disableFirstPersonMode() {
+            this.firstPersonMode = false;
+            if (this.shaderMode === ShaderMode.FIRST_PERSON) {
+                this.setShaderMode(ShaderMode.SOLID);
+            }
         }
 
         add() {
@@ -647,6 +743,7 @@ void main() {
             this.patches = [];
             this.visible = true;
             this.spaghettiVisible = false;
+            this.currentShaderModeIndex = 0;
             this.floorOffset = floorOffset;
             this.depthCanvasCache = {};
             this.colorCanvasCache = {};
@@ -655,6 +752,9 @@ void main() {
                 onCameraVisCreated: [],
                 onCameraVisRemoved: [],
             };
+
+            this.onAnimationFrame = this.onAnimationFrame.bind(this);
+            window.requestAnimationFrame(this.onAnimationFrame);
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
@@ -667,7 +767,7 @@ void main() {
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
                 for (let camera of Object.values(this.cameras)) {
                     camera.historyPoints = [];
-                    camera.historyLine.setPoints(camera.historyPoints);
+                    camera.historyMesh.setPoints(camera.historyPoints);
                 }
             });
 
@@ -699,6 +799,26 @@ void main() {
 
             this.startWebRTC();
             this.restorePatches();
+        }
+
+        onAnimationFrame() {
+            let now = performance.now();
+            for (let camera of Object.values(this.cameras)) {
+                if (camera.mesh.__hidden) {
+                    camera.mesh.visible = false;
+                    continue;
+                }
+                if (now - camera.lastUpdate > 5000) {
+                    camera.remove();
+                    delete this.cameras[camera.id];
+                    this.callbacks.onCameraVisRemoved.forEach(cb => {
+                        cb(camera);
+                    });
+                } else if (!camera.mesh.visible) {
+                    camera.mesh.visible = true;
+                }
+            }
+            window.requestAnimationFrame(this.onAnimationFrame);
         }
 
         connectWsToMatrix(url) {
@@ -733,23 +853,6 @@ void main() {
                 this.createCameraVis(id);
             }
             this.cameras[id].update(mat, delayed);
-
-            let now = performance.now();
-            for (let camera of Object.values(this.cameras)) {
-                if (camera.mesh.__hidden) {
-                    camera.mesh.visible = false;
-                    continue;
-                }
-                if (now - camera.lastUpdate > 5000) {
-                    camera.remove();
-                    delete this.cameras[camera.id];
-                    this.callbacks.onCameraVisRemoved.forEach(cb => {
-                        cb(camera);
-                    });
-                } else if (!camera.mesh.visible) {
-                    camera.mesh.visible = true;
-                }
-            }
         }
 
         connect() {
@@ -842,8 +945,10 @@ void main() {
                         };
                     }
                     let {canvas, context} = this.depthCanvasCache[id];
-                    canvas.width = image.width;
-                    canvas.height = image.height;
+                    if (canvas.width !== image.width || canvas.height !== image.height) {
+                        canvas.width = image.width;
+                        canvas.height = image.height;
+                    }
                     context.drawImage(image, 0, 0, image.width, image.height);
                 } else {
                     if (!this.colorCanvasCache.hasOwnProperty(id)) {
@@ -854,8 +959,10 @@ void main() {
                         };
                     }
                     let {canvas, context} = this.colorCanvasCache[id];
-                    canvas.width = image.width;
-                    canvas.height = image.height;
+                    if (canvas.width !== image.width || canvas.height !== image.height) {
+                        canvas.width = image.width;
+                        canvas.height = image.height;
+                    }
                     context.drawImage(image, 0, 0, image.width, image.height);
                 }
                 this.finishRenderPointCloudCanvas(id, textureKey, start);
@@ -894,7 +1001,11 @@ void main() {
             let {canvas, context, imageData} = this.depthCanvasCache[id];
             canvas.width = DEPTH_WIDTH;
             canvas.height = DEPTH_HEIGHT;
+            let maxDepth14bits = 0;
             for (let i = 0; i < DEPTH_WIDTH * DEPTH_HEIGHT; i++) {
+                if (rawDepth[i] > maxDepth14bits) {
+                    maxDepth14bits = rawDepth[i];
+                }
                 // We get 14 bits of depth information from the RVL-encoded
                 // depth buffer. Note that this means the blue channel is
                 // always zero
@@ -910,6 +1021,7 @@ void main() {
                 imageData.data[4 * i + 2] = b;
                 imageData.data[4 * i + 3] = 255;
             }
+            this.cameras[id].maxDepthMeters = 5 * (maxDepth14bits / (1 << 14));
 
             context.putImageData(imageData, 0, 0);
             this.finishRenderPointCloudCanvas(id, textureKey, -1);
@@ -986,7 +1098,7 @@ void main() {
             } else {
                 const camera = this.cameras[cacheId];
                 if (camera) {
-                    camera.setShaderMode(ShaderMode.FIRST_PERSON);
+                    camera.enableFirstPersonMode();
                     camera.historyMesh.visible = false;
                 }
             }
@@ -1006,7 +1118,7 @@ void main() {
             } else {
                 const camera = this.cameras[cacheId];
                 if (this.cameras[cacheId]) {
-                    this.cameras[cacheId].setShaderMode(ShaderMode.SOLID);
+                    camera.disableFirstPersonMode();
                     camera.historyMesh.visible = this.spaghettiVisible;
                 }
             }
@@ -1044,14 +1156,21 @@ void main() {
             this.cameras[id] = new CameraVis(id, this.floorOffset);
             this.cameras[id].add();
             this.cameras[id].historyMesh.visible = this.spaghettiVisible;
+            this.cameras[id].setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
 
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
+
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetClones, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ToggleRecordClones, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCloneMaterial, true);
+
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCameraShader, true);
+
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.UndoPatch, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
@@ -1126,6 +1245,14 @@ void main() {
             if (this.patches[key]) {
                 realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
                 delete this.patches[key];
+            }
+        }
+
+        advanceShaderMode() {
+            this.currentShaderModeIndex = (this.currentShaderModeIndex + 1) % enabledShaderModes.length;
+
+            for (let camera of Object.values(this.cameras)) {
+                camera.setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
             }
         }
     };

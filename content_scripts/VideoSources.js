@@ -14,7 +14,7 @@ createNameSpace('realityEditor.videoPlayback');
                     this.createTrackInfo(this.videoInfo); // triggers onDataLoaded when it's done
                 }
             }).catch(error => {
-                console.log(error);
+                console.warn('error loading /virtualizer_recordings', error);
             });
         }
         createTrackInfo(videoInfo) {
@@ -57,10 +57,10 @@ createNameSpace('realityEditor.videoPlayback');
 
             this.trackInfo.metadata.minTime = earliestTime;
             this.trackInfo.metadata.maxTime = latestTime > 0 ? latestTime : Date.now();
-            console.log('trackInfo', this.trackInfo);
+            console.debug('trackInfo', this.trackInfo);
 
             this.addPoseInfoToTracks().then(response => {
-                console.log('addPoseInfoToTracks', response);
+                console.debug('addPoseInfoToTracks', response);
                 this.onDataLoaded(this.videoInfo, this.trackInfo);
             }).catch(error => {
                 console.warn('error in addPoseInfoToTracks', error);
@@ -82,10 +82,10 @@ createNameSpace('realityEditor.videoPlayback');
                 // this.downloadVideoInfo().then(info => console.log(info));
                 // httpGet('http://' + this.ip + ':31337/videoInfo').then(info => {
                 this.httpGet(url).then(info => {
-                    console.log(info);
+                    console.debug('loadAvailableVideos httpGet', info);
                     resolve(info);
                 }).catch(reason => {
-                    console.warn(reason);
+                    console.warn('loadAvailableVideos error', reason);
                     reject(reason);
                 });
             });
@@ -111,7 +111,7 @@ createNameSpace('realityEditor.videoPlayback');
                     });
                     resolve();
                 }).catch(error => {
-                    console.warn(error);
+                    console.warn('addPoseInfoToTracks failed', error);
                     reject();
                 });
             });
@@ -125,7 +125,7 @@ createNameSpace('realityEditor.videoPlayback');
                         poseInfo: poseInfo
                     });
                 }).catch(reason => {
-                    console.warn(reason);
+                    console.warn('loadPoseInfo failed', reason);
                     reject(reason);
                 });
             });
@@ -140,9 +140,7 @@ createNameSpace('realityEditor.videoPlayback');
                 req.open('GET', url, true);
                 req.onreadystatechange = function () {
                     if (req.readyState === 4) {
-                        console.log(req.status);
                         if (req.status === 0) {
-                            console.log('status 0');
                             return;
                         }
                         if (req.status !== 200) {

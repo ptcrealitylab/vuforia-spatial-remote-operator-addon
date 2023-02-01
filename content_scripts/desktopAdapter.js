@@ -6,6 +6,8 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
+/* globals globalCanvas */
+
 createNameSpace('realityEditor.device.desktopAdapter');
 
 /**
@@ -71,7 +73,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     }
 
     function isDesktop() {
-        return window.navigator.userAgent.indexOf('Mobile') === -1 || window.navigator.userAgent.indexOf('Macintosh') > -1;
+        const userAgent = window.navigator.userAgent;
+        const isWebView = userAgent.includes('Mobile') && !userAgent.includes('Safari');
+        const isMac = userAgent.includes('Macintosh');
+
+        return (!isWebView) || isMac;
     }
 
     let env = realityEditor.device.environment.variables;
@@ -152,10 +158,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         }
 
         const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
-        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 0.1, 300000);
-        console.log('calculated desktop projection matrix:', desktopProjectionMatrix);
+        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 10, 300000);
+        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
 
-        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 0.1, 300000);
+        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 10, 300000);
 
         // noinspection JSSuspiciousNameCombination
         globalStates.height = window.innerWidth;
@@ -164,31 +170,15 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
 
-        // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
-        let keyboard = new realityEditor.device.KeyboardListener();
-        keyboard.onKeyDown(function(code) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-            // if hold press S while dragging an element, scales it
-            if (code === keyboard.keyCodes.S) {
-                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
-
-                if (!realityEditor.device.editingState.syntheticPinchInfo) {
-                    realityEditor.device.editingState.syntheticPinchInfo = {
-                        startX: touchPosition.x,
-                        startY: touchPosition.y
-                    };
-                }
+        function setupKeyboardWhenReady() {
+            if (realityEditor.device.KeyboardListener) {
+                setupKeyboard();
+                return;
             }
-        });
-        keyboard.onKeyUp(function(code) {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+            setTimeout(setupKeyboardWhenReady, 50);
+        }
 
-            if (code === keyboard.keyCodes.S) {
-                realityEditor.device.editingState.syntheticPinchInfo = null;
-                globalCanvas.hasContent = true; // force the canvas to be cleared
-            }
-        });
+        setupKeyboardWhenReady();
 
         setTimeout(() => {
             update();
@@ -231,17 +221,44 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         }
     }
 
+    // add a keyboard listener to toggle visibility of the zone/phone discovery buttons
+    function setupKeyboard() {
+        let keyboard = new realityEditor.device.KeyboardListener();
+        keyboard.onKeyDown(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            // if hold press S while dragging an element, scales it
+            if (code === keyboard.keyCodes.S) {
+                let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
+
+                if (!realityEditor.device.editingState.syntheticPinchInfo) {
+                    realityEditor.device.editingState.syntheticPinchInfo = {
+                        startX: touchPosition.x,
+                        startY: touchPosition.y
+                    };
+                }
+            }
+        });
+        keyboard.onKeyUp(function(code) {
+            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+
+            if (code === keyboard.keyCodes.S) {
+                realityEditor.device.editingState.syntheticPinchInfo = null;
+                globalCanvas.hasContent = true; // force the canvas to be cleared
+            }
+        });
+    }
+
     /**
      * Builds a projection matrix from field of view, aspect ratio, and near and far planes
      */
     function projectionMatrixFrom(vFOV, aspect, near, far) {
-        console.log(Math.DEG2RAD);
         var top = near * Math.tan((Math.PI / 180) * 0.5 * vFOV );
-        console.log('top', top);
+        console.debug('top', top);
         var height = 2 * top;
         var width = aspect * height;
         var left = -0.5 * width;
-        console.log(vFOV, aspect, near, far);
+        console.debug(vFOV, aspect, near, far);
         return makePerspective( left, left + width, top, top - height, near, far );
     }
 
@@ -259,7 +276,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         var c = - ( far + near ) / ( far - near );
         var d = - 2 * far * near / ( far - near );
 
-        console.log(x, y, a, b, c);
+        console.debug('makePerspective', x, y, a, b, c);
 
         te[ 0 ] = x;    te[ 4 ] = 0;    te[ 8 ] = a;    te[ 12 ] = 0;
         te[ 1 ] = 0;    te[ 5 ] = y;    te[ 9 ] = b;    te[ 13] = 0;
@@ -479,8 +496,9 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                     if (req.readyState === 4) {
                         if (req.status !== 200) {
                             reject('Invalid status code <' + req.status + '>');
+                        } else {
+                            resolve(JSON.parse(req.responseText));
                         }
-                        resolve(JSON.parse(req.responseText));
                     }
                 };
                 req.send();
@@ -489,7 +507,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         async function getUndownloadedObjectWorldId(beat) {
             // download the object data from its server
-            let url =  realityEditor.network.getURL(beat.ip, realityEditor.network.getPort(beat), '/object/' + beat.id)
+            let url =  realityEditor.network.getURL(beat.ip, realityEditor.network.getPort(beat), '/object/' + beat.id);
             let response = null;
             try {
                 response = await httpGet(url);
@@ -757,7 +775,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 // console.log('zoneDiscoveredListener', message);
 
                 // create a new web socket with the zone at the specified address received over UDP
-                let potentialZoneAddress =  realityEditor.network.getURL(message.ip, realityEditor.network.getPort(message), '')
+                let potentialZoneAddress =  realityEditor.network.getURL(message.ip, realityEditor.network.getPort(message), '');
 
                 var alreadyContainsIP = zoneDropdown.selectables.map(function(selectableObj) {
                     return selectableObj.id;
@@ -882,7 +900,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // lazily instantiate the socket to the server if it doesn't exist yet
         var socketsIps = realityEditor.network.realtime.getSocketIPsForSet('nativeAPI');
         // var hostedServerIP = 'http://127.0.0.1:' + window.location.port;
-        var hostedServerIP = window.location.protocol+'//' + window.location.host; //'http://127.0.0.1:' + window.location.port;
+        var hostedServerIP = window.location.protocol + '//' + window.location.host; //'http://127.0.0.1:' + window.location.port;
 
         if (socketsIps.indexOf(hostedServerIP) < 0) {
             realityEditor.network.realtime.createSocketInSet('nativeAPI', hostedServerIP);
