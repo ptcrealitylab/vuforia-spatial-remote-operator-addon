@@ -39,6 +39,7 @@ createNameSpace('realityEditor.gui');
         ToggleRecordClones: 'Toggle Clone Recording',
         AdvanceCloneMaterial: 'Next Clone Lens',
         AdvanceCameraShader: 'Next Camera Lens',
+        ToggleHumanPoses: 'Human poses',
     });
     exports.ITEM = ITEM;
 
@@ -66,6 +67,9 @@ createNameSpace('realityEditor.gui');
             console.log('toggle point clouds', value);
         });
         menuBar.addItemToMenu(MENU.View, togglePointClouds);
+
+        const toggleHumanPoses = new MenuItem(ITEM.ToggleHumanPoses, { shortcutKey: 'H', toggle: true, defaultVal: true, disabled: false }, null);
+        menuBar.addItemToMenu(MENU.View, toggleHumanPoses);
 
         const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
