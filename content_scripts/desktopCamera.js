@@ -43,7 +43,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         pan: false,
         rotate: false,
         scale: false
-    }
+    };
 
     let staticInteractionCursor = null;
     let interactionCursor = null;
@@ -109,20 +109,17 @@ createNameSpace('realityEditor.device.desktopCamera');
         ];
     }
 
-    function makeGroundPlaneRotationZ(theta) {
-        var c = Math.cos(theta), s = Math.sin(theta);
-        return [
-            c, -s, 0, 0,
-            s, c, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ];
-    }
-
     /**
      * Public init method to enable rendering if isDesktop
      */
     function initService(floorOffset) {
+        if (!realityEditor.device.desktopAdapter) {
+            setTimeout(function() {
+                initService(floorOffset);
+            }, 100);
+            return;
+        }
+
         if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
 
         if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
@@ -158,6 +155,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         virtualCamera.onRotateToggled(function(isRotating) {
             if (isRotating && !knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = true;
+                knownInteractionStates.pan = false; // stop panning if you start rotating
                 // console.log('start rotate');
                 rotateToggled();
             } else if (!isRotating && knownInteractionStates.rotate) {
@@ -319,12 +317,12 @@ createNameSpace('realityEditor.device.desktopCamera');
     function chooseFollowTarget(index) {
         let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
         if (virtualizerSceneNodes.length === 0) { return null; }
-        index = Math.min(index, virtualizerSceneNodes.length-1);
+        index = Math.min(index, virtualizerSceneNodes.length - 1);
         const thisVirtualizerId = parseInt(virtualizerSceneNodes[index].id.match(/\d+/)[0]); // TODO: extract this in a less fragile way
         return {
             id: thisVirtualizerId,
             sceneNode: virtualizerSceneNodes[index]
-        }
+        };
     }
 
     // initialDistance is optional – if included, it will change the camera distance, if not it will keep it the same
@@ -357,15 +355,21 @@ createNameSpace('realityEditor.device.desktopCamera');
     function addSensitivitySlidersToMenu() {
         // add sliders for strafe, rotate, and zoom sensitivity
         realityEditor.gui.settings.addSlider('Zoom Sensitivity', 'how fast scroll wheel zooms camera', 'cameraZoomSensitivity',  '../../../svg/cameraZoom.svg', 0.5, function(newValue) {
-            console.log('zoom value = ' + newValue);
+            if (DEBUG) {
+                console.log('zoom value = ' + newValue);
+            }
         });
 
         realityEditor.gui.settings.addSlider('Pan Sensitivity', 'how fast keybord pans camera', 'cameraPanSensitivity',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
-            console.log('pan value = ' + newValue);
+            if (DEBUG) {
+                console.log('pan value = ' + newValue);
+            }
         });
 
         realityEditor.gui.settings.addSlider('Rotate Sensitivity', 'how fast right-click dragging rotates camera', 'cameraRotateSensitivity',  '../../../svg/cameraRotate.svg', 0.5, function(newValue) {
-            console.log('rotate value = ' + newValue);
+            if (DEBUG) {
+                console.log('rotate value = ' + newValue);
+            }
         });
     }
 
@@ -532,8 +536,8 @@ createNameSpace('realityEditor.device.desktopCamera');
                     let sceneNode = realityEditor.sceneGraph.getSceneNodeById(cameraTargetElementId);
                     sceneNode.setLocalMatrix(virtualCamera.getTargetMatrix());
 
+                    const THREE = realityEditor.gui.threejsScene.THREE;
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
-                        const THREE = realityEditor.gui.threejsScene.THREE;
                         cameraTargetIcon = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
                         cameraTargetIcon.name = 'cameraTargetElement';
                         cameraTargetIcon.matrixAutoUpdate = false;
@@ -541,7 +545,11 @@ createNameSpace('realityEditor.device.desktopCamera');
                         realityEditor.gui.threejsScene.addToScene(cameraTargetIcon, {worldObjectId: worldId}); //{worldObjectId: areaTargetNode.id, occluded: true});
                     }
                     if (cameraTargetIcon) {
-                        realityEditor.gui.threejsScene.setMatrixFromArray(cameraTargetIcon.matrix, sceneNode.worldMatrix); //virtualCamera.getTargetMatrix());
+                        // move the cameraTargetIcon to the center of the view, but scale it down if we zoom too close so it doesn't become obnoxious
+                        const cursorScale = Math.min(1.0, realityEditor.sceneGraph.getDistanceToCamera(cameraTargetElementId) / 1000);
+                        let limitedScaleCursorMatrix = realityEditor.gui.ar.utilities.copyMatrix(sceneNode.worldMatrix);
+                        [0, 5, 10].forEach(index => limitedScaleCursorMatrix[index] *= cursorScale);
+                        realityEditor.gui.threejsScene.setMatrixFromArray(cameraTargetIcon.matrix, limitedScaleCursorMatrix);
                     }
 
                     if (unityCamera) {

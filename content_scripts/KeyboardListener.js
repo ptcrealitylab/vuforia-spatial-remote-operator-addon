@@ -88,7 +88,6 @@ createNameSpace('realityEditor.device');
         initListeners() {
             // when a key is pressed down, automatically update that entry in keyStates and trigger callbacks
             document.addEventListener('keydown', function(event) {
-                event.preventDefault();
                 var code = event.keyCode ? event.keyCode : event.which;
                 if (this.keyStates.hasOwnProperty(code)) {
                     this.keyStates[code] = 'down';
@@ -100,7 +99,6 @@ createNameSpace('realityEditor.device');
 
             // when a key is released, automatically update that entry in keyStates and trigger callbacks
             document.addEventListener('keyup', function(event) {
-                event.preventDefault();
                 var code = event.keyCode ? event.keyCode : event.which;
                 if (this.keyStates.hasOwnProperty(code)) {
                     this.keyStates[code] = 'up';

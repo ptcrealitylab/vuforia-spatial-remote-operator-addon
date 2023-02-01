@@ -5,6 +5,8 @@ import { MeshBVH } from '../../thirdPartyCode/three-mesh-bvh.module.js';
 import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometryUtils.module.js';
 
 (function(exports) {
+    const MAX_AGE = 100;
+
     class OctTree {
         constructor({minX, maxX, minY, maxY, minZ, maxZ}) {
             this.minX = minX;
@@ -17,6 +19,11 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
         }
 
         getOct(x, y, z) {
+            if (typeof x !== 'number' ||
+                typeof y !== 'number' ||
+                typeof z !== 'number') {
+                throw new Error(`incorrect arguments to getOct: ${JSON.stringify({x, y, z})}`);
+            }
             // TODO
             //  - update displayed voxels
             //  - create entire tree for insertion
@@ -27,13 +34,12 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                 let midY = (maxY + minY) / 2;
                 let midZ = (maxZ + minZ) / 2;
                 let idx = 0;
+                // Generate an index into an array of length 8 of the binary form XZY
                 if (x > midX) {
-                    idx += 1;
-                    idx <<= 1;
+                    idx += 4;
                 }
                 if (z > midZ) {
-                    idx += 1;
-                    idx <<= 1;
+                    idx += 2;
                 }
                 if (y > midY) {
                     idx += 1;
@@ -62,23 +68,28 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
         }
 
         insert(x, y, z, value) {
+            if (typeof x !== 'number' ||
+                typeof y !== 'number' ||
+                typeof z !== 'number' ||
+                !value) {
+                throw new Error(`incorrect arguments to insert: ${JSON.stringify({x, y, z, value})}`);
+            }
             // TODO
             //  - update displayed voxels
             //  - create entire tree for insertion
             let {minX, maxX, minY, maxY, minZ, maxZ} = this;
             let tree = this.tree;
-            while (tree && tree.length > 0) {
+            while (tree) {
                 let midX = (maxX + minX) / 2;
                 let midY = (maxY + minY) / 2;
                 let midZ = (maxZ + minZ) / 2;
+                // Generate an index into an array of length 8 of the binary form XZY
                 let idx = 0;
                 if (x > midX) {
-                    idx += 1;
-                    idx <<= 1;
+                    idx += 4;
                 }
                 if (z > midZ) {
-                    idx += 1;
-                    idx <<= 1;
+                    idx += 2;
                 }
                 if (y > midY) {
                     idx += 1;
@@ -88,11 +99,10 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                     return;
                 }
                 let cell = tree[idx];
-                if (!Array.isAray(cell)) {
+                if (!Array.isArray(cell)) {
                     let cur = cell;
                     tree[idx] = [];
-                    cell = [];
-                    this.insert(cur.x, cur.y, cur.z, cur);
+                    this.insert(cur.pos.x, cur.pos.y, cur.pos.z, cur);
                 }
                 if (x > midX) {
                     minX = midX;
@@ -109,11 +119,17 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                 } else {
                     maxZ = midZ;
                 }
-                tree = cell;
+                tree = tree[idx];
             }
         }
 
-        removeOct(x, y, z) {
+        removeOct(x, y, z, isValidDeletion) {
+            if (typeof x !== 'number' ||
+                typeof y !== 'number' ||
+                typeof z !== 'number') {
+                throw new Error(`incorrect arguments to removeOct: ${JSON.stringify({x, y, z})}`);
+            }
+
             // TODO
             //  - update displayed voxels
             //  - create entire tree for insertion
@@ -124,19 +140,24 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                 let midY = (maxY + minY) / 2;
                 let midZ = (maxZ + minZ) / 2;
                 let idx = 0;
+                // Generate an index into an array of length 8 of the binary form XZY
                 if (x > midX) {
-                    idx += 1;
-                    idx <<= 1;
+                    idx += 4;
                 }
                 if (z > midZ) {
-                    idx += 1;
-                    idx <<= 1;
+                    idx += 2;
                 }
                 if (y > midY) {
                     idx += 1;
                 }
                 let cell = tree[idx];
                 if (!Array.isArray(cell)) {
+                    if (!cell) {
+                        return;
+                    }
+                    if (isValidDeletion && !isValidDeletion(cell, x, y, z)) {
+                        return;
+                    }
                     delete tree[idx];
                     return cell;
                 }
@@ -158,11 +179,37 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                 tree = cell;
             }
         }
+
+        filterOldBoxes() {
+            let queue = [this.tree];
+            while (queue.length > 0) {
+                let tree = queue.pop();
+                for (let i = 0; i < 8; i++) {
+                    let cell = tree[i];
+                    if (Array.isArray(cell)) {
+                        queue.push(cell);
+                        continue;
+                    }
+                    if (!cell) {
+                        continue;
+                    }
+                    cell.box._age -= 1;
+                    if (cell.box._age > 0) {
+                        continue;
+                    }
+
+                    cell.box.parent.remove(cell.box);
+                    delete tree[i];
+                }
+            }
+        }
     }
 
     exports.RealityZoneVoxelizer = class RealityZoneVoxelizer {
         constructor(floorOffset, gltf, navmesh) {
             this.floorOffset = floorOffset;
+
+            this.isCloseDeletion = this.isCloseDeletion.bind(this);
 
             let geometries = [];
             gltf.traverse(obj => {
@@ -172,6 +219,12 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                     geometries.push(geo);
                 }
             });
+
+            gltf.children.map(child => {
+                child.geometry.boundsTree = new MeshBVH(child.geometry);
+            });
+
+            this.gltf = gltf;
 
             let geometry = geometries[0];
             if (geometries.length > 1) {
@@ -201,12 +254,19 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
                 opacity: 0.3,
                 // wireframe: true,
             });
+
+            this.removedMat = new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                transparent: true,
+                opacity: 0.3,
+                // wireframe: true,
+            });
+
             this.baseGeo = new THREE.BoxBufferGeometry(1, 1, 1);
             const maxBoxes = 1 << 16;
             this.boxesMesh = new THREE.InstancedMesh(this.baseGeo, this.baseMat, maxBoxes);
             this.addedRemovedOct = null;
 
-            this.boxes = [];
             this.voxOct = null;
         }
 
@@ -281,6 +341,7 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
         scanRegion(minX, minY, minZ, maxX, maxY, maxZ, subdivs) {
             let res = (maxX - minX) / subdivs;
             let building = res <= this.res;
+
             let oct = [];
             for (let xi = 0; xi < subdivs; xi++) {
                 let x = minX + res * (xi + 0.5);
@@ -336,58 +397,137 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
             return this.bvh.intersectsBox(box, new THREE.Matrix4());
         }
 
+        isCloseDeletion(cell, x, y, z) {
+            let otherPos = new THREE.Vector3(x, y, z);
+            return cell.pos.distanceToSquared(otherPos) < this.res * this.res;
+        }
+
         raycastDepth(mesh, {width, height}, rawDepth) {
-            const matrixWorld = mesh.matrix;
+            mesh.updateMatrixWorld();
+            const matrixWorld = mesh.matrixWorld;
+            const matrixWorldInv = mesh.matrix.clone();
+            matrixWorldInv.invert();
+            // Is just 1000x scale and 1/1000x scale, respectively
+            // const gltfMatrixWorldInv = this.gltf.matrixWorld.clone();
+            // gltfMatrixWorldInv.invert();
             const XtoZ = 1920.0 / 1448.24976; // width over focal length
             const YtoZ = 1080.0 / 1448.24976;
             let res = 16;
-            this.boxes = this.boxes.filter(box => {
-                box._age -= 1;
-                if (box._age <= 0) {
-                    box.parent.remove(box);
-                    return false;
-                }
-                return true;
-            });
+            const origin = new THREE.Vector3();
+            origin.setFromMatrixPosition(matrixWorld);
+            origin.x /= 1000;
+            origin.y /= 1000;
+            origin.z /= 1000;
+
+            // Raycast in a square in the center of the screen
+            let xMargin = (width - height) / 2;
+
+            // for (let y = height / 2; y < height; y += 10000)
+            //     for (let x = width / 2; x < width; x += 10000)
             for (let y = 0; y < height; y += res) {
-                for (let x = 0; x < width; x += res) {
-                    const ray = new THREE.Vector3(
+                for (let x = xMargin; x < width - xMargin; x += res) {
+                    const direction = new THREE.Vector3(
                         x / width,
                         y / height,
                         1
                     );
                     let depth = rawDepth[y * width + x] * 5000 / (1 << 14);
                     const z = depth;
-                    ray.x = -(x / width - 0.5) * z * XtoZ;
-                    ray.y = -(y / height - 0.5) * z * YtoZ;
-                    ray.z = z;
+                    direction.x = -(x / width - 0.5) * z * XtoZ;
+                    direction.y = -(y / height - 0.5) * z * YtoZ;
+                    direction.z = z;
+                    const ray = new THREE.Ray(new THREE.Vector3(), direction);
+                    // Transforms from a ray relative to the cameravis to a ray
+                    // relative to the world
                     ray.applyMatrix4(matrixWorld);
-                    // let pos = something something proj times modelview times ray;
-                    let box = new THREE.Mesh(this.baseGeo, this.addedMat);
-                    // box.position.set(ray.x * 1000, ray.y * 1000, ray.z * 1000);
-                    box.position.set(ray.x, ray.y, ray.z);
-                    box.scale.set(this.res * 1000, this.res * 1000, this.res * 1000);
-                    box._age = 20;
-                    mesh.parent.add(box);
-                    this.container.attach(box);
-                    let bigRes = this.res * 1000;
-                    box.position.x = (Math.floor(box.position.x / bigRes) + 0.5) * bigRes;
-                    box.position.y = (Math.floor(box.position.y / bigRes) + 0.5) * bigRes;
-                    box.position.z = (Math.floor(box.position.z / bigRes) + 0.5) * bigRes;
-                    box.rotation.set(0, 0, 0);
-                    let known = this.doRaycastBox(
-                        box.position.x / 1000,
-                        box.position.y / 1000,
-                        box.position.z / 1000,
-                        this.res * 8
-                    );
-                    if (known) {
-                        box.parent.remove(box);
+                    ray.origin.x /= 1000;
+                    ray.origin.y /= 1000;
+                    ray.origin.z /= 1000;
+
+                    // TODO this isn't very reliable due to sampling only once
+                    // every `res` pixels. Performance could be improved by
+                    // doing a true octtree-ray intersection
+
+                    // Scan and remove existing boxes that intersect with this
+                    // ray of length=measured depth by querying points along
+                    // the ray
+                    for (let airDepth = 0; airDepth < depth / 1000; airDepth += this.res) {
+                        let airPosWorld = ray.origin.clone();
+                        let diffVec = ray.direction.clone();
+                        diffVec.multiplyScalar(airDepth);
+                        airPosWorld.add(diffVec);
+                        let cell = this.addedRemovedOct.removeOct(
+                            airPosWorld.x, airPosWorld.y, airPosWorld.z,
+                            this.isCloseDeletion
+                        );
+                        if (cell) {
+                            cell.box.parent.remove(cell.box);
+                        }
+                    }
+
+                    let hit = this.bvh.raycastFirst(ray, THREE.DoubleSide);
+                    if (!hit) {
                         continue;
                     }
-                    this.boxes.push(box);
+
+                    let boxDiffMm = Math.max(100, Math.min(depth * 0.4, 1000));
+                    // add green box at ray.origin + ray.direction * depth;
+                    let added = depth + boxDiffMm < hit.distance * 1000;
+                    // add red box at hit.point
+                    let removed = depth - boxDiffMm > hit.distance * 1000;
+
+                    if (!added && !removed) {
+                        continue;
+                    }
+
+                    let boxPosWorld = hit.point;
+                    if (added) {
+                        boxPosWorld.copy(ray.origin);
+                        let diffVec = ray.direction.clone();
+                        diffVec.multiplyScalar(depth / 1000);
+                        boxPosWorld.add(diffVec);
+                    }
+
+                    let existingBox = this.addedRemovedOct.getOct(boxPosWorld.x, boxPosWorld.y, boxPosWorld.z);
+                    if (existingBox && existingBox.pos.distanceToSquared(boxPosWorld) < this.res * this.res) {
+                        existingBox.box._age = MAX_AGE;
+                        continue;
+                    }
+
+
+                    let box = new THREE.Mesh(this.baseGeo, added ? this.addedMat : this.removedMat);
+                    box.scale.set(this.res * 1000, this.res * 1000, this.res * 1000);
+                    box._age = MAX_AGE;
+                    this.container.add(box);
+
+                    // a point in space aligned to the voxel grid
+                    const centerX = (this.navmesh.minX + this.navmesh.maxX) / 2 + this.res / 2;
+                    const centerY = (this.navmesh.minY + this.navmesh.maxY) / 2 + this.res / 2;
+                    const centerZ = (this.navmesh.minZ + this.navmesh.maxZ) / 2 + this.res / 2;
+                    // Use this point in space on the grid to align our box
+                    // position to the grid
+                    let dx = Math.round((boxPosWorld.x - centerX) / this.res) * this.res;
+                    let dy = Math.round((boxPosWorld.y - centerY) / this.res) * this.res;
+                    let dz = Math.round((boxPosWorld.z - centerZ) / this.res) * this.res;
+
+                    box.position.set(
+                        (centerX + dx) * 1000,
+                        (centerY + dy) * 1000,
+                        (centerZ + dz) * 1000
+                    );
+                    box.rotation.set(0, 0, 0);
+
+                    this.addedRemovedOct.insert(
+                        boxPosWorld.x, boxPosWorld.y, boxPosWorld.z,
+                        {
+                            box,
+                            pos: boxPosWorld,
+                        }
+                    );
                 }
             }
+            // Cull any boxes that have not been seen for a long time
+            this.addedRemovedOct.filterOldBoxes();
         }
     };
 })(realityEditor.gui.ar.desktopRenderer);
