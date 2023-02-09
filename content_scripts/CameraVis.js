@@ -153,7 +153,8 @@ void main() {
     const solidFragmentShader = `
 // color texture
 uniform sampler2D map;
-
+// depth texture
+uniform sampler2D mapDepth;
 // uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
 // Position of this pixel relative to the camera in proper (millimeter) coordinates
@@ -162,6 +163,8 @@ uniform float depthMin;
 uniform float depthMax;
 
 void main() {
+  vec4 depthVec = texture2D(mapDepth, vUv);
+
   // Depth in millimeters
   float depth = -pos.z;
 
@@ -183,6 +186,8 @@ void main() {
   float alpha = alphaNorm * alphaDepth;
 
   alpha = alpha * (1.0 - step(depthMax, depth)) * step(depthMin, depth);
+
+  alpha = alpha * depthVec.a;
 
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
@@ -1002,15 +1007,18 @@ void main() {
             let {canvas, context, imageData} = this.depthCanvasCache[id];
             canvas.width = DEPTH_WIDTH;
             canvas.height = DEPTH_HEIGHT;
-            let maxDepth14bits = 0;
+            let maxDepth24Bits = 0;
             for (let i = 0; i < DEPTH_WIDTH * DEPTH_HEIGHT; i++) {
-                if (rawDepth[i] > maxDepth14bits) {
-                    maxDepth14bits = rawDepth[i];
-                }
+                let isLowConfidence = rawDepth[i] & (1 << 14);
+                rawDepth[i] = rawDepth[i] & ((1 << 14) - 1);
+
                 // We get 14 bits of depth information from the RVL-encoded
                 // depth buffer. Note that this means the blue channel is
                 // always zero
-                let depth24Bits = rawDepth[i] << (24 - 14); // * 5 / (1 << 14);
+                let depth24Bits = rawDepth[i] << (24 - 13); // * 5 / (1 << 14);
+                if (maxDepth24Bits < depth24Bits) {
+                    maxDepth24Bits = depth24Bits;
+                }
                 if (depth24Bits > 0xffffff) {
                     depth24Bits = 0xffffff;
                 }
@@ -1020,9 +1028,9 @@ void main() {
                 imageData.data[4 * i + 0] = r;
                 imageData.data[4 * i + 1] = g;
                 imageData.data[4 * i + 2] = b;
-                imageData.data[4 * i + 3] = 255;
+                imageData.data[4 * i + 3] = isLowConfidence === 0 ? 255 : 0;
             }
-            this.cameras[id].maxDepthMeters = 5 * (maxDepth14bits / (1 << 14));
+            this.cameras[id].maxDepthMeters = 5 * (maxDepth24Bits / (1 << 24));
 
             context.putImageData(imageData, 0, 0);
             this.finishRenderPointCloudCanvas(id, textureKey, -1);
