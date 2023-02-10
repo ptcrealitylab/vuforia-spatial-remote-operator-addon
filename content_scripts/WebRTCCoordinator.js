@@ -38,7 +38,12 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 });
             }
 
-            navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
+            navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: {
+                    noiseSuppression: true,
+                },
+            }).then((stream) => {
                 this.audioStream = this.improveAudioStream(stream);
                 this.updateMutedState();
                 for (let conn of Object.values(this.webrtcConnections)) {
