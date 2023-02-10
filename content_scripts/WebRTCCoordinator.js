@@ -58,7 +58,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             const src = context.createMediaStreamSource(stream);
             const dst = context.createMediaStreamDestination();
             const gainNode = context.createGain();
-            gainNode.gain.value = 3;
+            gainNode.gain.value = 6;
             src.connect(gainNode);
             gainNode.connect(dst);
             return dst.stream;
