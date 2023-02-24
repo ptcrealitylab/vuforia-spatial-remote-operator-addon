@@ -401,6 +401,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let potentialTargetPosition = add(this.targetPosition, this.targetVelocity);
             let v_look = add(potentialPosition, negate(potentialTargetPosition));
             let verticalAngle = Math.acos(v_look[1] / Math.sqrt(v_look[0] * v_look[0] + v_look[1] * v_look[1] + v_look[2] * v_look[2]));
+            this.verticalAngle = verticalAngle;
 
             const UPPER_ANGLE = Math.PI * 0.8; // soft upper bound
             const LOWER_ANGLE = Math.PI * 0.2; // soft lower bound
