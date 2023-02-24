@@ -433,7 +433,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
 
-            let shouldSmoothCamera = !this.isRendering2DVideo();
+            // Ben disabled this for the NeRF Studio demo
+            let shouldSmoothCamera = false; // !this.isRendering2DVideo();
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 

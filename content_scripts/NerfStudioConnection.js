@@ -3,7 +3,8 @@ createNameSpace('realityEditor.device');
 
 (function (exports) {
 
-const NERF_STUDIO_WEBSOCKET_URL = 'ws://localhost:7007';
+// this port number MUST match the nerfStudio port
+const NERF_STUDIO_WEBSOCKET_URL = 'ws://localhost:7003';
 const DEBUG_CAMERA_MESSAGE = false;
 
 const ICE_SERVERS = [
@@ -90,6 +91,8 @@ class NerfStudioConnection {
             -0.4129898476856783, -0.7473400792058696, 0.6822817432737595, 1
         ];
 
+        const aspectValue = 0.60;
+        const cam_fov = 41.22673;
         let message = {
             type: 'write', //'toolbox', // the server switches thru type to handle the message differently
             path: 'renderingState/camera', // the server applies the data to the object specified by this path
@@ -104,17 +107,17 @@ class NerfStudioConnection {
                     "type": "PerspectiveCamera",
                     "layers": 1,
                     "matrix": (cameraMatrix || defaultMatrix),
-                    "fov": 50, // todo: calculate correct value
+                    "fov": cam_fov, // todo: calculate correct value
                     "zoom": 1, // todo: calculate correct value
                     "near": 0.1, // todo: calculate correct value
                     "far": 1000, // todo: calculate correct value
                     "focus": 10,
-                    "aspect": 0.5714285714285714, // todo: calculate correct value
+                    "aspect": aspectValue, // todo: calculate correct value
                     "filmGauge": 35,
                     "filmOffset": 0,
                     "timestamp": Date.now(), //1674073427950,
                     "camera_type": "perspective",
-                    "render_aspect": 1.7777777777777777 // todo: calculate correct value
+                    "render_aspect": 1/aspectValue // todo: calculate correct value
                 }
             }
         };
@@ -141,22 +144,26 @@ class NerfStudioConnection {
 
         this.websocket.addEventListener('message', (originalCmd) => {
             try {
+                // NOTE: nerfstudio uses the python "tornado" websocket library to encode the utf-8 webrtc/answer as a binary Blob
+                // for whatever reason, the regular Blob decoding method on the dataByteArray from this Blob isn't working for me
                 let dataByteArray = new Uint8Array(originalCmd.data);
+
+                // as a result, I am doing some very janky processing of the blob.text() in order to extract the webrtc sdp if I detect that it is an /answer message
+
                 originalCmd.data.text().then(blobText => {
                     // console.log('blobText');
                     console.log(blobText);
                     if (blobText.split('data:').length > 1) {
-                        let imageUrl = realityEditor.device.utilities.decodeBase64JpgToBlobUrl(blobText.split('data:')[1].split('base64,')[1]);
-                        console.log('got imageUrl from nerf websocket', imageUrl);
+                        // todo: this code is no longer needed, it was debugging some test images coming over the websocket
+                        // let imageUrl = realityEditor.device.utilities.decodeBase64JpgToBlobUrl(blobText.split('data:')[1].split('base64,')[1]);
+                        // console.log('got imageUrl from nerf websocket', imageUrl);
                         // let nerfCanvas = document.getElementById('nerfCanvas');
                         // if (nerfCanvas && imageUrl) {
                         //     nerfCanvas.src = imageUrl;
                         // }
                     } else {
-                        if (blobText.includes('path') &&
-                            blobText.includes('write') &&
-                            blobText.includes('answer') &&
-                            blobText.includes('data'))
+                        if (blobText.includes('path') && blobText.includes('write') &&
+                            blobText.includes('answer') && blobText.includes('data'))
                             {
                                 console.log('[webrtc] received answer');
 
@@ -169,7 +176,7 @@ class NerfStudioConnection {
                                 }
 
                                 console.log(answer);
-                                if (answer !== null) {
+                                if (answer !== null && sdp && sdp.length > 0) {
                                     this.peerConnection.current.setRemoteDescription(answer);
                                 }
                             }
@@ -208,11 +215,11 @@ class NerfStudioConnection {
         // connect video
         pc.addEventListener('track', (evt) => {
         if (evt.track.kind === 'video') {
-            let localVideoRef = document.getElementById('nerfCanvas');
+            let localVideoRef = document.getElementById('nerfCanvas'); // note: it is named "canvas" but it's actually a video element now
             if (localVideoRef) {
+                // also note: this only works if the video element has autoplay=true
                 [localVideoRef.srcObject] = evt.streams; // uses array destructuring
             }
-            // [localVideoRef.current.srcObject] = evt.streams; // uses array destructuring
         }
         });
         pc.addTransceiver('video', { direction: 'recvonly' });

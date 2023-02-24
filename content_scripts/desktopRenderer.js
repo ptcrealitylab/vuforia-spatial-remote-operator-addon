@@ -359,7 +359,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     nerfCanvas.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
                     nerfCanvas.style.transform = 'translateZ(1000px)';
                     nerfCanvas.style.zIndex = '1000';
-                    nerfCanvas.style.opacity = '0.8';
+                    nerfCanvas.style.opacity = '1';
                     nerfCanvas.style.pointerEvents = 'none';
                     document.body.appendChild(nerfCanvas);
                 }
