@@ -152,7 +152,7 @@ class NerfStudioConnection {
 
                 originalCmd.data.text().then(blobText => {
                     // console.log('blobText');
-                    console.log(blobText);
+                    // console.log(blobText);
                     if (blobText.split('data:').length > 1) {
                         // todo: this code is no longer needed, it was debugging some test images coming over the websocket
                         // let imageUrl = realityEditor.device.utilities.decodeBase64JpgToBlobUrl(blobText.split('data:')[1].split('base64,')[1]);
@@ -168,6 +168,10 @@ class NerfStudioConnection {
                                 console.log('[webrtc] received answer');
 
                                 let sdp = unescape(escape(blobText.split('data')[1]).replaceAll('%uFFFD', '')).replace('typeanswer', '').replace('sdp\x04', '');
+                                if (sdp.charAt(0) !== 'v' && sdp.split('v=').length > 1) {
+                                    sdp = `v=${sdp.split('v=')[1]}`; // remove the first >, @, etc characters before v=0
+                                }
+                                // sdp = sdp.replace('@', ''); // remove the first @ sign from the text, if it begins with one
 
                                 // const answer = blobText.split('data')[1];
                                 const answer = {
@@ -177,7 +181,12 @@ class NerfStudioConnection {
 
                                 console.log(answer);
                                 if (answer !== null && sdp && sdp.length > 0) {
-                                    this.peerConnection.current.setRemoteDescription(answer);
+                                    try {
+                                        this.peerConnection.current.setRemoteDescription(answer);
+                                        console.log('successfully set description from answer');
+                                    } catch (e) {
+                                        console.error('error setting peerConnection remote description from answer', error, answer);
+                                    }
                                 }
                             }
                     }

@@ -55,8 +55,26 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
     let cameraVisFrustums = [];
     
+    // ---------------------------------------------------------------------
+
     let nerfCanvas = null;
     let nerfStudioConnection = null; // the NerfStudioConnection class instance
+
+    // configure when the nerf renderer appears or disappears
+    // for each variable (time, distance, verticalAngle), set BEGIN and END to the same value to disable animations
+    // or make them a bit different to interpolate the opacity based on the bounds
+
+    // how much time after the camera stops moving should we wait before showing the nerf view
+    const BEGIN_FADE_TIME = 300;
+    const END_FADE_TIME = 300;
+    // how far away from the ground plane origin can we be before hiding the nerf
+    const BEGIN_FADE_DISTANCE = 8000;
+    const END_FADE_DISTANCE = 12000;
+    // how low of a viewing angle can we have before hiding it (e.g. looking at floor = 0, looking level = PI/2, looking at ceiling = PI)
+    const BEGIN_FADE_ANGLE = Math.PI * 0.5;
+    const END_FADE_ANGLE = Math.PI * 0.75;
+
+    // ---------------------------------------------------------------------
 
     exports.sendCameraToNerfStudio = (cameraMatrix) => {
         if (nerfStudioConnection) {
@@ -356,7 +374,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     nerfCanvas.height = window.innerHeight;
                     nerfCanvas.style.width = window.innerWidth + 'px';
                     nerfCanvas.style.height = window.innerHeight + 'px';
-                    nerfCanvas.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
+                    nerfCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
                     nerfCanvas.style.transform = 'translateZ(1000px)';
                     nerfCanvas.style.zIndex = '1000';
                     nerfCanvas.style.opacity = '1';
@@ -390,6 +408,58 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             }
         );
     }
+
+    let lastDistance = 0;
+    let lastVerticalAngle = 0;
+    let lastTimestamp = 0;
+    function updateNerfRendering(distance, verticalAngle, isMoving, timestamp) {
+        lastDistance = distance;
+        lastVerticalAngle = verticalAngle;
+        if (isMoving) {
+            lastTimestamp = timestamp;
+        }
+
+        let opacity = 0;
+
+        // update opacity based on worst of: verticalAngle, distance, and timestamp
+        
+        let dt = Date.now() - lastTimestamp;
+        if (dt < END_FADE_TIME) {
+            if (dt > BEGIN_FADE_TIME) {
+                opacity = (dt - BEGIN_FADE_TIME) / (END_FADE_TIME - BEGIN_FADE_TIME);
+            }
+        } else {
+            opacity = 1;
+        }
+
+        // make less opaque if you're too far away
+        
+        if (distance > BEGIN_FADE_DISTANCE) {
+            let amount = 0;
+            if (distance < END_FADE_DISTANCE) {
+                amount = (distance - BEGIN_FADE_DISTANCE) / (END_FADE_DISTANCE - BEGIN_FADE_DISTANCE);
+            } else {
+                amount = 1;
+            }
+            opacity = Math.min(opacity, 1.0 - amount);
+        }
+
+        // make less opaque if you're looking at the ceiling
+
+        if (verticalAngle > BEGIN_FADE_ANGLE) {
+            let amount = 0;
+            if (verticalAngle < END_FADE_ANGLE) {
+                amount = (verticalAngle - BEGIN_FADE_ANGLE) / (END_FADE_ANGLE - BEGIN_FADE_ANGLE);
+            } else {
+                amount = 1;
+            }
+            opacity = Math.min(opacity, 1.0 - amount);
+        }
+
+        nerfCanvas.style.opacity = opacity;
+
+    }
+    exports.updateNerfRendering = updateNerfRendering;
 
     function showCameraCanvas(id) {
         if (cameraVisCoordinator) {

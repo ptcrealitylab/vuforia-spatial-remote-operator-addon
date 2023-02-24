@@ -589,6 +589,11 @@ createNameSpace('realityEditor.device.desktopCamera');
 
                     // internally, it won't send it if we haven't enabled nerf rendering mode, so it's ok to do this always
                     realityEditor.gui.ar.desktopRenderer.sendCameraToNerfStudio(relativeCameraMatrix);
+
+                    let distanceToOrigin = cameraNode.getDistanceTo(gpNode);
+                    let verticalAngle = virtualCamera.verticalAngle;
+                    let isMoving = virtualCamera.velocity[0] !== 0 && virtualCamera.velocity[1] !== 0 && virtualCamera.velocity[2] !== 0;
+                    realityEditor.gui.ar.desktopRenderer.updateNerfRendering(distanceToOrigin, verticalAngle, isMoving, Date.now());
                 }
             } catch (e) {
                 if (DEBUG) {
