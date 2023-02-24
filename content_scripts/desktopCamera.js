@@ -565,9 +565,28 @@ createNameSpace('realityEditor.device.desktopCamera');
 
                     let relativeCameraMatrix = cameraNode.getMatrixRelativeTo(gpNode);
                     const SCALE = 1 / 1000;
-                    relativeCameraMatrix[12] *= SCALE;
-                    relativeCameraMatrix[13] *= SCALE;
-                    relativeCameraMatrix[14] *= SCALE;
+                    const floorOffset = realityEditor.gui.ar.areaCreator.calculateFloorOffset() // in my example, it returns -1344.81
+                    
+                    //get the following values from NerfStudio/outputs/the_target_folder/dataparser_transforms.json
+                    
+                    const parserMatrixScale = 0.24420947019235953;
+                    const offset_x = 0.4423829913139343;
+                    const offset_y = 0.7057784795761108;
+                    const offset_z = 0.36541426181793213;
+
+                    relativeCameraMatrix[12] = (relativeCameraMatrix[12]*SCALE + offset_x)*parserMatrixScale;
+                    relativeCameraMatrix[13] = ((relativeCameraMatrix[13] + floorOffset)*SCALE + offset_y)*parserMatrixScale;
+                    relativeCameraMatrix[14] = (relativeCameraMatrix[14]*SCALE + offset_z)*parserMatrixScale;
+                    // we need to apply transform matrix to this cameraPos to 
+                    // translate the coordinate system from SpatialToolbox to NerfStudio
+
+                    // "data parser transform": 
+                    //         [1.0, 0.0, 0.0, 0.13650280237197876],
+                    //         [0.0, 1.0, 0.0, 0.3729093670845032],
+                    //         [0.0, 0.0, 1.0, 0.829950749874115]
+
+                    //         "scale": 0.4957212570173335
+
                     // internally, it won't send it if we haven't enabled nerf rendering mode, so it's ok to do this always
                     realityEditor.gui.ar.desktopRenderer.sendCameraToNerfStudio(relativeCameraMatrix);
                 }
