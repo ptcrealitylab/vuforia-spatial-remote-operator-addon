@@ -302,7 +302,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleAnalyticsSettings, () => {
             if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.toggleAnalyzerUI();
+            realityEditor.humanPose.draw.toggleAnalyzerSettingsUI();
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(
