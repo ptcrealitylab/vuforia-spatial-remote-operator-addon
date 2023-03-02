@@ -300,29 +300,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             });
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleAnalyticsSettings, () => {
             if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.resetHistoryLines();
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (toggled) => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.setHistoryLinesVisible(toggled);
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetClones, () => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.resetHistoryClones();
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleRecordClones, (toggled) => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.setRecordingClonesEnabled(toggled);
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.AdvanceCloneMaterial, () => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.advanceCloneMaterial();
+            realityEditor.humanPose.draw.toggleAnalyzerSettingsUI();
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(
