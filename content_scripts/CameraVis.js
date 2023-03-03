@@ -914,6 +914,16 @@ void main() {
             this.webRTCCoordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 
+        muteMicrophone() {
+            if (!this.webRTCCoordinator) return;
+            this.webRTCCoordinator.mute();
+        }
+
+        unmuteMicrophone() {
+            if (!this.webRTCCoordinator) return;
+            this.webRTCCoordinator.unmute();
+        }
+
         renderPointCloud(id, textureKey, imageUrl) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
