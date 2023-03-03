@@ -498,5 +498,18 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         }
     }
 
+    function muteMicrophoneForCameraVis() {
+        if (!cameraVisCoordinator) return;
+        cameraVisCoordinator.muteMicrophone();
+    }
+
+    function unmuteMicrophoneForCameraVis() {
+        if (!cameraVisCoordinator) return;
+        cameraVisCoordinator.unmuteMicrophone();
+    }
+
+    exports.muteMicrophoneForCameraVis = muteMicrophoneForCameraVis;
+    exports.unmuteMicrophoneForCameraVis = unmuteMicrophoneForCameraVis;
+
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
