@@ -72,14 +72,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         callbackHandler.registerCallback(functionName, callback);
     }
 
-    function isDesktop() {
-        const userAgent = window.navigator.userAgent;
-        const isWebView = userAgent.includes('Mobile') && !userAgent.includes('Safari');
-        const isMac = userAgent.includes('Macintosh');
-
-        return (!isWebView) || isMac;
-    }
-
     let env = realityEditor.device.environment.variables;
 
     /**
@@ -88,7 +80,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     function initService() {
         // by including this check, we can tolerate compiling this add-on into the app without breaking everything
         // (ideally this add-on should only be added to a "desktop" server but this should effectively ignore it on mobile)
-        if (!isDesktop()) { return; }
+        if (!realityEditor.device.environment.isDesktop()) { return; }
 
         // Set the correct environment variables so that this add-on changes the app to run in desktop mode
         env.requiresMouseEvents = true; // this fixes touch events to become mouse events
@@ -948,8 +940,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     exports.registerCallback = registerCallback;
 
     exports.resetIdleTimeout = resetIdleTimeout;
-
-    exports.isDesktop = isDesktop;
 
     exports.getPrimaryWorldId = getPrimaryWorldId;
 
