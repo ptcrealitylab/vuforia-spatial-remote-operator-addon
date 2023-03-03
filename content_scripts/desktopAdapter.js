@@ -409,6 +409,14 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 break;
                 // case 'getUDPMessages':
                 //     getUDPMessages(messageBody.callback);
+            case 'muteMicrophone':
+                console.log('mute remote operator');
+                realityEditor.gui.ar.desktopRenderer.muteMicrophoneForCameraVis();
+                break;
+            case 'unmuteMicrophone':
+                console.log('unmute remote operator');
+                realityEditor.gui.ar.desktopRenderer.unmuteMicrophoneForCameraVis();
+                break;
             default:
                 // console.log('could not find desktop implementation of app.' + messageBody.functionName);
                 return;
