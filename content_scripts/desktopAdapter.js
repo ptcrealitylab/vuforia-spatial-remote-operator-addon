@@ -114,6 +114,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         restyleForDesktop();
         modifyGlobalNamespace();
 
+        let worldIdQueryItem = getPrimaryWorldId();
+        if (worldIdQueryItem) {
+            realityEditor.network.discovery.setPrimaryWorld(null, worldIdQueryItem);
+        }
+
         function setupMenuBarWhenReady() {
             if (realityEditor.gui.setupMenuBar) {
                 realityEditor.gui.setupMenuBar();
@@ -528,19 +533,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
                 if (typeof realityEditor.network.discovery !== 'undefined') {
                     realityEditor.network.discovery.processHeartbeat(msgContent);
-                }
-
-                let primaryWorldId = getPrimaryWorldId();
-                if (!primaryWorldId) {
-                    realityEditor.network.addHeartbeatObject(msgContent);
-                } else {
-                    getUndownloadedObjectWorldId(msgContent).then(worldId => {
-                        if (worldId === primaryWorldId) {
-                            realityEditor.network.addHeartbeatObject(msgContent);
-                        } else {
-                            console.log('ignored object because of mismatching worldId');
-                        }
-                    });
                 }
             }
 
