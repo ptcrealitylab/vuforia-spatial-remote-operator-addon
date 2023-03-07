@@ -65,6 +65,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         updateMutedState() {
+            if (!this.audioStream) return;
             for (let track of this.audioStream.getTracks()) {
                 track.enabled = !this.muted;
             }
