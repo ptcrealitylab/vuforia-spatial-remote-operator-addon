@@ -64,7 +64,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             return;
         }
 
-        if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
+        if (!realityEditor.device.environment.isDesktop()) { return; }
 
         const renderingFlagName = 'loadingWorldMesh';
         realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
@@ -300,29 +300,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             });
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetPaths, () => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleAnalyticsSettings, () => {
             if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.resetHistoryLines();
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TogglePaths, (toggled) => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.setHistoryLinesVisible(toggled);
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetClones, () => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.resetHistoryClones();
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleRecordClones, (toggled) => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.setRecordingClonesEnabled(toggled);
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.AdvanceCloneMaterial, () => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.advanceCloneMaterial();
+            realityEditor.humanPose.draw.toggleAnalyzerSettingsUI();
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleHumanPoses, (toggled) => {
@@ -522,6 +502,19 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             mesh.material.needsUpdate = true
         }
     }
+
+    function muteMicrophoneForCameraVis() {
+        if (!cameraVisCoordinator) return;
+        cameraVisCoordinator.muteMicrophone();
+    }
+
+    function unmuteMicrophoneForCameraVis() {
+        if (!cameraVisCoordinator) return;
+        cameraVisCoordinator.unmuteMicrophone();
+    }
+
+    exports.muteMicrophoneForCameraVis = muteMicrophoneForCameraVis;
+    exports.unmuteMicrophoneForCameraVis = unmuteMicrophoneForCameraVis;
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);

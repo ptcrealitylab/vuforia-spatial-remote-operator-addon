@@ -13,6 +13,7 @@ import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
     const DEPTH_REPR_PNG = false;
     const DEPTH_WIDTH = 256;
     const DEPTH_HEIGHT = 144;
+    const CONNECTION_TIMEOUT_MS = 10000;
     const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
     const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const ShaderMode = {
@@ -809,7 +810,7 @@ void main() {
                     camera.mesh.visible = false;
                     continue;
                 }
-                if (now - camera.lastUpdate > 5000) {
+                if (now - camera.lastUpdate > CONNECTION_TIMEOUT_MS) {
                     camera.remove();
                     delete this.cameras[camera.id];
                     this.callbacks.onCameraVisRemoved.forEach(cb => {
@@ -912,6 +913,16 @@ void main() {
 
             const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(urlBase + 'signalling');
             this.webRTCCoordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
+        }
+
+        muteMicrophone() {
+            if (!this.webRTCCoordinator) return;
+            this.webRTCCoordinator.mute();
+        }
+
+        unmuteMicrophone() {
+            if (!this.webRTCCoordinator) return;
+            this.webRTCCoordinator.unmute();
         }
 
         renderPointCloud(id, textureKey, imageUrl) {
@@ -1163,14 +1174,8 @@ void main() {
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
 
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetClones, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ToggleRecordClones, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCloneMaterial, true);
-
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCameraShader, true);
 
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
