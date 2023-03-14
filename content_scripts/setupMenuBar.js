@@ -24,8 +24,6 @@ createNameSpace('realityEditor.gui');
         Follow1stPerson: 'Follow 1st-Person',
         Follow3rdPerson: 'Follow 3rd-Person',
         StopFollowing: 'Stop Following',
-        ResetPaths: 'Reset Paths',
-        TogglePaths: 'Toggle Paths',
         ClonePatch: 'Clone Patch',
         UndoPatch: 'Undo Patch',
         OrbitCamera: 'Orbit Camera',
@@ -35,10 +33,8 @@ createNameSpace('realityEditor.gui');
         DebugAvatarConnections: 'Debug Avatar Connections',
         DeleteAllTools: 'Delete All Tools',
         ViewCones: 'Show View Cones',
-        ResetClones: 'Reset Clones',
-        ToggleRecordClones: 'Toggle Clone Recording',
-        AdvanceCloneMaterial: 'Next Clone Lens',
         AdvanceCameraShader: 'Next Camera Lens',
+        ToggleAnalyticsSettings: 'Toggle Analytics Settings',
     });
     exports.ITEM = ITEM;
 
@@ -88,23 +84,11 @@ createNameSpace('realityEditor.gui');
         const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
 
-        const toggleRzvHistoryCloneRecording = new MenuItem(ITEM.ToggleRecordClones, { toggle: true, defaultVal: false, disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, toggleRzvHistoryCloneRecording);
-
-        const rzvAdvanceCloneMaterial = new MenuItem(ITEM.AdvanceCloneMaterial, { disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, rzvAdvanceCloneMaterial);
-
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
 
-        const resetRzvHistoryClones = new MenuItem(ITEM.ResetClones, { disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, resetRzvHistoryClones);
-
-        const toggleRzvHistoryLines = new MenuItem(ITEM.TogglePaths, { shortcutKey: 'E', toggle: true, defaultVal: false, disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, toggleRzvHistoryLines);
-
-        const resetRzvHistoryLines = new MenuItem(ITEM.ResetPaths, { shortcutKey: 'R', disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, resetRzvHistoryLines);
+        const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { shortcutKey: 'E', toggle: true, defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.History, toggleAnalyticsSettings);
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, clonePatch);
