@@ -211,13 +211,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.targetPosition = [0, 0, 0];
         }
         adjustEnvVars(distanceToTarget) {
-            if (distanceToTarget < 3000) {
-                realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6;
-            } else if (distanceToTarget < 12000) {
-                realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (distanceToTarget / 3000);
-            } else {
-                realityEditor.device.environment.variables.newFrameDistanceMultiplier = 6 * (4);
-            }
+            // places new tools at the camera's targetPosition...
+            // relies on the fact that new tools are dropped 400mm in front of camera by default
+            realityEditor.device.environment.variables.newFrameDistanceMultiplier = distanceToTarget / 400;
         }
         getTargetMatrix() {
             return [
