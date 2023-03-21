@@ -100,7 +100,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.addOcclusionGltf = false; // don't add transparent world gltf, because we're already adding the visible mesh
         env.transformControlsSize = 0.3; // gizmos for ground plane anchors are smaller
         env.defaultShowGroundPlane = true;
-        env.groundWireframeColor = 'rgb(100, 100, 100)'; // make the ground plane subtle
+        env.groundWireframeColor = 'rgb(255, 240, 0)'; // make the ground holo-deck styled
 
         globalStates.groundPlaneOffset = 0.77;
         if (PROXY) {
@@ -183,7 +183,36 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     }
 
     function setupMenuBarItems() {
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
+        const menuBar = realityEditor.gui.getMenuBar();
+
+        menuBar.addCallbackToItem(realityEditor.gui.ITEM.DarkMode, (value) => {
+            console.log('dark mode', value);
+            if (value) {
+                menuBar.domElement.classList.remove('desktopMenuBarLight');
+                Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
+                    dropdown.classList.remove('desktopMenuBarLight');
+                });
+                document.body.style.backgroundColor = 'rgb(50, 50, 50)';
+                env.groundWireframeColor = 'rgb(255, 240, 0)'; // make the ground holo-deck styled yellow
+                realityEditor.gui.ar.groundPlaneRenderer.updateGridStyle({
+                    color: env.groundWireframeColor,
+                    thickness: 0.075 // relatively thick
+                });
+            } else {
+                menuBar.domElement.classList.add('desktopMenuBarLight');
+                Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
+                    dropdown.classList.add('desktopMenuBarLight');
+                });
+                document.body.style.backgroundColor = 'rgb(225, 225, 225)';
+                env.groundWireframeColor = 'rgb(150, 150, 150)'; // make the ground plane subtle grey
+                realityEditor.gui.ar.groundPlaneRenderer.updateGridStyle({
+                    color: env.groundWireframeColor,
+                    thickness: 0.025 // relatively thin
+                });
+            }
+        });
+
+        menuBar.addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
             realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode(value);
         });
 
