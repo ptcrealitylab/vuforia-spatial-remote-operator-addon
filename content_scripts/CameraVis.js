@@ -187,22 +187,24 @@ void main() {
 
   // Sample the proper color for this pixel from the color image
   vec4 color = texture2D(map, vUv);
+  
+  gl_FragColor = vec4(color.rgb, alpha);
 
-  float aspect = 1920.0 / 1080.0;
-  float borderScale = 0.001 * 5000.0 / (depth + 50.0);
-  float border = clamp(
-      (1.0 - step(borderScale, vUv.x)) +
-      (1.0 - step(borderScale * aspect, vUv.y)) +
-      step(1.0 - borderScale, vUv.x) +
-      step(1.0 - borderScale * aspect, vUv.y),
-      0.0,
-      1.0
-  );
-  if (alpha < 0.02 && border < 0.5) {
-      discard; // Necessary to prevent weird transparency errors when overlapping with self
-  }
-  // gl_FragColor = vec4(color.rgb, alpha);
-  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(0.0, 1.0, 0.0, 0.7);
+  // float aspect = 1920.0 / 1080.0;
+  // float borderScale = 0.001 * 5000.0 / (depth + 50.0);
+  // float border = clamp(
+  //     (1.0 - step(borderScale, vUv.x)) +
+  //     (1.0 - step(borderScale * aspect, vUv.y)) +
+  //     step(1.0 - borderScale, vUv.x) +
+  //     step(1.0 - borderScale * aspect, vUv.y),
+  //     0.0,
+  //     1.0
+  // );
+  // if (alpha < 0.02 && border < 0.5) {
+  //     discard; // Necessary to prevent weird transparency errors when overlapping with self
+  // }
+  // // gl_FragColor = vec4(color.rgb, alpha);
+  // gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(0.0, 1.0, 0.0, 0.7);
 
   // gl_FragColor = vec4(alphaNorm, alphaNorm, alphaDepth, 1.0);
 }`;
@@ -693,7 +695,7 @@ void main() {
                 (cameraY - y) * (cameraY - y) +
                 (cameraZ - z) * (cameraZ - z);
 
-            if (diffSq < 3000 * 3000) {
+            if (diffSq < 1000 * 1000) {
                 if (this.cameraMeshGroup.visible) {
                     this.cameraMeshGroup.visible = false;
                 }
