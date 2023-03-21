@@ -93,6 +93,10 @@ body > * {
     overflow: hidden;
 }
 
+.desktopMenuBarLight {
+    background-color: rgba(64,170,29,0.9);
+}
+
 .hiddenDropdown {
     display: none;
 }
