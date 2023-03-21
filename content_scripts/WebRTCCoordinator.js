@@ -344,6 +344,18 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 command: 'newDescription',
                 description: this.localConnection.localDescription,
             });
+
+            // Check the iceConnectionState property every second
+            setInterval(() => {
+                if (!this.localConnection) return;
+
+                // console.log('iceConnectionState = ' + this.localConnection.iceConnectionState);
+                if (this.localConnection.iceConnectionState === "failed") {
+                    // Attempt to restart ICE
+                    this.localConnection.restartIce();
+                    console.log('attempt to restart ICE');
+                }
+            }, 1000);
         }
 
         sendSignallingMessage(message) {
