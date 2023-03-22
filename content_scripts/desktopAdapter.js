@@ -82,6 +82,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // (ideally this add-on should only be added to a "desktop" server but this should effectively ignore it on mobile)
         if (!realityEditor.device.environment.isDesktop()) { return; }
 
+        if (!env) {
+            env = realityEditor.device.environment.variables; // ensure that this alias is set correctly if loaded too fast
+        }
+
         // Set the correct environment variables so that this add-on changes the app to run in desktop mode
         env.requiresMouseEvents = true; // this fixes touch events to become mouse events
         env.supportsDistanceFading = false; // this prevents things from disappearing when the camera zooms out
@@ -154,18 +158,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             }, 1000);
         }
 
-        const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
-        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 10, 300000);
-        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
-
-        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 10, 300000);
-
-        // noinspection JSSuspiciousNameCombination
-        globalStates.height = window.innerWidth;
-        // noinspection JSSuspiciousNameCombination
-        globalStates.width = window.innerHeight;
-
-        realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
+        calculateProjectionMatrices(window.innerWidth, window.innerHeight);
 
         function setupKeyboardWhenReady() {
             if (realityEditor.device.KeyboardListener) {
@@ -180,6 +173,21 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         setTimeout(() => {
             update();
         }, 100);
+    }
+
+    function calculateProjectionMatrices(viewportWidth, viewportHeight) {
+        const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
+        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, viewportWidth/ viewportHeight, 10, 300000);
+        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
+
+        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -viewportWidth / viewportHeight, 10, 300000);
+
+        realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
+
+        let cameraNode = realityEditor.sceneGraph.getCameraNode();
+        if (cameraNode) {
+            cameraNode.needsRerender = true; // make sure the sceneGraph is rendered with the right projection matrix
+        }
     }
 
     function setupMenuBarItems() {
@@ -354,8 +362,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         document.getElementById('groundPlaneResetButton').classList.add('hiddenDesktopButton');
 
-        window.addEventListener('resize', function() {
-            realityEditor.gui.pocket.onWindowResized(); // reformat pocket tile size/arrangement
+        realityEditor.device.layout.onWindowResized(({width, height}) => {
+            calculateProjectionMatrices(width, height);
         });
 
         var DISABLE_SAFE_MODE = true;
