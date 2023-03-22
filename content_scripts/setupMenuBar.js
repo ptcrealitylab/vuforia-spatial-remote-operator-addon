@@ -35,6 +35,7 @@ createNameSpace('realityEditor.gui');
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
         ToggleAnalyticsSettings: 'Toggle Analytics Settings',
+        DarkMode: 'Dark Mode'
     });
     exports.ITEM = ITEM;
 
@@ -83,6 +84,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
+
+        const toggleDarkMode = new MenuItem(ITEM.DarkMode, { toggle: true, defaultVal: true }, null);
+        menuBar.addItemToMenu(MENU.View, toggleDarkMode);
 
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
