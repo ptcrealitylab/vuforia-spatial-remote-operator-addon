@@ -139,7 +139,8 @@ createNameSpace('realityEditor.device.desktopCamera');
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
 
-        cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', undefined, undefined, virtualCamera.getTargetMatrix());
+        // set cameraTargetElement parent as groundPlaneNode to make the coord space of cameraTargetElement the same as virtual camera and threejsContainerObj
+        cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', parentNode, undefined, virtualCamera.getTargetMatrix());
 
         virtualCamera.onPanToggled(function(isPanning) {
             if (isPanning && !knownInteractionStates.pan) {
@@ -462,13 +463,13 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     function panToggled() {
         if (cameraTargetIcon) {
-            cameraTargetIcon.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
+            //cameraTargetIcon.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
         }
         updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
     }
     function rotateToggled() {
         if (cameraTargetIcon) {
-            cameraTargetIcon.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
+            //cameraTargetIcon.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
         }
         updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
