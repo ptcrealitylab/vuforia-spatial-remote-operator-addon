@@ -286,14 +286,14 @@ void main() {
                 255 * this.color.g,
                 255 * this.color.b,
             ];
-            const mat = new THREE.MeshBasicMaterial({color: this.color});
-            const box = new THREE.Mesh(geo, mat);
+            this.cameraMeshGroupMat = new THREE.MeshBasicMaterial({color: this.color});
+            const box = new THREE.Mesh(geo, this.cameraMeshGroupMat);
             box.name = 'cameraVisCamera';
             box.cameraVisId = this.id;
             this.cameraMeshGroup.add(box);
 
             const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
-            const cone = new THREE.Mesh(geoCone, mat);
+            const cone = new THREE.Mesh(geoCone, this.cameraMeshGroupMat);
             cone.rotation.x = -Math.PI / 2;
             cone.rotation.y = Math.PI / 8;
             cone.position.z = 65;
@@ -730,6 +730,17 @@ void main() {
             }
         }
 
+        /**
+         * @param {THREE.Color} color
+         */
+        setColor(color) {
+            this.color = color;
+            this.cameraMeshGroupMat.color = color;
+            if (this.material && this.material.uniforms.borderColor) {
+                this.material.uniforms.borderColor.value = color;
+            }
+        }
+
         add() {
             realityEditor.gui.threejsScene.addToScene(this.container);
         }
@@ -1163,6 +1174,21 @@ void main() {
             this.callbacks.onCameraVisRemoved.push(cb);
         }
 
+        /**
+         * @param {string} id - id of cameravis to be on the lookout for
+         */
+        startRecheckColorInterval(id) {
+            let recheckColorInterval = setInterval(() => {
+                let colorStr = realityEditor.avatar.getAvatarColorFromProviderId(id);
+                if (!colorStr) {
+                    return;
+                }
+                let color = new THREE.Color(colorStr);
+                this.cameras[id].setColor(color);
+                clearInterval(recheckColorInterval);
+            }, 3000);
+        }
+
         createCameraVis(id) {
             if (debug) {
                 console.log('new camera', id);
@@ -1171,6 +1197,11 @@ void main() {
             let colorStr = realityEditor.avatar.getAvatarColorFromProviderId(id);
             if (!colorStr) {
                 console.warn('no color for camera', id);
+                // If it's a webrtc cameravis (id starts with prov) then we
+                // should eventually get this avatar information
+                if (id.startsWith('prov')) {
+                    this.startRecheckColorInterval(id);
+                }
             } else {
                 color = new THREE.Color(colorStr);
             }
