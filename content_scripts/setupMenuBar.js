@@ -13,7 +13,7 @@ createNameSpace('realityEditor.gui');
     exports.MENU = MENU;
 
     const ITEM = Object.freeze({
-        PointClouds: 'Point Clouds',
+        PointClouds: '3D Videos',
         SpaghettiMap: 'Spaghetti Map',
         ModelVisibility: 'Model Visibility',
         ModelTexture: 'Model Texture',
@@ -35,7 +35,7 @@ createNameSpace('realityEditor.gui');
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
         ToggleAnalyticsSettings: 'Toggle Analytics Settings',
-        ToggleHumanPoses: 'Human poses',
+        ToggleHumanPoses: 'Human Poses',
     });
     exports.ITEM = ITEM;
 
