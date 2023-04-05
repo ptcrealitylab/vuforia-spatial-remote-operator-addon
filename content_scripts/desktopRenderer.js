@@ -305,6 +305,11 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             realityEditor.humanPose.draw.toggleAnalyzerSettingsUI();
         });
 
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleHumanPoses, (toggled) => {
+            if (!realityEditor.humanPose.draw) { return; }
+            realityEditor.humanPose.draw.setHumanPosesVisible(toggled);
+        });
+
         realityEditor.gui.buttons.registerCallbackForButton(
             'logic',
             function onLogicMode() {
