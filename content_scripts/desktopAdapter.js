@@ -82,6 +82,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // (ideally this add-on should only be added to a "desktop" server but this should effectively ignore it on mobile)
         if (!realityEditor.device.environment.isDesktop()) { return; }
 
+        if (!env) {
+            env = realityEditor.device.environment.variables; // ensure that this alias is set correctly if loaded too fast
+        }
+
         // Set the correct environment variables so that this add-on changes the app to run in desktop mode
         env.requiresMouseEvents = true; // this fixes touch events to become mouse events
         env.supportsDistanceFading = false; // this prevents things from disappearing when the camera zooms out
@@ -100,7 +104,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.addOcclusionGltf = false; // don't add transparent world gltf, because we're already adding the visible mesh
         env.transformControlsSize = 0.3; // gizmos for ground plane anchors are smaller
         env.defaultShowGroundPlane = true;
-        env.groundWireframeColor = 'rgb(100, 100, 100)'; // make the ground plane subtle
+        env.groundWireframeColor = 'rgb(255, 240, 0)'; // make the ground holo-deck styled
 
         globalStates.groundPlaneOffset = 0.77;
         if (PROXY) {
@@ -154,18 +158,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             }, 1000);
         }
 
-        const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
-        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 10, 300000);
-        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
-
-        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 10, 300000);
-
-        // noinspection JSSuspiciousNameCombination
-        globalStates.height = window.innerWidth;
-        // noinspection JSSuspiciousNameCombination
-        globalStates.width = window.innerHeight;
-
-        realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
+        calculateProjectionMatrices(window.innerWidth, window.innerHeight);
 
         function setupKeyboardWhenReady() {
             if (realityEditor.device.KeyboardListener) {
@@ -182,8 +175,52 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         }, 100);
     }
 
+    function calculateProjectionMatrices(viewportWidth, viewportHeight) {
+        const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
+        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, viewportWidth/ viewportHeight, 10, 300000);
+        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
+
+        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -viewportWidth / viewportHeight, 10, 300000);
+
+        realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
+
+        let cameraNode = realityEditor.sceneGraph.getCameraNode();
+        if (cameraNode) {
+            cameraNode.needsRerender = true; // make sure the sceneGraph is rendered with the right projection matrix
+        }
+    }
+
     function setupMenuBarItems() {
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
+        const menuBar = realityEditor.gui.getMenuBar();
+
+        menuBar.addCallbackToItem(realityEditor.gui.ITEM.DarkMode, (value) => {
+            console.log('dark mode', value);
+            if (value) {
+                menuBar.domElement.classList.remove('desktopMenuBarLight');
+                Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
+                    dropdown.classList.remove('desktopMenuBarLight');
+                });
+                document.body.style.backgroundColor = 'rgb(50, 50, 50)';
+                env.groundWireframeColor = 'rgb(255, 240, 0)'; // make the ground holo-deck styled yellow
+                realityEditor.gui.ar.groundPlaneRenderer.updateGridStyle({
+                    color: env.groundWireframeColor,
+                    thickness: 0.075 // relatively thick
+                });
+            } else {
+                menuBar.domElement.classList.add('desktopMenuBarLight');
+                Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
+                    dropdown.classList.add('desktopMenuBarLight');
+                });
+                document.body.style.backgroundColor = 'rgb(225, 225, 225)';
+                env.groundWireframeColor = 'rgb(150, 150, 150)'; // make the ground plane subtle grey
+                realityEditor.gui.ar.groundPlaneRenderer.updateGridStyle({
+                    color: env.groundWireframeColor,
+                    thickness: 0.025 // relatively thin
+                });
+            }
+        });
+
+        menuBar.addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
             realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode(value);
         });
 
@@ -325,8 +362,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         document.getElementById('groundPlaneResetButton').classList.add('hiddenDesktopButton');
 
-        window.addEventListener('resize', function() {
-            realityEditor.gui.pocket.onWindowResized(); // reformat pocket tile size/arrangement
+        realityEditor.device.layout.onWindowResized(({width, height}) => {
+            calculateProjectionMatrices(width, height);
         });
 
         var DISABLE_SAFE_MODE = true;
