@@ -463,24 +463,24 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     function panToggled() {
         if (cameraTargetIcon) {
-            //cameraTargetIcon.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
+            cameraTargetIcon.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
         }
         updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
     }
     function rotateToggled() {
         if (cameraTargetIcon) {
-            //cameraTargetIcon.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
+            cameraTargetIcon.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
         }
         updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
     function scaleToggled() {
-        // if (cameraTargetIcon) {
-        //     cameraTargetIcon.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
-        // }
-        if (!cameraTargetIcon.visible) {
-            updateInteractionCursor(false);
+        if (cameraTargetIcon) {
+            cameraTargetIcon.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
         }
-        // updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-cloud-edition/cameraZoom.svg');
+        // if (!cameraTargetIcon.visible) {
+        //     updateInteractionCursor(false);
+        // }
+        updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
     }
     function updateInteractionCursor(visible, imageSrc) {
         interactionCursor.style.display = visible ? 'inline' : 'none';
@@ -539,18 +539,8 @@ createNameSpace('realityEditor.device.desktopCamera');
 
                     const THREE = realityEditor.gui.threejsScene.THREE;
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
-                        cameraTargetIcon = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
-                        cameraTargetIcon.name = 'cameraTargetElement';
-                        cameraTargetIcon.matrixAutoUpdate = false;
+                        cameraTargetIcon = {};
                         cameraTargetIcon.visible = false;
-                        realityEditor.gui.threejsScene.addToScene(cameraTargetIcon, {worldObjectId: worldId}); //{worldObjectId: areaTargetNode.id, occluded: true});
-                    }
-                    if (cameraTargetIcon) {
-                        // move the cameraTargetIcon to the center of the view, but scale it down if we zoom too close so it doesn't become obnoxious
-                        const cursorScale = Math.min(1.0, realityEditor.sceneGraph.getDistanceToCamera(cameraTargetElementId) / 1000);
-                        let limitedScaleCursorMatrix = realityEditor.gui.ar.utilities.copyMatrix(sceneNode.worldMatrix);
-                        [0, 5, 10].forEach(index => limitedScaleCursorMatrix[index] *= cursorScale);
-                        realityEditor.gui.threejsScene.setMatrixFromArray(cameraTargetIcon.matrix, limitedScaleCursorMatrix);
                     }
 
                     if (unityCamera) {
