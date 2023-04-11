@@ -457,6 +457,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         let percentToClipBy = 0.5 * this.distanceToTarget / magnitude(vector);
                         vector = scalarMultiply(vector, percentToClipBy);
                     }
+                    // if distanceToTarget <= 200, slow down zooming speed to prevent from zooming too close
+                    if (isZoomingIn && this.distanceToTarget <= 200) {
+                        let scrollFactor = Math.pow(this.distanceToTarget / 200, 2);
+                        vector = scalarMultiply(vector, scrollFactor);
+                    }
                     // * 0.7 to prevent the camera from getting too close to the camera target point
                     this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
 
