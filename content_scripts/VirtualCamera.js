@@ -78,15 +78,26 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 onScaleToggled: [],
                 onStopFollowing: [] // other modules can discover when pan/rotate forced this camera out of follow mode
             };
-            this.addEventListeners();
-
+            
             this.focusTargetCube = null;
+            this.addFocusTargetCube();
+            this.addEventListeners();
 
             this.threeJsContainer = new THREE.Group();
             this.threeJsContainer.name = 'VirtualCamera_' + cameraNode.id + '_threeJsContainer';
             this.threeJsContainer.position.y = -floorOffset;
             this.threeJsContainer.rotation.x = Math.PI / 2;
             realityEditor.gui.threejsScene.addToScene(this.threeJsContainer);
+        }
+        addFocusTargetCube() {
+            if (this.focusTargetCube === null) {
+                this.focusTargetCube = new THREE.Mesh(
+                    new THREE.BoxGeometry(20, 20, 20),
+                    new THREE.MeshBasicMaterial({color: 0x00ffff})
+                );
+                this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
+                realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
+            }
         }
         addEventListeners() {
 
@@ -151,7 +162,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     if (this.focusTargetCube === null) {
                         this.focusTargetCube = new THREE.Mesh(
                             new THREE.BoxGeometry(20, 20, 20),
-                            new THREE.MeshBasicMaterial({color: 0x00ff00})
+                            new THREE.MeshBasicMaterial({color: 0x00ffff})
                         );
                         this.focusTargetCube.position.copy(worldIntersectPoint);
                         realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
@@ -249,6 +260,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.stopFollowing();
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
+            this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.targetPosition));
         }
         adjustEnvVars(distanceToTarget) {
             // places new tools at the camera's targetPosition...
@@ -378,10 +390,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             // rotate
             if (this.mouseInput.isRotateRequested && (this.mouseInput.unprocessedDX !== 0 || this.mouseInput.unprocessedDY !== 0)) {
-                let xRot = -this.mouseInput.unprocessedDY * 0.01;
-                let yRot = -this.mouseInput.unprocessedDX * 0.01;
-                let camPos = new THREE.Vector3().fromArray(this.position);
                 let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
+                let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
+                // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
+                let rotateFactor = -Math.pow(angle / Math.PI, 2) * 4 + 1;
+                let xRot = -this.mouseInput.unprocessedDY * 0.01 * rotateFactor;
+                let yRot = -this.mouseInput.unprocessedDX * 0.01 * rotateFactor;
+                let camPos = new THREE.Vector3().fromArray(this.position);
                 let target = new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos);
                 this.orbit(xRot, yRot, camPos, camLookAt, target);
 
@@ -501,39 +516,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            // prevents camera singularities by slowing down camera movement exponentially as the vertical viewing angle approaches top or bottom
-
-            // evaluate the new camera position to determine if we need to slow the camera down
-            let potentialPosition = add(this.position, this.velocity);
-            let potentialTargetPosition = add(this.targetPosition, this.targetVelocity);
-            let v_look = add(potentialPosition, negate(potentialTargetPosition));
-            let verticalAngle = Math.acos(v_look[1] / Math.sqrt(v_look[0] * v_look[0] + v_look[1] * v_look[1] + v_look[2] * v_look[2]));
-
-            const UPPER_ANGLE = Math.PI * 0.8; // soft upper bound
-            const LOWER_ANGLE = Math.PI * 0.2; // soft lower bound
-            if (verticalAngle > LOWER_ANGLE && verticalAngle < UPPER_ANGLE) {
-                // if within soft bounds, move the camera as usual
-                if (this.mouseInput.isRotateRequested) {
-                    this.position = addButKeepDistance(this.position, this.velocity, this.mouseInput.lastWorldPos);
-                    this.targetPosition = addButKeepDistance(this.targetPosition, this.targetVelocity, this.mouseInput.lastWorldPos);
-                } else {
-                    this.position = add(this.position, this.velocity);
-                    this.targetPosition = add(this.targetPosition, this.targetVelocity);
-                }
-            } else {
-                // if between soft bounds and top or bottom, slow movement exponentially as angle approaches 0 or PI
-                // e.g. if angle is PI * 0.85, we are 25% between UPPER_ANGLE and PI, so slow down by 0.25^2 = 6%
-                // e.g. if angle is PI * 0.9, we are 50% between UPPER_ANGLE and PI, so slow down by 0.50^2 = 25%
-                // e.g. if angle is PI * 0.99, we are 95% between UPPER_ANGLE and PI, so slow down by 0.95^2 = 90%
-                let closenessToAbsoluteBorder = (verticalAngle > Math.PI / 2) ? ((verticalAngle - UPPER_ANGLE) / (Math.PI - UPPER_ANGLE)) : ((verticalAngle - LOWER_ANGLE) / (0 - LOWER_ANGLE));
-                let scaleFactor = Math.pow(1 - closenessToAbsoluteBorder, 2);
-                if (this.mouseInput.isRotateRequested) {
-                    this.position = addButKeepDistance(this.position, scalarMultiply(this.velocity, scaleFactor), this.mouseInput.lastWorldPos);
-                    this.targetPosition = addButKeepDistance(this.targetPosition, scalarMultiply(this.targetVelocity, scaleFactor), this.mouseInput.lastWorldPos);
-                } else {
-                    this.position = add(this.position, scalarMultiply(this.velocity, scaleFactor));
-                    this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, scaleFactor));
-                }
+            if (!this.mouseInput.isRotateRequested) {
+                this.position = add(this.position, this.velocity);
+                this.targetPosition = add(this.targetPosition, this.targetVelocity);
             }
 
             // tween the matrix every frame to animate it to the new position
@@ -868,14 +853,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     function add(A, B) {
         return [A[0] + B[0], A[1] + B[1], A[2] + B[2]];
-    }
-
-    // specifically used to add velocity to position but unscale position to keep the same distance from position to focus cube position
-    // A - position/targetPosition, v - velocity to add, F - focus cube position
-    function addButKeepDistance(P, v, F) {
-        let offset = sub(P, F);
-        let mag = magnitude(offset);
-        return add(scalarMultiply(normalize(add(offset, v)), mag), F);
     }
 
     function sub(A, B) {
