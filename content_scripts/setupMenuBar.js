@@ -13,7 +13,7 @@ createNameSpace('realityEditor.gui');
     exports.MENU = MENU;
 
     const ITEM = Object.freeze({
-        PointClouds: 'Point Clouds',
+        PointClouds: '3D Videos',
         SpaghettiMap: 'Spaghetti Map',
         ModelVisibility: 'Model Visibility',
         ModelTexture: 'Model Texture',
@@ -35,6 +35,7 @@ createNameSpace('realityEditor.gui');
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
         ToggleAnalyticsSettings: 'Toggle Analytics Settings',
+        ToggleHumanPoses: 'Human Poses',
         DarkMode: 'Dark Mode'
     });
     exports.ITEM = ITEM;
@@ -63,6 +64,9 @@ createNameSpace('realityEditor.gui');
             console.log('toggle point clouds', value);
         });
         menuBar.addItemToMenu(MENU.View, togglePointClouds);
+
+        const toggleHumanPoses = new MenuItem(ITEM.ToggleHumanPoses, { shortcutKey: 'H', toggle: true, defaultVal: true, disabled: false }, null);
+        menuBar.addItemToMenu(MENU.View, toggleHumanPoses);
 
         const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
