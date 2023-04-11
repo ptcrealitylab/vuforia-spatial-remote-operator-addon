@@ -78,6 +78,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 onScaleToggled: [],
                 onStopFollowing: [] // other modules can discover when pan/rotate forced this camera out of follow mode
             };
+
+            this.normalModePrompt = null;
+            this.flyModePrompt = null;
+            this.addFlyAndNormalModePrompts();
             
             this.focusTargetCube = null;
             this.addFocusTargetCube();
@@ -97,6 +101,33 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 );
                 this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
                 realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
+            }
+        }
+        addFlyAndNormalModePrompts() {
+            // add normal mode prompt
+            this.normalModePrompt = document.createElement('div');
+            this.normalModePrompt.classList.add('mode-prompt');
+            this.normalModePrompt.style.top = `${realityEditor.device.environment.variables.screenTopOffset}`;
+            this.normalModePrompt.innerHTML = 'Entered normal mode';
+            document.body.appendChild(this.normalModePrompt);
+            // add fly mode prompt
+            this.flyModePrompt = document.createElement('div');
+            this.flyModePrompt.classList.add('mode-prompt', 'fly-mode-prompt');
+            this.flyModePrompt.style.top = `${realityEditor.device.environment.variables.screenTopOffset}`;
+            this.flyModePrompt.innerHTML = 'Entered fly mode';
+            document.body.appendChild(this.flyModePrompt);
+        }
+        switchMode() {
+            if (this.isFlying) {
+                this.flyModePrompt.classList.add('mode-prompt-disappear');
+                this.flyModePrompt.classList.remove('mode-prompt-disappear');
+                this.flyModePrompt.classList.add('mode-prompt-appear');
+                this.normalModePrompt.classList.add('mode-prompt-disappear');
+            } else {
+                this.normalModePrompt.classList.add('mode-prompt-disappear');
+                this.normalModePrompt.classList.remove('mode-prompt-disappear');
+                this.normalModePrompt.classList.add('mode-prompt-appear');
+                this.flyModePrompt.classList.add('mode-prompt-disappear');
             }
         }
         addEventListeners() {
@@ -207,6 +238,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (e.key === 'f' || e.key === 'F') {
                     this.isFlying = !this.isFlying;
                     this.mouseFlyInput.justSwitched = true;
+                    this.switchMode();
                     console.log(this.isFlying?'fly mode activate':'normal mode activate');
                 }
             });
