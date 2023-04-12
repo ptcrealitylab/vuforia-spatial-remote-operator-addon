@@ -107,27 +107,46 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // add normal mode prompt
             this.normalModePrompt = document.createElement('div');
             this.normalModePrompt.classList.add('mode-prompt');
-            this.normalModePrompt.style.top = `${realityEditor.device.environment.variables.screenTopOffset}`;
-            this.normalModePrompt.innerHTML = 'Entered normal mode';
+            this.normalModePrompt.style.top = (realityEditor.device.environment.variables.screenTopOffset + 20) + 'px';
+            let normalModeText = document.createElement('div');
+            normalModeText.classList.add('mode-prompt-big-font');
+            normalModeText.innerHTML = 'Entered normal mode';
+            this.normalModePrompt.appendChild(normalModeText);
+            this.normalModePrompt.appendChild(document.createElement('br'));
+            let normalModeControls1 = document.createElement('div');
+            normalModeControls1.innerHTML = 'F - switch mode, RMB - rotate,';
+            this.normalModePrompt.appendChild(normalModeControls1);
+            let normalModeControls2 = document.createElement('div');
+            normalModeControls2.innerHTML = 'MMB/RMB+Alt - pan, scroll wheel - zoom';
+            this.normalModePrompt.appendChild(normalModeControls2);
             document.body.appendChild(this.normalModePrompt);
+            setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 3000);
             // add fly mode prompt
             this.flyModePrompt = document.createElement('div');
             this.flyModePrompt.classList.add('mode-prompt', 'fly-mode-prompt');
-            this.flyModePrompt.style.top = `${realityEditor.device.environment.variables.screenTopOffset}`;
-            this.flyModePrompt.innerHTML = 'Entered fly mode';
+            this.flyModePrompt.style.top = (realityEditor.device.environment.variables.screenTopOffset + 20) + 'px';
+            let flyModeText = document.createElement('div');
+            flyModeText.classList.add('mode-prompt-big-font');
+            flyModeText.innerHTML = 'Entered fly mode';
+            this.flyModePrompt.appendChild(flyModeText);
+            this.flyModePrompt.appendChild(document.createElement('br'));
+            let flyModeControls1 = document.createElement('div');
+            flyModeControls1.innerHTML = 'F - switch mode, W/A/S/D - move,';
+            this.flyModePrompt.appendChild(flyModeControls1);
+            let flyModeControls2 = document.createElement('div');
+            flyModeControls2.innerHTML = 'Q/E - down/up, SHIFT - speed up';
+            this.flyModePrompt.appendChild(flyModeControls2);
             document.body.appendChild(this.flyModePrompt);
         }
         switchMode() {
             if (this.isFlying) {
-                this.flyModePrompt.classList.add('mode-prompt-disappear');
-                this.flyModePrompt.classList.remove('mode-prompt-disappear');
-                this.flyModePrompt.classList.add('mode-prompt-appear');
-                this.normalModePrompt.classList.add('mode-prompt-disappear');
+                this.normalModePrompt.style.opacity = '0';
+                this.flyModePrompt.style.opacity = '1';
+                setTimeout(() => {this.flyModePrompt.style.opacity = 0}, 2000);
             } else {
-                this.normalModePrompt.classList.add('mode-prompt-disappear');
-                this.normalModePrompt.classList.remove('mode-prompt-disappear');
-                this.normalModePrompt.classList.add('mode-prompt-appear');
-                this.flyModePrompt.classList.add('mode-prompt-disappear');
+                this.flyModePrompt.style.opacity = '0';
+                this.normalModePrompt.style.opacity = '1';
+                setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 2000);
             }
         }
         addEventListeners() {
@@ -237,37 +256,19 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.addEventListener('keypress', (e) => {
                 if (e.key === 'f' || e.key === 'F') {
                     this.isFlying = !this.isFlying;
-                    this.mouseFlyInput.justSwitched = true;
                     this.switchMode();
-                    console.log(this.isFlying?'fly mode activate':'normal mode activate');
+                    if (this.isFlying) {
+                        document.body.requestPointerLock();
+                    } else {
+                        document.exitPointerLock();
+                    }
                 }
             });
 
             document.addEventListener('pointermove', function (event) {
-                if (this.isFlying) {
-                    // justSwitched stays true for one frame before becoming false
-                    // to prevent x,y offsets being too big and suddenly shifts the camera lookAt position
-                    if (this.mouseFlyInput.justSwitched) {
-                        this.mouseFlyInput.last.x = event.pageX;
-                        this.mouseFlyInput.last.y = event.pageY;
-
-                        let xOffset = event.pageX - this.mouseFlyInput.last.x;
-                        let yOffset = event.pageY - this.mouseFlyInput.last.y;
-                        
-                        this.mouseFlyInput.unprocessedDX = xOffset;
-                        this.mouseFlyInput.unprocessedDY = yOffset;
-
-                        this.mouseFlyInput.justSwitched = false;
-                    } else {
-                        let xOffset = event.pageX - this.mouseFlyInput.last.x;
-                        let yOffset = event.pageY - this.mouseFlyInput.last.y;
-
-                        this.mouseFlyInput.unprocessedDX = xOffset;
-                        this.mouseFlyInput.unprocessedDY = yOffset;
-
-                        this.mouseFlyInput.last.x = event.pageX;
-                        this.mouseFlyInput.last.y = event.pageY;
-                    }
+                if ( document.pointerLockElement === document.body ) {
+                    this.mouseFlyInput.unprocessedDX = event.movementX;
+                    this.mouseFlyInput.unprocessedDY = event.movementY;
                 } else {
                     if (this.mouseInput.isPointerDown) {
 
@@ -539,7 +540,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 let keyDirection = [transformKeys.S - transformKeys.W, transformKeys.D - transformKeys.A, transformKeys.E - transformKeys.Q];
                 if (magnitude(keyDirection) !== 0) {
                     let vector = [0, 0, 0];
-                    flyingSpeed = this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down' ? 60 : 30;
+                    flyingSpeed = this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down' ? 40 : 20;
                     let forwardValue = scalarMultiply(forwardVector, keyDirection[0]);
                     let horizontalValue = scalarMultiply(horizontalVector, keyDirection[1]);
                     let verticalValue = scalarMultiply([0, 1, 0], keyDirection[2]);

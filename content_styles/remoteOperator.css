@@ -148,25 +148,23 @@ body > * {
     position: fixed;
     left: 50vw;
     transform: translateX(-50%);
-    width: 250px;
-    height: 50px;
+    width: 320px;
+    height: 100px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    font-size: 1.2em;
+    font-size: 1em;
+
+    transition: opacity 0.3s ease;
+}
+
+.mode-prompt-big-font {
+    font-size: 1.5em;
 }
 
 .fly-mode-prompt {
     opacity: 0;
-}
-
-.mode-prompt-appear {
-    opacity: 1;
-    transition: 0.1s ease;
-}
-
-.mode-prompt-disappear {
-    opacity: 0;
-    transition: 0.5s ease;
 }
