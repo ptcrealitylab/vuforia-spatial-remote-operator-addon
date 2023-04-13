@@ -95,7 +95,7 @@ createNameSpace('realityEditor.gui');
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
 
-        const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { shortcutKey: 'E', toggle: true, defaultVal: false }, null);
+        const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.History, toggleAnalyticsSettings);
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
