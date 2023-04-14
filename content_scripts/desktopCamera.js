@@ -535,7 +535,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
                     // render a cube at the virtual camera's target position
                     let sceneNode = realityEditor.sceneGraph.getSceneNodeById(rotateCenterElementId);
-                    // sceneNode.setLocalMatrix(virtualCamera.getFocusTargetCubeMatrix());
+                    sceneNode.setLocalMatrix(virtualCamera.getFocusTargetCubeMatrix());
 
                     const THREE = realityEditor.gui.threejsScene.THREE;
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
