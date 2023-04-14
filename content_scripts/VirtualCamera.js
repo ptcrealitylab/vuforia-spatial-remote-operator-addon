@@ -308,6 +308,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 1
             ];
         }
+        getFocusTargetCubeMatrix() {
+            return [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                this.focusTargetCube.position.x, this.focusTargetCube.position.y, this.focusTargetCube.position.z, 1
+            ];
+        }
         onPanToggled(callback) {
             this.callbacks.onPanToggled.push(callback);
         }
