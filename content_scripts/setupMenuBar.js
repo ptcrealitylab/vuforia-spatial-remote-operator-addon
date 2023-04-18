@@ -36,7 +36,8 @@ createNameSpace('realityEditor.gui');
         AdvanceCameraShader: 'Next Camera Lens',
         ToggleAnalyticsSettings: 'Toggle Analytics Settings',
         ToggleHumanPoses: 'Human Poses',
-        DarkMode: 'Dark Mode'
+        DarkMode: 'Dark Mode',
+        CutoutViewFrustums: 'Cut Out 3D Videos'
     });
     exports.ITEM = ITEM;
 
@@ -82,6 +83,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleUnityVirtualizers = new MenuItem(ITEM.UnityVirtualizers, { shortcutKey: 'V', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleUnityVirtualizers);
+
+        const toggleCutoutViewFrustums = new MenuItem(ITEM.CutoutViewFrustums, { toggle: true, defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.View, toggleCutoutViewFrustums);
 
         const toggleSurfaceAnchors = new MenuItem(ITEM.SurfaceAnchors, { shortcutKey: 'SEMICOLON', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleSurfaceAnchors);
