@@ -253,16 +253,24 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }.bind(this));
 
             // enter fly mode
-            document.addEventListener('keypress', (e) => {
+            document.addEventListener('keydown', (e) => {
                 if (e.key === 'f' || e.key === 'F') {
                     this.isFlying = !this.isFlying;
-                    this.switchMode();
                     if (this.isFlying) {
                         document.body.requestPointerLock();
                     } else {
                         document.exitPointerLock();
                     }
                 }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) {
+                    this.isFlying = true;
+                } else if (document.pointerLockElement === null) {
+                    this.isFlying = false;
+                }
+                this.switchMode();
             });
 
             document.addEventListener('pointermove', function (event) {
