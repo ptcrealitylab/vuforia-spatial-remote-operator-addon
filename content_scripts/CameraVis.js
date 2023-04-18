@@ -626,7 +626,9 @@ void main() {
             this.texture.needsUpdate = true;
             this.textureDepth.needsUpdate = true;
 
-            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
+            if (this.cutoutViewFrustum) {
+                realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
+            }
 
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
             let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
@@ -730,6 +732,15 @@ void main() {
             }
         }
 
+        enableFrustumCutout() {
+            this.cutoutViewFrustum = true;
+        }
+
+        disableFrustumCutout() {
+            this.cutoutViewFrustum = false;
+            realityEditor.gui.threejsScene.removeMaterialCullingFrustum(this.id);
+        }
+
         /**
          * @param {THREE.Color} color
          */
@@ -803,6 +814,17 @@ void main() {
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatch, () => {
                 this.undoPatch();
+            });
+
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
+                this.cutoutViewFrustums = toggled;
+                for (let camera of Object.values(this.cameras)) {
+                    if (toggled) {
+                        camera.enableFrustumCutout();
+                    } else {
+                        camera.disableFrustumCutout();
+                    }
+                }
             });
 
             this.onPointerDown = this.onPointerDown.bind(this);
@@ -1209,7 +1231,11 @@ void main() {
             this.cameras[id].add();
             this.cameras[id].historyMesh.visible = this.spaghettiVisible;
             this.cameras[id].setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
-
+            if (this.cutoutViewFrustums) {
+                this.cameras[id].enableFrustumCutout();
+            } else {
+                this.cameras[id].disableFrustumCutout();
+            }
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
