@@ -4,7 +4,7 @@ createNameSpace('realityEditor.device');
 (function (exports) {
 
 // this port number MUST match the nerfStudio port
-const NERF_STUDIO_WEBSOCKET_URL = 'ws://localhost:7003';
+const NERF_STUDIO_WEBSOCKET_URL = 'ws://192.168.1.211:7003';
 const DEBUG_CAMERA_MESSAGE = false;
 
 const ICE_SERVERS = [
@@ -84,14 +84,14 @@ class NerfStudioConnection {
         // this is a value of the camera taken from the nerfstudio viewer, can be used as reference.
         // it makes me think that the units are meters, not mm, so scale the cameraMatrix translation
         //   values down by 1000 before passing into this function.
-        let defaultMatrix = [
-            0.8768288709363371, -0.48080259056343316, 0, 0,
-            0.3139440447617337, 0.5725326936841874, 0.7573938548875155, 0,
-            -0.36415692750674244, -0.6641047986351402, 0.6529583053906498, 0,
-            -0.4129898476856783, -0.7473400792058696, 0.6822817432737595, 1
-        ];
+        // let defaultMatrix = [
+        //     0.8768288709363371, -0.48080259056343316, 0, 0,
+        //     0.3139440447617337, 0.5725326936841874, 0.7573938548875155, 0,
+        //     -0.36415692750674244, -0.6641047986351402, 0.6529583053906498, 0,
+        //     -0.4129898476856783, -0.7473400792058696, 0.6822817432737595, 1
+        // ];
 
-        const aspectValue = 0.60;
+        const aspectValue = 15/9;
         const cam_fov = 41.22673;
         let message = {
             type: 'write', //'toolbox', // the server switches thru type to handle the message differently
@@ -106,7 +106,7 @@ class NerfStudioConnection {
                     "uuid": "15a0a777-f847-40e6-be32-46ce6af1d19d",
                     "type": "PerspectiveCamera",
                     "layers": 1,
-                    "matrix": (cameraMatrix || defaultMatrix),
+                    "matrix": (cameraMatrix), // || defaultMatrix),
                     "fov": cam_fov, // todo: calculate correct value
                     "zoom": 1, // todo: calculate correct value
                     "near": 0.1, // todo: calculate correct value
