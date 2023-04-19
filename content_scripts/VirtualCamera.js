@@ -168,7 +168,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         this.mouseFlyInput.last.x = event.pageX;
                         this.mouseFlyInput.last.y = event.pageY;
 
-                        let xOffset = event.pageX - this.mouseFlyInput.last.x;
+                        let xOffset = event.pageX - this.mouseFlyInput.last.x;nerfCanvas
                         let yOffset = event.pageY - this.mouseFlyInput.last.y;
                         
                         this.mouseFlyInput.unprocessedDX = xOffset;

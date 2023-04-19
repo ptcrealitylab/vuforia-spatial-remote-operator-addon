@@ -65,10 +65,10 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     // or make them a bit different to interpolate the opacity based on the bounds
 
     // how much time after the camera stops moving should we wait before showing the nerf view
-    const BEGIN_FADE_TIME = 300;
-    const END_FADE_TIME = 300;
+    const BEGIN_FADE_TIME = 1250; // time in milliseconds
+    const END_FADE_TIME = 1650;
     // how far away from the ground plane origin can we be before hiding the nerf
-    const BEGIN_FADE_DISTANCE = 8000;
+    const BEGIN_FADE_DISTANCE = 8000; // in millimeters
     const END_FADE_DISTANCE = 12000;
     // how low of a viewing angle can we have before hiding it (e.g. looking at floor = 0, looking level = PI/2, looking at ceiling = PI)
     const BEGIN_FADE_ANGLE = Math.PI * 0.5;
@@ -189,7 +189,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                             obj.oldMaterial = greyMaterial;
                         }
                     });
-
+                    BEGIN_FADE_TIME
                     realityEditor.device.meshLine.inject();
 
                     // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
@@ -379,6 +379,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     nerfCanvas.style.zIndex = '1000';
                     nerfCanvas.style.opacity = '1';
                     nerfCanvas.style.pointerEvents = 'none';
+                    nerfCanvas.style.clipPath = 'circle(100% at 50% 50%)';
                     document.body.appendChild(nerfCanvas);
                 }
                 nerfCanvas.style.display = 'inline';
@@ -409,6 +410,69 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         );
     }
 
+    let nerfEffect = 0; //0 = always show; 1 = delayed render; 2 = focus effect
+    // key press to toggle Nerf rendering effect, use key '>'
+    let mousePressed = false;
+    let magnifyingRadius = 15; // Adjust this value to change the radius of the magnifying area
+
+    window.addEventListener("keydown", (event) => {
+
+        // Check if the pressed key is '>'
+        if (event.key === ">") {
+            // Call the function you want to activate
+            if(nerfEffect == 2){nerfEffect=0;}
+            else{nerfEffect += 1;}
+            if(nerfEffect != 2){nerfCanvas.style.clipPath = 'circle(100% at 50% 50%)';}
+            console.log("Changing NeRF rendering mode: " + nerfEffect);
+        }
+        if (event.key === ".") {
+            // increase magnify radius
+            if(nerfEffect == 2)
+            {
+                if(magnifyingRadius < 35){magnifyingRadius += 1;}
+                updateMagnifyingArea(event.clientX, event.clientY);
+            }
+            
+        }
+        if (event.key === ",") {
+            // reduce magnify radius
+            if(nerfEffect == 2)
+            {
+                if(magnifyingRadius > 5){magnifyingRadius -= 1;}
+                updateMagnifyingArea(event.clientX, event.clientY);
+            }
+            
+        }
+    });
+
+    // Event listeners for mouse events: magnifying glass effect
+    window.addEventListener('mousedown', (event) => {
+        mousePressed = true;
+        if(nerfEffect == 2)
+        {updateMagnifyingArea(event.clientX, event.clientY);}
+    });
+
+    window.addEventListener('mousemove', (event) => {
+        if (mousePressed) {
+            if(nerfEffect == 2)
+            {updateMagnifyingArea(event.clientX, event.clientY);} 
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        mousePressed = false;
+        if(nerfEffect == 2){hideMagnifyingArea();}
+    });
+    
+    function updateMagnifyingArea(x, y) {
+        let magString = magnifyingRadius.toString() + '%'
+        nerfCanvas.style.clipPath = `circle(${magString} at ${x}px ${y}px)`;
+    }
+
+    function hideMagnifyingArea() {
+        nerfCanvas.style.clipPath = 'circle(0% at 0px 0px)';
+    }
+
     let lastDistance = 0;
     let lastVerticalAngle = 0;
     let lastTimestamp = 0;
@@ -419,42 +483,56 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             lastTimestamp = timestamp;
         }
 
-        let opacity = 0;
+        let opacity = 0.01;
 
-        // update opacity based on worst of: verticalAngle, distance, and timestamp
-        
-        let dt = Date.now() - lastTimestamp;
-        if (dt < END_FADE_TIME) {
-            if (dt > BEGIN_FADE_TIME) {
-                opacity = (dt - BEGIN_FADE_TIME) / (END_FADE_TIME - BEGIN_FADE_TIME);
+        // change NeRF rendering effect based on the Mode
+        if(nerfEffect == 0)
+        {
+            opacity = 1;
+        }
+        else if (nerfEffect == 1)
+        {
+            let dt = Date.now() - lastTimestamp;
+            if (dt < END_FADE_TIME) {
+                if (dt > BEGIN_FADE_TIME) {
+                    opacity = (dt - BEGIN_FADE_TIME) / (END_FADE_TIME - BEGIN_FADE_TIME);
+                }else{
+                    opacity = 0.01;
+                }
+            } else {
+                opacity = 1;
             }
-        } else {
+        }
+        else if (nerfEffect == 2)
+        {
+            //implemented ahead of this in the eventListener
             opacity = 1;
         }
 
+
         // make less opaque if you're too far away
         
-        if (distance > BEGIN_FADE_DISTANCE) {
-            let amount = 0;
-            if (distance < END_FADE_DISTANCE) {
-                amount = (distance - BEGIN_FADE_DISTANCE) / (END_FADE_DISTANCE - BEGIN_FADE_DISTANCE);
-            } else {
-                amount = 1;
-            }
-            opacity = Math.min(opacity, 1.0 - amount);
-        }
+        // if (distance > BEGIN_FADE_DISTANCE) {
+        //     let amount = 0;
+        //     if (distance < END_FADE_DISTANCE) {
+        //         amount = (distance - BEGIN_FADE_DISTANCE) / (END_FADE_DISTANCE - BEGIN_FADE_DISTANCE);
+        //     } else {
+        //         amount = 1;
+        //     }
+        //     opacity = Math.min(opacity, 1.0 - amount);
+        // }
 
         // make less opaque if you're looking at the ceiling
 
-        if (verticalAngle > BEGIN_FADE_ANGLE) {
-            let amount = 0;
-            if (verticalAngle < END_FADE_ANGLE) {
-                amount = (verticalAngle - BEGIN_FADE_ANGLE) / (END_FADE_ANGLE - BEGIN_FADE_ANGLE);
-            } else {
-                amount = 1;
-            }
-            opacity = Math.min(opacity, 1.0 - amount);
-        }
+        // if (verticalAngle > BEGIN_FADE_ANGLE) {
+        //     let amount = 0;
+        //     if (verticalAngle < END_FADE_ANGLE) {
+        //         amount = (verticalAngle - BEGIN_FADE_ANGLE) / (END_FADE_ANGLE - BEGIN_FADE_ANGLE);
+        //     } else {
+        //         amount = 1;
+        //     }
+        //     opacity = Math.min(opacity, 1.0 - amount);
+        // }
 
         nerfCanvas.style.opacity = opacity;
 
