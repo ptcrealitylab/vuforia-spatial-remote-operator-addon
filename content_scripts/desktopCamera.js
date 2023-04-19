@@ -120,7 +120,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             return;
         }
 
-        if (!realityEditor.device.desktopAdapter.isDesktop()) { return; }
+        if (!realityEditor.device.environment.isDesktop()) { return; }
 
         if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
             setTimeout(function() {

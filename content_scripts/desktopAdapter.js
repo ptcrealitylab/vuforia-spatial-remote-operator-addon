@@ -72,14 +72,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         callbackHandler.registerCallback(functionName, callback);
     }
 
-    function isDesktop() {
-        const userAgent = window.navigator.userAgent;
-        const isWebView = userAgent.includes('Mobile') && !userAgent.includes('Safari');
-        const isMac = userAgent.includes('Macintosh');
-
-        return (!isWebView) || isMac;
-    }
-
     let env = realityEditor.device.environment.variables;
 
     /**
@@ -88,7 +80,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     function initService() {
         // by including this check, we can tolerate compiling this add-on into the app without breaking everything
         // (ideally this add-on should only be added to a "desktop" server but this should effectively ignore it on mobile)
-        if (!isDesktop()) { return; }
+        if (!realityEditor.device.environment.isDesktop()) { return; }
+
+        if (!env) {
+            env = realityEditor.device.environment.variables; // ensure that this alias is set correctly if loaded too fast
+        }
 
         // Set the correct environment variables so that this add-on changes the app to run in desktop mode
         env.requiresMouseEvents = true; // this fixes touch events to become mouse events
@@ -108,7 +104,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         env.addOcclusionGltf = false; // don't add transparent world gltf, because we're already adding the visible mesh
         env.transformControlsSize = 0.3; // gizmos for ground plane anchors are smaller
         env.defaultShowGroundPlane = true;
-        env.groundWireframeColor = 'rgb(100, 100, 100)'; // make the ground plane subtle
+        env.groundWireframeColor = 'rgb(255, 240, 0)'; // make the ground holo-deck styled
 
         globalStates.groundPlaneOffset = 0.77;
         if (PROXY) {
@@ -121,6 +117,11 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         restyleForDesktop();
         modifyGlobalNamespace();
+
+        let worldIdQueryItem = getPrimaryWorldId();
+        if (worldIdQueryItem) {
+            realityEditor.network.discovery.setPrimaryWorld(null, worldIdQueryItem);
+        }
 
         function setupMenuBarWhenReady() {
             if (realityEditor.gui.setupMenuBar) {
@@ -157,18 +158,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             }, 1000);
         }
 
-        const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
-        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, window.innerWidth / window.innerHeight, 10, 300000);
-        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
-
-        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -window.innerWidth / window.innerHeight, 10, 300000);
-
-        // noinspection JSSuspiciousNameCombination
-        globalStates.height = window.innerWidth;
-        // noinspection JSSuspiciousNameCombination
-        globalStates.width = window.innerHeight;
-
-        realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
+        calculateProjectionMatrices(window.innerWidth, window.innerHeight);
 
         function setupKeyboardWhenReady() {
             if (realityEditor.device.KeyboardListener) {
@@ -185,8 +175,52 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         }, 100);
     }
 
+    function calculateProjectionMatrices(viewportWidth, viewportHeight) {
+        const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
+        var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, viewportWidth/ viewportHeight, 10, 300000);
+        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
+
+        unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -viewportWidth / viewportHeight, 10, 300000);
+
+        realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
+
+        let cameraNode = realityEditor.sceneGraph.getCameraNode();
+        if (cameraNode) {
+            cameraNode.needsRerender = true; // make sure the sceneGraph is rendered with the right projection matrix
+        }
+    }
+
     function setupMenuBarItems() {
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
+        const menuBar = realityEditor.gui.getMenuBar();
+
+        menuBar.addCallbackToItem(realityEditor.gui.ITEM.DarkMode, (value) => {
+            console.log('dark mode', value);
+            if (value) {
+                menuBar.domElement.classList.remove('desktopMenuBarLight');
+                Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
+                    dropdown.classList.remove('desktopMenuBarLight');
+                });
+                document.body.style.backgroundColor = 'rgb(50, 50, 50)';
+                env.groundWireframeColor = 'rgb(255, 240, 0)'; // make the ground holo-deck styled yellow
+                realityEditor.gui.ar.groundPlaneRenderer.updateGridStyle({
+                    color: env.groundWireframeColor,
+                    thickness: 0.075 // relatively thick
+                });
+            } else {
+                menuBar.domElement.classList.add('desktopMenuBarLight');
+                Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
+                    dropdown.classList.add('desktopMenuBarLight');
+                });
+                document.body.style.backgroundColor = 'rgb(225, 225, 225)';
+                env.groundWireframeColor = 'rgb(150, 150, 150)'; // make the ground plane subtle grey
+                realityEditor.gui.ar.groundPlaneRenderer.updateGridStyle({
+                    color: env.groundWireframeColor,
+                    thickness: 0.025 // relatively thin
+                });
+            }
+        });
+
+        menuBar.addCallbackToItem(realityEditor.gui.ITEM.SurfaceAnchors, (value) => {
             realityEditor.gui.ar.groundPlaneAnchors.togglePositioningMode(value);
         });
 
@@ -328,8 +362,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         document.getElementById('groundPlaneResetButton').classList.add('hiddenDesktopButton');
 
-        window.addEventListener('resize', function() {
-            realityEditor.gui.pocket.onWindowResized(); // reformat pocket tile size/arrangement
+        realityEditor.device.layout.onWindowResized(({width, height}) => {
+            calculateProjectionMatrices(width, height);
         });
 
         var DISABLE_SAFE_MODE = true;
@@ -409,6 +443,14 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 break;
                 // case 'getUDPMessages':
                 //     getUDPMessages(messageBody.callback);
+            case 'muteMicrophone':
+                console.log('mute remote operator');
+                realityEditor.gui.ar.desktopRenderer.muteMicrophoneForCameraVis();
+                break;
+            case 'unmuteMicrophone':
+                console.log('unmute remote operator');
+                realityEditor.gui.ar.desktopRenderer.unmuteMicrophoneForCameraVis();
+                break;
             default:
                 // console.log('could not find desktop implementation of app.' + messageBody.functionName);
                 return;
@@ -528,19 +570,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
                 if (typeof realityEditor.network.discovery !== 'undefined') {
                     realityEditor.network.discovery.processHeartbeat(msgContent);
-                }
-
-                let primaryWorldId = getPrimaryWorldId();
-                if (!primaryWorldId) {
-                    realityEditor.network.addHeartbeatObject(msgContent);
-                } else {
-                    getUndownloadedObjectWorldId(msgContent).then(worldId => {
-                        if (worldId === primaryWorldId) {
-                            realityEditor.network.addHeartbeatObject(msgContent);
-                        } else {
-                            console.log('ignored object because of mismatching worldId');
-                        }
-                    });
                 }
             }
 
@@ -948,8 +977,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     exports.registerCallback = registerCallback;
 
     exports.resetIdleTimeout = resetIdleTimeout;
-
-    exports.isDesktop = isDesktop;
 
     exports.getPrimaryWorldId = getPrimaryWorldId;
 
