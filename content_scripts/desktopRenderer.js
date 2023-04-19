@@ -221,12 +221,6 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                                 return id !== cameraVis.id;
                             });
                             realityEditor.gui.threejsScene.removeMaterialCullingFrustum(cameraVis.id);
-                            if (gltf && typeof gltf.traverse !== 'undefined') {
-                                gltf.traverse(child => {
-                                    if (!child.material || !child.material.uniforms) return;
-                                    child.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
-                                });
-                            }
                         });
 
                         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.AdvanceCameraShader, () => {
