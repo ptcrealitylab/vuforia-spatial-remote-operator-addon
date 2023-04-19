@@ -42,13 +42,12 @@ uniform float depthScale;
 uniform float glPosScale;
 
 uniform float pointSize;
+uniform vec2 focalLength;
+uniform vec2 principalPoint;
 const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
 varying vec4 pos;
-
-const float XtoZ = 1920.0 / 1448.24976; // width over focal length
-const float YtoZ = 1080.0 / 1448.24976;
 
 void main() {
   vUv = vec2(position.x / width, position.y / height);
@@ -90,10 +89,13 @@ void main() {
   `}
   float z = depth - 1.0;
 
+  float XtoZ = 1920.0 / focalLength.x; // 1448.24976; // width over focal length
+  float YtoZ = 1080.0 / focalLength.y; // 1448.24976;
+
   // Projection code by @kcmic
   pos = vec4(
-    (position.x / width - 0.5) * z * XtoZ,
-    (position.y / height - 0.5) * z * YtoZ,
+    (position.x - principalPoint.x) / width * z * XtoZ,
+    (position.y - principalPoint.y) / height * z * YtoZ,
     -z,
     1.0);
 
@@ -546,6 +548,9 @@ void main() {
                     // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                     borderColor: { value: borderColor },
+                    // Defaults taken from iPhone 13 Pro Max
+                    focalLength: { value: new THREE.Vector2(1393.48523, 1393.48523) },
+                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
                 },
                 vertexShader,
                 fragmentShader,
@@ -567,12 +572,27 @@ void main() {
             this.phone.add(mesh);
         }
 
-        update(mat, delayed) {
+        update(mat, delayed, rawMatricesMsg) {
             let now = performance.now();
             if (this.shaderMode === ShaderMode.HOLO) {
                 this.material.uniforms.time.value = window.performance.now();
             }
             this.lastUpdate = now;
+
+
+            if (rawMatricesMsg) {
+                this.material.uniforms.focalLength.value = new THREE.Vector2(
+                    rawMatricesMsg.focalLength[0],
+                    rawMatricesMsg.focalLength[1],
+                );
+                let width = this.material.uniforms.width.value;
+                let height = this.material.uniforms.height.value;
+                this.material.uniforms.principalPoint.value = new THREE.Vector2(
+                    rawMatricesMsg.principalPoint[0] / 1920 * width,
+                    rawMatricesMsg.principalPoint[1] / 1080 * height,
+                );
+            }
+
             if (this.time > now || !delayed) {
                 this.setMatrix(mat);
                 return;
@@ -850,7 +870,7 @@ void main() {
                     // if (pktType === PKT_MATRIX) {
                     const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
                     // }
-                    this.updateMatrix(id, mat, true);
+                    this.updateMatrix(id, mat, true, null);
                 });
             } else {
                 const ws = new WebSocket(url);
@@ -858,16 +878,16 @@ void main() {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
                     const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                    this.updateMatrix(id, mat, true);
+                    this.updateMatrix(id, mat, true, null);
                 });
             }
         }
 
-        updateMatrix(id, mat, delayed) {
+        updateMatrix(id, mat, delayed, rawMatricesMsg) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
             }
-            this.cameras[id].update(mat, delayed);
+            this.cameras[id].update(mat, delayed, rawMatricesMsg);
         }
 
         connect() {
@@ -1152,7 +1172,7 @@ void main() {
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
             this.renderPointCloud(id, 'texture', textureUrl);
             this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
-            this.updateMatrix(id, matrix, true);
+            this.updateMatrix(id, matrix, true, null);
         }
 
         hidePointCloud(id) {
