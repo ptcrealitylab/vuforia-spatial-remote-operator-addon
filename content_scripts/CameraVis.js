@@ -13,6 +13,7 @@ import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
     const DEPTH_REPR_PNG = false;
     const DEPTH_WIDTH = 256;
     const DEPTH_HEIGHT = 144;
+    const CONNECTION_TIMEOUT_MS = 10000;
     const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
     const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const ShaderMode = {
@@ -153,6 +154,7 @@ void main() {
     const solidFragmentShader = `
 // color texture
 uniform sampler2D map;
+uniform vec3 borderColor;
 
 // uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
@@ -201,7 +203,7 @@ void main() {
       discard; // Necessary to prevent weird transparency errors when overlapping with self
   }
   // gl_FragColor = vec4(color.rgb, alpha);
-  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(0.0, 1.0, 0.0, 0.7);
+  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(borderColor.rgb, 0.7);
 
   // gl_FragColor = vec4(alphaNorm, alphaNorm, alphaDepth, 1.0);
 }`;
@@ -232,21 +234,8 @@ void main() {
         );
     }
 
-    // author: https://www.30secondsofcode.org/js/s/hsl-to-rgb
-    // input ranges: H: [0, 360], S: [0, 100], L: [0, 100]
-    // output ranges: [0, 255]
-    function HSLToRGB(h, s, l) {
-        s /= 100;
-        l /= 100;
-        const k = n => (n + h / 30) % 12;
-        const a = s * Math.min(l, 1 - l);
-        const f = n =>
-            l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-        return [255 * f(0), 255 * f(8), 255 * f(4)];
-    }
-
     class CameraVis {
-        constructor(id, floorOffset) {
+        constructor(id, floorOffset, color) {
             this.id = id;
             this.firstPersonMode = false;
             this.shaderMode = ShaderMode.SOLID;
@@ -278,24 +267,33 @@ void main() {
             this.cameraMeshGroup = new THREE.Group();
 
             const geo = new THREE.BoxGeometry(100, 100, 80);
-            let colorId = id;
-            if (typeof id === 'string') {
-                colorId = 0;
-                for (let i = 0; i < id.length; i++) {
-                    colorId ^= id.charCodeAt(i);
+            if (!color) {
+                let colorId = id;
+                if (typeof id === 'string') {
+                    colorId = 0;
+                    for (let i = 0; i < id.length; i++) {
+                        colorId ^= id.charCodeAt(i);
+                    }
                 }
+                let hue = ((colorId / 29) % Math.PI) * 360 / Math.PI;
+                const colorStr = `hsl(${hue}, 100%, 50%)`;
+                this.color = new THREE.Color(colorStr);
+            } else {
+                this.color = color;
             }
-            let hue = ((colorId / 29) % Math.PI) * 360 / Math.PI;
-            const color = `hsl(${hue}, 100%, 50%)`;
-            this.colorRGB = HSLToRGB(hue, 100, 50); // used to add points to the SpaghettiMeshLine
-            const mat = new THREE.MeshBasicMaterial({color: color});
-            const box = new THREE.Mesh(geo, mat);
+            this.colorRGB = [
+                255 * this.color.r,
+                255 * this.color.g,
+                255 * this.color.b,
+            ];
+            this.cameraMeshGroupMat = new THREE.MeshBasicMaterial({color: this.color});
+            const box = new THREE.Mesh(geo, this.cameraMeshGroupMat);
             box.name = 'cameraVisCamera';
             box.cameraVisId = this.id;
             this.cameraMeshGroup.add(box);
 
             const geoCone = new THREE.ConeGeometry(60, 180, 16, 1);
-            const cone = new THREE.Mesh(geoCone, mat);
+            const cone = new THREE.Mesh(geoCone, this.cameraMeshGroupMat);
             cone.rotation.x = -Math.PI / 2;
             cone.rotation.y = Math.PI / 8;
             cone.position.z = 65;
@@ -475,7 +473,7 @@ void main() {
             realityEditor.gui.threejsScene.removeFromScene(this.debugColorCube);
         }
 
-        static createPointCloud(texture, textureDepth, shaderMode) {
+        static createPointCloud(texture, textureDepth, shaderMode, borderColor) {
             const width = 640, height = 360;
 
             let geometry;
@@ -494,7 +492,7 @@ void main() {
                 geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             }
 
-            const material = CameraVis.createPointCloudMaterial(texture, textureDepth, shaderMode);
+            const material = CameraVis.createPointCloudMaterial(texture, textureDepth, shaderMode, borderColor);
 
             let mesh;
             if (shaderMode !== ShaderMode.POINT) {
@@ -509,8 +507,12 @@ void main() {
             return mesh;
         }
 
-        static createPointCloudMaterial(texture, textureDepth, shaderMode) {
+        static createPointCloudMaterial(texture, textureDepth, shaderMode, borderColor) {
             const width = 640, height = 360;
+
+            if (!borderColor) {
+                borderColor = new THREE.Color(0.0, 1.0, 0.0);
+            }
 
             let fragmentShader;
             switch (shaderMode) {
@@ -543,6 +545,7 @@ void main() {
                     glPosScale: {value: 20000}, // 0.15 / 256}, // roughly 1 / 1920
                     // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
+                    borderColor: { value: borderColor },
                 },
                 vertexShader,
                 fragmentShader,
@@ -556,7 +559,7 @@ void main() {
         }
 
         setupPointCloud() {
-            const mesh = CameraVis.createPointCloud(this.texture, this.textureDepth, this.shaderMode);
+            const mesh = CameraVis.createPointCloud(this.texture, this.textureDepth, this.shaderMode, this.color);
 
             this.mesh = mesh;
             this.material = mesh.material;
@@ -623,7 +626,9 @@ void main() {
             this.texture.needsUpdate = true;
             this.textureDepth.needsUpdate = true;
 
-            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
+            if (this.cutoutViewFrustum) {
+                realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
+            }
 
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
             let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
@@ -708,7 +713,7 @@ void main() {
                 if (this.matDiff) {
                     this.matDiff = null;
                 }
-                this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode);
+                this.material = CameraVis.createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode, this.color);
                 this.mesh.material = this.material;
             }
         }
@@ -727,6 +732,26 @@ void main() {
             }
         }
 
+        enableFrustumCutout() {
+            this.cutoutViewFrustum = true;
+        }
+
+        disableFrustumCutout() {
+            this.cutoutViewFrustum = false;
+            realityEditor.gui.threejsScene.removeMaterialCullingFrustum(this.id);
+        }
+
+        /**
+         * @param {THREE.Color} color
+         */
+        setColor(color) {
+            this.color = color;
+            this.cameraMeshGroupMat.color = color;
+            if (this.material && this.material.uniforms.borderColor) {
+                this.material.uniforms.borderColor.value = color;
+            }
+        }
+
         add() {
             realityEditor.gui.threejsScene.addToScene(this.container);
         }
@@ -739,6 +764,7 @@ void main() {
     exports.CameraVisCoordinator = class CameraVisCoordinator {
         constructor(floorOffset) {
             this.voxelizer = null;
+            this.webRTCCoordinator = null;
             this.cameras = {};
             this.patches = [];
             this.visible = true;
@@ -790,6 +816,17 @@ void main() {
                 this.undoPatch();
             });
 
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
+                this.cutoutViewFrustums = toggled;
+                for (let camera of Object.values(this.cameras)) {
+                    if (toggled) {
+                        camera.enableFrustumCutout();
+                    } else {
+                        camera.disableFrustumCutout();
+                    }
+                }
+            });
+
             this.onPointerDown = this.onPointerDown.bind(this);
 
             let threejsCanvas = document.getElementById('mainThreejsCanvas');
@@ -808,7 +845,7 @@ void main() {
                     camera.mesh.visible = false;
                     continue;
                 }
-                if (now - camera.lastUpdate > 5000) {
+                if (now - camera.lastUpdate > CONNECTION_TIMEOUT_MS) {
                     camera.remove();
                     delete this.cameras[camera.id];
                     this.callbacks.onCameraVisRemoved.forEach(cb => {
@@ -910,7 +947,17 @@ void main() {
             const network = 'cam' + Math.floor(Math.random() * 1000);
 
             const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(urlBase + 'signalling');
-            const _coordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
+            this.webRTCCoordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
+        }
+
+        muteMicrophone() {
+            if (!this.webRTCCoordinator) return;
+            this.webRTCCoordinator.mute();
+        }
+
+        unmuteMicrophone() {
+            if (!this.webRTCCoordinator) return;
+            this.webRTCCoordinator.unmute();
         }
 
         renderPointCloud(id, textureKey, imageUrl) {
@@ -1149,27 +1196,52 @@ void main() {
             this.callbacks.onCameraVisRemoved.push(cb);
         }
 
+        /**
+         * @param {string} id - id of cameravis to be on the lookout for
+         */
+        startRecheckColorInterval(id) {
+            let recheckColorInterval = setInterval(() => {
+                let colorStr = realityEditor.avatar.getAvatarColorFromProviderId(id);
+                if (!colorStr) {
+                    return;
+                }
+                let color = new THREE.Color(colorStr);
+                this.cameras[id].setColor(color);
+                clearInterval(recheckColorInterval);
+            }, 3000);
+        }
+
         createCameraVis(id) {
             if (debug) {
                 console.log('new camera', id);
             }
-            this.cameras[id] = new CameraVis(id, this.floorOffset);
+            let color;
+            let colorStr = realityEditor.avatar.getAvatarColorFromProviderId(id);
+            if (!colorStr) {
+                console.warn('no color for camera', id);
+                // If it's a webrtc cameravis (id starts with prov) then we
+                // should eventually get this avatar information
+                if (id.startsWith('prov')) {
+                    this.startRecheckColorInterval(id);
+                }
+            } else {
+                color = new THREE.Color(colorStr);
+            }
+            this.cameras[id] = new CameraVis(id, this.floorOffset, color);
             this.cameras[id].add();
             this.cameras[id].historyMesh.visible = this.spaghettiVisible;
             this.cameras[id].setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
-
+            if (this.cutoutViewFrustums) {
+                this.cameras[id].enableFrustumCutout();
+            } else {
+                this.cameras[id].disableFrustumCutout();
+            }
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
 
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetClones, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ToggleRecordClones, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCloneMaterial, true);
-
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCameraShader, true);
 
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ResetPaths, true);
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TogglePaths, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
