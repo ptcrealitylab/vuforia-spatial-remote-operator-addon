@@ -89,13 +89,10 @@ void main() {
   `}
   float z = depth - 1.0;
 
-  float XtoZ = 1920.0 / focalLength.x; // 1448.24976; // width over focal length
-  float YtoZ = 1080.0 / focalLength.y; // 1448.24976;
-
   // Projection code by @kcmic
   pos = vec4(
-    (position.x - principalPoint.x) / width * z * XtoZ,
-    (position.y - principalPoint.y) / height * z * YtoZ,
+    (position.x - principalPoint.x) / focalLength.x * z,
+    (position.y - principalPoint.y) / focalLength.y * z,
     -z,
     1.0);
 
@@ -549,7 +546,7 @@ void main() {
                     pointSize: { value: 2 * 0.666 },
                     borderColor: { value: borderColor },
                     // Defaults taken from iPhone 13 Pro Max
-                    focalLength: { value: new THREE.Vector2(1393.48523, 1393.48523) },
+                    focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * width) },
                     principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
                 },
                 vertexShader,
@@ -581,15 +578,18 @@ void main() {
 
 
             if (rawMatricesMsg) {
-                this.material.uniforms.focalLength.value = new THREE.Vector2(
-                    rawMatricesMsg.focalLength[0],
-                    rawMatricesMsg.focalLength[1],
-                );
                 let width = this.material.uniforms.width.value;
                 let height = this.material.uniforms.height.value;
+                let rawWidth = rawMatricesMsg.imageSize[0];
+                let rawHeight = rawMatricesMsg.imageSize[1];
+
+                this.material.uniforms.focalLength.value = new THREE.Vector2(
+                    rawMatricesMsg.focalLength[0] / rawWidth * width,
+                    rawMatricesMsg.focalLength[1] / rawHeight * height,
+                );
                 this.material.uniforms.principalPoint.value = new THREE.Vector2(
-                    rawMatricesMsg.principalPoint[0] / 1920 * width,
-                    rawMatricesMsg.principalPoint[1] / 1080 * height,
+                    rawMatricesMsg.principalPoint[0] / rawWidth * width,
+                    rawMatricesMsg.principalPoint[1] / rawHeight * height,
                 );
             }
 
