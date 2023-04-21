@@ -114,7 +114,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.normalModePrompt.appendChild(normalModeText);
             this.normalModePrompt.appendChild(document.createElement('br'));
             let normalModeControls1 = document.createElement('div');
-            normalModeControls1.innerHTML = 'F - switch mode, RMB - rotate,';
+            normalModeControls1.innerHTML = 'F - switch mode, G - focus, RMB - rotate,';
             this.normalModePrompt.appendChild(normalModeControls1);
             let normalModeControls2 = document.createElement('div');
             normalModeControls2.innerHTML = 'MMB/RMB+Alt - pan, scroll wheel - zoom';
@@ -131,10 +131,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.flyModePrompt.appendChild(flyModeText);
             this.flyModePrompt.appendChild(document.createElement('br'));
             let flyModeControls1 = document.createElement('div');
-            flyModeControls1.innerHTML = 'F - switch mode, W/A/S/D - move,';
+            flyModeControls1.innerHTML = 'F - switch mode, G - focus, Q/E - down/up';
             this.flyModePrompt.appendChild(flyModeControls1);
             let flyModeControls2 = document.createElement('div');
-            flyModeControls2.innerHTML = 'Q/E - down/up, SHIFT - speed up';
+            flyModeControls2.innerHTML = 'W/A/S/D - move, SHIFT - speed up';
             this.flyModePrompt.appendChild(flyModeControls2);
             document.body.appendChild(this.flyModePrompt);
         }
@@ -253,16 +253,24 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }.bind(this));
 
             // enter fly mode
-            document.addEventListener('keypress', (e) => {
+            document.addEventListener('keydown', (e) => {
                 if (e.key === 'f' || e.key === 'F') {
                     this.isFlying = !this.isFlying;
-                    this.switchMode();
                     if (this.isFlying) {
                         document.body.requestPointerLock();
                     } else {
                         document.exitPointerLock();
                     }
                 }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) {
+                    this.isFlying = true;
+                } else if (document.pointerLockElement === null) {
+                    this.isFlying = false;
+                }
+                this.switchMode();
             });
 
             document.addEventListener('pointermove', function (event) {
@@ -293,7 +301,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.stopFollowing();
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
-            this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.targetPosition));
+            this.mouseInput.lastWorldPos = [0, 0, 0];
+            this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
         }
         adjustEnvVars(distanceToTarget) {
             // places new tools at the camera's targetPosition...
@@ -487,39 +496,41 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 } else {
                     // increase speed as distance increases
                     let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
+                    let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
+                    let baseLog = getBaseLog(nonLinearFactor, this.distanceToTarget) / 100;
                     
                     // interpolate camera towards camera target point
-                    let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
-                    let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
-                    // prevent you from zooming beyond it
-                    let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
-                    if (isZoomingIn && this.distanceToTarget <= magnitude(vector)) {
-                        // zoom in at most halfway to the origin if you're going to overshoot it
-                        let percentToClipBy = 0.5 * this.distanceToTarget / magnitude(vector);
-                        vector = scalarMultiply(vector, percentToClipBy);
+                    {
+                        let distanceMultiplier = Math.max(1, baseLog);
+                        let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                        // if distanceToTarget <= 200, slow down zooming speed quadratically to prevent from zooming too close / beyond the target
+                        if (isZoomingIn && this.distanceToTarget <= 200) {
+                            let scrollFactor = Math.pow(this.distanceToTarget / 200, 2);
+                            vector = scalarMultiply(vector, scrollFactor);
+                        }
+                        // * 0.7 to prevent the camera from getting too close to the camera target point
+                        this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
                     }
-                    // if distanceToTarget <= 200, slow down zooming speed to prevent from zooming too close
-                    if (isZoomingIn && this.distanceToTarget <= 200) {
-                        let scrollFactor = Math.pow(this.distanceToTarget / 200, 2);
-                        vector = scalarMultiply(vector, scrollFactor);
-                    }
-                    // * 0.7 to prevent the camera from getting too close to the camera target point
-                    this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
 
                     // interpolate camera target point towards focus point
-                    let offset = sub(this.mouseInput.lastWorldPos, this.targetPosition);
-                    let targetToFocus = magnitude(offset);
-                    if (targetToFocus <= 300) {
-                        this.targetPosition = this.mouseInput.lastWorldPos;
-                        this.mouseInput.unprocessedScroll = 0;
-                        this.deselectTarget();
-                        break scrollOperation;
+                    {
+                        let offset = sub(this.mouseInput.lastWorldPos, this.targetPosition);
+                        let targetToFocus = magnitude(offset);
+                        if (targetToFocus <= 300) {
+                            this.targetPosition = this.mouseInput.lastWorldPos;
+                            this.mouseInput.unprocessedScroll = 0;
+                            this.deselectTarget();
+                            break scrollOperation;
+                        }
+                        // only interpolate camera target point towards focus point if zooming in. maintain targetPosition when zooming out, b/c we're not zooming towards a specific position
+                        if (isZoomingIn) {
+                            // * 0.5 to make distanceMultiplier2 smaller for the camera target to focus point interpolation, to avoid overshooting
+                            let distanceMultiplier2 = -Math.max(1, baseLog) * 0.5;
+                            let targetForwardVector = normalize(offset);
+                            let vector2 = scalarMultiply(targetForwardVector, distanceMultiplier2 * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                            this.targetVelocity = add(this.targetVelocity, vector2);
+                        }
                     }
-                    // * 0.3 to make distanceMultiplier2 smaller for the camera target to focus point interpolation, to avoid overshooting
-                    let distanceMultiplier2 = -Math.max(1, getBaseLog(nonLinearFactor, targetToFocus) / 100) * 0.3;
-                    let targetForwardVector = normalize(offset);
-                    let vector2 = scalarMultiply(targetForwardVector, distanceMultiplier2 * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
-                    this.targetVelocity = add(this.targetVelocity, vector2);
                     
                     this.deselectTarget();
                 }
