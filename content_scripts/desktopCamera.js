@@ -20,7 +20,7 @@ createNameSpace('realityEditor.device.desktopCamera');
     let INITIAL_CAMERA_POSITION = [-1499.9648912671637, 8275.552791086136, 5140.3791620707225];
 
     // used to render an icon at the target position to help you navigate the scene
-    let cameraTargetElementId = null;
+    let rotateCenterElementId = null;
 
     var targetOnLoad = 'origin'; // window.localStorage.getItem('selectedObjectKey');
 
@@ -139,8 +139,8 @@ createNameSpace('realityEditor.device.desktopCamera');
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
 
-        // set cameraTargetElement parent as groundPlaneNode to make the coord space of cameraTargetElement the same as virtual camera and threejsContainerObj
-        cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', parentNode, undefined, virtualCamera.getTargetMatrix());
+        // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
+        rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
 
         virtualCamera.onPanToggled(function(isPanning) {
             if (isPanning && !knownInteractionStates.pan) {
@@ -534,8 +534,8 @@ createNameSpace('realityEditor.device.desktopCamera');
                     let worldId = worldObject.objectId;
 
                     // render a cube at the virtual camera's target position
-                    let sceneNode = realityEditor.sceneGraph.getSceneNodeById(cameraTargetElementId);
-                    sceneNode.setLocalMatrix(virtualCamera.getTargetMatrix());
+                    let sceneNode = realityEditor.sceneGraph.getSceneNodeById(rotateCenterElementId);
+                    sceneNode.setLocalMatrix(virtualCamera.getFocusTargetCubeMatrix());
 
                     const THREE = realityEditor.gui.threejsScene.THREE;
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
