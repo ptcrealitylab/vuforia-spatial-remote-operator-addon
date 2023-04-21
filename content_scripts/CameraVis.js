@@ -42,13 +42,12 @@ uniform float depthScale;
 uniform float glPosScale;
 
 uniform float pointSize;
+uniform vec2 focalLength;
+uniform vec2 principalPoint;
 const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
 varying vec4 pos;
-
-const float XtoZ = 1920.0 / 1448.24976; // width over focal length
-const float YtoZ = 1080.0 / 1448.24976;
 
 void main() {
   vUv = vec2(position.x / width, position.y / height);
@@ -92,8 +91,8 @@ void main() {
 
   // Projection code by @kcmic
   pos = vec4(
-    (position.x / width - 0.5) * z * XtoZ,
-    (position.y / height - 0.5) * z * YtoZ,
+    (position.x - principalPoint.x) / focalLength.x * z,
+    (position.y - principalPoint.y) / focalLength.y * z,
     -z,
     1.0);
 
@@ -546,6 +545,9 @@ void main() {
                     // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                     borderColor: { value: borderColor },
+                    // Defaults taken from iPhone 13 Pro Max
+                    focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * width) },
+                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
                 },
                 vertexShader,
                 fragmentShader,
@@ -567,12 +569,30 @@ void main() {
             this.phone.add(mesh);
         }
 
-        update(mat, delayed) {
+        update(mat, delayed, rawMatricesMsg) {
             let now = performance.now();
             if (this.shaderMode === ShaderMode.HOLO) {
                 this.material.uniforms.time.value = window.performance.now();
             }
             this.lastUpdate = now;
+
+
+            if (rawMatricesMsg) {
+                let width = this.material.uniforms.width.value;
+                let height = this.material.uniforms.height.value;
+                let rawWidth = rawMatricesMsg.imageSize[0];
+                let rawHeight = rawMatricesMsg.imageSize[1];
+
+                this.material.uniforms.focalLength.value = new THREE.Vector2(
+                    rawMatricesMsg.focalLength[0] / rawWidth * width,
+                    rawMatricesMsg.focalLength[1] / rawHeight * height,
+                );
+                this.material.uniforms.principalPoint.value = new THREE.Vector2(
+                    rawMatricesMsg.principalPoint[0] / rawWidth * width,
+                    rawMatricesMsg.principalPoint[1] / rawHeight * height,
+                );
+            }
+
             if (this.time > now || !delayed) {
                 this.setMatrix(mat);
                 return;
@@ -626,7 +646,9 @@ void main() {
             this.texture.needsUpdate = true;
             this.textureDepth.needsUpdate = true;
 
-            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
+            if (this.cutoutViewFrustum) {
+                realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
+            }
 
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
             let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
@@ -730,6 +752,15 @@ void main() {
             }
         }
 
+        enableFrustumCutout() {
+            this.cutoutViewFrustum = true;
+        }
+
+        disableFrustumCutout() {
+            this.cutoutViewFrustum = false;
+            realityEditor.gui.threejsScene.removeMaterialCullingFrustum(this.id);
+        }
+
         /**
          * @param {THREE.Color} color
          */
@@ -805,6 +836,17 @@ void main() {
                 this.undoPatch();
             });
 
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
+                this.cutoutViewFrustums = toggled;
+                for (let camera of Object.values(this.cameras)) {
+                    if (toggled) {
+                        camera.enableFrustumCutout();
+                    } else {
+                        camera.disableFrustumCutout();
+                    }
+                }
+            });
+
             this.onPointerDown = this.onPointerDown.bind(this);
 
             let threejsCanvas = document.getElementById('mainThreejsCanvas');
@@ -850,7 +892,7 @@ void main() {
                     // if (pktType === PKT_MATRIX) {
                     const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
                     // }
-                    this.updateMatrix(id, mat, true);
+                    this.updateMatrix(id, mat, true, null);
                 });
             } else {
                 const ws = new WebSocket(url);
@@ -858,16 +900,16 @@ void main() {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
                     const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                    this.updateMatrix(id, mat, true);
+                    this.updateMatrix(id, mat, true, null);
                 });
             }
         }
 
-        updateMatrix(id, mat, delayed) {
+        updateMatrix(id, mat, delayed, rawMatricesMsg) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
             }
-            this.cameras[id].update(mat, delayed);
+            this.cameras[id].update(mat, delayed, rawMatricesMsg);
         }
 
         connect() {
@@ -1152,7 +1194,7 @@ void main() {
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
             this.renderPointCloud(id, 'texture', textureUrl);
             this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
-            this.updateMatrix(id, matrix, true);
+            this.updateMatrix(id, matrix, true, null);
         }
 
         hidePointCloud(id) {
@@ -1209,7 +1251,11 @@ void main() {
             this.cameras[id].add();
             this.cameras[id].historyMesh.visible = this.spaghettiVisible;
             this.cameras[id].setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
-
+            if (this.cutoutViewFrustums) {
+                this.cameras[id].enableFrustumCutout();
+            } else {
+                this.cameras[id].disableFrustumCutout();
+            }
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);
