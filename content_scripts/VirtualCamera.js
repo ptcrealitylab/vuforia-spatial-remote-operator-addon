@@ -120,6 +120,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             normalModeControls2.innerHTML = 'MMB/RMB+Alt - pan, scroll wheel - zoom';
             this.normalModePrompt.appendChild(normalModeControls2);
             document.body.appendChild(this.normalModePrompt);
+            realityEditor.gui.stackingOrder.addToLayer(this.normalModePrompt, realityEditor.gui.LAYERS.GUI_MODALS);
             setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 3000);
             // add fly mode prompt
             this.flyModePrompt = document.createElement('div');
@@ -137,6 +138,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             flyModeControls2.innerHTML = 'W/A/S/D - move, SHIFT - speed up';
             this.flyModePrompt.appendChild(flyModeControls2);
             document.body.appendChild(this.flyModePrompt);
+            realityEditor.gui.stackingOrder.addToLayer(this.flyModePrompt, realityEditor.gui.LAYERS.GUI_MODALS);
         }
         switchMode() {
             if (this.isFlying) {

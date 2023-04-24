@@ -44,6 +44,7 @@ createNameSpace('realityEditor.device.desktopStats');
         stats.dom.position = 'absolute';
         stats.dom.style.top = realityEditor.device.environment.variables.screenTopOffset + 'px';
         document.body.appendChild(stats.dom);
+        realityEditor.gui.stackingOrder.addToLayer(stats.dom, realityEditor.gui.LAYERS.GUI_BUTTONS);
         stats.dom.style.left = (window.innerWidth - stats.dom.getBoundingClientRect().width) + 'px';
 
         imagesPerSecondElement = document.createElement('div');

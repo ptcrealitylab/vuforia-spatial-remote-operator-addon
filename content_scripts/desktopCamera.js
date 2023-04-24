@@ -184,10 +184,12 @@ createNameSpace('realityEditor.device.desktopCamera');
         interactionCursor = document.createElement('img');
         interactionCursor.id = 'interactionCursor';
         document.body.appendChild(interactionCursor);
+        realityEditor.gui.stackingOrder.addToLayer(interactionCursor, realityEditor.gui.LAYERS.GUI_POINTER);
 
         staticInteractionCursor = document.createElement('img');
         staticInteractionCursor.id = 'staticInteractionCursor';
         document.body.appendChild(staticInteractionCursor);
+        realityEditor.gui.stackingOrder.addToLayer(staticInteractionCursor, realityEditor.gui.LAYERS.GUI_POINTER);
 
         document.addEventListener('pointermove', function(e) {
             pointerPosition.x = e.clientX;
@@ -385,6 +387,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             };
 
             objectDropdown = new realityEditor.gui.dropdown.Dropdown('objectDropdown', textStates, {width: '400px', left: '310px', top: '30px'}, document.body, true, onObjectSelectionChanged, onObjectExpandedChanged);
+            realityEditor.gui.stackingOrder.addToLayer(objectDropdown.dom, realityEditor.gui.LAYERS.GUI_BUTTONS); // not used anymore?
 
             objectDropdown.addSelectable('origin', 'World Origin');
 

@@ -162,6 +162,7 @@ createNameSpace('realityEditor.gui');
         menuBar.addItemToMenu(MENU.Help, showDeveloper);
 
         document.body.appendChild(menuBar.domElement);
+        realityEditor.gui.stackingOrder.addToLayer(menuBar.domElement, realityEditor.gui.LAYERS.GUI_MENUS); // not used anymore?
 
         // Offset certain UI elements that align to the top of the screen, such as the envelope X button
         realityEditor.device.environment.variables.screenTopOffset = menuBar.domElement.getBoundingClientRect().height;
