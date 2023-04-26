@@ -1340,20 +1340,28 @@ void main() {
         }
 
         undoPatch() {
-            const keys = Object.keys(window.localStorage).filter(key => {
+            let keys = Object.keys(window.localStorage).filter(key => {
                 return key.startsWith(PATCH_KEY_PREFIX);
             });
+            // Fall back to locally persisted patches
+            if (keys.length === 0) {
+                keys = Object.keys(this.patches);
+            }
+            if (keys.length === 0) {
+                return;
+            }
             keys.sort((keyA, keyB) => {
                 let a = parseFloat(keyA.split('-')[1]);
                 let b = parseFloat(keyB.split('-')[1]);
                 return b - a;
             });
-            if (keys.length === 0) {
-                return;
-            }
             const key = keys[0];
 
-            window.localStorage.removeItem(key);
+            try {
+                window.localStorage.removeItem(key);
+            } catch (e) {
+                console.warn('Unable to remove patch from localStorage', key, e);
+            }
 
             if (this.patches[key]) {
                 realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
