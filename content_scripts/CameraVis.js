@@ -550,7 +550,7 @@ void main() {
                     borderColor: { value: borderColor },
                     borderEnabled: { value: borderEnabled },
                     // Defaults taken from iPhone 13 Pro Max
-                    focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * width) },
+                    focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * height) },
                     principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
                 },
                 vertexShader,
