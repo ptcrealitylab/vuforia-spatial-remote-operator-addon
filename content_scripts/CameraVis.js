@@ -40,6 +40,7 @@ uniform float width;
 uniform float height;
 uniform float depthScale;
 uniform float glPosScale;
+uniform float patchLoading;
 
 uniform float pointSize;
 uniform vec2 focalLength;
@@ -87,7 +88,7 @@ void main() {
       ((b & (1 << 7)) << (23 - 7))) *
       (5000.0 / float(1 << 24));
   `}
-  float z = depth - 1.0;
+  float z = (depth - 1.0) * patchLoading;
 
   // Projection code by @kcmic
   pos = vec4(
@@ -162,6 +163,7 @@ varying vec2 vUv;
 varying vec4 pos;
 uniform float depthMin;
 uniform float depthMax;
+uniform float patchLoading;
 
 void main() {
   // Depth in millimeters
@@ -186,8 +188,10 @@ void main() {
 
   alpha = alpha * (1.0 - step(depthMax, depth)) * step(depthMin, depth);
 
-  // Sample the proper color for this pixel from the color image
-  vec4 color = texture2D(map, vUv);
+  // Sample the proper color for this pixel from the color image, fading from
+  // white when animating patch loading
+  float colorPatchLoading = patchLoading * patchLoading;
+  vec4 color = mix(vec4(1.0, 1.0, 1.0, 1.0), texture2D(map, vUv), colorPatchLoading);
 
   float aspect = 1920.0 / 1080.0;
   float borderScale = 0.001 * 5000.0 / (depth + 50.0);
@@ -408,18 +412,21 @@ void main() {
             textureDepth.needsUpdate = true;
 
             let mesh = CameraVis.createPointCloud(texture, textureDepth, ShaderMode.SOLID);
-            mesh.material.uniforms.depthMax.value = 100;
+            mesh.material.uniforms.patchLoading.value = 0;
 
             let lastTime = -1;
             function patchLoading(time) {
                 if (lastTime < 0) {
                     lastTime = time;
                 }
-                let dt = time - lastTime;
+                // limit to 30fps
+                let dt = Math.min(time - lastTime, 67);
                 lastTime = time;
-                mesh.material.uniforms.depthMax.value += 25 * dt;
-                if (mesh.material.uniforms.depthMax.value < 5000) {
+                mesh.material.uniforms.patchLoading.value += 8 * dt / 1000;
+                if (mesh.material.uniforms.patchLoading.value < 1) {
                     window.requestAnimationFrame(patchLoading);
+                } else {
+                    mesh.material.uniforms.patchLoading.value = 1;
                 }
             }
             window.requestAnimationFrame(patchLoading);
@@ -549,6 +556,8 @@ void main() {
                     pointSize: { value: 2 * 0.666 },
                     borderColor: { value: borderColor },
                     borderEnabled: { value: borderEnabled },
+                    // Fraction that this is done loading (1.0 for completed or not-patch)
+                    patchLoading: { value: 1.0 },
                     // Defaults taken from iPhone 13 Pro Max
                     focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * height) },
                     principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
@@ -833,6 +842,14 @@ void main() {
                     const {key, patch} = camera.clonePatch();
                     realityEditor.gui.threejsScene.addToScene(patch);
                     this.patches[key] = patch;
+                    // Hide for a bit to show the patch in space
+                    camera.mesh.visible = false;
+                    camera.mesh.__hidden = true;
+
+                    setTimeout(() => {
+                        camera.mesh.visible = this.visible;
+                        camera.mesh.__hidden = !this.visible;
+                    }, 300);
                 }
             });
 
