@@ -154,6 +154,7 @@ void main() {
 // color texture
 uniform sampler2D map;
 uniform vec3 borderColor;
+uniform float borderEnabled;
 
 // uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
@@ -190,7 +191,7 @@ void main() {
 
   float aspect = 1920.0 / 1080.0;
   float borderScale = 0.001 * 5000.0 / (depth + 50.0);
-  float border = clamp(
+  float border = borderEnabled * clamp(
       (1.0 - step(borderScale, vUv.x)) +
       (1.0 - step(borderScale * aspect, vUv.y)) +
       step(1.0 - borderScale, vUv.x) +
@@ -509,8 +510,10 @@ void main() {
         static createPointCloudMaterial(texture, textureDepth, shaderMode, borderColor) {
             const width = 640, height = 360;
 
+            let borderEnabled = 1;
             if (!borderColor) {
                 borderColor = new THREE.Color(0.0, 1.0, 0.0);
+                borderEnabled = 0;
             }
 
             let fragmentShader;
@@ -545,6 +548,7 @@ void main() {
                     // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                     borderColor: { value: borderColor },
+                    borderEnabled: { value: borderEnabled },
                     // Defaults taken from iPhone 13 Pro Max
                     focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * width) },
                     principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
