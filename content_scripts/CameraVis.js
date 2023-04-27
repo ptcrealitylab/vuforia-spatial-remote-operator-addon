@@ -361,6 +361,7 @@ void main() {
                 phone: this.phone.matrix.elements,
                 texture: this.texture.image.toDataURL(),
                 textureDepth: this.textureDepth.image.toDataURL(),
+                creationTime: Date.now(),
             };
             try {
                 window.localStorage.setItem(key, JSON.stringify(serialization));
@@ -446,6 +447,8 @@ void main() {
 
             phone.add(mesh);
             patch.add(phone);
+
+            patch.__creationTime = Date.now();
             return patch;
         }
 
@@ -851,19 +854,7 @@ void main() {
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, () => {
-                for (let camera of Object.values(this.cameras)) {
-                    const {key, patch} = camera.clonePatch();
-                    realityEditor.gui.threejsScene.addToScene(patch);
-                    this.patches[key] = patch;
-                    // Hide for a bit to show the patch in space
-                    camera.mesh.visible = false;
-                    camera.mesh.__hidden = true;
-
-                    setTimeout(() => {
-                        camera.mesh.visible = this.visible;
-                        camera.mesh.__hidden = !this.visible;
-                    }, 300);
-                }
+                this.clonePatches();
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatch, () => {
@@ -1341,8 +1332,28 @@ void main() {
                 textureImage,
                 textureDepthImage
             );
+            patch.__creationTime = serialization.creationTime;
             realityEditor.gui.threejsScene.addToScene(patch);
             this.patches[serialization.key] = patch;
+        }
+
+        /**
+         * Clone patches from every active CameraVis
+         */
+        clonePatches() {
+            for (let camera of Object.values(this.cameras)) {
+                const {key, patch} = camera.clonePatch();
+                realityEditor.gui.threejsScene.addToScene(patch);
+                this.patches[key] = patch;
+                // Hide for a bit to show the patch in space
+                camera.mesh.visible = false;
+                camera.mesh.__hidden = true;
+
+                setTimeout(() => {
+                    camera.mesh.visible = this.visible;
+                    camera.mesh.__hidden = !this.visible;
+                }, 300);
+            }
         }
 
         restorePatches() {
