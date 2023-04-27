@@ -799,7 +799,7 @@ void main() {
             this.voxelizer = null;
             this.webRTCCoordinator = null;
             this.cameras = {};
-            this.patches = [];
+            this.patches = {};
             this.visible = true;
             this.spaghettiVisible = false;
             this.currentShaderModeIndex = 0;
