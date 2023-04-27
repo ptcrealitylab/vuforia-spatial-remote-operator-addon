@@ -359,7 +359,7 @@ void main() {
                 key,
                 container: this.container.matrix.elements,
                 phone: this.phone.matrix.elements,
-                texture: this.texture.image.toDataURL(),
+                texture: this.texture.image.toDataURL('image/jpeg', 0.7),
                 textureDepth: this.textureDepth.image.toDataURL(),
                 creationTime: Date.now(),
             };
