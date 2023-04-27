@@ -363,6 +363,22 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         );
     }
 
+    function cloneCameraVisPatches() {
+        if (!cameraVisCoordinator) {
+            return null;
+        }
+        return cameraVisCoordinator.clonePatches();
+    }
+    exports.cloneCameraVisPatches = cloneCameraVisPatches;
+
+    function getCameraVisPatches() {
+        if (!cameraVisCoordinator) {
+            return null;
+        }
+        return cameraVisCoordinator.patches;
+    }
+    exports.getCameraVisPatches = getCameraVisPatches;
+
     function showCameraCanvas(id) {
         if (cameraVisCoordinator) {
             cameraVisCoordinator.showFullscreenColorCanvas(id);
