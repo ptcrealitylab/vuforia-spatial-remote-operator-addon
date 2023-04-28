@@ -18,7 +18,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
  */
 
 (function(exports) {
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host) || /192\.168\.50\.209/.test(window.location.host);
 
     /**
      * @type {Canvas} - the DOM element where the images streamed from a reality zone are rendered

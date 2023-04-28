@@ -15,7 +15,7 @@ import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
     const DEPTH_HEIGHT = 144;
     const CONNECTION_TIMEOUT_MS = 10000;
     const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host) || /192\.168\.50\.209/.test(window.location.host);
     const ShaderMode = {
         SOLID: 'SOLID',
         POINT: 'POINT',

@@ -3,7 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
 (function(exports) {
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host) || /192\.168\.50\.209/.test(window.location.host);
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
 
