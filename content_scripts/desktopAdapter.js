@@ -21,7 +21,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     // Automatically connect to all discovered reality zones
     const AUTO_ZONE_CONNECT = true;
 
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
+    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host) || /192\.168\.50\.209/.test(window.location.host);
 
     /**
      * @type {boolean} - when paused, desktops ignore matrices received from mobile editors and use their own
