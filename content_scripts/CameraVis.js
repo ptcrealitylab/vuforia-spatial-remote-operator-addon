@@ -1339,12 +1339,15 @@ void main() {
 
         /**
          * Clone patches from every active CameraVis
+         * @return {{[key: string]: THREE.Object3D} map from patch key to patch
          */
         clonePatches() {
+            let clonedPatches = {};
             for (let camera of Object.values(this.cameras)) {
                 const {key, patch} = camera.clonePatch();
                 realityEditor.gui.threejsScene.addToScene(patch);
                 this.patches[key] = patch;
+                clonedPatches[key] = patch;
                 // Hide for a bit to show the patch in space
                 camera.mesh.visible = false;
                 camera.mesh.__hidden = true;
@@ -1354,6 +1357,7 @@ void main() {
                     camera.mesh.__hidden = !this.visible;
                 }, 300);
             }
+            return clonedPatches;
         }
 
         restorePatches() {
