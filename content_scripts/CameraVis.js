@@ -3,7 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
-import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
+import { Spaghetti } from '../../src/humanPose/spaghetti.js';
 
 (function(exports) {
     const debug = false;
@@ -338,7 +338,7 @@ void main() {
 
             this.historyPoints = [];
             // note: we will color the path in each point, rather than in the constructor
-            this.historyMesh = new SpaghettiMeshPath(this.historyPoints, {
+            this.historyMesh = new Spaghetti(this.historyPoints, null, 'Camera Spaghetti Line', {
                 widthMm: 30,
                 heightMm: 30,
                 usePerVertexColors: true,
