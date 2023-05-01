@@ -363,6 +363,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         );
     }
 
+    /**
+     * @return {{[key: string]: THREE.Object3D}} map from key to patch
+     */
     function cloneCameraVisPatches() {
         if (!cameraVisCoordinator) {
             return null;
@@ -371,6 +374,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     }
     exports.cloneCameraVisPatches = cloneCameraVisPatches;
 
+    /**
+     * @return {{[key: string]: THREE.Object3D}} map from key to patch
+     */
     function getCameraVisPatches() {
         if (!cameraVisCoordinator) {
             return null;
