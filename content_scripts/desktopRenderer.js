@@ -65,8 +65,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     // or make them a bit different to interpolate the opacity based on the bounds
 
     // how much time after the camera stops moving should we wait before showing the nerf view
-    const BEGIN_FADE_TIME = 1250; // time in milliseconds
-    const END_FADE_TIME = 1650;
+    const BEGIN_FADE_TIME = 1350; // time in milliseconds
+    const END_FADE_TIME = 1750;
     // how far away from the ground plane origin can we be before hiding the nerf
     const BEGIN_FADE_DISTANCE = 8000; // in millimeters
     const END_FADE_DISTANCE = 12000;
@@ -354,8 +354,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     nerfCanvas.style.width = window.innerWidth + 'px';
                     nerfCanvas.style.height = window.innerHeight + 'px';
                     nerfCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                    nerfCanvas.style.transform = 'translateZ(1000px)';
-                    nerfCanvas.style.zIndex = '1000';
+                    nerfCanvas.style.transform = 'translateZ(4px)';
+                    nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
                     nerfCanvas.style.opacity = '1';
                     nerfCanvas.style.pointerEvents = 'none';
                     nerfCanvas.style.clipPath = 'circle(100% at 50% 50%)';
@@ -389,7 +389,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         );
     }
 
-    let nerfEffect = 0; //0 = always show; 1 = delayed render; 2 = focus effect
+    let nerfEffect = 1; //0 = always show; 1 = delayed render; 2 = focus effect
     // key press to toggle Nerf rendering effect, use key '>'
     let mousePressed = false;
     let magnifyingRadius = 15; // Adjust this value to change the radius of the magnifying area

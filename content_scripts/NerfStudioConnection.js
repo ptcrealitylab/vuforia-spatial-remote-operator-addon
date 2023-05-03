@@ -3,7 +3,7 @@ createNameSpace('realityEditor.device');
 
 (function (exports) {
 
-// this port number MUST match the nerfStudio port
+// this port number and local IP MUST match the nerfStudio port
 const NERF_STUDIO_WEBSOCKET_URL = 'ws://192.168.1.211:7003';
 const DEBUG_CAMERA_MESSAGE = false;
 
@@ -91,7 +91,7 @@ class NerfStudioConnection {
         //     -0.4129898476856783, -0.7473400792058696, 0.6822817432737595, 1
         // ];
 
-        const aspectValue = 15/9;
+        const aspectValue = 17/9;
         const cam_fov = 41.22673;
         let message = {
             type: 'write', //'toolbox', // the server switches thru type to handle the message differently
