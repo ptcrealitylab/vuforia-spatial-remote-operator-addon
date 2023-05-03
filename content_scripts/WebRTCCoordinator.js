@@ -234,12 +234,8 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.localConnection = new RTCPeerConnection({
                 iceServers: [{
                     urls: [
-                        'stun:stun.l.google.com:19302',
-                        'stun:stun4.l.google.com:19305',
-                    ],
-                }, {
-                    urls: [
-                        'turn:turn.meta.ptc.io:443'
+                        'stun:toolboxedge.net:3478',
+                        'turn:toolboxedge.net:3478'
                     ],
                     username: 'test',
                     credential: 'uWmkoS44agy7GTN',
