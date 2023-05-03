@@ -507,7 +507,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             sceneNode.updateWorldMatrix();
 
             let cameraMat = sceneNode.getMatrixRelativeTo(gpRxNode);
-            this.cameraVisCoordinator.updateMatrix(id, new Float32Array(cameraMat), false);
+            this.cameraVisCoordinator.updateMatrix(id, new Float32Array(cameraMat), false, matrices);
         }
 
         onWebRTCError(e) {

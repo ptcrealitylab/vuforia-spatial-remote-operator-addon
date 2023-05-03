@@ -20,7 +20,7 @@ createNameSpace('realityEditor.device.desktopCamera');
     let INITIAL_CAMERA_POSITION = [-1499.9648912671637, 8275.552791086136, 5140.3791620707225];
 
     // used to render an icon at the target position to help you navigate the scene
-    let cameraTargetElementId = null;
+    let rotateCenterElementId = null;
 
     var targetOnLoad = 'origin'; // window.localStorage.getItem('selectedObjectKey');
 
@@ -139,7 +139,8 @@ createNameSpace('realityEditor.device.desktopCamera');
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
 
-        cameraTargetElementId = realityEditor.sceneGraph.addVisualElement('cameraTarget', undefined, undefined, virtualCamera.getTargetMatrix());
+        // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
+        rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
 
         virtualCamera.onPanToggled(function(isPanning) {
             if (isPanning && !knownInteractionStates.pan) {
@@ -473,13 +474,13 @@ createNameSpace('realityEditor.device.desktopCamera');
         updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
     function scaleToggled() {
-        // if (cameraTargetIcon) {
-        //     cameraTargetIcon.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
-        // }
-        if (!cameraTargetIcon.visible) {
-            updateInteractionCursor(false);
+        if (cameraTargetIcon) {
+            cameraTargetIcon.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
         }
-        // updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-cloud-edition/cameraZoom.svg');
+        // if (!cameraTargetIcon.visible) {
+        //     updateInteractionCursor(false);
+        // }
+        updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
     }
     function updateInteractionCursor(visible, imageSrc) {
         interactionCursor.style.display = visible ? 'inline' : 'none';
@@ -533,23 +534,13 @@ createNameSpace('realityEditor.device.desktopCamera');
                     let worldId = worldObject.objectId;
 
                     // render a cube at the virtual camera's target position
-                    let sceneNode = realityEditor.sceneGraph.getSceneNodeById(cameraTargetElementId);
-                    sceneNode.setLocalMatrix(virtualCamera.getTargetMatrix());
+                    let sceneNode = realityEditor.sceneGraph.getSceneNodeById(rotateCenterElementId);
+                    sceneNode.setLocalMatrix(virtualCamera.getFocusTargetCubeMatrix());
 
                     const THREE = realityEditor.gui.threejsScene.THREE;
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
-                        cameraTargetIcon = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({color: 0x00ffff})); //new THREE.MeshNormalMaterial()); // THREE.MeshBasicMaterial({color:0xff0000})
-                        cameraTargetIcon.name = 'cameraTargetElement';
-                        cameraTargetIcon.matrixAutoUpdate = false;
+                        cameraTargetIcon = {};
                         cameraTargetIcon.visible = false;
-                        realityEditor.gui.threejsScene.addToScene(cameraTargetIcon, {worldObjectId: worldId}); //{worldObjectId: areaTargetNode.id, occluded: true});
-                    }
-                    if (cameraTargetIcon) {
-                        // move the cameraTargetIcon to the center of the view, but scale it down if we zoom too close so it doesn't become obnoxious
-                        const cursorScale = Math.min(1.0, realityEditor.sceneGraph.getDistanceToCamera(cameraTargetElementId) / 1000);
-                        let limitedScaleCursorMatrix = realityEditor.gui.ar.utilities.copyMatrix(sceneNode.worldMatrix);
-                        [0, 5, 10].forEach(index => limitedScaleCursorMatrix[index] *= cursorScale);
-                        realityEditor.gui.threejsScene.setMatrixFromArray(cameraTargetIcon.matrix, limitedScaleCursorMatrix);
                     }
 
                     if (unityCamera) {

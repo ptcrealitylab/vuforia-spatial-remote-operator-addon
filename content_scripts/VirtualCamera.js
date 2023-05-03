@@ -26,6 +26,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.initialPosition = [initialPosition[0], initialPosition[1], initialPosition[2]];
                 this.position = [initialPosition[0], initialPosition[1], initialPosition[2]];
             }
+            this.initialDistance = magnitude(this.position);
             this.targetPosition = [0, 0, 0];
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
@@ -44,9 +45,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 unprocessedScroll: 0,
                 isPointerDown: false,
                 isRightClick: false,
+                isRotateRequested: false,
                 isStrafeRequested: false,
                 first: { x: 0, y: 0 },
-                last: { x: 0, y: 0 }
+                last: { x: 0, y: 0 },
+                lastWorldPos: [0, 0, 0],
             };
             this.mouseFlyInput = {
                 justSwitched: true,
@@ -75,6 +78,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 onScaleToggled: [],
                 onStopFollowing: [] // other modules can discover when pan/rotate forced this camera out of follow mode
             };
+
+            this.normalModePrompt = null;
+            this.flyModePrompt = null;
+            this.addFlyAndNormalModePrompts();
+            
+            this.focusTargetCube = null;
+            this.addFocusTargetCube();
             this.addEventListeners();
 
             this.threeJsContainer = new THREE.Group();
@@ -82,6 +92,62 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.threeJsContainer.position.y = -floorOffset;
             this.threeJsContainer.rotation.x = Math.PI / 2;
             realityEditor.gui.threejsScene.addToScene(this.threeJsContainer);
+        }
+        addFocusTargetCube() {
+            if (this.focusTargetCube === null) {
+                this.focusTargetCube = new THREE.Mesh(
+                    new THREE.BoxGeometry(20, 20, 20),
+                    new THREE.MeshBasicMaterial({color: 0x00ffff})
+                );
+                this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
+                realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
+            }
+        }
+        addFlyAndNormalModePrompts() {
+            // add normal mode prompt
+            this.normalModePrompt = document.createElement('div');
+            this.normalModePrompt.classList.add('mode-prompt');
+            this.normalModePrompt.style.top = (realityEditor.device.environment.variables.screenTopOffset + 20) + 'px';
+            let normalModeText = document.createElement('div');
+            normalModeText.classList.add('mode-prompt-big-font');
+            normalModeText.innerHTML = 'Entered normal mode';
+            this.normalModePrompt.appendChild(normalModeText);
+            this.normalModePrompt.appendChild(document.createElement('br'));
+            let normalModeControls1 = document.createElement('div');
+            normalModeControls1.innerHTML = 'F - switch mode, G - focus, RMB - rotate,';
+            this.normalModePrompt.appendChild(normalModeControls1);
+            let normalModeControls2 = document.createElement('div');
+            normalModeControls2.innerHTML = 'MMB/RMB+Alt - pan, scroll wheel - zoom';
+            this.normalModePrompt.appendChild(normalModeControls2);
+            document.body.appendChild(this.normalModePrompt);
+            setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 3000);
+            // add fly mode prompt
+            this.flyModePrompt = document.createElement('div');
+            this.flyModePrompt.classList.add('mode-prompt', 'fly-mode-prompt');
+            this.flyModePrompt.style.top = (realityEditor.device.environment.variables.screenTopOffset + 20) + 'px';
+            let flyModeText = document.createElement('div');
+            flyModeText.classList.add('mode-prompt-big-font');
+            flyModeText.innerHTML = 'Entered fly mode';
+            this.flyModePrompt.appendChild(flyModeText);
+            this.flyModePrompt.appendChild(document.createElement('br'));
+            let flyModeControls1 = document.createElement('div');
+            flyModeControls1.innerHTML = 'F - switch mode, G - focus, Q/E - down/up';
+            this.flyModePrompt.appendChild(flyModeControls1);
+            let flyModeControls2 = document.createElement('div');
+            flyModeControls2.innerHTML = 'W/A/S/D - move, SHIFT - speed up';
+            this.flyModePrompt.appendChild(flyModeControls2);
+            document.body.appendChild(this.flyModePrompt);
+        }
+        switchMode() {
+            if (this.isFlying) {
+                this.normalModePrompt.style.opacity = '0';
+                this.flyModePrompt.style.opacity = '1';
+                setTimeout(() => {this.flyModePrompt.style.opacity = 0}, 2000);
+            } else {
+                this.flyModePrompt.style.opacity = '0';
+                this.normalModePrompt.style.opacity = '1';
+                setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 2000);
+            }
         }
         addEventListeners() {
 
@@ -112,12 +178,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (event.button === 2 || event.button === 1) { // 2 is right click, 0 is left, 1 is middle button
                     this.mouseInput.isPointerDown = true;
                     this.mouseInput.isRightClick = false;
+                    this.mouseInput.isRotateRequested = false;
                     this.mouseInput.isStrafeRequested = false;
                     if (event.button === 1 || this.keyboard.keyStates[this.keyboard.keyCodes.ALT] === 'down') {
                         this.mouseInput.isStrafeRequested = true;
                         this.triggerPanCallbacks(true);
                     } else if (event.button === 2) {
+                        setFocusTargetCube(event);
                         this.mouseInput.isRightClick = true;
+                        this.mouseInput.isRotateRequested = true;
                         this.triggerRotateCallbacks(true);
                         if (!this.followingState.active) { // we preserve distance to virtualizer if following, not distance to target
                             this.preRotateDistanceToTarget = this.distanceToTarget;
@@ -131,15 +200,40 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 }
             }.bind(this));
 
+            // when in normal mode, right click to add a green focus cube to the scene
+            const setFocusTargetCube = (event) => {
+                if (this.isFlying) return;
+                // conform to spatial cursor mousemove event pageX and pageY
+                if (event.button === 2) {
+                    let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
+                    if (worldIntersectPoint === undefined) return;
+                    // record pointerdown world intersect point, for off-center camera rotation
+                    this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
+                    if (this.focusTargetCube === null) {
+                        this.focusTargetCube = new THREE.Mesh(
+                            new THREE.BoxGeometry(20, 20, 20),
+                            new THREE.MeshBasicMaterial({color: 0x00ffff})
+                        );
+                        this.focusTargetCube.position.copy(worldIntersectPoint);
+                        realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
+                    } else {
+                        this.focusTargetCube.position.copy(worldIntersectPoint);
+                    }
+                }
+            };
+
             const pointerReset = () => {
                 this.mouseInput.isPointerDown = false;
                 this.mouseInput.isRightClick = false;
+                this.mouseInput.isRotateRequested = false;
                 this.mouseInput.isStrafeRequested = false;
+
+                this.mouseInput.first.x = 0;
+                this.mouseInput.first.y = 0;
                 this.mouseInput.last.x = 0;
                 this.mouseInput.last.y = 0;
 
                 if (this.preRotateDistanceToTarget !== null) {
-                    this.zoomBackToPreRotateLevel();
                     this.preRotateDistanceToTarget = null;
                 }
 
@@ -151,40 +245,38 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.addEventListener('pointerup', pointerReset);
             document.addEventListener('pointercancel', pointerReset);
 
+            // focus camera on the focus point
+            document.addEventListener('keypress', function (e) {
+                if (e.key === 'g' || e.key === 'G') {
+                    this.focus(this.focusTargetCube.position.clone());
+                }
+            }.bind(this));
+
             // enter fly mode
-            document.addEventListener('keypress', (e) => {
+            document.addEventListener('keydown', (e) => {
                 if (e.key === 'f' || e.key === 'F') {
                     this.isFlying = !this.isFlying;
-                    this.mouseFlyInput.justSwitched = true;
-                    console.log(this.isFlying?'fly mode activate':'normal mode activate');
+                    if (this.isFlying) {
+                        document.body.requestPointerLock();
+                    } else {
+                        document.exitPointerLock();
+                    }
                 }
             });
 
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) {
+                    this.isFlying = true;
+                } else if (document.pointerLockElement === null) {
+                    this.isFlying = false;
+                }
+                this.switchMode();
+            });
+
             document.addEventListener('pointermove', function (event) {
-                if (this.isFlying) {
-                    // justSwitched stays true for one frame before becoming false
-                    // to prevent x,y offsets being too big and suddenly shifts the camera lookAt position
-                    if (this.mouseFlyInput.justSwitched) {
-                        this.mouseFlyInput.last.x = event.pageX;
-                        this.mouseFlyInput.last.y = event.pageY;
-
-                        let xOffset = event.pageX - this.mouseFlyInput.last.x;nerfCanvas
-                        let yOffset = event.pageY - this.mouseFlyInput.last.y;
-                        
-                        this.mouseFlyInput.unprocessedDX = xOffset;
-                        this.mouseFlyInput.unprocessedDY = yOffset;
-
-                        this.mouseFlyInput.justSwitched = false;
-                    } else {
-                        let xOffset = event.pageX - this.mouseFlyInput.last.x;
-                        let yOffset = event.pageY - this.mouseFlyInput.last.y;
-
-                        this.mouseFlyInput.unprocessedDX = xOffset;
-                        this.mouseFlyInput.unprocessedDY = yOffset;
-
-                        this.mouseFlyInput.last.x = event.pageX;
-                        this.mouseFlyInput.last.y = event.pageY;
-                    }
+                if ( document.pointerLockElement === document.body ) {
+                    this.mouseFlyInput.unprocessedDX = event.movementX;
+                    this.mouseFlyInput.unprocessedDY = event.movementY;
                 } else {
                     if (this.mouseInput.isPointerDown) {
 
@@ -209,6 +301,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.stopFollowing();
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
+            this.mouseInput.lastWorldPos = [0, 0, 0];
+            this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
         }
         adjustEnvVars(distanceToTarget) {
             // places new tools at the camera's targetPosition...
@@ -221,6 +315,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 1
+            ];
+        }
+        getFocusTargetCubeMatrix() {
+            return [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                this.focusTargetCube.position.x, this.focusTargetCube.position.y, this.focusTargetCube.position.z, 1
             ];
         }
         onPanToggled(callback) {
@@ -241,13 +343,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         triggerScaleCallbacks(newValue) {
             this.callbacks.onScaleToggled.forEach(function(cb) { cb(newValue); });
         }
-        // there is a small bug with orbiting the camera that causes it to drift further away if you go too fast
-        // this locks it at the correct zoom level unless you intentionally scroll while rotating
-        zoomBackToPreRotateLevel() {
-            if (this.preRotateDistanceToTarget === null) { return; }
-            let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
-            this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preRotateDistanceToTarget));
-        }
         zoomBackToPreStopFollowLevel() {
             if (this.preStopFollowingDistanceToTarget === null) { return; }
             let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
@@ -255,6 +350,55 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         }
         onStopFollowing(callback) {
             this.callbacks.onStopFollowing.push(callback);
+        }
+        // get the camera direction as an array
+        getCameraDirection() {
+            return normalize(sub(this.targetPosition, this.position));
+        }
+        // if specify a focus direction, the camera will look into that direction. Note that dir is expected to be a unit vector
+        // if not, move the camera while keeping its lookAt direction
+        focus(pos, dir) {
+            let zoomFactor = 4000;
+            this.targetPosition[0] = pos.x;
+            this.targetPosition[1] = pos.y;
+            this.targetPosition[2] = pos.z;
+            if (dir !== undefined) {
+                this.position[0] = this.targetPosition[0] + dir.x * zoomFactor;
+                this.position[1] = this.targetPosition[1] + dir.y * zoomFactor;
+                this.position[2] = this.targetPosition[2] + dir.z * zoomFactor;
+            } else {
+                let camDir = this.getCameraDirection();
+                this.position[0] = this.targetPosition[0] - camDir[0] * zoomFactor;
+                this.position[1] = this.targetPosition[1] - camDir[1] * zoomFactor;
+                this.position[2] = this.targetPosition[2] - camDir[2] * zoomFactor;
+            }
+        }
+        orbit(xRot, yRot, camPos, camLookAt, target) {
+            const yaxis = new THREE.Vector3(0, 1, 0);
+            const newXAxis = new THREE.Vector3();
+            // basically set newXAxis x and z to direction tangent to camera lookAt direction, and y to 0
+            newXAxis.x = -camLookAt.z;
+            newXAxis.z = camLookAt.x;
+            newXAxis.y = 0;
+            
+            newXAxis.normalize();
+
+            // step 1: first change the camera position
+            // method 1: 
+            const newCamPos = camPos
+                .sub(target)
+                .applyAxisAngle(newXAxis, xRot)
+                .applyAxisAngle(yaxis, yRot)
+                .add(target);
+            this.position = newCamPos.toArray();
+
+            // step 2: change the camera lookAt/target position
+            const relLookAt = camLookAt
+                .multiplyScalar(this.initialDistance)
+                .applyAxisAngle(newXAxis, xRot)
+                .applyAxisAngle(yaxis, yRot)
+                .add(newCamPos);
+            this.targetPosition = relLookAt.toArray();
         }
         // this needs to be called externally each frame that you want it to update
         update() {
@@ -287,7 +431,60 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
             let verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
 
-            if (this.mouseInput.unprocessedScroll !== 0) {
+            let distancePanFactor = Math.max(1, this.distanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
+
+            if (this.idleOrbitting) {
+                this.mouseInput.unprocessedDX = 0.3;
+                this.mouseInput.isStrafeRequested = false;
+            }
+
+            // rotate
+            if (this.mouseInput.isRotateRequested && (this.mouseInput.unprocessedDX !== 0 || this.mouseInput.unprocessedDY !== 0)) {
+                let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
+                let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
+                // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
+                let rotateFactor = -Math.pow(angle / Math.PI, 2) * 4 + 1;
+                let xRot = -this.mouseInput.unprocessedDY * 0.01 * rotateFactor;
+                let yRot = -this.mouseInput.unprocessedDX * 0.01 * rotateFactor;
+                let camPos = new THREE.Vector3().fromArray(this.position);
+                let target = new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos);
+                this.orbit(xRot, yRot, camPos, camLookAt, target);
+
+                this.deselectTarget();
+                
+                this.mouseInput.unprocessedDX = 0;
+                this.mouseInput.unprocessedDY = 0;
+            }
+
+            // strafe
+            if (this.mouseInput.isStrafeRequested) {
+                if (this.mouseInput.unprocessedDX !== 0) { // strafe left-right
+                    let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDX * getCameraPanSensitivity());
+                    this.targetVelocity = add(this.targetVelocity, vector);
+                    this.velocity = add(this.velocity, vector);
+                    this.deselectTarget();
+
+                    this.mouseInput.unprocessedDX = 0;
+                }
+                if (this.mouseInput.unprocessedDY !== 0) { // strafe up-down
+                    let vector = scalarMultiply(verticalVector, distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDY * getCameraPanSensitivity());
+                    this.targetVelocity = add(this.targetVelocity, vector);
+                    this.velocity = add(this.velocity, vector);
+                    this.deselectTarget();
+
+                    this.mouseInput.unprocessedDY = 0;
+                }
+            }
+
+            // scroll
+            scrollOperation: if (this.mouseInput.unprocessedScroll !== 0) {
+                
+                // prevent from scrolling while rotating
+                if (this.mouseInput.isRotateRequested) {
+                    this.mouseInput.unprocessedScroll = 0;
+                    this.deselectTarget();
+                    break scrollOperation;
+                }
 
                 if (this.followingState.active) {
                     // while following, zooming in-out moves the camera along a parametric curve up and behind the virtualizer
@@ -299,60 +496,46 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 } else {
                     // increase speed as distance increases
                     let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
-                    let distanceMultiplier = Math.max(1, getBaseLog(nonLinearFactor, this.distanceToTarget) / 100);
-
-                    let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
-
-                    // prevent you from zooming beyond it
                     let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
-                    if (isZoomingIn && this.distanceToTarget <= magnitude(vector)) {
-                        // zoom in at most halfway to the origin if you're going to overshoot it
-                        let percentToClipBy = 0.5 * this.distanceToTarget / magnitude(vector);
-                        vector = scalarMultiply(vector, percentToClipBy);
+                    let baseLog = getBaseLog(nonLinearFactor, this.distanceToTarget) / 100;
+                    
+                    // interpolate camera towards camera target point
+                    {
+                        let distanceMultiplier = Math.max(1, baseLog);
+                        let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                        // if distanceToTarget <= 200, slow down zooming speed quadratically to prevent from zooming too close / beyond the target
+                        if (isZoomingIn && this.distanceToTarget <= 200) {
+                            let scrollFactor = Math.pow(this.distanceToTarget / 200, 2);
+                            vector = scalarMultiply(vector, scrollFactor);
+                        }
+                        // * 0.7 to prevent the camera from getting too close to the camera target point
+                        this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
                     }
 
-                    this.velocity = add(this.velocity, vector);
+                    // interpolate camera target point towards focus point
+                    {
+                        let offset = sub(this.mouseInput.lastWorldPos, this.targetPosition);
+                        let targetToFocus = magnitude(offset);
+                        if (targetToFocus <= 300) {
+                            this.targetPosition = this.mouseInput.lastWorldPos;
+                            this.mouseInput.unprocessedScroll = 0;
+                            this.deselectTarget();
+                            break scrollOperation;
+                        }
+                        // only interpolate camera target point towards focus point if zooming in. maintain targetPosition when zooming out, b/c we're not zooming towards a specific position
+                        if (isZoomingIn) {
+                            // * 0.5 to make distanceMultiplier2 smaller for the camera target to focus point interpolation, to avoid overshooting
+                            let distanceMultiplier2 = -Math.max(1, baseLog) * 0.5;
+                            let targetForwardVector = normalize(offset);
+                            let vector2 = scalarMultiply(targetForwardVector, distanceMultiplier2 * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                            this.targetVelocity = add(this.targetVelocity, vector2);
+                        }
+                    }
+                    
                     this.deselectTarget();
                 }
 
                 this.mouseInput.unprocessedScroll = 0; // reset now that data is processed
-            }
-
-            let distancePanFactor = Math.max(1, this.distanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
-
-            if (this.idleOrbitting) {
-                this.mouseInput.unprocessedDX = 0.3;
-                this.mouseInput.isStrafeRequested = false;
-            }
-
-            if (this.mouseInput.unprocessedDX !== 0) {
-                if (this.mouseInput.isStrafeRequested) { // strafe left-right
-                    let vector = scalarMultiply(negate(horizontalVector), distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDX * getCameraPanSensitivity());
-                    this.targetVelocity = add(this.targetVelocity, vector);
-                    this.velocity = add(this.velocity, vector);
-                    this.deselectTarget();
-                } else { // rotate
-                    let vector = scalarMultiply(negate(vCamX), this.speedFactors.rotation * getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDX);
-                    this.velocity = add(this.velocity, vector);
-                    this.deselectTarget();
-                }
-
-                this.mouseInput.unprocessedDX = 0;
-            }
-
-            if (this.mouseInput.unprocessedDY !== 0) {
-                if (this.mouseInput.isStrafeRequested) { // stafe up-down
-                    let vector = scalarMultiply(verticalVector, distancePanFactor * this.speedFactors.translation * this.mouseInput.unprocessedDY * getCameraPanSensitivity());
-                    this.targetVelocity = add(this.targetVelocity, vector);
-                    this.velocity = add(this.velocity, vector);
-                    this.deselectTarget();
-                } else { // rotate
-                    let vector = scalarMultiply(vCamY, this.speedFactors.rotation * getCameraRotateSensitivity() * (2 * Math.PI * this.distanceToTarget) * this.mouseInput.unprocessedDY);
-                    this.velocity = add(this.velocity, vector);
-                    this.deselectTarget();
-                }
-
-                this.mouseInput.unprocessedDY = 0;
             }
 
             let flyingSpeed = 30;
@@ -376,7 +559,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 let keyDirection = [transformKeys.S - transformKeys.W, transformKeys.D - transformKeys.A, transformKeys.E - transformKeys.Q];
                 if (magnitude(keyDirection) !== 0) {
                     let vector = [0, 0, 0];
-                    flyingSpeed = this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down' ? 60 : 30;
+                    flyingSpeed = this.keyboard.keyStates[this.keyboard.keyCodes.SHIFT] === 'down' ? 40 : 20;
                     let forwardValue = scalarMultiply(forwardVector, keyDirection[0]);
                     let horizontalValue = scalarMultiply(horizontalVector, keyDirection[1]);
                     let verticalValue = scalarMultiply([0, 1, 0], keyDirection[2]);
@@ -390,35 +573,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            // prevents camera singularities by slowing down camera movement exponentially as the vertical viewing angle approaches top or bottom
-
-            // evaluate the new camera position to determine if we need to slow the camera down
-            let potentialPosition = add(this.position, this.velocity);
-            let potentialTargetPosition = add(this.targetPosition, this.targetVelocity);
-            let v_look = add(potentialPosition, negate(potentialTargetPosition));
-            let verticalAngle = Math.acos(v_look[1] / Math.sqrt(v_look[0] * v_look[0] + v_look[1] * v_look[1] + v_look[2] * v_look[2]));
-            this.verticalAngle = verticalAngle;
-
-            const UPPER_ANGLE = Math.PI * 0.8; // soft upper bound
-            const LOWER_ANGLE = Math.PI * 0.2; // soft lower bound
-            if (verticalAngle > LOWER_ANGLE && verticalAngle < UPPER_ANGLE) {
-                // if within soft bounds, move the camera as usual
+            if (!this.mouseInput.isRotateRequested) {
                 this.position = add(this.position, this.velocity);
                 this.targetPosition = add(this.targetPosition, this.targetVelocity);
-            } else {
-                // if between soft bounds and top or bottom, slow movement exponentially as angle approaches 0 or PI
-                // e.g. if angle is PI * 0.85, we are 25% between UPPER_ANGLE and PI, so slow down by 0.25^2 = 6%
-                // e.g. if angle is PI * 0.9, we are 50% between UPPER_ANGLE and PI, so slow down by 0.50^2 = 25%
-                // e.g. if angle is PI * 0.99, we are 95% between UPPER_ANGLE and PI, so slow down by 0.95^2 = 90%
-                let closenessToAbsoluteBorder = (verticalAngle > Math.PI / 2) ? ((verticalAngle - UPPER_ANGLE) / (Math.PI - UPPER_ANGLE)) : ((verticalAngle - LOWER_ANGLE) / (0 - LOWER_ANGLE));
-                let scaleFactor = Math.pow(1 - closenessToAbsoluteBorder, 2);
-                this.position = add(this.position, scalarMultiply(this.velocity, scaleFactor));
-                this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, scaleFactor));
-            }
-
-            // if rotating, and distance has drifted without intentionally zooming, reset back to correct distance
-            if (this.preRotateDistanceToTarget && Math.abs(this.preRotateDistanceToTarget - this.distanceToTarget) > 10) {
-                this.zoomBackToPreRotateLevel();
             }
 
             // tween the matrix every frame to animate it to the new position
@@ -707,8 +864,29 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     //************************************************ Utilities *************************************************//
 
+    // since groundPlaneMatrix is applied to threejsContainerObj in threejsScene.js
+    // here we apply the same groundPlaneMatrix to VirtualCamera, so that it's in the same coord space as threejsContainerObj
+    function convertToThreejsContainerObjSpace(eyeX, eyeY, eyeZ, centerX, centerY, centerZ) {
+        let groundPlaneMatrixArray = realityEditor.sceneGraph.getGroundPlaneNode().worldMatrix;
+        let groundPlaneMatrix = new THREE.Matrix4();
+        realityEditor.gui.threejsScene.setMatrixFromArray(groundPlaneMatrix, groundPlaneMatrixArray);
+        let cameraPos = new THREE.Vector3(eyeX, eyeY, eyeZ);
+        cameraPos.applyMatrix4(groundPlaneMatrix);
+        eyeX = cameraPos.x;
+        eyeY = cameraPos.y;
+        eyeZ = cameraPos.z;
+        let targetPos = new THREE.Vector3(centerX, centerY, centerZ);
+        targetPos.applyMatrix4(groundPlaneMatrix);
+        centerX = targetPos.x;
+        centerY = targetPos.y;
+        centerZ = targetPos.z;
+        return {a: eyeX, b: eyeY, c: eyeZ, d: centerX, e: centerY, f: centerZ};
+    }
+    
     // Working look-at matrix generator (with a set of vector3 math functions)
     function lookAt( eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ ) {
+        let {a, b, c, d, e, f} = convertToThreejsContainerObjSpace(eyeX, eyeY, eyeZ, centerX, centerY, centerZ);
+        eyeX = a; eyeY = b; eyeZ = c; centerX = d; centerY = e; centerZ = f;
         var ev = [eyeX, eyeY, eyeZ];
         var cv = [centerX, centerY, centerZ];
         var uv = [upX, upY, upZ];
@@ -735,6 +913,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return [A[0] + B[0], A[1] + B[1], A[2] + B[2]];
     }
 
+    function sub(A, B) {
+        return add(A, negate(B));
+    }
+
     function hadamardProduct(A, B) {
         return [A[0] * B[0], A[1] * B[1], A[2] * B[2]];
     }
@@ -744,6 +926,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     }
 
     function normalize(A) {
+        // include the edge case where A === [0, 0, 0]
+        if (A[0] === 0 && A[1] === 0 && A[2] === 0) return A;
         var mag = magnitude(A);
         return [A[0] / mag, A[1] / mag, A[2] / mag];
     }

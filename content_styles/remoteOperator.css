@@ -143,3 +143,28 @@ body > * {
     width: 30px;
     text-align: center;
 }
+
+.mode-prompt {
+    position: fixed;
+    left: 50vw;
+    transform: translateX(-50%);
+    width: 320px;
+    height: 100px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 1em;
+
+    transition: opacity 0.3s ease;
+}
+
+.mode-prompt-big-font {
+    font-size: 1.5em;
+}
+
+.fly-mode-prompt {
+    opacity: 0;
+}
