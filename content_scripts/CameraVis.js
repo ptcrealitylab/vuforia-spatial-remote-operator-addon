@@ -3,7 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
-import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
+import { Spaghetti } from '../../src/humanPose/spaghetti.js';
 
 (function(exports) {
     const debug = false;
@@ -40,15 +40,15 @@ uniform float width;
 uniform float height;
 uniform float depthScale;
 uniform float glPosScale;
+uniform float patchLoading;
 
 uniform float pointSize;
+uniform vec2 focalLength;
+uniform vec2 principalPoint;
 const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
 varying vec4 pos;
-
-const float XtoZ = 1920.0 / 1448.24976; // width over focal length
-const float YtoZ = 1080.0 / 1448.24976;
 
 void main() {
   vUv = vec2(position.x / width, position.y / height);
@@ -88,12 +88,12 @@ void main() {
       ((b & (1 << 7)) << (23 - 7))) *
       (5000.0 / float(1 << 24));
   `}
-  float z = depth - 1.0;
+  float z = (depth - 1.0) * patchLoading;
 
   // Projection code by @kcmic
   pos = vec4(
-    (position.x / width - 0.5) * z * XtoZ,
-    (position.y / height - 0.5) * z * YtoZ,
+    (position.x - principalPoint.x) / focalLength.x * z,
+    (position.y - principalPoint.y) / focalLength.y * z,
     -z,
     1.0);
 
@@ -155,6 +155,7 @@ void main() {
 // color texture
 uniform sampler2D map;
 uniform vec3 borderColor;
+uniform float borderEnabled;
 
 // uv (0.0-1.0) texture coordinates
 varying vec2 vUv;
@@ -162,6 +163,7 @@ varying vec2 vUv;
 varying vec4 pos;
 uniform float depthMin;
 uniform float depthMax;
+uniform float patchLoading;
 
 void main() {
   // Depth in millimeters
@@ -186,12 +188,14 @@ void main() {
 
   alpha = alpha * (1.0 - step(depthMax, depth)) * step(depthMin, depth);
 
-  // Sample the proper color for this pixel from the color image
-  vec4 color = texture2D(map, vUv);
+  // Sample the proper color for this pixel from the color image, fading from
+  // white when animating patch loading
+  float colorPatchLoading = patchLoading * patchLoading;
+  vec4 color = mix(vec4(1.0, 1.0, 1.0, 1.0), texture2D(map, vUv), colorPatchLoading);
 
   float aspect = 1920.0 / 1080.0;
   float borderScale = 0.001 * 5000.0 / (depth + 50.0);
-  float border = clamp(
+  float border = borderEnabled * clamp(
       (1.0 - step(borderScale, vUv.x)) +
       (1.0 - step(borderScale * aspect, vUv.y)) +
       step(1.0 - borderScale, vUv.x) +
@@ -334,7 +338,7 @@ void main() {
 
             this.historyPoints = [];
             // note: we will color the path in each point, rather than in the constructor
-            this.historyMesh = new SpaghettiMeshPath(this.historyPoints, {
+            this.historyMesh = new Spaghetti(this.historyPoints, null, 'Camera Spaghetti Line', {
                 widthMm: 30,
                 heightMm: 30,
                 usePerVertexColors: true,
@@ -408,18 +412,21 @@ void main() {
             textureDepth.needsUpdate = true;
 
             let mesh = CameraVis.createPointCloud(texture, textureDepth, ShaderMode.SOLID);
-            mesh.material.uniforms.depthMax.value = 100;
+            mesh.material.uniforms.patchLoading.value = 0;
 
             let lastTime = -1;
             function patchLoading(time) {
                 if (lastTime < 0) {
                     lastTime = time;
                 }
-                let dt = time - lastTime;
+                // limit to 30fps
+                let dt = Math.min(time - lastTime, 67);
                 lastTime = time;
-                mesh.material.uniforms.depthMax.value += 25 * dt;
-                if (mesh.material.uniforms.depthMax.value < 5000) {
+                mesh.material.uniforms.patchLoading.value += 8 * dt / 1000;
+                if (mesh.material.uniforms.patchLoading.value < 1) {
                     window.requestAnimationFrame(patchLoading);
+                } else {
+                    mesh.material.uniforms.patchLoading.value = 1;
                 }
             }
             window.requestAnimationFrame(patchLoading);
@@ -510,8 +517,10 @@ void main() {
         static createPointCloudMaterial(texture, textureDepth, shaderMode, borderColor) {
             const width = 640, height = 360;
 
+            let borderEnabled = 1;
             if (!borderColor) {
                 borderColor = new THREE.Color(0.0, 1.0, 0.0);
+                borderEnabled = 0;
             }
 
             let fragmentShader;
@@ -546,6 +555,12 @@ void main() {
                     // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                     borderColor: { value: borderColor },
+                    borderEnabled: { value: borderEnabled },
+                    // Fraction that this is done loading (1.0 for completed or not-patch)
+                    patchLoading: { value: 1.0 },
+                    // Defaults taken from iPhone 13 Pro Max
+                    focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * height) },
+                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
                 },
                 vertexShader,
                 fragmentShader,
@@ -567,12 +582,30 @@ void main() {
             this.phone.add(mesh);
         }
 
-        update(mat, delayed) {
+        update(mat, delayed, rawMatricesMsg) {
             let now = performance.now();
             if (this.shaderMode === ShaderMode.HOLO) {
                 this.material.uniforms.time.value = window.performance.now();
             }
             this.lastUpdate = now;
+
+
+            if (rawMatricesMsg) {
+                let width = this.material.uniforms.width.value;
+                let height = this.material.uniforms.height.value;
+                let rawWidth = rawMatricesMsg.imageSize[0];
+                let rawHeight = rawMatricesMsg.imageSize[1];
+
+                this.material.uniforms.focalLength.value = new THREE.Vector2(
+                    rawMatricesMsg.focalLength[0] / rawWidth * width,
+                    rawMatricesMsg.focalLength[1] / rawHeight * height,
+                );
+                this.material.uniforms.principalPoint.value = new THREE.Vector2(
+                    rawMatricesMsg.principalPoint[0] / rawWidth * width,
+                    rawMatricesMsg.principalPoint[1] / rawHeight * height,
+                );
+            }
+
             if (this.time > now || !delayed) {
                 this.setMatrix(mat);
                 return;
@@ -766,7 +799,7 @@ void main() {
             this.voxelizer = null;
             this.webRTCCoordinator = null;
             this.cameras = {};
-            this.patches = [];
+            this.patches = {};
             this.visible = true;
             this.spaghettiVisible = false;
             this.currentShaderModeIndex = 0;
@@ -809,6 +842,14 @@ void main() {
                     const {key, patch} = camera.clonePatch();
                     realityEditor.gui.threejsScene.addToScene(patch);
                     this.patches[key] = patch;
+                    // Hide for a bit to show the patch in space
+                    camera.mesh.visible = false;
+                    camera.mesh.__hidden = true;
+
+                    setTimeout(() => {
+                        camera.mesh.visible = this.visible;
+                        camera.mesh.__hidden = !this.visible;
+                    }, 300);
                 }
             });
 
@@ -872,7 +913,7 @@ void main() {
                     // if (pktType === PKT_MATRIX) {
                     const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
                     // }
-                    this.updateMatrix(id, mat, true);
+                    this.updateMatrix(id, mat, true, null);
                 });
             } else {
                 const ws = new WebSocket(url);
@@ -880,16 +921,16 @@ void main() {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
                     const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                    this.updateMatrix(id, mat, true);
+                    this.updateMatrix(id, mat, true, null);
                 });
             }
         }
 
-        updateMatrix(id, mat, delayed) {
+        updateMatrix(id, mat, delayed, rawMatricesMsg) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
             }
-            this.cameras[id].update(mat, delayed);
+            this.cameras[id].update(mat, delayed, rawMatricesMsg);
         }
 
         connect() {
@@ -1174,7 +1215,7 @@ void main() {
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
             this.renderPointCloud(id, 'texture', textureUrl);
             this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
-            this.updateMatrix(id, matrix, true);
+            this.updateMatrix(id, matrix, true, null);
         }
 
         hidePointCloud(id) {
@@ -1299,20 +1340,28 @@ void main() {
         }
 
         undoPatch() {
-            const keys = Object.keys(window.localStorage).filter(key => {
+            let keys = Object.keys(window.localStorage).filter(key => {
                 return key.startsWith(PATCH_KEY_PREFIX);
             });
+            // Fall back to locally persisted patches
+            if (keys.length === 0) {
+                keys = Object.keys(this.patches);
+            }
+            if (keys.length === 0) {
+                return;
+            }
             keys.sort((keyA, keyB) => {
                 let a = parseFloat(keyA.split('-')[1]);
                 let b = parseFloat(keyB.split('-')[1]);
                 return b - a;
             });
-            if (keys.length === 0) {
-                return;
-            }
             const key = keys[0];
 
-            window.localStorage.removeItem(key);
+            try {
+                window.localStorage.removeItem(key);
+            } catch (e) {
+                console.warn('Unable to remove patch from localStorage', key, e);
+            }
 
             if (this.patches[key]) {
                 realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
