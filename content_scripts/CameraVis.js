@@ -602,15 +602,20 @@ void main() {
 
 
             if (rawMatricesMsg) {
+                // console.log(rawMatricesMsg);
                 let width = this.material.uniforms.width.value;
                 let height = this.material.uniforms.height.value;
-                let rawWidth = rawMatricesMsg.imageSize[0];
-                let rawHeight = rawMatricesMsg.imageSize[1];
+                // let rawWidth = rawMatricesMsg.imageSize[0];
+                // let rawHeight = rawMatricesMsg.imageSize[1];
+                let rawWidth = 1920;
+                let rawHeight = 1080;
 
+                rawMatricesMsg.focalLength = [1393.48523, 1393.48523];
                 this.material.uniforms.focalLength.value = new THREE.Vector2(
                     rawMatricesMsg.focalLength[0] / rawWidth * width,
                     rawMatricesMsg.focalLength[1] / rawHeight * height,
                 );
+                rawMatricesMsg.principalPoint = [959.169433, 539.411926];
                 this.material.uniforms.principalPoint.value = new THREE.Vector2(
                     rawMatricesMsg.principalPoint[0] / rawWidth * width,
                     rawMatricesMsg.principalPoint[1] / rawHeight * height,
