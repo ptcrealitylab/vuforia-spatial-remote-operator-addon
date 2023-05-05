@@ -34,7 +34,7 @@ import { SpaghettiMeshPath } from '../../src/humanPose/spaghetti.js';
     const urlBase = 'ws://' + window.location.hostname + ':31337/';
     const vertexShader = `
 uniform sampler2D map;
-uniform sampler2D mapDepth;
+uniform sampler2D mapDepth; // this is where James uses depth map in the point cloud shader
 
 uniform float width;
 uniform float height;
@@ -42,12 +42,13 @@ uniform float depthScale;
 uniform float glPosScale;
 
 uniform float pointSize;
-uniform vec2 focalLength;
-uniform vec2 principalPoint;
 const float pointSizeBase = 0.0;
 
 varying vec2 vUv;
 varying vec4 pos;
+
+const float XtoZ = 1920.0 / 1448.24976; // width over focal length
+const float YtoZ = 1080.0 / 1448.24976;
 
 void main() {
   vUv = vec2(position.x / width, position.y / height);
@@ -61,6 +62,7 @@ void main() {
   int g = int(color.g * 255.0);
   int b = int(color.b * 255.0);
 
+// this warps the depth correctly into a linear scale from some unknown non-linear scale
   float depth = float((r & 1) |
       ((g & 1) << 1) |
       ((b & 1) << 2) |
@@ -91,8 +93,8 @@ void main() {
 
   // Projection code by @kcmic
   pos = vec4(
-    (position.x - principalPoint.x) / focalLength.x * z,
-    (position.y - principalPoint.y) / focalLength.y * z,
+    (position.x / width - 0.5) * z * XtoZ,
+    (position.y / height - 0.5) * z * YtoZ,
     -z,
     1.0);
 
@@ -162,6 +164,10 @@ varying vec4 pos;
 uniform float depthMin;
 uniform float depthMax;
 
+float remap01(float x, float low, float high) {
+    return clamp((x - low) / (high - low), 0., 1.);
+}
+
 void main() {
   // Depth in millimeters
   float depth = -pos.z;
@@ -202,7 +208,12 @@ void main() {
       discard; // Necessary to prevent weird transparency errors when overlapping with self
   }
   // gl_FragColor = vec4(color.rgb, alpha);
+  // todo Steve: commented this line out, replace it with vUv to debug colors !!!
   gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(borderColor.rgb, 0.7);
+  // gl_FragColor = vec4(vUv, 0., 1.);
+  
+  // float normalizedDepth = remap01( (depth + 1.) / 1000., 0., 5.);
+  // gl_FragColor = vec4(normalizedDepth, 0., 0., 1.);
 
   // gl_FragColor = vec4(alphaNorm, alphaNorm, alphaDepth, 1.0);
 }`;
@@ -500,6 +511,8 @@ void main() {
                 mesh = new THREE.Points(geometry, material);
             }
             mesh.scale.set(-1, 1, -1);
+            // todo Steve: translate the mesh 640 units to the left, to compare & debug the fake UV on frustum shader
+            // mesh.translateY(-360);
             mesh.frustumCulled = false;
             mesh.layers.enable(2);
 
@@ -545,9 +558,6 @@ void main() {
                     // pointSize: { value: 8 * 0.666 * 0.15 / 256 },
                     pointSize: { value: 2 * 0.666 },
                     borderColor: { value: borderColor },
-                    // Defaults taken from iPhone 13 Pro Max
-                    focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * width) },
-                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
                 },
                 vertexShader,
                 fragmentShader,
@@ -569,30 +579,12 @@ void main() {
             this.phone.add(mesh);
         }
 
-        update(mat, delayed, rawMatricesMsg) {
+        update(mat, delayed) {
             let now = performance.now();
             if (this.shaderMode === ShaderMode.HOLO) {
                 this.material.uniforms.time.value = window.performance.now();
             }
             this.lastUpdate = now;
-
-
-            if (rawMatricesMsg) {
-                let width = this.material.uniforms.width.value;
-                let height = this.material.uniforms.height.value;
-                let rawWidth = rawMatricesMsg.imageSize[0];
-                let rawHeight = rawMatricesMsg.imageSize[1];
-
-                this.material.uniforms.focalLength.value = new THREE.Vector2(
-                    rawMatricesMsg.focalLength[0] / rawWidth * width,
-                    rawMatricesMsg.focalLength[1] / rawHeight * height,
-                );
-                this.material.uniforms.principalPoint.value = new THREE.Vector2(
-                    rawMatricesMsg.principalPoint[0] / rawWidth * width,
-                    rawMatricesMsg.principalPoint[1] / rawHeight * height,
-                );
-            }
-
             if (this.time > now || !delayed) {
                 this.setMatrix(mat);
                 return;
@@ -644,11 +636,10 @@ void main() {
             setMatrixFromArray(this.phone.matrix, newMatrix);
             this.phone.updateMatrixWorld(true);
             this.texture.needsUpdate = true;
-            this.textureDepth.needsUpdate = true;
+            this.textureDepth.needsUpdate = true; // this is the depth map
 
-            if (this.cutoutViewFrustum) {
-                realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters);
-            }
+            // this updates the frustum
+            realityEditor.gui.ar.desktopRenderer.updateAreaGltfForCamera(this.id, this.phone.matrixWorld, this.maxDepthMeters, this.textureDepth);
 
             this.hideNearCamera(newMatrix[12], newMatrix[13], newMatrix[14]);
             let localHistoryPoint = new THREE.Vector3( newMatrix[12], newMatrix[13], newMatrix[14]);
@@ -752,15 +743,6 @@ void main() {
             }
         }
 
-        enableFrustumCutout() {
-            this.cutoutViewFrustum = true;
-        }
-
-        disableFrustumCutout() {
-            this.cutoutViewFrustum = false;
-            realityEditor.gui.threejsScene.removeMaterialCullingFrustum(this.id);
-        }
-
         /**
          * @param {THREE.Color} color
          */
@@ -836,17 +818,6 @@ void main() {
                 this.undoPatch();
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
-                this.cutoutViewFrustums = toggled;
-                for (let camera of Object.values(this.cameras)) {
-                    if (toggled) {
-                        camera.enableFrustumCutout();
-                    } else {
-                        camera.disableFrustumCutout();
-                    }
-                }
-            });
-
             this.onPointerDown = this.onPointerDown.bind(this);
 
             let threejsCanvas = document.getElementById('mainThreejsCanvas');
@@ -892,7 +863,7 @@ void main() {
                     // if (pktType === PKT_MATRIX) {
                     const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
                     // }
-                    this.updateMatrix(id, mat, true, null);
+                    this.updateMatrix(id, mat, true);
                 });
             } else {
                 const ws = new WebSocket(url);
@@ -900,16 +871,16 @@ void main() {
                     const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
                     const id = bytes[0];
                     const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                    this.updateMatrix(id, mat, true, null);
+                    this.updateMatrix(id, mat, true);
                 });
             }
         }
 
-        updateMatrix(id, mat, delayed, rawMatricesMsg) {
+        updateMatrix(id, mat, delayed) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
             }
-            this.cameras[id].update(mat, delayed, rawMatricesMsg);
+            this.cameras[id].update(mat, delayed);
         }
 
         connect() {
@@ -1094,7 +1065,7 @@ void main() {
             this.finishRenderPointCloudCanvas(id, textureKey, -1);
 
             if (this.voxelizer) {
-                this.voxelizer.raycastDepth(
+                this.voxelizer.raycastDepth( // also figure out what this is. could be used as inspo
                     this.cameras[id].phone, {
                         width: DEPTH_WIDTH,
                         height: DEPTH_HEIGHT,
@@ -1194,7 +1165,7 @@ void main() {
         loadPointCloud(id, textureUrl, textureDepthUrl, matrix) {
             this.renderPointCloud(id, 'texture', textureUrl);
             this.renderPointCloud(id, 'textureDepth', textureDepthUrl);
-            this.updateMatrix(id, matrix, true, null);
+            this.updateMatrix(id, matrix, true);
         }
 
         hidePointCloud(id) {
@@ -1251,11 +1222,7 @@ void main() {
             this.cameras[id].add();
             this.cameras[id].historyMesh.visible = this.spaghettiVisible;
             this.cameras[id].setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
-            if (this.cutoutViewFrustums) {
-                this.cameras[id].enableFrustumCutout();
-            } else {
-                this.cameras[id].disableFrustumCutout();
-            }
+
             // these menubar shortcuts are disabled by default, enabled when at least one virtualizer connects
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.PointClouds, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.SpaghettiMap, true);

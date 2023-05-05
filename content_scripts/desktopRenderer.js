@@ -457,7 +457,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         return cameraVisSceneNodes;
     };
     
-    exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix, maxDepthMeters) {
+    exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix, maxDepthMeters, depthMap) {
         if (!gltf || typeof gltf.traverse === 'undefined') return;
         const utils = realityEditor.gui.ar.utilities;
         
@@ -471,14 +471,20 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         let cameraLookAtPosition = utils.add(cameraPos, cameraDirection);
         let cameraUp = utils.normalize(utils.getUpVector(cameraWorldMatrix.elements));
 
-        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp, maxDepthMeters);
+        let phoneViewMatrix = cameraWorldMatrix.invert().clone();
+        // console.log(phoneViewMatrix);
+        
+        // todo Steve: depthMap might cause the Area Target mesh fragment shader to crash
+        // todo Steve: James passed in the depth map with .image set to depthTexture.image, set .isVideoTexture = true, and set needsUpdate = true
+        // todo Steve: see if these settings can change the results
+        let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp, maxDepthMeters, depthMap, phoneViewMatrix);
         
         gltf.traverse(child => {
-            updateFrustumUniforms(child, cameraId, thisFrustumPlanes);
+            updateFrustumUniforms(child, cameraId, thisFrustumPlanes.planes, thisFrustumPlanes.depthMap);
         });
     }
 
-    function updateFrustumUniforms(mesh, cameraId, frustumPlanes) {
+    function updateFrustumUniforms(mesh, cameraId, frustumPlanes, depthMap) {
         if (!mesh.material || !mesh.material.uniforms) return;
 
         let cameraFrustumIndex = cameraVisFrustums.indexOf(cameraId);
@@ -487,7 +493,10 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         }
 
         mesh.material.uniforms[UNIFORMS.numFrustums].value = Math.min(cameraVisFrustums.length, MAX_VIEW_FRUSTUMS);
+        
+        mesh.material.uniforms.depthMap.value = depthMap;
 
+        // todo Steve: below code updates one frustum in the gltf mesh material shader, based on one specific camera (cameraId)
         if (typeof mesh.material.uniforms[UNIFORMS.frustums] !== 'undefined') {
             // update this frustum with all of the normals and constants
             let existingFrustums = mesh.material.uniforms[UNIFORMS.frustums].value;
