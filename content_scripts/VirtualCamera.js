@@ -795,16 +795,19 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let positionObject = realityEditor.gui.threejsScene.getObjectByName('parametricPositionObject');
             let targetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
 
-            if (positionObject.matrixWorldNeedsUpdate || targetObject.matrixWorldNeedsUpdate) {
-                console.warn('moveCameraToParametricFollowPosition triggered before matrixWorldNeedUpdate processed. skipping.');
-                return; // irrecoverable error in camera position if we continue before Three.js computes the matrixWorld of the new objects
-            }
+            let groundPlaneMatrixArray = realityEditor.sceneGraph.getGroundPlaneNode().worldMatrix;
+            let invGroundPlaneMatrix = new THREE.Matrix4();
+            realityEditor.gui.threejsScene.setMatrixFromArray(invGroundPlaneMatrix, groundPlaneMatrixArray);
+            invGroundPlaneMatrix.invert();
 
-            let targetMatrix = targetObject.matrixWorld.clone();
-            let positionMatrix = positionObject.matrixWorld.clone();
-
-            let newPosVec = [positionMatrix.elements[12], positionMatrix.elements[13], positionMatrix.elements[14]];
-            let newTargetPosVec = [targetMatrix.elements[12], targetMatrix.elements[13], targetMatrix.elements[14]];
+            let vec1 = new THREE.Vector3();
+            let vec2 = new THREE.Vector3();
+            targetObject.getWorldPosition(vec1);
+            positionObject.getWorldPosition(vec2);
+            vec1.applyMatrix4(invGroundPlaneMatrix);
+            vec2.applyMatrix4(invGroundPlaneMatrix);
+            let newPosVec = vec2.toArray();
+            let newTargetPosVec = vec1.toArray();
 
             let movement = add(newPosVec, negate(this.position));
             if (movement[0] !== 0 || movement[1] !== 0 || movement[2] !== 0) {
