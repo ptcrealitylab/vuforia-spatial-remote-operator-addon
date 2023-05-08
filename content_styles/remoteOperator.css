@@ -30,6 +30,7 @@ body > * {
     height: 30px;
     /*border: 3px solid cyan;*/
     display: none;
+    z-index: 11;
 }
 
 #staticInteractionCursor {
@@ -39,6 +40,7 @@ body > * {
     height: 30px;
     display: none;
     opacity: 0.3;
+    z-index: 10;
 }
 
 #mainThreejsCanvas {
