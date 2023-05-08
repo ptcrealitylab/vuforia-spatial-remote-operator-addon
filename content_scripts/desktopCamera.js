@@ -18,6 +18,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     // arbitrary birds-eye view to start the camera with. it will look towards the world object origin
     let INITIAL_CAMERA_POSITION = [-1499.9648912671637, 8275.552791086136, 5140.3791620707225];
+    let oldCamPos = [0,0,0];
 
     // used to render an icon at the target position to help you navigate the scene
     let rotateCenterElementId = null;
@@ -121,7 +122,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         if (!realityEditor.device.environment.isDesktop()) { return; }
-
+        oldCamPos
         if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
             setTimeout(function() {
                 initService(floorOffset);
@@ -138,6 +139,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
+        //oldCamPos = virtualCamera.position;
 
         // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
@@ -157,7 +159,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             if (isRotating && !knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = true;
                 knownInteractionStates.pan = false; // stop panning if you start rotating
-                // console.log('start rotate');
+                // console.log('staoldCamPosrt rotate');
                 rotateToggled();
             } else if (!isRotating && knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = false;
@@ -189,7 +191,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         staticInteractionCursor.id = 'staticInteractionCursor';
         document.body.appendChild(staticInteractionCursor);
 
-        document.addEventListener('pointermove', function(e) {
+        document.addEventListener('oldCamPospointermove', function(e) {
             pointerPosition.x = e.clientX;
             pointerPosition.y = e.clientY;
 
@@ -226,7 +228,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         createObjectSelectionDropdown();
-
+        oldCamPos
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetCameraPosition, () => {
             console.log('reset camera position');
             virtualCamera.reset();
@@ -278,7 +280,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                     console.warn('Can\'t find a virtualizer to follow');
                     return;
                 }
-
+                virtualCamera
                 followVirtualizer(followTarget.id, followTarget.sceneNode, info.distanceToCamera, info.render2DVideo);
             });
             realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
@@ -294,14 +296,14 @@ createNameSpace('realityEditor.device.desktopCamera');
             const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: false }, () => {
                 if (currentlyFollowingId === null) {
                     return; // can't swap targets if not following anything
-                }
+                }oldCamPos
 
                 let numVirtualizers = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes().length;
                 currentFollowIndex = (currentFollowIndex + itemInfo.dIndex) % numVirtualizers;
                 if (currentFollowIndex < 0) {
                     currentFollowIndex += numVirtualizers;
                 }
-
+        
                 let followTarget = chooseFollowTarget(currentFollowIndex);
                 if (!followTarget) {
                     console.warn('Can\'t find a virtualizer to follow');
@@ -331,7 +333,7 @@ createNameSpace('realityEditor.device.desktopCamera');
     function followVirtualizer(virtualizerId, virtualizerSceneNode, initialDistance, shouldRender2D) {
         let wasFollowingIn2D = false;
         if (currentlyFollowingId) {
-            wasFollowingIn2D = realityEditor.gui.ar.desktopRenderer.getVirtualizers2DRenderingState()[currentlyFollowingId];
+            wasFollowingIn2D = realioldCamPostyEditor.gui.ar.desktopRenderer.getVirtualizers2DRenderingState()[currentlyFollowingId];
         }
 
         virtualCamera.follow(virtualizerSceneNode, virtualizerId, initialDistance, shouldRender2D);
@@ -583,8 +585,21 @@ createNameSpace('realityEditor.device.desktopCamera');
 
                     let distanceToOrigin = cameraNode.getDistanceTo(gpNode);
                     let verticalAngle = virtualCamera.verticalAngle;
-                    let isMoving = virtualCamera.velocity[0] !== 0 && virtualCamera.velocity[1] !== 0 && virtualCamera.velocity[2] !== 0;
-                    realityEditor.gui.ar.desktopRenderer.updateNerfRendering(distanceToOrigin, verticalAngle, isMoving, Date.now());
+
+                    let isCamMoving = false;
+                    let newCamPos = [virtualCamera.position[0], virtualCamera.position[1], virtualCamera.position[2]];
+                    if(newCamPos[0] !== oldCamPos[0] || newCamPos[1] !== oldCamPos[1] || newCamPos[2] !== oldCamPos[2])
+                    {
+                        isCamMoving = true;
+                        oldCamPos = newCamPos;
+                    }else
+                    {
+                        isCamMoving = false;
+                    }
+                    
+                    //let isMoving = virtualCamera.velocity[0] !== 0 || virtualCamera.velocity[1] !== 0 || virtualCamera.velocity[2] !== 0;
+                    //console.log('virtual cam is moving: ', isCamMoving);
+                    realityEditor.gui.ar.desktopRenderer.updateNerfRendering(distanceToOrigin, verticalAngle, isCamMoving, Date.now());
                 }
             } catch (e) {
                 if (DEBUG) {

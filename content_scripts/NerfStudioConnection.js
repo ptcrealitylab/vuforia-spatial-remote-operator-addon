@@ -4,7 +4,10 @@ createNameSpace('realityEditor.device');
 (function (exports) {
 
 // this port number and local IP MUST match the nerfStudio port
-const NERF_STUDIO_WEBSOCKET_URL = 'ws://192.168.1.211:7003';
+// remember to change this hard-coded URL anytime you change wifi networks / your IP changes
+// we can use localhost if you are only going to run the demo on this PC, but needs to
+// be the public IP address if you want to load the demo on another laptop
+const NERF_STUDIO_WEBSOCKET_URL = 'ws://192.168.50.89:7003';
 const DEBUG_CAMERA_MESSAGE = false;
 
 const ICE_SERVERS = [
