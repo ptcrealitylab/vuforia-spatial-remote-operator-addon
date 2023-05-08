@@ -9,6 +9,7 @@ import { Spaghetti } from '../../src/humanPose/spaghetti.js';
     const debug = false;
     const ZDEPTH = false;
     const ENABLE_PICTURE_IN_PICTURE = false;
+    const ENABLE_PATCH_REMOTE_PERSISTENCE = false;
     const FIRST_PERSON_CANVAS = false;
     const DEPTH_REPR_PNG = false;
     const DEPTH_WIDTH = 256;
@@ -368,19 +369,22 @@ void main() {
             } catch (e) {
                 console.error('Unable to persist patch', e);
             }
-            fetch('history/patches', {
-                method: 'POST',
-                headers: {
-                    'Content-type': 'application/json',
-                },
-                body: JSON.stringify(serialization),
-            }).then(res => {
-                return res.text();
-            }).then(text => {
-                console.log('patch persisted', text);
-            }).catch(e => {
-                console.warn('Server-side patch persist error', e);
-            });
+
+            if (ENABLE_PATCH_REMOTE_PERSISTENCE) {
+                fetch('history/patches', {
+                    method: 'POST',
+                    headers: {
+                        'Content-type': 'application/json',
+                    },
+                    body: JSON.stringify(serialization),
+                }).then(res => {
+                    return res.text();
+                }).then(text => {
+                    console.log('patch persisted', text);
+                }).catch(e => {
+                    console.warn('Server-side patch persist error', e);
+                });
+            }
 
             return {
                 key,
@@ -1370,20 +1374,22 @@ void main() {
                 this.restorePatch(serialization);
             }
 
-            fetch('history/patches').then(res => {
-                return res.json();
-            }).then(patches => {
-                for (let patch of patches) {
-                    if (window.localStorage.hasOwnProperty(patch.key)) {
-                        continue;
-                    }
+            if (ENABLE_PATCH_REMOTE_PERSISTENCE) {
+                fetch('history/patches').then(res => {
+                    return res.json();
+                }).then(patches => {
+                    for (let patch of patches) {
+                        if (window.localStorage.hasOwnProperty(patch.key)) {
+                            continue;
+                        }
 
-                    const serialization = JSON.parse(patch);
-                    this.restorePatch(serialization);
-                }
-            }).catch(e => {
-                console.warn('Server-side patch persistence not supported', e);
-            });
+                        const serialization = JSON.parse(patch);
+                        this.restorePatch(serialization);
+                    }
+                }).catch(e => {
+                    console.warn('Server-side patch persistence not supported', e);
+                });
+            }
         }
 
         undoPatch() {
@@ -1410,15 +1416,17 @@ void main() {
                 console.warn('Unable to remove patch from localStorage', key, e);
             }
 
-            fetch(`history/patches/${key}`, {
-                method: 'DELETE',
-            }).then(res => {
-                return res.text();
-            }).then(text => {
-                console.log('patch deleted', text);
-            }).catch(e => {
-                console.warn('Server-side patch delete error', e);
-            });
+            if (ENABLE_PATCH_REMOTE_PERSISTENCE) {
+                fetch(`history/patches/${key}`, {
+                    method: 'DELETE',
+                }).then(res => {
+                    return res.text();
+                }).then(text => {
+                    console.log('patch deleted', text);
+                }).catch(e => {
+                    console.warn('Server-side patch delete error', e);
+                });
+            }
 
             if (this.patches[key]) {
                 realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
