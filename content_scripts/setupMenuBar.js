@@ -26,6 +26,7 @@ createNameSpace('realityEditor.gui');
         StopFollowing: 'Stop Following',
         ClonePatch: 'Clone Patch',
         UndoPatch: 'Undo Patch',
+        UndoPatches: 'Clear All Patches',
         OrbitCamera: 'Orbit Camera',
         ResetCameraPosition: 'Reset Camera Position',
         GettingStarted: 'Getting Started',
@@ -107,6 +108,9 @@ createNameSpace('realityEditor.gui');
 
         const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '' }, null);
         menuBar.addItemToMenu(MENU.History, undoPatch);
+
+        const undoPatches = new MenuItem(ITEM.UndoPatches, { shortcutKey: '' }, null);
+        menuBar.addItemToMenu(MENU.History, undoPatches);
 
         const toggleVoxelizer = new MenuItem(ITEM.Voxelizer, { shortcutKey: '', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.History, toggleVoxelizer);
