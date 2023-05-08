@@ -203,11 +203,11 @@ void main() {
       0.0,
       1.0
   );
-  if (alpha < 0.02 && border < 0.5) {
+  if (alpha < 0.02) {
       discard; // Necessary to prevent weird transparency errors when overlapping with self
   }
   // gl_FragColor = vec4(color.rgb, alpha);
-  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(borderColor.rgb, 0.7);
+  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(borderColor.rgb, alpha);
 
   // gl_FragColor = vec4(alphaNorm, alphaNorm, alphaDepth, 1.0);
 }`;
