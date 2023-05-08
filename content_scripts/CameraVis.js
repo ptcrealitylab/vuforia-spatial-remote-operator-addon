@@ -854,7 +854,15 @@ void main() {
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatch, () => {
-                this.undoPatch();
+                const keys = this.getPatchKeys();
+                this.undoPatch(keys[0]);
+            });
+
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatches, () => {
+                const keys = this.getPatchKeys();
+                for (const key of keys) {
+                    this.undoPatch(key);
+                }
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
@@ -1339,7 +1347,10 @@ void main() {
             }
         }
 
-        undoPatch() {
+        /**
+         * @return {Array<string>} patch keys
+         */
+        getPatchKeys() {
             let keys = Object.keys(window.localStorage).filter(key => {
                 return key.startsWith(PATCH_KEY_PREFIX);
             });
@@ -1355,8 +1366,14 @@ void main() {
                 let b = parseFloat(keyB.split('-')[1]);
                 return b - a;
             });
-            const key = keys[0];
 
+            return keys;
+        }
+
+        /**
+         * @param {string} key - patch key
+         */
+        undoPatch(key) {
             try {
                 window.localStorage.removeItem(key);
             } catch (e) {
