@@ -434,7 +434,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let distancePanFactor = Math.max(1, this.distanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
 
             if (this.idleOrbitting) {
-                this.mouseInput.unprocessedDX = 0.3;
+                this.mouseInput.unprocessedDX = 0.15;
+                this.mouseInput.isRotateRequested = true;
                 this.mouseInput.isStrafeRequested = false;
             }
 
@@ -573,7 +574,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            if (!this.mouseInput.isRotateRequested) {
+            if (!this.mouseInput.isRotateRequested || this.isFlying) {
                 this.position = add(this.position, this.velocity);
                 this.targetPosition = add(this.targetPosition, this.targetVelocity);
             }
