@@ -135,7 +135,7 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.Develop, debugAvatars);
 
-        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (checked) => {
+        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (_checked) => {
             // console.info(objects);
             // for (let object in objects) {
             //     let objectKey = object.uuid;
@@ -153,7 +153,7 @@ createNameSpace('realityEditor.gui');
                     realityEditor.device.deleteFrame(frame, objectKey, frameKey);
                 }
             }
-        })
+        });
         menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
 
         const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
