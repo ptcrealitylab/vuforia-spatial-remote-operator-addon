@@ -575,8 +575,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back 6D mouse controls
 
             if (!this.mouseInput.isRotateRequested || this.isFlying) {
-                this.position = add(this.position, this.velocity);
-                this.targetPosition = add(this.targetPosition, this.targetVelocity);
+                let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
+                let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
+                // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
+                let rotateFactor = -Math.pow(angle / Math.PI, 2) * 4 + 1;
+                this.position = add(this.position, scalarMultiply(this.velocity, rotateFactor));
+                this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, rotateFactor));
             }
 
             // tween the matrix every frame to animate it to the new position
@@ -722,7 +726,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             //    (this step is optional but leads to stable birds-eye and seamless first-person transition)
             let parametricTargetObject = realityEditor.gui.threejsScene.getObjectByName('parametricTargetObject');
             let MIN_Z = 1250; // these can be calculated from passing min and max follow distance into updateParametricTargetAndPosition
-            let MAX_Z = 7500;
+            let MAX_Z = 2500;
             let unclampedPercent = 1.0 - (Math.abs(parametricTargetObject.position.z) - MIN_Z) / (MAX_Z - MIN_Z);
             let stabilizationPercent = clamp(unclampedPercent, 0, 1);
             let stabilizedHeight = virtualizerPosition.z * stabilizationPercent + tiltedForwardPosition.z * (1 - stabilizationPercent);
