@@ -562,10 +562,10 @@ createNameSpace('realityEditor.device.desktopCamera');
                     
                     //get the following values from NerfStudio/outputs/the_target_folder/dataparser_transforms.json
                     
-                    const parserMatrixScale = 0.31143804372870204;
-                    const offset_x = 0.10382813215255737;
-                    const offset_y = -0.20007245242595673;
-                    const offset_z = -0.6408164501190186;
+                    const parserMatrixScale = 0.2758119109624789;
+                    const offset_x = -0.0063677821308374405;
+                    const offset_y = -0.2641095817089081;
+                    const offset_z = 0.24735920131206512;
 
                     relativeCameraMatrix[12] = (relativeCameraMatrix[12]*SCALE + offset_x)*parserMatrixScale;
                     relativeCameraMatrix[13] = ((relativeCameraMatrix[13] + floorOffset)*SCALE + offset_y)*parserMatrixScale;
