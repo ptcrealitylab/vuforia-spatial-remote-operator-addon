@@ -339,7 +339,16 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                 if (!nerfStudioConnection) {
                     nerfStudioConnection = new realityEditor.device.NerfStudioConnection();
                 }
-                nerfStudioConnection.turnOn();
+                const onTurnOn = () => {
+                    if (gltf) { 
+                        staticModelMode = false;
+                        gltf.visible = false;
+                        realityEditor.gui.ar.groundPlaneRenderer.stopVisualization();
+                        // nerfEffect = 0;
+                    }
+                    console.log('hiding gltf for nerf');
+                }
+                nerfStudioConnection.turnOn(onTurnOn);
                 
                 // show nerf canvas
                 if (!nerfCanvas) {
@@ -354,8 +363,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     nerfCanvas.style.width = window.innerWidth + 'px';
                     nerfCanvas.style.height = window.innerHeight + 'px';
                     nerfCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                    nerfCanvas.style.transform = 'translateZ(4px)';
-                    nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
+                    // nerfCanvas.style.transform = 'translateZ(4px)';
+                    nerfCanvas.style.zIndex = '-1'; // go behind the glproxy canvas
                     nerfCanvas.style.opacity = '1';
                     nerfCanvas.style.pointerEvents = 'none';
                     nerfCanvas.style.clipPath = 'circle(100% at 50% 50%)';
@@ -370,6 +379,13 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
                 // hide nerf canvas
                 nerfCanvas.style.display = 'none';
+
+                if (gltf) { 
+                    staticModelMode = true;
+                    gltf.visible = true;
+                    realityEditor.gui.ar.groundPlaneRenderer.startVisualization();
+                    console.log('showing gltf again');
+                }
             }
         });
 
@@ -389,7 +405,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         );
     }
 
-    let nerfEffect = 1; //0 = always show; 1 = delayed render; 2 = focus effect
+    let nerfEffect = 0; //0 = always show; 1 = delayed render; 2 = focus effect
     // key press to toggle Nerf rendering effect, use key '>'
     let mousePressed = false;
     let magnifyingRadius = 15; // Adjust this value to change the radius of the magnifying area
@@ -467,7 +483,11 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         // change NeRF rendering effect based on the Mode
         if(nerfEffect == 0)
         {
+            nerfCanvas.style.zIndex = '-1'; // go behind the glproxy canvas
             opacity = 1;
+            if (!staticModelMode) {
+                gltf.visible = false;
+            }
         }
         else if (nerfEffect == 1)
         {
@@ -478,14 +498,26 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                 }else{
                     opacity = 0.01;
                 }
+                if (!staticModelMode) {
+                    gltf.visible = true;
+                }
+                nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
             } else {
                 opacity = 1;
+                if (!staticModelMode) {
+                    gltf.visible = false;
+                }
+                nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
             }
         }
         else if (nerfEffect == 2)
         {
             //implemented ahead of this in the eventListener
             opacity = 1;
+            if (!staticModelMode) {
+                gltf.visible = true;
+            }
+            nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
         }
 
 

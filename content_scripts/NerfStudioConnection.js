@@ -37,22 +37,38 @@ class NerfStudioConnection {
         this.isEnabled = false;
         this.websocket = null;
         this.peerConnection = {};
+        this.callbacks = {
+            onTurnOn: null,
+            //onTurnOff: null
+        }
     }
 
     // turn on to create a new websocket for the camera messages, and a new RTCPeerConnection for the images
-    turnOn() {
+    turnOn(callback) {
         this.isEnabled = true;
+        if (callback) {
+            this.callbacks.onTurnOn = callback;
+        }
         this.connect();
     }
 
     // turn off to stop sending camera messages over the websocket
-    turnOff() {
+    turnOff(_callback) {
         this.isEnabled = false;
+        //if (callback) {
+        //    this.callbacks.onTurnOff = callback;
+        //}
     }
 
     // runs the first time you turnOn - creates the websocket and webrtc connection
     connect() {
-        if (this.websocket) return;
+        if (this.websocket) {
+            if (typeof this.callbacks.onTurnOn === 'function') {
+                this.callbacks.onTurnOn();
+                console.log('turn on (again)');
+            }
+            return;
+        };
 
         // I think we need to use a standard WebSocket, because socket.io can't send messages encoded by msgpack in the format nerfstudio expects
         this.websocket = new WebSocket(NERF_STUDIO_WEBSOCKET_URL);
@@ -94,7 +110,7 @@ class NerfStudioConnection {
         //     -0.4129898476856783, -0.7473400792058696, 0.6822817432737595, 1
         // ];
 
-        const aspectValue = 17/9;
+        const aspectValue = window.innerWidth/window.innerHeight;
         const cam_fov = 41.22673;
         let message = {
             type: 'write', //'toolbox', // the server switches thru type to handle the message differently
@@ -187,6 +203,10 @@ class NerfStudioConnection {
                                     try {
                                         this.peerConnection.current.setRemoteDescription(answer);
                                         console.log('successfully set description from answer');
+                                        if (typeof this.callbacks.onTurnOn === 'function') {
+                                            this.callbacks.onTurnOn();
+                                            console.log('done turning on (first time)');
+                                        }
                                     } catch (e) {
                                         console.error('error setting peerConnection remote description from answer', error, answer);
                                     }
