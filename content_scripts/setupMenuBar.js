@@ -26,6 +26,7 @@ createNameSpace('realityEditor.gui');
         StopFollowing: 'Stop Following',
         ClonePatch: 'Clone Patch',
         UndoPatch: 'Undo Patch',
+        UndoPatches: 'Clear All Patches',
         OrbitCamera: 'Orbit Camera',
         ResetCameraPosition: 'Reset Camera Position',
         GettingStarted: 'Getting Started',
@@ -99,7 +100,7 @@ createNameSpace('realityEditor.gui');
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
 
-        const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { shortcutKey: 'E', toggle: true, defaultVal: false }, null);
+        const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.History, toggleAnalyticsSettings);
 
         const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
@@ -107,6 +108,9 @@ createNameSpace('realityEditor.gui');
 
         const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '' }, null);
         menuBar.addItemToMenu(MENU.History, undoPatch);
+
+        const undoPatches = new MenuItem(ITEM.UndoPatches, { shortcutKey: '' }, null);
+        menuBar.addItemToMenu(MENU.History, undoPatches);
 
         const toggleVoxelizer = new MenuItem(ITEM.Voxelizer, { shortcutKey: '', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.History, toggleVoxelizer);
@@ -131,7 +135,7 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.Develop, debugAvatars);
 
-        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (checked) => {
+        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (_checked) => {
             // console.info(objects);
             // for (let object in objects) {
             //     let objectKey = object.uuid;
@@ -149,7 +153,7 @@ createNameSpace('realityEditor.gui');
                     realityEditor.device.deleteFrame(frame, objectKey, frameKey);
                 }
             }
-        })
+        });
         menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
 
         const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
