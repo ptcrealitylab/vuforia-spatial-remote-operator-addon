@@ -183,7 +183,7 @@ createNameSpace('realityEditor.gui');
             if (onClick) {
                 this.addCallback(onClick);
             }
-            // options include: { shortcutKey: 'M', toggle: true, defaultVal: true, disabled: true }
+            // options include: { shortcutKey: 'M', modifiers: ['SHIFT', 'ALT'], toggle: true, defaultVal: true, disabled: true }
             // note: shortcutKey should be an entry in the KeyboardListener's keyCodes
             this.options = options || {};
             this.buildDom();
@@ -212,16 +212,25 @@ createNameSpace('realityEditor.gui');
 
             this.domElement.appendChild(textElement);
 
-            // shortcutKey: 'M', toggle: true, defaultVal: true, disabled: true
+            // shortcutKey: 'M', modifiers: ['SHIFT', 'ALT'], toggle: true, defaultVal: true, disabled: true
             if (this.options.shortcutKey) {
-                let shortcut = document.createElement('div');
+                const shortcut = document.createElement('div');
                 shortcut.classList.add('desktopMenuBarItemShortcut');
                 shortcut.innerText = getShortcutDisplay(this.options.shortcutKey);
                 this.domElement.appendChild(shortcut);
+                
+                const shortcutModifier = document.createElement('div');
+                shortcutModifier.classList.add('desktopMenuBarItemShortcutModifier');
+                shortcutModifier.innerText = this.options.modifiers ? this.options.modifiers.map(modifier => getShortcutDisplay(modifier)).join(' ') : '';
+                this.domElement.appendChild(shortcutModifier);
 
-                let thisKeyCode = getKeyboard().keyCodes[this.options.shortcutKey];
-                this.onKeyDown = function(code, modifiers) {
-                    if (code === thisKeyCode && modifiers.length === 0) {
+                const thisKeyCode = getKeyboard().keyCodes[this.options.shortcutKey];
+                const thisModifiers = this.options.modifiers ? this.options.modifiers.map(modifier => getKeyboard().keyCodes[modifier]) : [];
+                const modifierSetsMatch = (modifierSet1, modifierSet2) => {
+                    return modifierSet1.length === modifierSet2.length && modifierSet1.every(value => modifierSet2.includes(value));
+                }
+                this.onKeyDown = function(code, activeModifiers) {
+                    if (code === thisKeyCode && modifierSetsMatch(thisModifiers, activeModifiers)) {
                         this.triggerItem();
                     }
                 };

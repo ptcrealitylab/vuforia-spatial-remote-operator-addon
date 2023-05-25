@@ -126,13 +126,9 @@ createNameSpace('realityEditor.device');
             this.callbacks.onKeyUp.push(callback);
         }
         getActiveModifiers() {
-            const activeModifiers = [];
-            this.modifiers.forEach((modifier) => {
-                if (this.keyStates[modifier] === 'down') {
-                    activeModifiers.push(modifier);
-                }
+            return this.modifiers.filter((modifier) => {
+                return this.keyStates[modifier] === 'down';
             });
-            return activeModifiers;
         }
     }
 
