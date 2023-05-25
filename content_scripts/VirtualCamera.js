@@ -355,6 +355,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         getCameraDirection() {
             return normalize(sub(this.targetPosition, this.position));
         }
+        // set the target position based on the camera direction
+        setCameraDirection(cameraDirection) {
+            this.targetPosition = add(this.position, cameraDirection); 
+        }
         // if specify a focus direction, the camera will look into that direction. Note that dir is expected to be a unit vector
         // if not, move the camera while keeping its lookAt direction
         focus(pos, dir) {
