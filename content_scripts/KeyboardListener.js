@@ -61,6 +61,9 @@ createNameSpace('realityEditor.device');
                 X: 88,
                 Y: 89,
                 Z: 90,
+                LEFT_WINDOW: 91, // Left Command on Mac
+                RIGHT_WINDOW: 92,
+                SELECT: 93, // Right Command on Mac
                 SEMICOLON: 186,
                 EQUALS: 187,
                 COMMA: 188,
@@ -72,6 +75,14 @@ createNameSpace('realityEditor.device');
                 CLOSE_BRACKET: 221,
                 SINGLE_QUOTE: 222
             });
+            this.modifiers = [
+                this.keyCodes['SHIFT'],
+                this.keyCodes['CTRL'],
+                this.keyCodes['ALT'],
+                this.keyCodes['LEFT_WINDOW'],
+                this.keyCodes['RIGHT_WINDOW'],
+                this.keyCodes['SELECT']
+            ];
             this.keyStates = {};
             this.callbacks = {
                 onKeyDown: [],
@@ -91,8 +102,8 @@ createNameSpace('realityEditor.device');
                 var code = event.keyCode ? event.keyCode : event.which;
                 if (this.keyStates.hasOwnProperty(code)) {
                     this.keyStates[code] = 'down';
-                    this.callbacks.onKeyDown.forEach(function(cb) {
-                        cb(code);
+                    this.callbacks.onKeyDown.forEach((cb) => {
+                        cb(code, this.getActiveModifiers());
                     });
                 }
             }.bind(this));
@@ -102,8 +113,8 @@ createNameSpace('realityEditor.device');
                 var code = event.keyCode ? event.keyCode : event.which;
                 if (this.keyStates.hasOwnProperty(code)) {
                     this.keyStates[code] = 'up';
-                    this.callbacks.onKeyUp.forEach(function(cb) {
-                        cb(code);
+                    this.callbacks.onKeyUp.forEach((cb) => {
+                        cb(code, this.getActiveModifiers());
                     });
                 }
             }.bind(this));
@@ -114,7 +125,15 @@ createNameSpace('realityEditor.device');
         onKeyUp(callback) {
             this.callbacks.onKeyUp.push(callback);
         }
-
+        getActiveModifiers() {
+            const activeModifiers = [];
+            this.modifiers.forEach((modifier) => {
+                if (this.keyStates[modifier] === 'down') {
+                    activeModifiers.push(modifier);
+                }
+            });
+            return activeModifiers;
+        }
     }
 
     exports.KeyboardListener = KeyboardListener;
