@@ -24,6 +24,7 @@ createNameSpace('realityEditor.videoPlayback');
 
             // set up the View and subscribe to events from the view (buttons pressed, scrollbars moved, etc)
             this.view = new realityEditor.videoPlayback.TimelineView(document.body);
+            realityEditor.gui.stackingOrder.addToLayer(this.view.timelineContainer, realityEditor.gui.LAYERS.GUI_BUTTONS);
             this.setupUserInteractions();
         }
         /**

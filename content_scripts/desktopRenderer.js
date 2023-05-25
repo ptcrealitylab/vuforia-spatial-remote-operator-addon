@@ -268,6 +268,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
+        realityEditor.gui.stackingOrder.addToLayer(backgroundCanvas, realityEditor.gui.LAYERS.BACKGROUND);
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelVisibility, (value) => {
             if (!gltf) { return; }
