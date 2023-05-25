@@ -560,7 +560,8 @@ void main() {
                     patchLoading: { value: 1.0 },
                     // Defaults taken from iPhone 13 Pro Max
                     focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * height) },
-                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
+                    // convert principal point from image Y-axis bottom-to-top in Vuforia to top-to-bottom in OpenGL 
+                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, (1080 - 539.411926) / 1080 * height) },
                 },
                 vertexShader,
                 fragmentShader,
@@ -600,9 +601,10 @@ void main() {
                     rawMatricesMsg.focalLength[0] / rawWidth * width,
                     rawMatricesMsg.focalLength[1] / rawHeight * height,
                 );
+                // convert principal point from image Y-axis bottom-to-top in Vuforia to top-to-bottom in OpenGL 
                 this.material.uniforms.principalPoint.value = new THREE.Vector2(
                     rawMatricesMsg.principalPoint[0] / rawWidth * width,
-                    rawMatricesMsg.principalPoint[1] / rawHeight * height,
+                    (rawHeight - rawMatricesMsg.principalPoint[1]) / rawHeight * height,
                 );
             }
 
