@@ -32,7 +32,7 @@ createNameSpace('realityEditor.device.desktopStats');
             return;
         }
 
-        if (!realityEditor.device.environment.isDesktop()) { return; }
+        if (realityEditor.device.environment.isARMode()) { return; }
 
         // wait until the menubar is initialized
         if (typeof realityEditor.gui.setupMenuBar !== 'function') {

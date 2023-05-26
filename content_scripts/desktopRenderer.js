@@ -64,7 +64,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             return;
         }
 
-        if (!realityEditor.device.environment.isDesktop()) { return; }
+        if (realityEditor.device.environment.isARMode()) { return; }
 
         const renderingFlagName = 'loadingWorldMesh';
         realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded

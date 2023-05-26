@@ -80,7 +80,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     function initService() {
         // by including this check, we can tolerate compiling this add-on into the app without breaking everything
         // (ideally this add-on should only be added to a "desktop" server but this should effectively ignore it on mobile)
-        if (!realityEditor.device.environment.isDesktop()) { return; }
+        if (realityEditor.device.environment.isARMode()) { return; }
 
         if (!env) {
             env = realityEditor.device.environment.variables; // ensure that this alias is set correctly if loaded too fast
@@ -416,6 +416,10 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      * @todo Needs to be manually modified as more native calls are added. Add one switch case per native app call.
      */
     function modifyGlobalNamespace() {
+        
+        // mark that we've manipulated the webkit reference, so that we
+        // can still detect isWithinToolboxApp vs running in mobile browser
+        window.webkitProxy = true;
 
         // set up object structure if it doesn't exist yet
         window.webkit = {

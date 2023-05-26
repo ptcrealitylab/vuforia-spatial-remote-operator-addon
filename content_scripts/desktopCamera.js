@@ -120,7 +120,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             return;
         }
 
-        if (!realityEditor.device.environment.isDesktop()) { return; }
+        if (realityEditor.device.environment.isARMode()) { return; }
 
         if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
             setTimeout(function() {
@@ -303,7 +303,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             saveCameraData(0);
             realityEditor.gui.getMenuBar().getItemByName('Load Camera Position').enable();
         });
-        const loadCameraPositionMenuItem = new realityEditor.gui.MenuItem('Load Camera Position', { shortcutKey: '_1', modifiers: ['SHIFT'], toggle: false, disabled: loadCameraData(0) === undefined }, () => {
+        const loadCameraPositionMenuItem = new realityEditor.gui.MenuItem('Load Camera Position', { shortcutKey: '_1', modifiers: ['SHIFT'], toggle: false, disabled: !loadCameraData(0) }, () => {
             loadCameraData(0);
         });
         realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, saveCameraPositionMenuItem);
