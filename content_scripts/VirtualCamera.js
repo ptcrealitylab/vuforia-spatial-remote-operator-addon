@@ -149,7 +149,32 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 2000);
             }
         }
+        // when in normal mode, right click to add a green focus cube to the scene
+        setFocusTargetCube(event) {
+            if (this.isFlying) return;
+            // conform to spatial cursor mousemove event pageX and pageY
+            if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
+                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
+                if (worldIntersectPoint === undefined) return;
+                // record pointerdown world intersect point, for off-center camera rotation
+                this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
+                if (this.focusTargetCube === null) {
+                    this.focusTargetCube = new THREE.Mesh(
+                        new THREE.BoxGeometry(20, 20, 20),
+                        new THREE.MeshBasicMaterial({color: 0x00ffff})
+                    );
+                    this.focusTargetCube.position.copy(worldIntersectPoint);
+                    realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
+                } else {
+                    this.focusTargetCube.position.copy(worldIntersectPoint);
+                }
+            }
+        };
         addEventListeners() {
+            if (!realityEditor.device.environment.variables.requiresMouseEvents) {
+                this.addMultitouchEvents();
+                return;
+            }
 
             let scrollTimeout = null;
             window.addEventListener('wheel', function (event) {
@@ -184,7 +209,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         this.mouseInput.isStrafeRequested = true;
                         this.triggerPanCallbacks(true);
                     } else if (event.button === 2) {
-                        setFocusTargetCube(event);
+                        this.setFocusTargetCube(event);
                         this.mouseInput.isRightClick = true;
                         this.mouseInput.isRotateRequested = true;
                         this.triggerRotateCallbacks(true);
@@ -199,28 +224,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     // follow a tool if you click it with shift held down
                 }
             }.bind(this));
-
-            // when in normal mode, right click to add a green focus cube to the scene
-            const setFocusTargetCube = (event) => {
-                if (this.isFlying) return;
-                // conform to spatial cursor mousemove event pageX and pageY
-                if (event.button === 2) {
-                    let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
-                    if (worldIntersectPoint === undefined) return;
-                    // record pointerdown world intersect point, for off-center camera rotation
-                    this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
-                    if (this.focusTargetCube === null) {
-                        this.focusTargetCube = new THREE.Mesh(
-                            new THREE.BoxGeometry(20, 20, 20),
-                            new THREE.MeshBasicMaterial({color: 0x00ffff})
-                        );
-                        this.focusTargetCube.position.copy(worldIntersectPoint);
-                        realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
-                    } else {
-                        this.focusTargetCube.position.copy(worldIntersectPoint);
-                    }
-                }
-            };
 
             const pointerReset = () => {
                 this.mouseInput.isPointerDown = false;
@@ -296,6 +299,136 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     }
                 }
             }.bind(this));
+        }
+        addMultitouchEvents() {
+
+            let initialDistance = 0;
+            let lastDistance = 0;
+
+            // Add gesturestart event listener to the document
+            document.addEventListener('gesturestart', (event) => {
+                // Prevent the default pinch gesture response (zooming)
+                event.preventDefault();
+                console.log('prevent gesture', event);
+            });
+            
+            const analyzeTouchMovement = (event) => {
+                if (this.mouseInput.last.x && this.mouseInput.last.y) {
+                    let xOffset = event.pageX - this.mouseInput.last.x;
+                    let yOffset = event.pageY - this.mouseInput.last.y;
+                    this.mouseInput.unprocessedDX += xOffset;
+                    this.mouseInput.unprocessedDY += yOffset;
+                }
+
+                this.mouseInput.last.x = event.pageX;
+                this.mouseInput.last.y = event.pageY;
+            }
+
+            // Function to handle one-finger drag to rotate
+            const handleRotate = (event) => {
+                event.preventDefault();
+
+                if (event.touches.length === 1) {
+                    // Perform rotation based on touch movement
+                    // Add your rotation logic here
+                    // console.log('handleRotate', event);
+                    analyzeTouchMovement(event);
+                }
+            }
+
+            // Function to handle two-finger drag to pan
+            const handlePan = (event) => {
+                event.preventDefault();
+
+                if (event.touches.length === 2) {
+                    // Perform panning based on touch movement
+                    // Add your panning logic here
+                    analyzeTouchMovement(event);
+                }
+            }
+
+            // Function to handle pinch to zoom
+            const handlePinch = (event) => {
+                event.preventDefault();
+
+                if (event.touches.length === 2) {
+                    // Calculate the initial distance between two fingers
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+
+                    // Check if initialDistance is 0, indicating the start of the pinch gesture
+                    if (initialDistance === 0) {
+                        initialDistance = currentDistance;
+                        lastDistance = initialDistance;
+                    } else {
+                        // Calculate the pinch scale based on the change in distance over time
+                        const pinchScale = currentDistance / initialDistance;
+                        this.mouseInput.unprocessedScroll -= 3 * (currentDistance - lastDistance); // opposite direction of pinch
+
+                        // Add your zooming logic here using the pinchScale value
+                        // You can apply scaling or adjust zoom levels based on the pinchScale value
+                        // console.log('handlePinch', event, pinchScale);
+                        lastDistance = currentDistance;
+                    }
+                }
+            }
+
+            // Add multitouch event listeners to the document
+            document.addEventListener('touchstart',  (event) => {
+                // Detect one-finger drag to rotate
+                if (event.touches.length === 1) {
+                    // Start rotating
+                    // You can add any necessary initialization code here
+                    console.log('startRotate', event);
+                    this.mouseInput.isRotateRequested = true;
+                    this.mouseInput.isStrafeRequested = false;
+                    this.mouseInput.last.x = 0;
+                    this.mouseInput.last.y = 0;
+                    this.setFocusTargetCube(event);
+                }
+                // Detect two-finger drag to pan
+                else if (event.touches.length === 2) {
+                    // Start panning
+                    // You can add any necessary initialization code here
+                    initialDistance = 0; // Reset initialDistance for pinch detection
+                    console.log('startPan', event);
+                    this.mouseInput.isRotateRequested = false;
+                    this.mouseInput.isStrafeRequested = true;
+                    this.mouseInput.last.x = 0;
+                    this.mouseInput.last.y = 0;
+                }
+            });
+
+            document.addEventListener('touchmove',  (event) => {
+                event.preventDefault();
+                // Ensure regular zoom level
+                document.documentElement.style.zoom = '1';
+                // Ensure no page offset
+                window.scrollTo(0, 0);
+                
+                // Handle one-finger drag to rotate
+                if (event.touches.length === 1) {
+                    handleRotate(event);
+                }
+                // Handle two-finger drag to pan
+                else if (event.touches.length === 2) {
+                    handlePan(event);
+                // }
+                // // Handle pinch to zoom
+                // else if (event.touches.length === 2) {
+                    handlePinch(event);
+                }
+            });
+
+            document.addEventListener('touchend',  (event) => {
+                // Stop rotating or panning
+                // You can add any necessary cleanup code here
+                initialDistance = 0;
+                console.log('stop rotate and pan');
+                this.mouseInput.isRotateRequested = false;
+            });
+
         }
         reset() {
             this.stopFollowing();

@@ -3,10 +3,13 @@ body {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+    /*margin: 0;*/
+    /*padding: 0;*/
 }
 
 body > * {
     pointer-events: auto;
+    overflow: hidden;
 }
 
 #UIButtons > * {
@@ -59,7 +62,12 @@ body > * {
     color: lightgray;
     transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 3000, 1);
     z-index: 3000;
+    /*overflow: auto;*/
 }
+
+/*.desktopMenuBar > * {*/
+/*    overflow: auto;*/
+/*}*/
 
 .desktopMenuBarMenu {
     position: absolute;
