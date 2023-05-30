@@ -103,7 +103,7 @@ createNameSpace('realityEditor.videoPlayback');
 
             let calendarButton = document.createElement('img');
             calendarButton.id = 'timelineCalendarButton';
-            calendarButton.src = '/addons/vuforia-spatial-remote-operator-addon/calendarButton.svg';
+            calendarButton.src = 'addons/vuforia-spatial-remote-operator-addon/calendarButton.svg';
             leftBox.appendChild(calendarButton);
             this.calendarButton = calendarButton;
 
@@ -113,7 +113,7 @@ createNameSpace('realityEditor.videoPlayback');
 
             let playhead = document.createElement('img');
             playhead.id = 'timelinePlayhead';
-            playhead.src = '/addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
+            playhead.src = 'addons/vuforia-spatial-remote-operator-addon/timelinePlayhead.svg';
             innerScrollBox.appendChild(playhead);
             this.playhead = playhead;
 
@@ -135,16 +135,16 @@ createNameSpace('realityEditor.videoPlayback');
 
             let playButton = document.createElement('img');
             playButton.id = 'timelinePlayButton';
-            playButton.src = '/addons/vuforia-spatial-remote-operator-addon/playButton.svg';
+            playButton.src = 'addons/vuforia-spatial-remote-operator-addon/playButton.svg';
             this.playButton = playButton;
 
             // let seekButton = document.createElement('img');
             // seekButton.id = 'timelineSeekButton';
-            // seekButton.src = '/addons/vuforia-spatial-remote-operator-addon/seekButton.svg';
+            // seekButton.src = 'addons/vuforia-spatial-remote-operator-addon/seekButton.svg';
 
             let speedButton = document.createElement('img');
             speedButton.id = 'timelineSpeedButton';
-            speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_1x.svg';
+            speedButton.src = 'addons/vuforia-spatial-remote-operator-addon/speedButton_1x.svg';
             this.speedButton = speedButton;
 
             [playButton, speedButton].forEach(elt => {
@@ -160,11 +160,11 @@ createNameSpace('realityEditor.videoPlayback');
             let container = document.createElement('div');
             let slider = document.createElement('img');
             slider.id = 'zoomSliderBackground';
-            slider.src = '/addons/vuforia-spatial-remote-operator-addon/zoomSliderBackground.svg';
+            slider.src = 'addons/vuforia-spatial-remote-operator-addon/zoomSliderBackground.svg';
             container.appendChild(slider);
             let handle = document.createElement('img');
             handle.id = 'zoomSliderHandle';
-            handle.src = '/addons/vuforia-spatial-remote-operator-addon/zoomSliderHandle.svg';
+            handle.src = 'addons/vuforia-spatial-remote-operator-addon/zoomSliderHandle.svg';
             container.appendChild(handle);
             let isDown = false;
             handle.addEventListener('pointerdown', _e => {
@@ -587,11 +587,11 @@ createNameSpace('realityEditor.videoPlayback');
             let playheadElement = document.getElementById('timelinePlayhead');
             let playheadDot = document.getElementById('timelinePlayheadDot');
             if (isPlaying) {
-                playButton.src = '/addons/vuforia-spatial-remote-operator-addon/pauseButton.svg';
+                playButton.src = 'addons/vuforia-spatial-remote-operator-addon/pauseButton.svg';
                 playheadElement.classList.add('timelinePlayheadPlaying');
                 playheadDot.classList.add('timelinePlayheadPlaying');
             } else {
-                playButton.src = '/addons/vuforia-spatial-remote-operator-addon/playButton.svg';
+                playButton.src = 'addons/vuforia-spatial-remote-operator-addon/playButton.svg';
                 playheadElement.classList.remove('timelinePlayheadPlaying');
                 playheadDot.classList.remove('timelinePlayheadPlaying');
             }
@@ -601,7 +601,7 @@ createNameSpace('realityEditor.videoPlayback');
                 console.warn('no SVG button for playback speed ' + playbackSpeed);
             }
             let speedButton = document.getElementById('timelineSpeedButton');
-            speedButton.src = '/addons/vuforia-spatial-remote-operator-addon/speedButton_' + playbackSpeed + 'x.svg';
+            speedButton.src = 'addons/vuforia-spatial-remote-operator-addon/speedButton_' + playbackSpeed + 'x.svg';
         }
         getFormattedTime(relativeTimestamp) {
             return new Date(relativeTimestamp).toLocaleTimeString();
