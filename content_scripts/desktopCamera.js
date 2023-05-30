@@ -269,6 +269,61 @@ createNameSpace('realityEditor.device.desktopCamera');
             document.body.appendChild(closestObjectLog);
         }
 
+        const keyboard = new realityEditor.device.KeyboardListener();
+
+        // Setup Save/Load Camera Position System
+        // Allows for quickly jumping between different camera positions
+        let getSavedCameraDataLocalStorageKey = (index) => `savedCameraData${index}-${realityEditor.sceneGraph.getWorldId()}`;
+        
+        const saveCameraData = (index) => {
+            const cameraPosition = [...virtualCamera.position];
+            const cameraDirection = virtualCamera.getCameraDirection();
+            const cameraData = { cameraPosition, cameraDirection };
+            const cameraDataJsonString = JSON.stringify(cameraData);
+            localStorage.setItem(getSavedCameraDataLocalStorageKey(index), cameraDataJsonString);
+        }
+        
+        const loadCameraData = (index) => {
+            const cameraDataJsonString = localStorage.getItem(getSavedCameraDataLocalStorageKey(index));
+            if (!cameraDataJsonString) {
+                return;
+            }
+            try {
+                const cameraData = JSON.parse(cameraDataJsonString);
+                virtualCamera.position = [...cameraData.cameraPosition];
+                virtualCamera.setCameraDirection(cameraData.cameraDirection);
+                return cameraData;
+            } catch (e) {
+                console.warn('Error parsing saved camera position data', e);
+            }
+        }
+        
+        // Only one gets a menu item to avoid crowding, but they all get a shortcut key
+        const saveCameraPositionMenuItem = new realityEditor.gui.MenuItem('Save Camera Position', { shortcutKey: '_1', modifiers: ['ALT'], toggle: false, disabled: false }, () => {
+            saveCameraData(0);
+            realityEditor.gui.getMenuBar().getItemByName('Load Camera Position').enable();
+        });
+        const loadCameraPositionMenuItem = new realityEditor.gui.MenuItem('Load Camera Position', { shortcutKey: '_1', modifiers: ['SHIFT'], toggle: false, disabled: loadCameraData(0) === undefined }, () => {
+            loadCameraData(0);
+        });
+        realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, saveCameraPositionMenuItem);
+        realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, loadCameraPositionMenuItem);
+        [2,3,4,5,6,7,8,9,0].forEach(key => {
+            // Would be nice to deduplicate some of this logic, shared with MenuBar and MenuItem
+            keyboard.onKeyDown((code, activeModifiers) => {
+                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+                const modifierSetsMatch = (modifierSet1, modifierSet2) => {
+                    return modifierSet1.length === modifierSet2.length && modifierSet1.every(value => modifierSet2.includes(value));
+                };
+                if (code === keyboard.keyCodes[`_${key}`] && modifierSetsMatch([keyboard.keyCodes['ALT']], activeModifiers)) {
+                    saveCameraData(key - 1);
+                }
+                if (code === keyboard.keyCodes[`_${key}`] && modifierSetsMatch([keyboard.keyCodes['SHIFT']], activeModifiers)) {
+                    loadCameraData(key - 1);
+                }
+            })
+        });
+
         // Setup Following Menu
         perspectives.forEach(info => {
             const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: true }, () => {

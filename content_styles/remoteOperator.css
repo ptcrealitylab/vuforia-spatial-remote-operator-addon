@@ -144,6 +144,13 @@ body > * {
     text-align: center;
 }
 
+.desktopMenuBarItemShortcutModifier {
+    position: absolute;
+    right: 45px;
+    top: 0;
+    text-align: right;
+}
+
 .mode-prompt {
     position: fixed;
     left: 50vw;
