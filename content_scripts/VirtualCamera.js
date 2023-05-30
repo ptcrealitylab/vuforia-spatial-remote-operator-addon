@@ -26,7 +26,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.initialPosition = [initialPosition[0], initialPosition[1], initialPosition[2]];
                 this.position = [initialPosition[0], initialPosition[1], initialPosition[2]];
             }
-            this.initialDistance = magnitude(this.position);
+            // focusDistance ~ distance between position and targetPosition
+            // needs to be smaller than scrollOperation targetToFocus threshold, b/c otherwise target position is so far away from
+            // camera position that when zooming in, camera position reaches focus point before target position reaches focus point
+            this.focusDistance = 50;
             this.targetPosition = [0, 0, 0];
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
@@ -355,10 +358,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         getCameraDirection() {
             return normalize(sub(this.targetPosition, this.position));
         }
+        // set the target position based on the camera direction
+        setCameraDirection(cameraDirection) {
+            this.targetPosition = add(this.position, cameraDirection); 
+        }
         // if specify a focus direction, the camera will look into that direction. Note that dir is expected to be a unit vector
         // if not, move the camera while keeping its lookAt direction
         focus(pos, dir) {
-            let zoomFactor = 4000;
+            let zoomFactor = 1000;
             this.targetPosition[0] = pos.x;
             this.targetPosition[1] = pos.y;
             this.targetPosition[2] = pos.z;
@@ -394,7 +401,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             // step 2: change the camera lookAt/target position
             const relLookAt = camLookAt
-                .multiplyScalar(this.initialDistance)
+                .multiplyScalar(this.focusDistance)
                 .applyAxisAngle(newXAxis, xRot)
                 .applyAxisAngle(yaxis, yRot)
                 .add(newCamPos);
@@ -517,7 +524,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     {
                         let offset = sub(this.mouseInput.lastWorldPos, this.targetPosition);
                         let targetToFocus = magnitude(offset);
-                        if (targetToFocus <= 300) {
+                        if (targetToFocus <= 75) {
                             this.targetPosition = this.mouseInput.lastWorldPos;
                             this.mouseInput.unprocessedScroll = 0;
                             this.deselectTarget();
