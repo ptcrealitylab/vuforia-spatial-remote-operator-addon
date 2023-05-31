@@ -3,12 +3,24 @@ body {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    /*margin: 0;*/
-    /*padding: 0;*/
+    -webkit-user-select: none;
+    touch-action: none;
+    -webkit-touch-callout: none;
 }
 
 body > * {
     pointer-events: auto;
+    /* overflow:hidden is necessary to prevent unintentional native scrolling/zooming within iOS safari app */
+    /* but we should limit its scope as much as possible instead of adding it here */
+}
+
+/* necessary to prevent native scrolling/zooming within iOS safari app */
+.canvas-node-connections {
+    overflow: hidden;
+}
+
+/* necessary to prevent native scrolling/zooming within iOS safari app */
+.canvas-main-threejs {
     overflow: hidden;
 }
 

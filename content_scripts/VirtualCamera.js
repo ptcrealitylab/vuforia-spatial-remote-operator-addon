@@ -301,17 +301,20 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }.bind(this));
         }
         addMultitouchEvents() {
+            // on mobile browsers, we add touch controls instead of mouse controls, to move the camera. additional
+            // code is added to avoid iOS's pesky safari gestures, such as pull-to-refresh and swiping between tabs
 
+            let isMultitouchGestureActive = false;
+            let didMoveAtAll = false;
             let initialDistance = 0;
             let lastDistance = 0;
 
-            // Add gesturestart event listener to the document
+            // Prevent the default pinch gesture response (zooming) on mobile browsers
             document.addEventListener('gesturestart', (event) => {
-                // Prevent the default pinch gesture response (zooming)
                 event.preventDefault();
-                console.log('prevent gesture', event);
             });
-            
+
+            // convert touch movement into rotation or pan amount (unprocessedDX and unprocessedDY)
             const analyzeTouchMovement = (event) => {
                 if (this.mouseInput.last.x && this.mouseInput.last.y) {
                     let xOffset = event.pageX - this.mouseInput.last.x;
@@ -324,51 +327,37 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.mouseInput.last.y = event.pageY;
             }
 
-            // Function to handle one-finger drag to rotate
+            // Handle one-finger drag to rotate
             const handleRotate = (event) => {
                 event.preventDefault();
-
                 if (event.touches.length === 1) {
-                    // Perform rotation based on touch movement
-                    // Add your rotation logic here
-                    // console.log('handleRotate', event);
-                    analyzeTouchMovement(event);
+                    analyzeTouchMovement(event); // rotates because isRotateRequested is true
                 }
             }
 
-            // Function to handle two-finger drag to pan
+            // Handle two-finger drag to pan
             const handlePan = (event) => {
                 event.preventDefault();
-
                 if (event.touches.length === 2) {
-                    // Perform panning based on touch movement
-                    // Add your panning logic here
-                    analyzeTouchMovement(event);
+                    analyzeTouchMovement(event); // pans because isStrafeRequested is true
                 }
             }
 
-            // Function to handle pinch to zoom
+            // Handle pinch to zoom
             const handlePinch = (event) => {
                 event.preventDefault();
-
                 if (event.touches.length === 2) {
-                    // Calculate the initial distance between two fingers
                     const touch1 = event.touches[0];
                     const touch2 = event.touches[1];
                     const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
 
-                    // Check if initialDistance is 0, indicating the start of the pinch gesture
-                    if (initialDistance === 0) {
+                    if (initialDistance === 0) { // indicates the start of the pinch gesture
                         initialDistance = currentDistance;
                         lastDistance = initialDistance;
                     } else {
-                        // Calculate the pinch scale based on the change in distance over time
-                        const pinchScale = currentDistance / initialDistance;
-                        this.mouseInput.unprocessedScroll -= 3 * (currentDistance - lastDistance); // opposite direction of pinch
-
-                        // Add your zooming logic here using the pinchScale value
-                        // You can apply scaling or adjust zoom levels based on the pinchScale value
-                        // console.log('handlePinch', event, pinchScale);
+                        // Calculate the pinch scale based on the change in distance over time.
+                        // 3 is empirically determined to feel natural. -= so bigger distance leads to closer zoom
+                        this.mouseInput.unprocessedScroll -= 3 * (currentDistance - lastDistance); 
                         lastDistance = currentDistance;
                     }
                 }
@@ -376,59 +365,58 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             // Add multitouch event listeners to the document
             document.addEventListener('touchstart',  (event) => {
-                // Detect one-finger drag to rotate
+                if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
+
+                isMultitouchGestureActive = true;
+                didMoveAtAll = false;
+
                 if (event.touches.length === 1) {
-                    // Start rotating
-                    // You can add any necessary initialization code here
-                    console.log('startRotate', event);
-                    this.mouseInput.isRotateRequested = true;
+                    this.mouseInput.isRotateRequested = true; // rotate
                     this.mouseInput.isStrafeRequested = false;
                     this.mouseInput.last.x = 0;
                     this.mouseInput.last.y = 0;
-                    this.setFocusTargetCube(event);
-                }
-                // Detect two-finger drag to pan
-                else if (event.touches.length === 2) {
-                    // Start panning
-                    // You can add any necessary initialization code here
-                    initialDistance = 0; // Reset initialDistance for pinch detection
-                    console.log('startPan', event);
+                    // this.setFocusTargetCube(event);
+
+                } else if (event.touches.length === 2) {
+                    initialDistance = 0; // Reset pinch distance
                     this.mouseInput.isRotateRequested = false;
-                    this.mouseInput.isStrafeRequested = true;
+                    this.mouseInput.isStrafeRequested = true; // pan
                     this.mouseInput.last.x = 0;
                     this.mouseInput.last.y = 0;
                 }
             });
-
             document.addEventListener('touchmove',  (event) => {
+                if (!isMultitouchGestureActive) return;
                 event.preventDefault();
+
                 // Ensure regular zoom level
                 document.documentElement.style.zoom = '1';
                 // Ensure no page offset
                 window.scrollTo(0, 0);
-                
-                // Handle one-finger drag to rotate
+
                 if (event.touches.length === 1) {
                     handleRotate(event);
-                }
-                // Handle two-finger drag to pan
-                else if (event.touches.length === 2) {
+
+                } else if (event.touches.length === 2) {
+                    // pans based on overall translation of both fingers
                     handlePan(event);
-                // }
-                // // Handle pinch to zoom
-                // else if (event.touches.length === 2) {
+                    // zooms based on changing distance between fingers
                     handlePinch(event);
                 }
-            });
 
+                didMoveAtAll = true;
+            });
             document.addEventListener('touchend',  (event) => {
-                // Stop rotating or panning
-                // You can add any necessary cleanup code here
                 initialDistance = 0;
-                console.log('stop rotate and pan');
                 this.mouseInput.isRotateRequested = false;
-            });
+                this.mouseInput.isStrafeRequested = false; // do we add this, or only if zero touches left?
+                isMultitouchGestureActive = false;
 
+                // tapping without dragging moves the focus cube to the tapped location
+                if (!didMoveAtAll) {
+                    this.setFocusTargetCube(event);
+                }
+            });
         }
         reset() {
             this.stopFollowing();
