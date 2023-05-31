@@ -85,31 +85,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         if (!env) {
             env = realityEditor.device.environment.variables; // ensure that this alias is set correctly if loaded too fast
         }
-        
-        if (!realityEditor.device.environment.isDesktop()) {
-            // document.body.style.overscrollBehaviorY = 'contain';
-            // document.body.style.overscrollBehavior = 'none';
-            // document.body.style.overflow = 'hidden';
-            // body {
-            //     overscroll-behavior-y: contain;
-            // }
-
-            // // Disable "pull to refresh" on touchstart event
-            // document.addEventListener('touchstart', function (event) {
-            //     const isScrollable = event.target.scrollHeight > event.target.clientHeight;
-            //     if (!isScrollable) {
-            //         event.preventDefault();
-            //     }
-            // });
-            //
-            // // Disable "pull to refresh" on touchmove event
-            // document.addEventListener('touchmove', function (event) {
-            //     // Check if the touch event is targeting the body element or an element inside it
-            //     if (event.target === document.body || event.target.closest('body')) {
-            //         event.preventDefault();
-            //     }
-            // });
-        }
 
         // Set the correct environment variables so that this add-on changes the app to run in desktop mode
         env.requiresMouseEvents = realityEditor.device.environment.isDesktop(); // this fixes touch events to become mouse events
@@ -444,7 +419,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         
         // mark that we've manipulated the webkit reference, so that we
         // can still detect isWithinToolboxApp vs running in mobile browser
-        window.webkitProxy = true;
+        window.webkitWasTamperedWith = true;
 
         // set up object structure if it doesn't exist yet
         window.webkit = {
