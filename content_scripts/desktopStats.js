@@ -65,7 +65,9 @@ createNameSpace('realityEditor.device.desktopStats');
             return;
         }
 
-        stats.update();
+        if (isVisible) {
+            stats.update();
+        }
         requestAnimationFrame(update);
 
         if (imageStartTime !== null) {

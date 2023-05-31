@@ -38,7 +38,8 @@ createNameSpace('realityEditor.gui');
         ToggleAnalyticsSettings: 'Toggle Analytics Settings',
         ToggleHumanPoses: 'Human Poses',
         DarkMode: 'Dark Mode',
-        CutoutViewFrustums: 'Cut Out 3D Videos'
+        CutoutViewFrustums: 'Cut Out 3D Videos',
+        ShowFPS: 'Show FPS'
     });
     exports.ITEM = ITEM;
 
@@ -134,6 +135,15 @@ createNameSpace('realityEditor.gui');
             realityEditor.avatar.toggleDebugMode(checked);
         });
         menuBar.addItemToMenu(MENU.Develop, debugAvatars);
+
+        const showFPS = new MenuItem(ITEM.ShowFPS, { toggle: true }, (checked) => {
+            if (checked) {
+                realityEditor.device.desktopStats.show();
+            } else {
+                realityEditor.device.desktopStats.hide();
+            }
+        });
+        menuBar.addItemToMenu(MENU.Develop, showFPS);
 
         const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (_checked) => {
             // console.info(objects);
