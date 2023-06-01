@@ -64,7 +64,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             return;
         }
 
-        if (!realityEditor.device.environment.isDesktop()) { return; }
+        if (realityEditor.device.environment.isARMode()) { return; }
 
         const renderingFlagName = 'loadingWorldMesh';
         realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
@@ -158,6 +158,12 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     gltf.traverse(obj => {
                         if (obj.type === 'Mesh' && obj.material) {
                             obj.oldMaterial = greyMaterial;
+
+                            // to improve performance on mobile devices, switch to simpler material (has very large effect)
+                            if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
+                                obj.material.dispose(); // free resources from the advanced material
+                                obj.material = obj.originalMaterial;
+                            }
                         }
                     });
 
@@ -228,13 +234,18 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                         });
 
                         if (!PROXY) {
-                            videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
-                            videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                            videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
-                            videoPlayback.load();
-                            window.videoPlayback = videoPlayback;
+                            const createVideoPlayback = () => {
+                                videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
+                                videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                                videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                                videoPlayback.load();
+                                // window.videoPlayback = videoPlayback;
+                            }
 
                             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                                if (!videoPlayback) {
+                                    createVideoPlayback(); // only create it if the user decides to use it
+                                }
                                 videoPlayback.toggleVisibility(toggled);
                             });
                         }

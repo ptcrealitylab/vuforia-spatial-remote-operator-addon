@@ -152,7 +152,32 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 2000);
             }
         }
+        // when in normal mode, right click to add a green focus cube to the scene
+        setFocusTargetCube(event) {
+            if (this.isFlying) return;
+            // conform to spatial cursor mousemove event pageX and pageY
+            if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
+                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
+                if (worldIntersectPoint === undefined) return;
+                // record pointerdown world intersect point, for off-center camera rotation
+                this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
+                if (this.focusTargetCube === null) {
+                    this.focusTargetCube = new THREE.Mesh(
+                        new THREE.BoxGeometry(20, 20, 20),
+                        new THREE.MeshBasicMaterial({color: 0x00ffff})
+                    );
+                    this.focusTargetCube.position.copy(worldIntersectPoint);
+                    realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
+                } else {
+                    this.focusTargetCube.position.copy(worldIntersectPoint);
+                }
+            }
+        };
         addEventListeners() {
+            if (!realityEditor.device.environment.variables.requiresMouseEvents) {
+                this.addMultitouchEvents();
+                return;
+            }
 
             let scrollTimeout = null;
             window.addEventListener('wheel', function (event) {
@@ -187,7 +212,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         this.mouseInput.isStrafeRequested = true;
                         this.triggerPanCallbacks(true);
                     } else if (event.button === 2) {
-                        setFocusTargetCube(event);
+                        this.setFocusTargetCube(event);
                         this.mouseInput.isRightClick = true;
                         this.mouseInput.isRotateRequested = true;
                         this.triggerRotateCallbacks(true);
@@ -202,28 +227,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     // follow a tool if you click it with shift held down
                 }
             }.bind(this));
-
-            // when in normal mode, right click to add a green focus cube to the scene
-            const setFocusTargetCube = (event) => {
-                if (this.isFlying) return;
-                // conform to spatial cursor mousemove event pageX and pageY
-                if (event.button === 2) {
-                    let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
-                    if (worldIntersectPoint === undefined) return;
-                    // record pointerdown world intersect point, for off-center camera rotation
-                    this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
-                    if (this.focusTargetCube === null) {
-                        this.focusTargetCube = new THREE.Mesh(
-                            new THREE.BoxGeometry(20, 20, 20),
-                            new THREE.MeshBasicMaterial({color: 0x00ffff})
-                        );
-                        this.focusTargetCube.position.copy(worldIntersectPoint);
-                        realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
-                    } else {
-                        this.focusTargetCube.position.copy(worldIntersectPoint);
-                    }
-                }
-            };
 
             const pointerReset = () => {
                 this.mouseInput.isPointerDown = false;
@@ -299,6 +302,141 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     }
                 }
             }.bind(this));
+        }
+        addMultitouchEvents() {
+            // on mobile browsers, we add touch controls instead of mouse controls, to move the camera. additional
+            // code is added to avoid iOS's pesky safari gestures, such as pull-to-refresh and swiping between tabs
+
+            let isMultitouchGestureActive = false;
+            let didMoveAtAll = false;
+            let initialPosition = null;
+            let initialDistance = 0;
+            let lastDistance = 0;
+
+            // Prevent the default pinch gesture response (zooming) on mobile browsers
+            document.addEventListener('gesturestart', (event) => {
+                event.preventDefault();
+            });
+
+            // convert touch movement into rotation or pan amount (unprocessedDX and unprocessedDY)
+            const analyzeTouchMovement = (event) => {
+                if (this.mouseInput.last.x && this.mouseInput.last.y) {
+                    let xOffset = event.pageX - this.mouseInput.last.x;
+                    let yOffset = event.pageY - this.mouseInput.last.y;
+                    this.mouseInput.unprocessedDX += xOffset;
+                    this.mouseInput.unprocessedDY += yOffset;
+                }
+
+                this.mouseInput.last.x = event.pageX;
+                this.mouseInput.last.y = event.pageY;
+            }
+
+            // Handle one-finger drag to rotate
+            const handleRotate = (event) => {
+                event.preventDefault();
+                if (event.touches.length === 1) {
+                    analyzeTouchMovement(event); // rotates because isRotateRequested is true
+
+                    if (!initialPosition) {
+                        initialPosition = { x: event.pageX, y: event.pageY };
+                    } else {
+                        const distance = Math.hypot(event.pageX - initialPosition.x, event.pageY - initialPosition.y);
+                        if (distance > 10) {
+                            didMoveAtAll = true; // only add focus cube if touch moved less than this threshold
+                        }
+                    }
+                }
+            }
+
+            // Handle two-finger drag to pan
+            const handlePan = (event) => {
+                event.preventDefault();
+                if (event.touches.length === 2) {
+                    analyzeTouchMovement(event); // pans because isStrafeRequested is true
+
+                    // pan faster on touchscreens by scaling up proportional to distance to focus cube
+                    const focusCubePosition = [this.focusTargetCube.position.x, this.focusTargetCube.position.y, this.focusTargetCube.position.z];
+                    const distanceToFocusCube = magnitude(add(this.position, negate(focusCubePosition)));
+                    const distancePanFactor = 1.8 + Math.max(0.2, distanceToFocusCube / 5000); // speed when 1 meter units away, scales up w/ distance
+                    this.mouseInput.unprocessedDX *= distancePanFactor;
+                    this.mouseInput.unprocessedDY *= distancePanFactor;
+                }
+            }
+
+            // Handle pinch to zoom
+            const handlePinch = (event) => {
+                event.preventDefault();
+                if (event.touches.length === 2) {
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+
+                    if (initialDistance === 0) { // indicates the start of the pinch gesture
+                        initialDistance = currentDistance;
+                        lastDistance = initialDistance;
+                    } else {
+                        // Calculate the pinch scale based on the change in distance over time.
+                        // 5 is empirically determined to feel natural. -= so bigger distance leads to closer zoom
+                        this.mouseInput.unprocessedScroll -= 5 * (currentDistance - lastDistance);
+                        lastDistance = currentDistance;
+                    }
+                }
+            }
+
+            // Add multitouch event listeners to the document
+            document.addEventListener('touchstart',  (event) => {
+                if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
+
+                isMultitouchGestureActive = true;
+
+                if (event.touches.length === 1) {
+                    initialPosition = null;
+                    didMoveAtAll = false;
+                    this.mouseInput.isRotateRequested = true; // rotate
+                    this.mouseInput.isStrafeRequested = false;
+                    this.mouseInput.last.x = 0;
+                    this.mouseInput.last.y = 0;
+                    // this.setFocusTargetCube(event);
+
+                } else if (event.touches.length === 2) {
+                    initialDistance = 0; // Reset pinch distance
+                    this.mouseInput.isRotateRequested = false;
+                    this.mouseInput.isStrafeRequested = true; // pan
+                    this.mouseInput.last.x = 0;
+                    this.mouseInput.last.y = 0;
+                }
+            });
+            document.addEventListener('touchmove',  (event) => {
+                if (!isMultitouchGestureActive) return;
+                event.preventDefault();
+
+                // Ensure regular zoom level
+                document.documentElement.style.zoom = '1';
+                // Ensure no page offset
+                window.scrollTo(0, 0);
+
+                if (event.touches.length === 1) {
+                    handleRotate(event);
+
+                } else if (event.touches.length === 2) {
+                    // pans based on overall translation of both fingers
+                    handlePan(event);
+                    // zooms based on changing distance between fingers
+                    handlePinch(event);
+                    didMoveAtAll = true;
+                }
+            });
+            document.addEventListener('touchend',  (event) => {
+                initialDistance = 0;
+                this.mouseInput.isRotateRequested = false;
+                this.mouseInput.isStrafeRequested = false; // do we add this, or only if zero touches left?
+                isMultitouchGestureActive = false;
+
+                // tapping without dragging moves the focus cube to the tapped location
+                if (!didMoveAtAll) {
+                    this.setFocusTargetCube(event);
+                }
+            });
         }
         reset() {
             this.stopFollowing();
