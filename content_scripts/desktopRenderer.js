@@ -161,6 +161,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
                             // to improve performance on mobile devices, switch to simpler material (has very large effect)
                             if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
+                                obj.material.dispose(); // free resources from the advanced material
                                 obj.material = obj.originalMaterial;
                             }
                         }

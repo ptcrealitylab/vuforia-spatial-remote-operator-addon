@@ -309,6 +309,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             let isMultitouchGestureActive = false;
             let didMoveAtAll = false;
+            let initialPosition = null;
             let initialDistance = 0;
             let lastDistance = 0;
 
@@ -335,6 +336,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 event.preventDefault();
                 if (event.touches.length === 1) {
                     analyzeTouchMovement(event); // rotates because isRotateRequested is true
+
+                    if (!initialPosition) {
+                        initialPosition = { x: event.pageX, y: event.pageY };
+                    } else {
+                        const distance = Math.hypot(event.pageX - initialPosition.x, event.pageY - initialPosition.y);
+                        if (distance > 10) {
+                            didMoveAtAll = true; // only add focus cube if touch moved less than this threshold
+                        }
+                    }
                 }
             }
 
@@ -343,6 +353,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 event.preventDefault();
                 if (event.touches.length === 2) {
                     analyzeTouchMovement(event); // pans because isStrafeRequested is true
+
+                    // pan faster on touchscreens by scaling up proportional to distance to focus cube
+                    const focusCubePosition = [this.focusTargetCube.position.x, this.focusTargetCube.position.y, this.focusTargetCube.position.z];
+                    const distanceToFocusCube = magnitude(add(this.position, negate(focusCubePosition)));
+                    const distancePanFactor = 1.8 + Math.max(0.2, distanceToFocusCube / 5000); // speed when 1 meter units away, scales up w/ distance
+                    this.mouseInput.unprocessedDX *= distancePanFactor;
+                    this.mouseInput.unprocessedDY *= distancePanFactor;
                 }
             }
 
@@ -359,8 +376,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         lastDistance = initialDistance;
                     } else {
                         // Calculate the pinch scale based on the change in distance over time.
-                        // 3 is empirically determined to feel natural. -= so bigger distance leads to closer zoom
-                        this.mouseInput.unprocessedScroll -= 3 * (currentDistance - lastDistance); 
+                        // 5 is empirically determined to feel natural. -= so bigger distance leads to closer zoom
+                        this.mouseInput.unprocessedScroll -= 5 * (currentDistance - lastDistance);
                         lastDistance = currentDistance;
                     }
                 }
@@ -371,9 +388,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
 
                 isMultitouchGestureActive = true;
-                didMoveAtAll = false;
 
                 if (event.touches.length === 1) {
+                    initialPosition = null;
+                    didMoveAtAll = false;
                     this.mouseInput.isRotateRequested = true; // rotate
                     this.mouseInput.isStrafeRequested = false;
                     this.mouseInput.last.x = 0;
@@ -405,9 +423,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     handlePan(event);
                     // zooms based on changing distance between fingers
                     handlePinch(event);
+                    didMoveAtAll = true;
                 }
-
-                didMoveAtAll = true;
             });
             document.addEventListener('touchend',  (event) => {
                 initialDistance = 0;
