@@ -29,7 +29,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // focusDistance ~ distance between position and targetPosition
             // needs to be smaller than scrollOperation targetToFocus threshold, b/c otherwise target position is so far away from
             // camera position that when zooming in, camera position reaches focus point before target position reaches focus point
-            this.focusDistance = 50;
+            this.focusDistance = 150;
             this.targetPosition = [0, 0, 0];
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
@@ -181,7 +181,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             let scrollTimeout = null;
             window.addEventListener('wheel', function (event) {
-                this.mouseInput.unprocessedScroll += event.deltaY;
+                // restrict deltaY between [-100, 100], to prevent mouse wheel deltaY so large that camera cannot focus on focus point when zooming in
+                let wheelAmt = Math.max(-100, Math.min(100, event.deltaY));
+                this.mouseInput.unprocessedScroll += wheelAmt;
                 if (this.followingState && this.followingState.currentlyRendering2DVideo) {
                     this.followingState.currentlyRendering2DVideo = false;
                     realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
@@ -662,7 +664,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     {
                         let offset = sub(this.mouseInput.lastWorldPos, this.targetPosition);
                         let targetToFocus = magnitude(offset);
-                        if (targetToFocus <= 75) {
+                        if (targetToFocus <= 180) {
                             this.targetPosition = this.mouseInput.lastWorldPos;
                             this.mouseInput.unprocessedScroll = 0;
                             this.deselectTarget();
