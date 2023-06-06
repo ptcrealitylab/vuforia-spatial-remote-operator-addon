@@ -63,7 +63,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             return;
         }
 
-        if (!realityEditor.device.environment.isDesktop()) { return; }
+        if (realityEditor.device.environment.isARMode()) { return; }
 
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
             setTimeout(function() {
