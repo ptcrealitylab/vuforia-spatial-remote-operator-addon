@@ -113,7 +113,7 @@ import {ShaderMode} from './Shaders.js';
 
             // try loading area target GLB file into the threejs scene
             isGlbLoaded = true;
-            let gltfPath =  realityEditor.network.getURL("localhost", realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
+            let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
 
             function checkExist() {
                 fetch(gltfPath).then(res => {
