@@ -578,7 +578,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
             let verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
 
-            let distancePanFactor = Math.max(1, this.distanceToTarget / 1000); // speed when 1 meter units away, scales up w/ distance
+            let distanceToFocus = magnitude(sub(this.position, this.mouseInput.lastWorldPos));
+            let distancePanFactor = Math.max(2, distanceToFocus / 1000); // speed when 1 meter units away, scales up w/ distance
 
             if (this.idleOrbitting) {
                 this.mouseInput.unprocessedDX = 0.15;
