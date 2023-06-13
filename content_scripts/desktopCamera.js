@@ -513,19 +513,19 @@ createNameSpace('realityEditor.device.desktopCamera');
         // console.log(isExpanded);
     }
 
-    // messageButtonIcon.src = '/addons/spatialCommunication/bw-message.svg';
+    // messageButtonIcon.src = 'addons/spatialCommunication/bw-message.svg';
 
     function panToggled() {
         if (cameraTargetIcon) {
             cameraTargetIcon.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
         }
-        updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
+        updateInteractionCursor(cameraTargetIcon.visible, 'addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
     }
     function rotateToggled() {
         if (cameraTargetIcon) {
             cameraTargetIcon.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
         }
-        updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
+        updateInteractionCursor(cameraTargetIcon.visible, 'addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
     function scaleToggled() {
         if (cameraTargetIcon) {
@@ -534,7 +534,7 @@ createNameSpace('realityEditor.device.desktopCamera');
         // if (!cameraTargetIcon.visible) {
         //     updateInteractionCursor(false);
         // }
-        updateInteractionCursor(cameraTargetIcon.visible, '/addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
+        updateInteractionCursor(cameraTargetIcon.visible, 'addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
     }
     function updateInteractionCursor(visible, imageSrc) {
         interactionCursor.style.display = visible ? 'inline' : 'none';
