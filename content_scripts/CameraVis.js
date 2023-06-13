@@ -1436,9 +1436,12 @@ void main() {
 
         advanceShaderMode() {
             this.currentShaderModeIndex = (this.currentShaderModeIndex + 1) % enabledShaderModes.length;
+            this.setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
+        }
 
+        setShaderMode(shaderMode) {
             for (let camera of Object.values(this.cameras)) {
-                camera.setShaderMode(enabledShaderModes[this.currentShaderModeIndex]);
+                camera.setShaderMode(shaderMode);
             }
         }
     };
