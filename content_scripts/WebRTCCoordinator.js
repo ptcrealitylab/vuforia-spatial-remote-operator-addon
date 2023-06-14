@@ -7,7 +7,6 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
 
-    const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
     class WebRTCCoordinator {
@@ -29,13 +28,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 this.ws.addEventListener('message', this.onWsMessage);
             } else {
                 this.ws.on('message', this.onToolsocketMessage);
-                this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify({
-                        command: 'joinNetwork',
-                        src: this.consumerId,
-                        role: 'consumer',
-                    })),
-                });
+                this.ws.message('unused', {id: 'signalling', message: {
+                    command: 'joinNetwork',
+                    src: this.consumerId,
+                    role: 'consumer',
+                }});
             }
 
             navigator.mediaDevices.getUserMedia({
@@ -140,11 +137,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.webrtcConnections[msg.src].onSignallingMessage(msg);
         }
 
-        onToolsocketMessage(route, body, cbObj, bin) {
+        onToolsocketMessage(route, body) {
             if (body.id !== 'signalling') {
                 return;
             }
-            this.onWsMessage({data: decoder.decode(bin.data)});
+            this.onWsMessage({data: JSON.stringify(body.message)});
         }
 
         initConnection(otherId) {
@@ -348,9 +345,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
         sendSignallingMessage(message) {
             if (PROXY) {
-                this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify(message)),
-                });
+                this.ws.message('unused', {id: 'signalling', message});
             } else {
                 this.ws.send(JSON.stringify(message));
             }
