@@ -619,15 +619,28 @@ createNameSpace('realityEditor.device.desktopCamera');
 
     let virtualCameraEnabled = false;
 
+    let cameraTransitionPosition_AR = null;
+    let cameraTransitionTarget_AR = null;
+    let cameraTransitionPosition_VR = null;
+    let cameraTransitionTarget_VR = null;
+
     exports.enable = (position, targetPosition) => {
+        if (virtualCameraEnabled) return; // don't do this multiple times per transition
         virtualCameraEnabled = true;
         if (!virtualCamera) return;
         if (position) {
             virtualCamera.position = [...position];
+            cameraTransitionPosition_AR = [...position];
         }
         if (targetPosition) {
             virtualCamera.targetPosition = [...targetPosition];
+            cameraTransitionTarget_AR = [...targetPosition];
         }
+        
+        // calculate the end position of the transition, and assign to the _VR variables
+        cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
+        cameraTransitionTarget_VR = [...targetPosition]; // where you're looking doesn't change
+
         if (virtualCamera.focusTargetCube) {
             virtualCamera.focusTargetCube.position.copy({
                 x: targetPosition[0],
@@ -636,17 +649,41 @@ createNameSpace('realityEditor.device.desktopCamera');
             });
             virtualCamera.mouseInput.lastWorldPos = [...targetPosition];
         }
-        setTimeout(() => {
-            virtualCamera.zoomOutTransition = true;
-            virtualCamera.zoomOutSpeedPercent = 0;
-            setTimeout(() => {
-                virtualCamera.zoomOutTransition = false;
-            }, 500);
-        }, 150);
+
+        virtualCamera.zoomOutTransition = true;
+        
+        // setTimeout(() => {
+        //     virtualCamera.zoomOutTransition = true;
+        //     virtualCamera.zoomOutSpeedPercent = 0;
+        //     setTimeout(() => {
+        //         virtualCamera.zoomOutTransition = false;
+        //     }, 500);
+        // }, 150);
+    }
+    exports.setTransitionPercentage = (percent) => {
+        if (!cameraTransitionPosition_AR || !cameraTransitionTarget_AR ||
+            !cameraTransitionPosition_VR || !cameraTransitionTarget_VR) return;
+        
+        let position = [
+            (1.0 - percent) * cameraTransitionPosition_AR[0] + percent * cameraTransitionPosition_VR[0],
+            (1.0 - percent) * cameraTransitionPosition_AR[1] + percent * cameraTransitionPosition_VR[1],
+            (1.0 - percent) * cameraTransitionPosition_AR[2] + percent * cameraTransitionPosition_VR[2]
+        ];
+        
+        virtualCamera.position = position;
+        
+        if (percent > 0.99) {
+            virtualCamera.zoomOutTransition = false;
+        }
     }
 
     exports.disable = () => {
         virtualCameraEnabled = false;
+        virtualCamera.zoomOutTransition = false;
+        cameraTransitionPosition_AR = null;
+        cameraTransitionTarget_AR = null;
+        cameraTransitionPosition_VR = null;
+        cameraTransitionTarget_VR = null;
     }
 
     exports.update = update;

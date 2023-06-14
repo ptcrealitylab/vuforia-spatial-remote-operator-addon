@@ -725,6 +725,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
+            /*
             if (this.zoomOutTransition) {
                 this.zoomOutSpeedPercent = Math.min(1.0, Math.max(0.0, this.zoomOutSpeedPercent + 0.03));
                 let zoomVector = scalarMultiply(forwardVector, (window.zoomOutSpeed * this.zoomOutSpeedPercent));
@@ -742,6 +743,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // // * 0.7 to prevent the camera from getting too close to the camera target point
                 // this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
             }
+            */
 
             // this is where the velocity gets added to the position...
             // anything that modifies the camera movement should be above this line in the update function
@@ -785,6 +787,31 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.afterNFrames = this.afterNFrames.filter(entry => entry.n > 0);
             callbacksToTrigger.forEach(cb => cb());
         }
+
+        getEndPosition(startPosition, startTargetPosition, xDist = 0, yDist = 0, zDist = 1000) {
+            // let currentLookAt = lookAt(startPosition[0], startPosition[1], startPosition[2], startTargetPosition[0], startTargetPosition[1], startTargetPosition[2], 0, 1, 0);
+            // let mCamera = currentLookAt; // translation is based on what direction you're facing,
+            
+            let ev = startPosition;
+            let cv = startTargetPosition;
+            let uv = [0, 1, 0];
+            
+            // let vCamX = normalize([mCamera[0], mCamera[4], mCamera[8]]);
+            // let vCamY = normalize([mCamera[1], mCamera[5], mCamera[9]]);
+            // let _vCamZ = normalize([mCamera[2], mCamera[6], mCamera[10]]);
+
+            let forwardVector = normalize(add(ev, negate(cv))); // vector from the camera to the center point
+            let horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
+            let verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
+
+            let endPosition = [...startPosition];
+            endPosition = add(endPosition, scalarMultiply(horizontalVector, xDist));
+            endPosition = add(endPosition, scalarMultiply(verticalVector, yDist));
+            endPosition = add(startPosition, scalarMultiply(forwardVector, zDist));
+            
+            return endPosition;
+        }
+
 
         isRendering2DVideo() {
             return (this.followingState.active && this.followingState.currentlyRendering2DVideo);
