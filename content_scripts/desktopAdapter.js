@@ -657,6 +657,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      * Also smoothly updates camera postion when paused
      */
     function update() {
+        if (realityEditor.device.environment.isARMode()) { return; }
 
         // send the visible object matrices to connected reality zones, if any // TODO: there actually only needs to be one, not a set...
         if (realityEditor.network.realtime.getSocketIPsForSet('realityZones').length > 0) {
@@ -983,6 +984,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     exports.resetIdleTimeout = resetIdleTimeout;
 
     exports.getPrimaryWorldId = getPrimaryWorldId;
+    
+    exports.update = update; // begin the update loop
 
     // this happens only for desktop editors
     realityEditor.addons.addCallback('init', initService);

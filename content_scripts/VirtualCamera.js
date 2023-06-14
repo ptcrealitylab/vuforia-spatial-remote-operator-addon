@@ -10,6 +10,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     const DISPLAY_PERSPECTIVE_CUBES = false;
     const FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER = 1000; // what point to focus on when we rotate/pan away from following
+    window.zoomOutSpeed = 400;
+    window.moveUpSpeed = 100;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, floorOffset) {
@@ -60,6 +62,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 unprocessedDX: 0,
                 unprocessedDY: 0,
             };
+            this.zoomOutTransition = false;
+            this.zoomOutSpeedPercent = 0;
             this.keyboard = new realityEditor.device.KeyboardListener();
             this.followerName = 'cameraFollower' + cameraNode.id;
             this.followingState = {
@@ -721,7 +725,27 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            if (!this.mouseInput.isRotateRequested || this.isFlying) {
+            if (this.zoomOutTransition) {
+                this.zoomOutSpeedPercent = Math.min(1.0, Math.max(0.0, this.zoomOutSpeedPercent + 0.03));
+                let zoomVector = scalarMultiply(forwardVector, (window.zoomOutSpeed * this.zoomOutSpeedPercent));
+                this.velocity = add(this.velocity, zoomVector);
+                let moveUpVector = scalarMultiply(verticalVector, (window.moveUpSpeed * this.zoomOutSpeedPercent));
+                this.velocity = add(this.velocity, moveUpVector);
+
+                // let distanceMultiplier = Math.max(1, baseLog);
+                // let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                // if distanceToTarget <= 200, slow down zooming speed quadratically to prevent from zooming too close / beyond the target
+                // if (isZoomingIn && this.distanceToTarget <= 200) {
+                //     let scrollFactor = Math.pow(this.distanceToTarget / 200, 2);
+                //     vector = scalarMultiply(vector, scrollFactor);
+                // }
+                // // * 0.7 to prevent the camera from getting too close to the camera target point
+                // this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
+            }
+
+            // this is where the velocity gets added to the position...
+            // anything that modifies the camera movement should be above this line in the update function
+            if (!this.mouseInput.isRotateRequested || this.isFlying || this.zoomOutTransition) {
                 let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
                 let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
                 // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
