@@ -138,6 +138,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
+        virtualCameraEnabled = true;
 
         // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
@@ -577,7 +578,7 @@ createNameSpace('realityEditor.device.desktopCamera');
      * update even if it's in 2d (locked follow) mode
      */
     function update(forceCameraUpdate) {
-        if (virtualCamera) {
+        if (virtualCamera && virtualCameraEnabled) {
             try {
                 if (forceCameraUpdate || !virtualCamera.isRendering2DVideo()) {
                     virtualCamera.update();
@@ -614,6 +615,38 @@ createNameSpace('realityEditor.device.desktopCamera');
                 }
             }
         }
+    }
+
+    let virtualCameraEnabled = false;
+
+    exports.enable = (position, targetPosition) => {
+        virtualCameraEnabled = true;
+        if (!virtualCamera) return;
+        if (position) {
+            virtualCamera.position = [...position];
+        }
+        if (targetPosition) {
+            virtualCamera.targetPosition = [...targetPosition];
+        }
+        if (virtualCamera.focusTargetCube) {
+            virtualCamera.focusTargetCube.position.copy({
+                x: targetPosition[0],
+                y: targetPosition[1],
+                z: targetPosition[2]
+            });
+            virtualCamera.mouseInput.lastWorldPos = [...targetPosition];
+        }
+        setTimeout(() => {
+            virtualCamera.zoomOutTransition = true;
+            virtualCamera.zoomOutSpeedPercent = 0;
+            setTimeout(() => {
+                virtualCamera.zoomOutTransition = false;
+            }, 500);
+        }, 150);
+    }
+
+    exports.disable = () => {
+        virtualCameraEnabled = false;
     }
 
     exports.update = update;

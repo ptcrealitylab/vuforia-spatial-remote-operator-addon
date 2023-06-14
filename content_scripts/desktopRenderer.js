@@ -54,6 +54,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     let cameraVisSceneNodes = [];
 
     let cameraVisFrustums = [];
+    
+    let didInit = false;
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -65,6 +67,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         }
 
         if (realityEditor.device.environment.isARMode()) { return; }
+        if (didInit) return;
+
+        didInit = true;
 
         const renderingFlagName = 'loadingWorldMesh';
         realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
@@ -73,7 +78,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
             if (isGlbLoaded) { return; } // only do this for the first world object detected
 
-            let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId();
+            // let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId();
+            let primaryWorldId = realityEditor.network.discovery.getPrimaryWorldInfo() ?
+                realityEditor.network.discovery.getPrimaryWorldInfo().id : null;
             let isConnectedViaIp = window.location.hostname.split('').every(char => '0123456789.'.includes(char)); // Already know hostname is valid, this is enough to check for IP
             let isSameIp = object.ip === window.location.hostname;
             let isWorldObject = object.isWorldObject || object.type === 'world';
@@ -193,6 +200,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     }
 
                     function setupMenuBar() {
+                        if (realityEditor.device.environment.isWithinToolboxApp()) return;
+
                         if (!realityEditor.gui.getMenuBar) {
                             setTimeout(setupMenuBar, 100);
                             return;
@@ -258,7 +267,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             checkExist();
         });
 
-        document.body.style.backgroundColor = 'rgb(50,50,50)';
+        if (!realityEditor.device.environment.isWithinToolboxApp()) {
+            document.body.style.backgroundColor = 'rgb(50,50,50)';
+        }
 
         // create background canvas and supporting canvasses
 
@@ -520,6 +531,44 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
     exports.muteMicrophoneForCameraVis = muteMicrophoneForCameraVis;
     exports.unmuteMicrophoneForCameraVis = unmuteMicrophoneForCameraVis;
+    
+    function showScene() {
+        if (!gltf) return;
+        gltf.visible = true;
+        realityEditor.gui.threejsScene.addToScene(gltf);
+        
+        // get the current camera position
+        let cameraNode = realityEditor.sceneGraph.getCameraNode();
+        let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+        let cameraPosition = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], cameraNode, groundPlaneNode);
+        
+        // get the current camera target position, so we maintain the same perspective when we turn on the scene
+        // defaults the target position to 1 meter in front of the camera
+        let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode);
+        let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
+        // but moves it to the spatial cursor, if possible
+        let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
+        if (cursorMatrix) {
+            let cursorPosition = [cursorMatrix.elements[12], cursorMatrix.elements[13], cursorMatrix.elements[14]];
+            let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
+            targetPosition = realityEditor.sceneGraph.convertToNewCoordSystem(cursorPosition, worldNode, groundPlaneNode);
+        }
+        
+        realityEditor.device.desktopCamera.enable(cameraPosition, targetPosition);
+        // zoom out the camera for a couple seconds when you first show the scene
+    }
+    
+    function hideScene() {
+        if (!gltf) return;
+        gltf.visible = false;
+        realityEditor.gui.threejsScene.removeFromScene(gltf);
+        // disable the camera controls
+        realityEditor.device.desktopCamera.disable();
+    }
+    
+    exports.initService = initService;
+    exports.showScene = showScene;
+    exports.hideScene = hideScene;
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
