@@ -633,7 +633,10 @@ createNameSpace('realityEditor.device.desktopCamera');
         didAddModeTransitionListeners = true;
         
         const processDevicePosition = () => {
-            if (transitionPercent < 0 || transitionPercent === 1) return;
+            if (transitionPercent <= 0 || transitionPercent === 1) {
+                virtualCamera.zoomOutTransition = false;
+                return;
+            }
             if (!cameraTransitionPosition_AR || !cameraTransitionTarget_AR ||
                 !cameraTransitionPosition_VR || !cameraTransitionTarget_VR) return;
             
@@ -663,8 +666,9 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         realityEditor.device.modeTransition.onTransitionPercent((percent) => {
+            virtualCamera.pauseTouchGestures = percent < 1;
             // scaled percent
-            transitionPercent = Math.max(0, Math.min(1, (percent - 0.2) / 0.8));
+            transitionPercent = Math.max(0, Math.min(1, (percent - 0.1) / 0.9));
             processDevicePosition();
         });
 

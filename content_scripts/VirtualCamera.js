@@ -62,6 +62,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 unprocessedDX: 0,
                 unprocessedDY: 0,
             };
+            this.pauseTouchGestures = false;
             this.zoomOutTransition = false;
             this.zoomOutSpeedPercent = 0;
             this.keyboard = new realityEditor.device.KeyboardListener();
@@ -111,6 +112,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         }
         addFlyAndNormalModePrompts() {
+            if (realityEditor.device.environment.isWithinToolboxApp()) return;
+            
             // add normal mode prompt
             this.normalModePrompt = document.createElement('div');
             this.normalModePrompt.classList.add('mode-prompt');
@@ -392,6 +395,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Add multitouch event listeners to the document
             document.addEventListener('touchstart',  (event) => {
                 if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
+                if (this.pauseTouchGestures) return;
 
                 isMultitouchGestureActive = true;
 
@@ -414,6 +418,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             });
             document.addEventListener('touchmove',  (event) => {
                 if (!isMultitouchGestureActive) return;
+                if (this.pauseTouchGestures) return;
                 event.preventDefault();
 
                 // Ensure regular zoom level
@@ -437,6 +442,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.mouseInput.isRotateRequested = false;
                 this.mouseInput.isStrafeRequested = false; // do we add this, or only if zero touches left?
                 isMultitouchGestureActive = false;
+
+                if (this.pauseTouchGestures) return;
 
                 // tapping without dragging moves the focus cube to the tapped location
                 if (!didMoveAtAll) {
