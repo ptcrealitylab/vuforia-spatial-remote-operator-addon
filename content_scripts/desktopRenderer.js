@@ -57,6 +57,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     
     let didInit = false;
 
+    let didAddModeTransitionListeners = false;
+    let gltfUpdateCallback = null;
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -66,6 +69,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             return;
         }
 
+        addModeTransitionListeners();
+        
         if (realityEditor.device.environment.isARMode()) { return; }
         if (didInit) return;
 
@@ -170,6 +175,18 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                             if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
                                 obj.material.dispose(); // free resources from the advanced material
                                 obj.material = obj.originalMaterial;
+                                obj.material.transparent = true;
+                                // obj.material.opacity = 0.5;
+
+                                gltfUpdateCallback = (percent) => {
+                                    if (percent < 1) {
+                                        obj.material.transparent = true;
+                                    } else {
+                                        obj.material.transparent = false;
+                                    }
+                                    let scaledPercent = percent * 5.0; // fully fades in when slider is 20% activated
+                                    obj.material.opacity = Math.max(0, Math.min(1.0, scaledPercent));
+                                }
                             }
                         }
                     });
@@ -531,30 +548,33 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
     exports.muteMicrophoneForCameraVis = muteMicrophoneForCameraVis;
     exports.unmuteMicrophoneForCameraVis = unmuteMicrophoneForCameraVis;
+
+    function addModeTransitionListeners() {
+        if (didAddModeTransitionListeners) return;
+        didAddModeTransitionListeners = true;
+
+        realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
+            initService(); // init if needed
+            showScene();
+        });
+
+        realityEditor.device.modeTransition.onRemoteOperatorHidden(() => {
+            hideScene();
+        });
+
+        realityEditor.device.modeTransition.onTransitionPercent((percent) => {
+            if (gltfUpdateCallback) {
+                gltfUpdateCallback(percent);
+            }
+        });
+    }
     
     function showScene() {
         if (!gltf) return;
         gltf.visible = true;
         realityEditor.gui.threejsScene.addToScene(gltf);
         
-        // get the current camera position
-        let cameraNode = realityEditor.sceneGraph.getCameraNode();
-        let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
-        let cameraPosition = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], cameraNode, groundPlaneNode);
-        
-        // get the current camera target position, so we maintain the same perspective when we turn on the scene
-        // defaults the target position to 1 meter in front of the camera
-        let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode);
-        let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
-        // but moves it to the spatial cursor, if possible
-        let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
-        if (cursorMatrix) {
-            let cursorPosition = [cursorMatrix.elements[12], cursorMatrix.elements[13], cursorMatrix.elements[14]];
-            let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
-            targetPosition = realityEditor.sceneGraph.convertToNewCoordSystem(cursorPosition, worldNode, groundPlaneNode);
-        }
-        
-        realityEditor.device.desktopCamera.enable(cameraPosition, targetPosition);
+        // realityEditor.device.desktopCamera.enable(cameraPosition, targetPosition);
         // zoom out the camera for a couple seconds when you first show the scene
     }
     
@@ -563,12 +583,12 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         gltf.visible = false;
         realityEditor.gui.threejsScene.removeFromScene(gltf);
         // disable the camera controls
-        realityEditor.device.desktopCamera.disable();
+        // realityEditor.device.desktopCamera.disable();
     }
     
     exports.initService = initService;
-    exports.showScene = showScene;
-    exports.hideScene = hideScene;
+    // exports.showScene = showScene;
+    // exports.hideScene = hideScene;
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
