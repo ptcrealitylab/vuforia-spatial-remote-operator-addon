@@ -184,7 +184,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                                     } else {
                                         obj.material.transparent = false;
                                     }
-                                    let scaledPercent = percent * 5.0; // fully fades in when slider is 20% activated
+                                    let scaledPercent = percent * 10; // fully fades in when slider is 10% activated
                                     obj.material.opacity = Math.max(0, Math.min(1.0, scaledPercent));
                                 }
                             }
