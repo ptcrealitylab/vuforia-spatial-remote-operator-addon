@@ -88,6 +88,13 @@ createNameSpace('realityEditor.device.desktopCamera');
     ];
     exports.perspectives = perspectives;
 
+    // used for transitioning from AR view to remote operator virtual camera
+    let didAddModeTransitionListeners = false;
+    let virtualCameraEnabled = false;
+    let cameraTransitionPosition_AR = null;
+    let cameraTransitionTarget_AR = null;
+    let cameraTransitionPosition_VR = null;
+    let cameraTransitionTarget_VR = null;
 
     function makeGroundPlaneRotationX(theta) {
         var c = Math.cos(theta), s = Math.sin(theta);
@@ -119,6 +126,8 @@ createNameSpace('realityEditor.device.desktopCamera');
             }, 100);
             return;
         }
+
+        addModeTransitionListeners();
 
         if (realityEditor.device.environment.isARMode()) { return; }
 
@@ -617,73 +626,152 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
     }
 
-    let virtualCameraEnabled = false;
+    let transitionPercent = -1;
+    
+    function addModeTransitionListeners() {
+        if (didAddModeTransitionListeners) return;
+        didAddModeTransitionListeners = true;
+        
+        const processDevicePosition = () => {
+            if (transitionPercent < 0 || transitionPercent === 1) return;
+            if (!cameraTransitionPosition_AR || !cameraTransitionTarget_AR ||
+                !cameraTransitionPosition_VR || !cameraTransitionTarget_VR) return;
+            
+            let percent = transitionPercent;
 
-    let cameraTransitionPosition_AR = null;
-    let cameraTransitionTarget_AR = null;
-    let cameraTransitionPosition_VR = null;
-    let cameraTransitionTarget_VR = null;
+            virtualCamera.position = [
+                (1.0 - percent) * cameraTransitionPosition_AR[0] + percent * cameraTransitionPosition_VR[0],
+                (1.0 - percent) * cameraTransitionPosition_AR[1] + percent * cameraTransitionPosition_VR[1],
+                (1.0 - percent) * cameraTransitionPosition_AR[2] + percent * cameraTransitionPosition_VR[2]
+            ];
 
-    exports.enable = (position, targetPosition) => {
-        if (virtualCameraEnabled) return; // don't do this multiple times per transition
-        virtualCameraEnabled = true;
-        if (!virtualCamera) return;
-        if (position) {
-            virtualCamera.position = [...position];
-            cameraTransitionPosition_AR = [...position];
+            // cameraTransitionTarget_AR = [...targetPosition];
+
+            virtualCamera.targetPosition = [
+                    (1.0 - percent) * cameraTransitionTarget_AR[0] + percent * cameraTransitionTarget_VR[0],
+                    (1.0 - percent) * cameraTransitionTarget_AR[1] + percent * cameraTransitionTarget_VR[1],
+                    (1.0 - percent) * cameraTransitionTarget_AR[2] + percent * cameraTransitionTarget_VR[2]
+            ];
+
+            // virtualCamera.targetPosition = [
+            //     (1.0 - percent) * cameraTransitionPosition_AR[0] + percent * cameraTransitionPosition_VR[0],
+            //     (1.0 - percent) * cameraTransitionPosition_AR[1] + percent * cameraTransitionPosition_VR[1],
+            //     (1.0 - percent) * cameraTransitionPosition_AR[2] + percent * cameraTransitionPosition_VR[2]
+            // ];
+
+            virtualCamera.zoomOutTransition = percent !== 0 && percent !== 1;
         }
-        if (targetPosition) {
-            virtualCamera.targetPosition = [...targetPosition];
-            cameraTransitionTarget_AR = [...targetPosition];
-        }
-        
-        // calculate the end position of the transition, and assign to the _VR variables
-        cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
-        cameraTransitionTarget_VR = [...targetPosition]; // where you're looking doesn't change
 
-        if (virtualCamera.focusTargetCube) {
-            virtualCamera.focusTargetCube.position.copy({
-                x: targetPosition[0],
-                y: targetPosition[1],
-                z: targetPosition[2]
-            });
-            virtualCamera.mouseInput.lastWorldPos = [...targetPosition];
-        }
+        realityEditor.device.modeTransition.onTransitionPercent((percent) => {
+            // scaled percent
+            transitionPercent = Math.max(0, Math.min(1, (percent - 0.2) / 0.8));
+            processDevicePosition();
+        });
 
-        virtualCamera.zoomOutTransition = true;
+        realityEditor.device.modeTransition.onDeviceCameraPosition((_cameraMatrix) => {
+
+            // get the current camera position
+            let deviceNode = realityEditor.sceneGraph.getDeviceNode();
+            let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], deviceNode, groundPlaneNode);
+
+            // get the current camera target position, so we maintain the same perspective when we turn on the scene
+            // defaults the target position to 1 meter in front of the camera
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode, deviceNode);
+            let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
+            // // but moves it to the spatial cursor, if possible
+            // let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
+            // if (cursorMatrix) {
+            //     let cursorPosition = [cursorMatrix.elements[12], cursorMatrix.elements[13], cursorMatrix.elements[14]];
+            //     let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
+            //     targetPosition = realityEditor.sceneGraph.convertToNewCoordSystem(cursorPosition, worldNode, groundPlaneNode);
+            // }
+
+            if (position) {
+                // virtualCamera.position = [...position];
+                cameraTransitionPosition_AR = [...position];
+            }
+            if (targetPosition) {
+                // virtualCamera.targetPosition = [...targetPosition];
+                cameraTransitionTarget_AR = [...targetPosition];
+                cameraTransitionTarget_VR = [...targetPosition];
+            }
+            cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
+            
+            if (transitionPercent === 1) {
+                cameraTransitionTarget_VR = [...virtualCamera.targetPosition];
+                cameraTransitionPosition_VR = [...virtualCamera.position];
+            }
+
+            // calculate the end position of the transition, and assign to the _VR variables
+            // cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
+            // cameraTransitionTarget_VR = [...targetPosition]; // where you're looking doesn't change
+            
+            processDevicePosition();
+        });
         
-        // setTimeout(() => {
-        //     virtualCamera.zoomOutTransition = true;
-        //     virtualCamera.zoomOutSpeedPercent = 0;
-        //     setTimeout(() => {
-        //         virtualCamera.zoomOutTransition = false;
-        //     }, 500);
-        // }, 150);
-    }
-    exports.setTransitionPercentage = (percent) => {
-        if (!cameraTransitionPosition_AR || !cameraTransitionTarget_AR ||
-            !cameraTransitionPosition_VR || !cameraTransitionTarget_VR) return;
-        
-        let position = [
-            (1.0 - percent) * cameraTransitionPosition_AR[0] + percent * cameraTransitionPosition_VR[0],
-            (1.0 - percent) * cameraTransitionPosition_AR[1] + percent * cameraTransitionPosition_VR[1],
-            (1.0 - percent) * cameraTransitionPosition_AR[2] + percent * cameraTransitionPosition_VR[2]
-        ];
-        
-        virtualCamera.position = position;
-        
-        if (percent > 0.99) {
+        realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
+            if (virtualCameraEnabled) return; // don't do this multiple times per transition
+            virtualCameraEnabled = true;
+            if (!virtualCamera) return;
+
+            // get the current camera position
+            let cameraNode = realityEditor.sceneGraph.getCameraNode();
+            let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], cameraNode, groundPlaneNode);
+
+            // get the current camera target position, so we maintain the same perspective when we turn on the scene
+            // defaults the target position to 1 meter in front of the camera
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode);
+            let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
+            // but moves it to the spatial cursor, if possible
+            let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
+            if (cursorMatrix) {
+                let cursorPosition = [cursorMatrix.elements[12], cursorMatrix.elements[13], cursorMatrix.elements[14]];
+                let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
+                targetPosition = realityEditor.sceneGraph.convertToNewCoordSystem(cursorPosition, worldNode, groundPlaneNode);
+            }
+
+            if (position) {
+                virtualCamera.position = [...position];
+                cameraTransitionPosition_AR = [...position];
+            }
+            if (targetPosition) {
+                virtualCamera.targetPosition = [...targetPosition];
+                cameraTransitionTarget_AR = [...targetPosition];
+            }
+
+            // calculate the end position of the transition, and assign to the _VR variables
+            cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
+            cameraTransitionTarget_VR = [...targetPosition]; // where you're looking doesn't change
+
+            if (virtualCamera.focusTargetCube) {
+                virtualCamera.focusTargetCube.position.copy({
+                    x: targetPosition[0],
+                    y: targetPosition[1],
+                    z: targetPosition[2]
+                });
+                virtualCamera.mouseInput.lastWorldPos = [...targetPosition];
+            }
+
+            virtualCamera.zoomOutTransition = true;
+
+            // setTimeout(() => {
+            //     virtualCamera.zoomOutTransition = true;
+            //     virtualCamera.zoomOutSpeedPercent = 0;
+            //     setTimeout(() => {
+            //         virtualCamera.zoomOutTransition = false;
+            //     }, 500);
+            // }, 150);
+        });
+        realityEditor.device.modeTransition.onRemoteOperatorHidden(() => {
+            virtualCameraEnabled = false;
             virtualCamera.zoomOutTransition = false;
-        }
-    }
-
-    exports.disable = () => {
-        virtualCameraEnabled = false;
-        virtualCamera.zoomOutTransition = false;
-        cameraTransitionPosition_AR = null;
-        cameraTransitionTarget_AR = null;
-        cameraTransitionPosition_VR = null;
-        cameraTransitionTarget_VR = null;
+            cameraTransitionPosition_AR = null;
+            cameraTransitionTarget_AR = null;
+            cameraTransitionPosition_VR = null;
+            cameraTransitionTarget_VR = null;
+        });
     }
 
     exports.update = update;

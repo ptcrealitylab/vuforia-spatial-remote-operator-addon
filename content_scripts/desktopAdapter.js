@@ -54,6 +54,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     let savedZoneSocketIPs = [];
 
     let unityProjectionMatrix;
+    
+    let didAddModeTransitionListeners = false;
 
     /**
      * @type {CallbackHandler}
@@ -78,6 +80,9 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      * initialize the desktop adapter only if we are running on a desktop environment
      */
     function initService() {
+        // add these so that we can activate the addon later if we enable AR mode
+        addModeTransitionListeners();
+
         // by including this check, we can tolerate compiling this add-on into the app without breaking everything
         // (ideally this add-on should only be added to a "desktop" server but this should effectively ignore it on mobile)
         if (realityEditor.device.environment.isARMode()) { return; }
@@ -650,6 +655,16 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         }
 
         return false;
+    }
+
+    function addModeTransitionListeners() {
+        if (didAddModeTransitionListeners) return;
+        didAddModeTransitionListeners = true;
+
+        // start the update loop when the remote operator is shown
+        realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
+            update();
+        });
     }
 
     /**
