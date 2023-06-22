@@ -58,7 +58,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     let didInit = false;
 
     let didAddModeTransitionListeners = false;
-    let gltfUpdateCallback = null;
+    let gltfUpdateCallbacks = [];
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -175,18 +175,23 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                             if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
                                 obj.material.dispose(); // free resources from the advanced material
                                 obj.material = obj.originalMaterial;
-                                obj.material.transparent = true;
+                                // obj.material.transparent = true;
                                 // obj.material.opacity = 0.5;
 
-                                gltfUpdateCallback = (percent) => {
-                                    if (percent < 1) {
+                                gltfUpdateCallbacks.push((percent) => {
+                                    let scaledPercent = percent * 20; // fully fades in when slider is 5% activated
+                                    if (percent < 0.05) {
+                                        scaledPercent = 0;
+                                    } else {
+                                        scaledPercent = 1;
+                                    }
+                                    if (scaledPercent < 1) {
                                         obj.material.transparent = true;
                                     } else {
                                         obj.material.transparent = false;
                                     }
-                                    let scaledPercent = percent * 10; // fully fades in when slider is 10% activated
                                     obj.material.opacity = Math.max(0, Math.min(1.0, scaledPercent));
-                                }
+                                });
                             }
                         }
                     });
@@ -563,9 +568,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         });
 
         realityEditor.device.modeTransition.onTransitionPercent((percent) => {
-            if (gltfUpdateCallback) {
-                gltfUpdateCallback(percent);
-            }
+            gltfUpdateCallbacks.forEach(callback => {
+                callback(percent);
+            });
         });
     }
     
