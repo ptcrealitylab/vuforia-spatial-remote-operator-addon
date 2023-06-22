@@ -360,6 +360,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Handle two-finger drag to pan
             const handlePan = (event) => {
                 event.preventDefault();
+
+                // don't allow pan within the AR app, because two-finger-gesture is used to transition between AR<>VR
+                if (realityEditor.device.environment.isWithinToolboxApp()) return;
+                
                 if (event.touches.length === 2) {
                     analyzeTouchMovement(event); // pans because isStrafeRequested is true
 
@@ -375,6 +379,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Handle pinch to zoom
             const handlePinch = (event) => {
                 event.preventDefault();
+                
+                // don't allow pinch within the AR app, because pinch is used to transition between AR<>VR
+                if (realityEditor.device.environment.isWithinToolboxApp()) return;
+
                 if (event.touches.length === 2) {
                     const touch1 = event.touches[0];
                     const touch2 = event.touches[1];
