@@ -640,7 +640,7 @@ createNameSpace('realityEditor.device.desktopCamera');
             if (!cameraTransitionPosition_AR || !cameraTransitionTarget_AR ||
                 !cameraTransitionPosition_VR || !cameraTransitionTarget_VR) return;
 
-            let percent = Math.max(0, Math.min(1, (transitionPercent - 0.1) / 0.9));;
+            let percent = Math.max(0, Math.min(1, (transitionPercent - 0.1) / 0.9));
 
             virtualCamera.position = [
                 (1.0 - percent) * cameraTransitionPosition_AR[0] + percent * cameraTransitionPosition_VR[0],
@@ -678,20 +678,20 @@ createNameSpace('realityEditor.device.desktopCamera');
             let deviceNode = realityEditor.sceneGraph.getDeviceNode();
             let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
             let worldObjectNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
-            // let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], deviceNode, groundPlaneNode);
-            let matrixWithinDevice = worldObjectNode.getMatrixRelativeTo(groundPlaneNode);
-            let positionWithinDevice = [
-                matrixWithinDevice[12],
-                matrixWithinDevice[13],
-                matrixWithinDevice[14]
-            ];
-            let position = realityEditor.sceneGraph.convertToNewCoordSystem(positionWithinDevice, deviceNode, worldObjectNode);
+            let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], deviceNode, groundPlaneNode);
+            // let matrixWithinDevice = worldObjectNode.getMatrixRelativeTo(groundPlaneNode);
+            // let positionWithinDevice = [
+            //     matrixWithinDevice[12],
+            //     matrixWithinDevice[13],
+            //     matrixWithinDevice[14]
+            // ];
+            // let position = realityEditor.sceneGraph.convertToNewCoordSystem(positionWithinDevice, deviceNode, worldObjectNode);
 
             // get the current camera target position, so we maintain the same perspective when we turn on the scene
             // defaults the target position to 1 meter in front of the camera
             let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, worldObjectNode, deviceNode);
             let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
-            targetPosition = realityEditor.gui.ar.utilities.add(targetPosition, positionWithinDevice);
+            // targetPosition = realityEditor.gui.ar.utilities.add(targetPosition, positionWithinDevice);
             // // but moves it to the spatial cursor, if possible
             // let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
             // if (cursorMatrix) {
@@ -730,21 +730,21 @@ createNameSpace('realityEditor.device.desktopCamera');
 
             // // // get the current camera position
             // // let cameraNode = realityEditor.sceneGraph.getCameraNode();
-            // let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
             // // let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], cameraNode, groundPlaneNode);
             //
             // // get the current camera target position, so we maintain the same perspective when we turn on the scene
             // // defaults the target position to 1 meter in front of the camera
-            // let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode);
-            // let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode);
+            let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
             // // but moves it to the spatial cursor, if possible
-            // let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
-            // if (cursorMatrix) {
-            //     let cursorPosition = [cursorMatrix.elements[12], cursorMatrix.elements[13], cursorMatrix.elements[14]];
-            //     let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
-            //     targetPosition = realityEditor.sceneGraph.convertToNewCoordSystem(cursorPosition, worldNode, groundPlaneNode);
-            // }
-            //
+            let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
+            if (cursorMatrix) {
+                let cursorPosition = [cursorMatrix.elements[12], cursorMatrix.elements[13], cursorMatrix.elements[14]];
+                let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
+                targetPosition = realityEditor.sceneGraph.convertToNewCoordSystem(cursorPosition, worldNode, groundPlaneNode);
+            }
+
             // // if (position) {
             // //     virtualCamera.position = [...position];
             // //     cameraTransitionPosition_AR = [...position];
@@ -757,15 +757,15 @@ createNameSpace('realityEditor.device.desktopCamera');
             // // calculate the end position of the transition, and assign to the _VR variables
             // // cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
             // // cameraTransitionTarget_VR = [...targetPosition]; // where you're looking doesn't change
-            //
-            // if (virtualCamera.focusTargetCube) {
-            //     virtualCamera.focusTargetCube.position.copy({
-            //         x: targetPosition[0],
-            //         y: targetPosition[1],
-            //         z: targetPosition[2]
-            //     });
-            //     virtualCamera.mouseInput.lastWorldPos = [...targetPosition];
-            // }
+
+            if (virtualCamera.focusTargetCube) {
+                virtualCamera.focusTargetCube.position.copy({
+                    x: targetPosition[0],
+                    y: targetPosition[1],
+                    z: targetPosition[2]
+                });
+                virtualCamera.mouseInput.lastWorldPos = [...targetPosition];
+            }
 
             virtualCamera.zoomOutTransition = true;
 
