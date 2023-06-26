@@ -60,6 +60,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 unprocessedDX: 0,
                 unprocessedDY: 0,
             };
+            this.pauseTouchGestures = false;
+            this.zoomOutTransition = false;
             this.keyboard = new realityEditor.device.KeyboardListener();
             this.followerName = 'cameraFollower' + cameraNode.id;
             this.followingState = {
@@ -107,6 +109,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         }
         addFlyAndNormalModePrompts() {
+            // don't show keyboard controls when remote operator loaded into AR app
+            if (realityEditor.device.environment.isWithinToolboxApp()) return;
+            
             // add normal mode prompt
             this.normalModePrompt = document.createElement('div');
             this.normalModePrompt.classList.add('mode-prompt');
@@ -353,6 +358,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Handle two-finger drag to pan
             const handlePan = (event) => {
                 event.preventDefault();
+
+                // don't allow pan within the AR app, because two-finger-gesture is used to transition between AR<>VR
+                if (realityEditor.device.environment.isWithinToolboxApp()) return;
+                
                 if (event.touches.length === 2) {
                     analyzeTouchMovement(event); // pans because isStrafeRequested is true
 
@@ -368,6 +377,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Handle pinch to zoom
             const handlePinch = (event) => {
                 event.preventDefault();
+                
+                // don't allow pinch within the AR app, because pinch is used to transition between AR<>VR
+                if (realityEditor.device.environment.isWithinToolboxApp()) return;
+
                 if (event.touches.length === 2) {
                     const touch1 = event.touches[0];
                     const touch2 = event.touches[1];
@@ -388,6 +401,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Add multitouch event listeners to the document
             document.addEventListener('touchstart',  (event) => {
                 if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
+                // while pinching to enter remote operator in AR app, don't trigger additional camera gestures
+                if (this.pauseTouchGestures) return;
 
                 isMultitouchGestureActive = true;
 
@@ -410,6 +425,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             });
             document.addEventListener('touchmove',  (event) => {
                 if (!isMultitouchGestureActive) return;
+                if (this.pauseTouchGestures) return;
                 event.preventDefault();
 
                 // Ensure regular zoom level
@@ -433,6 +449,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.mouseInput.isRotateRequested = false;
                 this.mouseInput.isStrafeRequested = false; // do we add this, or only if zero touches left?
                 isMultitouchGestureActive = false;
+
+                if (this.pauseTouchGestures) return;
 
                 // tapping without dragging moves the focus cube to the tapped location
                 if (!didMoveAtAll) {
@@ -722,7 +740,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            if (!this.mouseInput.isRotateRequested || this.isFlying) {
+            // this is where the velocity gets added to the position...
+            // anything that modifies the camera movement should be above this line in the update function
+            if (!this.mouseInput.isRotateRequested || this.isFlying || this.zoomOutTransition) {
                 let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
                 let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
                 // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
@@ -740,7 +760,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
 
-            let shouldSmoothCamera = !this.isRendering2DVideo();
+            let shouldSmoothCamera = !this.isRendering2DVideo() && !this.zoomOutTransition;
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
@@ -762,6 +782,24 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.afterNFrames = this.afterNFrames.filter(entry => entry.n > 0);
             callbacksToTrigger.forEach(cb => cb());
         }
+
+        // returns the position [xDist,yDist,zDist] within the coordinate system defined by startPosition and startTargetPosition
+        getRelativePosition(startPosition, startTargetPosition, xDist = 0, yDist = 0, zDist = 1000) {
+            let ev = startPosition;
+            let cv = startTargetPosition;
+            let uv = [0, 1, 0];
+
+            let forwardVector = normalize(add(ev, negate(cv))); // vector from the camera to the center point
+            let horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
+            let verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
+
+            let endPosition = [...startPosition];
+            endPosition = add(endPosition, scalarMultiply(horizontalVector, xDist));
+            endPosition = add(endPosition, scalarMultiply(verticalVector, yDist));
+            endPosition = add(startPosition, scalarMultiply(forwardVector, zDist));
+            return endPosition;
+        }
+
 
         isRendering2DVideo() {
             return (this.followingState.active && this.followingState.currentlyRendering2DVideo);
