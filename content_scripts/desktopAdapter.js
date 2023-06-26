@@ -663,7 +663,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // start the update loop when the remote operator is shown
         realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
-            update();
+            update(); // start update loop
+            calculateProjectionMatrices(window.innerWidth, window.innerHeight); // update proj matrices
         });
     }
 
