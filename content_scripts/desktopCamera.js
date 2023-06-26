@@ -645,13 +645,16 @@ createNameSpace('realityEditor.device.desktopCamera');
             
             // TODO: we need to convert these from ROOT or GROUNDPLANE coordinates, into the WORLD OBJECT coordinates
 
+            let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+
             let rootPosition = [
                 (1.0 - percent) * cameraTransitionPosition_AR[0] + percent * cameraTransitionPosition_VR[0],
                 (1.0 - percent) * cameraTransitionPosition_AR[1] + percent * cameraTransitionPosition_VR[1],
                 (1.0 - percent) * cameraTransitionPosition_AR[2] + percent * cameraTransitionPosition_VR[2]
             ];
             virtualCamera.position = rootPosition;
-            
+            virtualCamera.position[1] -= groundPlaneNode.worldMatrix[13]; // this works but spatial cursor ends up in weird positions
+
             /*
             let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
             let rootNode = realityEditor.sceneGraph.getSceneNodeById('ROOT');
@@ -667,6 +670,8 @@ createNameSpace('realityEditor.device.desktopCamera');
                 (1.0 - percent) * cameraTransitionTarget_AR[2] + percent * cameraTransitionTarget_VR[2]
             ];
             virtualCamera.targetPosition = rootTargetPosition;
+            virtualCamera.targetPosition[1] -= groundPlaneNode.worldMatrix[13]; // this works but spatial cursor ends up in weird positions
+
             /*
             virtualCamera.targetPosition = realityEditor.sceneGraph.convertToNewCoordSystem(rootTargetPosition, rootNode, worldNode);
             
@@ -682,9 +687,11 @@ createNameSpace('realityEditor.device.desktopCamera');
         }
 
         realityEditor.device.modeTransition.onTransitionPercent((percent) => {
-            virtualCamera.pauseTouchGestures = percent < 1;
             // scaled percent
             transitionPercent = percent;
+
+            if (!virtualCamera) return; // wait for virtual camera to initialize
+            virtualCamera.pauseTouchGestures = percent < 1;
             processDevicePosition();
         });
 
@@ -693,12 +700,17 @@ createNameSpace('realityEditor.device.desktopCamera');
             // get the current camera position
             let deviceNode = realityEditor.sceneGraph.getDeviceNode();
             let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
-            let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], deviceNode, groundPlaneNode);
+            let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
+            // let relativeToGP = realityEditor.sceneGraph.convertToNewCoordSystem([0,0,0], realityEditor.sceneGraph.getDeviceNode(), realityEditor.sceneGraph.getGroundPlaneNode())
+            let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], deviceNode, worldNode);
+            // position[1] -= groundPlaneNode.worldMatrix[13]; // this works but spatial cursor ends up in weird positions
 
             // get the current camera target position, so we maintain the same perspective when we turn on the scene
             // defaults the target position to 1 meter in front of the camera
-            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode, deviceNode);
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, worldNode, deviceNode);
             let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
+            // targetPosition[1] -= groundPlaneNode.worldMatrix[13]; // this works but spatial cursor ends up in weird positions
+
             // // but moves it to the spatial cursor, if possible
             // let cursorMatrix = realityEditor.spatialCursor.getCursorRelativeToWorldObject();
             // if (cursorMatrix) {
@@ -714,10 +726,14 @@ createNameSpace('realityEditor.device.desktopCamera');
             if (targetPosition) {
                 // virtualCamera.targetPosition = [...targetPosition];
                 cameraTransitionTarget_AR = [...targetPosition];
-                cameraTransitionTarget_VR = [...targetPosition];
+                // if (transitionPercent < 1 || !cameraTransitionTarget_VR) {
+                    cameraTransitionTarget_VR = [...targetPosition];
+                // }
             }
-            cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
-            
+            // if (transitionPercent < 1 || !cameraTransitionPosition_VR) {
+                cameraTransitionPosition_VR = virtualCamera.getEndPosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
+            // }
+
             if (transitionPercent === 1) {
                 cameraTransitionTarget_VR = [...virtualCamera.targetPosition];
                 cameraTransitionPosition_VR = [...virtualCamera.position];
