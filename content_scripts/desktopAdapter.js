@@ -673,7 +673,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      * Also smoothly updates camera postion when paused
      */
     function update() {
-        if (realityEditor.device.environment.isARMode()) { return; }
+        if (realityEditor.device.environment.isARMode()) { return; } // stop the update loop if we enter AR mode
 
         // send the visible object matrices to connected reality zones, if any // TODO: there actually only needs to be one, not a set...
         if (realityEditor.network.realtime.getSocketIPsForSet('realityZones').length > 0) {

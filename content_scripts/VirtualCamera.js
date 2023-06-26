@@ -10,8 +10,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     const DISPLAY_PERSPECTIVE_CUBES = false;
     const FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER = 1000; // what point to focus on when we rotate/pan away from following
-    window.zoomOutSpeed = 400;
-    window.moveUpSpeed = 100;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, floorOffset) {
@@ -64,7 +62,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             };
             this.pauseTouchGestures = false;
             this.zoomOutTransition = false;
-            this.zoomOutSpeedPercent = 0;
             this.keyboard = new realityEditor.device.KeyboardListener();
             this.followerName = 'cameraFollower' + cameraNode.id;
             this.followingState = {
@@ -112,6 +109,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         }
         addFlyAndNormalModePrompts() {
+            // don't show keyboard controls when remote operator loaded into AR app
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
             
             // add normal mode prompt
@@ -403,6 +401,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Add multitouch event listeners to the document
             document.addEventListener('touchstart',  (event) => {
                 if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
+                // while pinching to enter remote operator in AR app, don't trigger additional camera gestures
                 if (this.pauseTouchGestures) return;
 
                 isMultitouchGestureActive = true;
@@ -740,26 +739,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            /*
-            if (this.zoomOutTransition) {
-                this.zoomOutSpeedPercent = Math.min(1.0, Math.max(0.0, this.zoomOutSpeedPercent + 0.03));
-                let zoomVector = scalarMultiply(forwardVector, (window.zoomOutSpeed * this.zoomOutSpeedPercent));
-                this.velocity = add(this.velocity, zoomVector);
-                let moveUpVector = scalarMultiply(verticalVector, (window.moveUpSpeed * this.zoomOutSpeedPercent));
-                this.velocity = add(this.velocity, moveUpVector);
-
-                // let distanceMultiplier = Math.max(1, baseLog);
-                // let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
-                // if distanceToTarget <= 200, slow down zooming speed quadratically to prevent from zooming too close / beyond the target
-                // if (isZoomingIn && this.distanceToTarget <= 200) {
-                //     let scrollFactor = Math.pow(this.distanceToTarget / 200, 2);
-                //     vector = scalarMultiply(vector, scrollFactor);
-                // }
-                // // * 0.7 to prevent the camera from getting too close to the camera target point
-                // this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
-            }
-            */
-
             // this is where the velocity gets added to the position...
             // anything that modifies the camera movement should be above this line in the update function
             if (!this.mouseInput.isRotateRequested || this.isFlying || this.zoomOutTransition) {
@@ -803,17 +782,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             callbacksToTrigger.forEach(cb => cb());
         }
 
-        getEndPosition(startPosition, startTargetPosition, xDist = 0, yDist = 0, zDist = 1000) {
-            // let currentLookAt = lookAt(startPosition[0], startPosition[1], startPosition[2], startTargetPosition[0], startTargetPosition[1], startTargetPosition[2], 0, 1, 0);
-            // let mCamera = currentLookAt; // translation is based on what direction you're facing,
-            
+        // returns the position [xDist,yDist,zDist] within the coordinate system defined by startPosition and startTargetPosition
+        getRelativePosition(startPosition, startTargetPosition, xDist = 0, yDist = 0, zDist = 1000) {
             let ev = startPosition;
             let cv = startTargetPosition;
             let uv = [0, 1, 0];
-            
-            // let vCamX = normalize([mCamera[0], mCamera[4], mCamera[8]]);
-            // let vCamY = normalize([mCamera[1], mCamera[5], mCamera[9]]);
-            // let _vCamZ = normalize([mCamera[2], mCamera[6], mCamera[10]]);
 
             let forwardVector = normalize(add(ev, negate(cv))); // vector from the camera to the center point
             let horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
@@ -823,7 +796,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             endPosition = add(endPosition, scalarMultiply(horizontalVector, xDist));
             endPosition = add(endPosition, scalarMultiply(verticalVector, yDist));
             endPosition = add(startPosition, scalarMultiply(forwardVector, zDist));
-            
             return endPosition;
         }
 
