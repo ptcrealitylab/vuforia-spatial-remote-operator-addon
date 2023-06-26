@@ -1000,8 +1000,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     exports.resetIdleTimeout = resetIdleTimeout;
 
     exports.getPrimaryWorldId = getPrimaryWorldId;
-    
-    exports.update = update; // begin the update loop
 
     // this happens only for desktop editors
     realityEditor.addons.addCallback('init', initService);
