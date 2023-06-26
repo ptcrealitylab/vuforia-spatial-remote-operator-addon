@@ -175,11 +175,10 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                             if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
                                 obj.material.dispose(); // free resources from the advanced material
                                 obj.material = obj.originalMaterial;
-                                // obj.material.transparent = true;
-                                // obj.material.opacity = 0.5;
 
                                 gltfUpdateCallbacks.push((percent) => {
                                     let scaledPercent = percent * 20; // fully fades in when slider is 5% activated
+                                    // TODO: figure out best-looking transition. for now, just make it appear all at once
                                     if (percent < 0.05) {
                                         scaledPercent = 0;
                                     } else {
@@ -554,6 +553,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     exports.muteMicrophoneForCameraVis = muteMicrophoneForCameraVis;
     exports.unmuteMicrophoneForCameraVis = unmuteMicrophoneForCameraVis;
 
+    // when transitioning from AR to VR, add or remove the gltf from the three.js scene
     function addModeTransitionListeners() {
         if (didAddModeTransitionListeners) return;
         didAddModeTransitionListeners = true;
@@ -578,22 +578,15 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         if (!gltf) return;
         gltf.visible = true;
         realityEditor.gui.threejsScene.addToScene(gltf);
-        
-        // realityEditor.device.desktopCamera.enable(cameraPosition, targetPosition);
-        // zoom out the camera for a couple seconds when you first show the scene
     }
     
     function hideScene() {
         if (!gltf) return;
         gltf.visible = false;
         realityEditor.gui.threejsScene.removeFromScene(gltf);
-        // disable the camera controls
-        // realityEditor.device.desktopCamera.disable();
     }
     
     exports.initService = initService;
-    // exports.showScene = showScene;
-    // exports.hideScene = hideScene;
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
