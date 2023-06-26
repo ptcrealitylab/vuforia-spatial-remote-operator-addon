@@ -641,7 +641,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                 !cameraTransitionPosition_VR || !cameraTransitionTarget_VR) return;
 
             // only starts moving after the first 5% of the pinch gesture / slider
-            let percent = Math.max(0, Math.min(1, (transitionPercent - 0.05) / 0.95));
+            let percent = Math.max(0, Math.min(1, (transitionPercent - 0.1) / 0.9));
             
             // TODO: we need to convert these from ROOT or GROUNDPLANE coordinates, into the WORLD OBJECT coordinates
 
