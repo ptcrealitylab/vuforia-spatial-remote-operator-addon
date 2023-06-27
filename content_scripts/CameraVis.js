@@ -27,8 +27,6 @@ import { Spaghetti } from '../../src/humanPose/spaghetti.js';
     const DEPTH_WIDTH = 256;
     const DEPTH_HEIGHT = 144;
     const CONNECTION_TIMEOUT_MS = 10000;
-    const PATCH_KEY_PREFIX = 'realityEditor.device.cameraVis.patch';
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const ShaderMode = {
         SOLID: 'SOLID',
         POINT: 'POINT',
@@ -978,7 +976,7 @@ void main() {
         }
 
         connectWsToMatrix(url) {
-            if (PROXY) {
+            if (realityEditor.cloud.socket) {
                 const ws = realityEditor.cloud.socket;
 
                 ws.on('message', async (route, body, cbObj, bin) => {
@@ -1013,7 +1011,7 @@ void main() {
 
         connect() {
             const connectWsToTexture = (url, textureKey, mimetype) => {
-                if (PROXY) {
+                if (realityEditor.cloud.socket) {
                     const ws = realityEditor.cloud.socket;
 
                     ws.on('message', async (route, body, cbObj, bin) => {
@@ -1065,7 +1063,7 @@ void main() {
         startWebRTC() {
             const network = 'cam' + Math.floor(Math.random() * 1000);
 
-            const ws = PROXY ? realityEditor.cloud.socket : new WebSocket(urlBase + 'signalling');
+            const ws = realityEditor.cloud.socket || new WebSocket(urlBase + 'signalling');
             this.webRTCCoordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 
