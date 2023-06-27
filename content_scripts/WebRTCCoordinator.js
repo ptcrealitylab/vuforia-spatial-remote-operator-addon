@@ -3,7 +3,6 @@ createNameSpace('realityEditor.device.cameraVis');
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
 (function(exports) {
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
 
@@ -24,7 +23,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.onWsMessage = this.onWsMessage.bind(this);
             this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
 
-            if (!PROXY) {
+            if (ws instanceof WebSocket) {
                 this.ws.addEventListener('open', this.onWsOpen);
                 this.ws.addEventListener('message', this.onWsMessage);
             } else {
@@ -347,12 +346,12 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         sendSignallingMessage(message) {
-            if (PROXY) {
+            if (this.ws instanceof WebSocket) {
+                this.ws.send(JSON.stringify(message));
+            } else {
                 this.ws.message('unused', {id: 'signalling'}, null, {
                     data: encoder.encode(JSON.stringify(message)),
                 });
-            } else {
-                this.ws.send(JSON.stringify(message));
             }
         }
 
