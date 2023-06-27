@@ -5,11 +5,23 @@ import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 import { Spaghetti } from '../../src/humanPose/spaghetti.js';
 
+/**
+ * All data serialized to store a CameraVis patch (3d picture)
+ * Notably `key` corresponds to frame key
+ * @typedef {{
+ *   key: string,
+ *   container: Array<number>,
+ *   phone: Array<number>,
+ *   texture: string,
+ *   textureDepth: string,
+ *   creationTime: number,
+ * }} PatchSerialization
+ */
+
 (function(exports) {
     const debug = false;
     const ZDEPTH = false;
     const ENABLE_PICTURE_IN_PICTURE = false;
-    const ENABLE_PATCH_REMOTE_PERSISTENCE = false;
     const FIRST_PERSON_CANVAS = false;
     const DEPTH_REPR_PNG = false;
     const DEPTH_WIDTH = 256;
@@ -352,52 +364,76 @@ void main() {
 
         /**
          * Clone the current state of the mesh rendering part of this CameraVis
-         * @return {THREE.Object3D} object containing all relevant meshes
+         * @return {{key: string, patch: THREE.Object3D}} unique key for patch and object3d containing all relevant meshes
          */
         clonePatch() {
-            let key = PATCH_KEY_PREFIX + '-' + Date.now() + '.' + Math.floor(Math.random() * 10000);
+            let now = Date.now();
             let serialization = {
-                key,
-                container: this.container.matrix.elements,
-                phone: this.phone.matrix.elements,
+                key: '',
+                container: Array.from(this.container.matrix.elements),
+                phone: Array.from(this.phone.matrix.elements),
                 texture: this.texture.image.toDataURL('image/jpeg', 0.7),
                 textureDepth: this.textureDepth.image.toDataURL(),
-                creationTime: Date.now(),
+                creationTime: now,
             };
-            try {
-                window.localStorage.setItem(key, JSON.stringify(serialization));
-            } catch (e) {
-                console.error('Unable to persist patch', e);
-            }
-
-            if (ENABLE_PATCH_REMOTE_PERSISTENCE) {
-                fetch('history/patches', {
-                    method: 'POST',
-                    headers: {
-                        'Content-type': 'application/json',
-                    },
-                    body: JSON.stringify(serialization),
-                }).then(res => {
-                    return res.text();
-                }).then(text => {
-                    console.log('patch persisted', text);
-                }).catch(e => {
-                    console.warn('Server-side patch persist error', e);
-                });
-            }
+            const frameKey = this.createToolForPatchSerialization(serialization);
 
             return {
-                key,
+                key: frameKey,
                 patch: CameraVis.createPatch(
                     this.container.matrix,
                     this.phone.matrix,
                     this.texture.image,
-                    this.textureDepth.image
+                    this.textureDepth.image,
+                    now
                 ),
             };
         }
 
-        static createPatch(containerMatrix, phoneMatrix, textureImage, textureDepthImage) {
+        /**
+         * @param {PatchSerialization} serialization
+         * @return {string} frame key
+         */
+        createToolForPatchSerialization(serialization) {
+            let toolMatrix = new THREE.Matrix4().fromArray(serialization.phone);
+            let containerMatrix = new THREE.Matrix4().fromArray(serialization.container);
+            containerMatrix.elements[13] = 0;
+            toolMatrix.premultiply(containerMatrix);
+            toolMatrix.multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0, 0, Math.PI / 2)));
+            // let toolRotation = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(Math.PI / 2, Math.PI / 2, 0));
+            // toolMatrix.premultiply(toolRotation);
+
+            let addedTool = realityEditor.gui.pocket.createFrame('spatialPatch', {
+                noUserInteraction: true,
+                initialMatrix: toolMatrix.elements,
+                onUploadComplete: () => {
+                    realityEditor.network.postVehiclePosition(addedTool);
+                    write();
+                },
+            });
+
+            const frameKey = addedTool.uuid;
+            serialization.key = frameKey;
+            const write = () => {
+                realityEditor.network.realtime.writePublicData(
+                    addedTool.objectId, frameKey, frameKey + 'storage',
+                    'serialization', serialization
+                );
+            };
+            setTimeout(write, 500);
+            setTimeout(write, 3000);
+
+            return addedTool.uuid;
+        }
+
+        /**
+         * @param {Array<number>} containerMatrix - array representing 4x4 matrix from threejs
+         * @param {Array<number>} phoneMatrix - array representing 4x4 matrix from threejs
+         * @param {string} textureImage - base64 data url for texture
+         * @param {string} textureDepthImage - base64 data url for depth texture
+         * @param {number} creationTime - Time when patch created. Usually from Date.now()
+         */
+        static createPatch(containerMatrix, phoneMatrix, textureImage, textureDepthImage, creationTime) {
             let patch = new THREE.Group();
             patch.matrix.copy(containerMatrix);
             patch.matrixAutoUpdate = false;
@@ -452,7 +488,7 @@ void main() {
             phone.add(mesh);
             patch.add(phone);
 
-            patch.__creationTime = Date.now();
+            patch.__creationTime = creationTime;
             return patch;
         }
 
@@ -835,6 +871,21 @@ void main() {
             this.onAnimationFrame = this.onAnimationFrame.bind(this);
             window.requestAnimationFrame(this.onAnimationFrame);
 
+            this.addMenuShortcuts();
+
+            this.onPointerDown = this.onPointerDown.bind(this);
+
+            let threejsCanvas = document.getElementById('mainThreejsCanvas');
+            if (threejsCanvas && ENABLE_PICTURE_IN_PICTURE) {
+                threejsCanvas.addEventListener('pointerdown', this.onPointerDown);
+            }
+
+            this.startWebRTC();
+
+            this.addPatchToolLifecycleHandlers();
+        }
+
+        addMenuShortcuts() {
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.PointClouds, (toggled) => {
                 this.visible = toggled;
                 for (let camera of Object.values(this.cameras)) {
@@ -861,10 +912,6 @@ void main() {
                 this.clonePatches();
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatch, () => {
-                this.undoPatch();
-            });
-
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
                 this.cutoutViewFrustums = toggled;
                 for (let camera of Object.values(this.cameras)) {
@@ -875,16 +922,39 @@ void main() {
                     }
                 }
             });
+        }
 
-            this.onPointerDown = this.onPointerDown.bind(this);
+        addPatchToolLifecycleHandlers() {
+            realityEditor.network.addPostMessageHandler('patchHydrate', (msgData) => {
+                const key = msgData.frame;
+                if (this.patches[key]) {
+                    realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
+                    delete this.patches[key];
+                }
+                this.restorePatch(msgData.serialization);
+            });
 
-            let threejsCanvas = document.getElementById('mainThreejsCanvas');
-            if (threejsCanvas && ENABLE_PICTURE_IN_PICTURE) {
-                threejsCanvas.addEventListener('pointerdown', this.onPointerDown);
+            this.onVehicleDeleted = this.onVehicleDeleted.bind(this);
+            realityEditor.device.registerCallback('vehicleDeleted', this.onVehicleDeleted); // deleted using userinterface
+            realityEditor.network.registerCallback('vehicleDeleted', this.onVehicleDeleted); // deleted using server
+        }
+
+        /**
+         * If tool storing a patch is deleted, delete the
+         * corresponding patch
+         * @param {{objectKey: string?, frameKey: string?, nodeKey: string?}} event
+         */
+        onVehicleDeleted(event) {
+            if (!event.objectKey || !event.frameKey || event.nodeKey) {
+                return;
+            }
+            const key = event.frameKey;
+            if (!this.patches[key]) {
+                return;
             }
 
-            this.startWebRTC();
-            this.restorePatches();
+            realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
+            delete this.patches[key];
         }
 
         onAnimationFrame() {
@@ -1334,9 +1404,9 @@ void main() {
                 containerMatrix,
                 phoneMatrix,
                 textureImage,
-                textureDepthImage
+                textureDepthImage,
+                serialization.creationTime,
             );
-            patch.__creationTime = serialization.creationTime;
             realityEditor.gui.threejsScene.addToScene(patch);
             this.patches[serialization.key] = patch;
         }
@@ -1362,76 +1432,6 @@ void main() {
                 }, 300);
             }
             return clonedPatches;
-        }
-
-        restorePatches() {
-            const keys = Object.keys(window.localStorage).filter(key => {
-                return key.startsWith(PATCH_KEY_PREFIX);
-            });
-
-            for (const key of keys) {
-                const serialization = JSON.parse(window.localStorage[key]);
-                this.restorePatch(serialization);
-            }
-
-            if (ENABLE_PATCH_REMOTE_PERSISTENCE) {
-                fetch('history/patches').then(res => {
-                    return res.json();
-                }).then(patches => {
-                    for (let patch of patches) {
-                        if (window.localStorage.hasOwnProperty(patch.key)) {
-                            continue;
-                        }
-
-                        const serialization = JSON.parse(patch);
-                        this.restorePatch(serialization);
-                    }
-                }).catch(e => {
-                    console.warn('Server-side patch persistence not supported', e);
-                });
-            }
-        }
-
-        undoPatch() {
-            let keys = Object.keys(window.localStorage).filter(key => {
-                return key.startsWith(PATCH_KEY_PREFIX);
-            });
-            // Fall back to locally persisted patches
-            if (keys.length === 0) {
-                keys = Object.keys(this.patches);
-            }
-            if (keys.length === 0) {
-                return;
-            }
-            keys.sort((keyA, keyB) => {
-                let a = parseFloat(keyA.split('-')[1]);
-                let b = parseFloat(keyB.split('-')[1]);
-                return b - a;
-            });
-            const key = keys[0];
-
-            try {
-                window.localStorage.removeItem(key);
-            } catch (e) {
-                console.warn('Unable to remove patch from localStorage', key, e);
-            }
-
-            if (ENABLE_PATCH_REMOTE_PERSISTENCE) {
-                fetch(`history/patches/${key}`, {
-                    method: 'DELETE',
-                }).then(res => {
-                    return res.text();
-                }).then(text => {
-                    console.log('patch deleted', text);
-                }).catch(e => {
-                    console.warn('Server-side patch delete error', e);
-                });
-            }
-
-            if (this.patches[key]) {
-                realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
-                delete this.patches[key];
-            }
         }
 
         advanceShaderMode() {
