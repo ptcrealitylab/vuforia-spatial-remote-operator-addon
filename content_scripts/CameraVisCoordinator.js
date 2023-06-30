@@ -3,7 +3,7 @@ createNameSpace('realityEditor.device.cameraVis');
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
-import CameraVis from './CameraVis.js';
+import {CameraVis} from './CameraVis.js';
 
 (function(exports) {
     const debug = false;
@@ -108,8 +108,8 @@ import CameraVis from './CameraVis.js';
             realityEditor.network.addPostMessageHandler('patchHydrate', (msgData) => {
                 const key = msgData.frame;
                 if (this.patches[key]) {
-                    realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
-                    delete this.patches[key];
+                    // TODO contemplate updating existing patch
+                    return;
                 }
                 this.restorePatch(msgData.serialization);
             });
@@ -133,7 +133,7 @@ import CameraVis from './CameraVis.js';
                 return;
             }
 
-            realityEditor.gui.threejsScene.removeFromScene(this.patches[key]);
+            this.patches[key].remove();
             delete this.patches[key];
         }
 
@@ -587,19 +587,19 @@ import CameraVis from './CameraVis.js';
                 textureDepthImage,
                 serialization.creationTime,
             );
-            realityEditor.gui.threejsScene.addToScene(patch);
+            patch.add();
             this.patches[serialization.key] = patch;
         }
 
         /**
          * Clone patches from every active CameraVis
-         * @return {{[key: string]: THREE.Object3D} map from patch key to patch
+         * @return {{[key: string]: CameraVisPatch} map from patch key to patch
          */
         clonePatches() {
             let clonedPatches = {};
             for (let camera of Object.values(this.cameras)) {
                 const {key, patch} = camera.clonePatch();
-                realityEditor.gui.threejsScene.addToScene(patch);
+                patch.add();
                 this.patches[key] = patch;
                 clonedPatches[key] = patch;
                 // Hide for a bit to show the patch in space
