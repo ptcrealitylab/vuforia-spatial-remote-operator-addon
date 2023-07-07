@@ -42,12 +42,24 @@ export class CameraVisPatch {
                 this.matDiff = null;
             }
 
-            if (this.shaderMode === ShaderMode.DIFF && !this.visualDiff) {
+            if (this.shaderMode === ShaderMode.HIDDEN) {
+                this.container.visible = false;
+                return;
+            }
+
+            this.container.visible = true;
+
+            if ((this.shaderMode === ShaderMode.DIFF ||
+                 this.shaderMode === ShaderMode.DIFF_DEPTH) &&
+                     !this.visualDiff) {
                 this.visualDiff = new VisualDiff();
             }
 
-            if (this.shaderMode === ShaderMode.DIFF) {
+            if (this.shaderMode === ShaderMode.DIFF ||
+                this.shaderMode === ShaderMode.DIFF_DEPTH) {
                 this.visualDiff.showCameraVisDiff(this);
+            } else {
+                this.mesh.material = this.material;
             }
         }
     }
