@@ -4,6 +4,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 import {CameraVis} from './CameraVis.js';
+import {CameraVisPatch} from './CameraVisPatch.js';
 import {ShaderMode} from './Shaders.js';
 
 (function(exports) {
@@ -583,7 +584,7 @@ import {ShaderMode} from './Shaders.js';
             const textureDepthImage = document.createElement('img');
             textureDepthImage.src = serialization.textureDepth;
 
-            const patch = CameraVis.createPatch(
+            const patch = CameraVisPatch.createPatch(
                 containerMatrix,
                 phoneMatrix,
                 textureImage,
