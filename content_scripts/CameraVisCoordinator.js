@@ -4,6 +4,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 import {CameraVis} from './CameraVis.js';
+import {ShaderMode} from './Shaders.js';
 
 (function(exports) {
     const debug = false;
@@ -13,13 +14,6 @@ import {CameraVis} from './CameraVis.js';
     const DEPTH_WIDTH = 256;
     const DEPTH_HEIGHT = 144;
     const CONNECTION_TIMEOUT_MS = 10000;
-    const ShaderMode = {
-        SOLID: 'SOLID',
-        POINT: 'POINT',
-        HOLO: 'HOLO',
-        DIFF: 'DIFF',
-        FIRST_PERSON: 'FIRST_PERSON',
-    };
 
     const enabledShaderModes = [
         ShaderMode.SOLID,
