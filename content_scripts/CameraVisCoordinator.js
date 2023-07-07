@@ -108,6 +108,15 @@ import {ShaderMode} from './Shaders.js';
                 this.restorePatch(msgData.serialization);
             });
 
+            realityEditor.network.addPostMessageHandler('patchSetShaderMode', (msgData) => {
+                const key = msgData.frame;
+                if (!this.patches[key]) {
+                    return;
+                }
+                this.patches[key].setShaderMode(msgData.shaderMode);
+            });
+
+
             this.onVehicleDeleted = this.onVehicleDeleted.bind(this);
             realityEditor.device.registerCallback('vehicleDeleted', this.onVehicleDeleted); // deleted using userinterface
             realityEditor.network.registerCallback('vehicleDeleted', this.onVehicleDeleted); // deleted using server

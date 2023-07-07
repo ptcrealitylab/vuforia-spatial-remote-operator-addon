@@ -8,7 +8,9 @@ export const ShaderMode = {
     POINT: 'POINT',
     HOLO: 'HOLO',
     DIFF: 'DIFF',
+    DIFF_DEPTH: 'DIFF_DEPTH',
     FIRST_PERSON: 'FIRST_PERSON',
+    HIDDEN: 'HIDDEN',
 };
 
 const ZDEPTH = false;
