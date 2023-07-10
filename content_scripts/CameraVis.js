@@ -134,9 +134,10 @@ export class CameraVis {
 
     /**
      * Clone the current state of the mesh rendering part of this CameraVis
+     * @param {ShaderMode} shaderMode - initial shader mode to set on the patches
      * @return {{key: string, patch: CameraVisPatch}} unique key for patch and object containing all relevant meshes
      */
-    clonePatch() {
+    clonePatch(shaderMode) {
         let now = Date.now();
         let serialization = {
             key: '',
@@ -146,7 +147,7 @@ export class CameraVis {
             textureDepth: this.textureDepth.image.toDataURL(),
             creationTime: now,
         };
-        const frameKey = this.createToolForPatchSerialization(serialization);
+        const frameKey = CameraVisPatch.createToolForPatchSerialization(serialization, shaderMode);
 
         return {
             key: frameKey,
@@ -155,7 +156,8 @@ export class CameraVis {
                 this.phone.matrix,
                 this.texture.image,
                 this.textureDepth.image,
-                now
+                now,
+                shaderMode
             ),
         };
     }

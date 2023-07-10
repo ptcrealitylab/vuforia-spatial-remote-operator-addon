@@ -16,12 +16,20 @@ import {VisualDiff} from './VisualDiff.js';
  */
 
 export class CameraVisPatch {
-    constructor(container, mesh, phoneMesh) {
+    /**
+     * @param {THREE.Group} container
+     * @param {THREE.Object3D} mesh
+     * @param {THREE.Object3D} phoneMesh
+     * @param {ShaderMode} pendingShaderMode - initial shader mode to set on the patch after loading
+     */
+    constructor(container, mesh, phoneMesh, pendingShaderMode) {
         this.container = container;
         this.mesh = mesh;
         this.phone = phoneMesh;
         this.material = this.mesh.material;
         this.shaderMode = ShaderMode.SOLID;
+        this.pendingShaderMode = pendingShaderMode;
+        this.loading = true;
     }
 
     getSceneNodeMatrix() {
@@ -38,15 +46,33 @@ export class CameraVisPatch {
         return matrix;
     }
 
-    showDiff() {
-        this.setShaderMode(ShaderMode.DIFF);
+    /**
+     * Upon creating or restoring the patch (i.e. loading the data from it),
+     * the patch has expanded to fill the space using the solid shader mode. If
+     * it's hidden then at this point we hide it but if it's in another shader
+     * mode then it's time to swap over.
+     */
+    finalizeLoadingAnimation() {
+        this.loading = false;
+        if (this.pendingShaderMode !== this.shaderMode) {
+            this.setShaderMode(this.pendingShaderMode);
+        }
     }
 
-    hideDiff() {
-        this.setShaderMode(ShaderMode.SOLID);
+    resetShaderMode() {
+        if (this.loading) {
+            return;
+        }
+        let shaderMode = this.shaderMode;
+        this.shaderMode = '';
+        this.setShaderMode(shaderMode);
     }
 
     setShaderMode(shaderMode) {
+        if (this.loading) {
+            this.pendingShaderMode = shaderMode;
+            return;
+        }
         if (shaderMode !== this.shaderMode) {
             this.shaderMode = shaderMode;
 
@@ -77,6 +103,14 @@ export class CameraVisPatch {
         }
     }
 
+    show() {
+        this.container.visible = true;
+    }
+
+    hide() {
+        this.container.visible = false;
+    }
+
     add() {
         realityEditor.gui.threejsScene.addToScene(this.container);
     }
@@ -87,9 +121,10 @@ export class CameraVisPatch {
 
     /**
      * @param {PatchSerialization} serialization
+     * @param {ShaderMode} shaderMode - initial shader mode to set on the patches
      * @return {string} frame key
      */
-    static createToolForPatchSerialization(serialization) {
+    static createToolForPatchSerialization(serialization, shaderMode) {
         let toolMatrix = new THREE.Matrix4().fromArray(serialization.phone);
         let containerMatrix = new THREE.Matrix4().fromArray(serialization.container);
         // Sets y to 0 because it will soon be positioned with a built-in groundplane offset
@@ -113,6 +148,10 @@ export class CameraVisPatch {
                 addedTool.objectId, frameKey, frameKey + 'storage',
                 'serialization', serialization
             );
+            realityEditor.network.realtime.writePublicData(
+                addedTool.objectId, frameKey, frameKey + 'storage',
+                'shaderMode', shaderMode
+            );
         };
         setTimeout(write, 500);
         setTimeout(write, 3000);
@@ -126,9 +165,10 @@ export class CameraVisPatch {
      * @param {string} textureImage - base64 data url for texture
      * @param {string} textureDepthImage - base64 data url for depth texture
      * @param {number} creationTime - Time when patch created. Usually from Date.now()
+     * @param {ShaderMode} shaderMode - initial shader mode to set on the patches
      * @return {CameraVisPatch}
      */
-    static createPatch(containerMatrix, phoneMatrix, textureImage, textureDepthImage, creationTime) {
+    static createPatch(containerMatrix, phoneMatrix, textureImage, textureDepthImage, creationTime, shaderMode) {
         let patch = new THREE.Group();
         patch.matrix.copy(containerMatrix);
         patch.matrixAutoUpdate = false;
@@ -163,6 +203,12 @@ export class CameraVisPatch {
         let mesh = createPointCloud(texture, textureDepth, ShaderMode.SOLID);
         mesh.material.uniforms.patchLoading.value = 0;
 
+        phone.add(mesh);
+        patch.add(phone);
+
+        patch.__creationTime = creationTime;
+        let cvPatch = new CameraVisPatch(patch, mesh, phone, shaderMode);
+
         let lastTime = -1;
         function patchLoading(time) {
             if (lastTime < 0) {
@@ -176,14 +222,11 @@ export class CameraVisPatch {
                 window.requestAnimationFrame(patchLoading);
             } else {
                 mesh.material.uniforms.patchLoading.value = 1;
+                cvPatch.finalizeLoadingAnimation();
             }
         }
         window.requestAnimationFrame(patchLoading);
 
-        phone.add(mesh);
-        patch.add(phone);
-
-        patch.__creationTime = creationTime;
-        return new CameraVisPatch(patch, mesh, phone);
+        return cvPatch;
     }
 }
