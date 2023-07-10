@@ -84,7 +84,7 @@ import {ShaderMode} from './Shaders.js';
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, () => {
-                this.clonePatches();
+                this.clonePatches(ShaderMode.SOLID);
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
@@ -597,12 +597,13 @@ import {ShaderMode} from './Shaders.js';
 
         /**
          * Clone patches from every active CameraVis
+         * @param {ShaderMode} shaderMode - initial shader mode for the patches
          * @return {{[key: string]: CameraVisPatch} map from patch key to patch
          */
-        clonePatches() {
+        clonePatches(shaderMode) {
             let clonedPatches = {};
             for (let camera of Object.values(this.cameras)) {
-                const {key, patch} = camera.clonePatch();
+                const {key, patch} = camera.clonePatch(shaderMode);
                 patch.add();
                 this.patches[key] = patch;
                 clonedPatches[key] = patch;
