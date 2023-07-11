@@ -147,7 +147,7 @@ export class VisualDiff {
         const camera = realityEditor.gui.threejsScene.getInternals().camera;
 
         let matDiff = material.clone();
-        matDiff.fragmentShader = shaderMode === ShaderMode.DIFF_DEPTH ?
+        matDiff.fragmentShader = shaderMode === ShaderMode.DIFF ?
             fragmentShader : fragmentShaderDepth;
         matDiff.uniforms = material.uniforms;
         matDiff.uniforms.mapBase = {value: this.rtBase.texture};
