@@ -21,14 +21,16 @@ export class CameraVisPatch {
      * @param {THREE.Object3D} mesh
      * @param {THREE.Object3D} phoneMesh
      * @param {ShaderMode} pendingShaderMode - initial shader mode to set on the patch after loading
+     * @param {number} creationTime
      */
-    constructor(container, mesh, phoneMesh, pendingShaderMode) {
+    constructor(container, mesh, phoneMesh, pendingShaderMode, creationTime) {
         this.container = container;
         this.mesh = mesh;
         this.phone = phoneMesh;
         this.material = this.mesh.material;
         this.shaderMode = ShaderMode.SOLID;
         this.pendingShaderMode = pendingShaderMode;
+        this.creationTime = creationTime;
         this.loading = true;
     }
 
@@ -206,8 +208,7 @@ export class CameraVisPatch {
         phone.add(mesh);
         patch.add(phone);
 
-        patch.__creationTime = creationTime;
-        let cvPatch = new CameraVisPatch(patch, mesh, phone, shaderMode);
+        let cvPatch = new CameraVisPatch(patch, mesh, phone, shaderMode, creationTime);
 
         let lastTime = -1;
         function patchLoading(time) {
