@@ -203,11 +203,11 @@ void main() {
       0.0,
       1.0
   );
-  if (alpha < 0.02) {
+  if (alpha < 0.02 && border < 0.5) {
       discard; // Necessary to prevent weird transparency errors when overlapping with self
   }
   // gl_FragColor = vec4(color.rgb, alpha);
-  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(borderColor.rgb, alpha);
+  gl_FragColor = (1.0 - border) * vec4(color.rgb, alpha) + border * vec4(borderColor.rgb, 0.7);
 
   // gl_FragColor = vec4(alphaNorm, alphaNorm, alphaDepth, 1.0);
 }`;
@@ -560,8 +560,7 @@ void main() {
                     patchLoading: { value: 1.0 },
                     // Defaults taken from iPhone 13 Pro Max
                     focalLength: { value: new THREE.Vector2(1393.48523 / 1920 * width, 1393.48523 / 1080 * height) },
-                    // convert principal point from image Y-axis bottom-to-top in Vuforia to top-to-bottom in OpenGL 
-                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, (1080 - 539.411926) / 1080 * height) },
+                    principalPoint: { value: new THREE.Vector2(959.169433 / 1920 * width, 539.411926 / 1080 * height) },
                 },
                 vertexShader,
                 fragmentShader,
@@ -601,10 +600,9 @@ void main() {
                     rawMatricesMsg.focalLength[0] / rawWidth * width,
                     rawMatricesMsg.focalLength[1] / rawHeight * height,
                 );
-                // convert principal point from image Y-axis bottom-to-top in Vuforia to top-to-bottom in OpenGL 
                 this.material.uniforms.principalPoint.value = new THREE.Vector2(
                     rawMatricesMsg.principalPoint[0] / rawWidth * width,
-                    (rawHeight - rawMatricesMsg.principalPoint[1]) / rawHeight * height,
+                    rawMatricesMsg.principalPoint[1] / rawHeight * height,
                 );
             }
 
@@ -856,15 +854,7 @@ void main() {
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatch, () => {
-                const keys = this.getPatchKeys();
-                this.undoPatch(keys[0]);
-            });
-
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UndoPatches, () => {
-                const keys = this.getPatchKeys();
-                for (const key of keys) {
-                    this.undoPatch(key);
-                }
+                this.undoPatch();
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
@@ -1349,10 +1339,7 @@ void main() {
             }
         }
 
-        /**
-         * @return {Array<string>} patch keys
-         */
-        getPatchKeys() {
+        undoPatch() {
             let keys = Object.keys(window.localStorage).filter(key => {
                 return key.startsWith(PATCH_KEY_PREFIX);
             });
@@ -1368,14 +1355,8 @@ void main() {
                 let b = parseFloat(keyB.split('-')[1]);
                 return b - a;
             });
+            const key = keys[0];
 
-            return keys;
-        }
-
-        /**
-         * @param {string} key - patch key
-         */
-        undoPatch(key) {
             try {
                 window.localStorage.removeItem(key);
             } catch (e) {
