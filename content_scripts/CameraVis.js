@@ -235,9 +235,10 @@ export class CameraVis {
                 rawMatricesMsg.focalLength[0] / rawWidth * width,
                 rawMatricesMsg.focalLength[1] / rawHeight * height,
             );
+            // convert principal point from image Y-axis bottom-to-top in Vuforia to top-to-bottom in OpenGL
             this.material.uniforms.principalPoint.value = new THREE.Vector2(
                 rawMatricesMsg.principalPoint[0] / rawWidth * width,
-                rawMatricesMsg.principalPoint[1] / rawHeight * height,
+                (rawHeight - rawMatricesMsg.principalPoint[1]) / rawHeight * height,
             );
         }
 
