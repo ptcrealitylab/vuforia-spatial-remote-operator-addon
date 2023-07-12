@@ -133,6 +133,7 @@ export class CameraVisPatch {
         containerMatrix.elements[13] = 0;
         toolMatrix.premultiply(containerMatrix);
         toolMatrix.multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0, 0, Math.PI / 2)));
+        toolMatrix.multiply(new THREE.Matrix4().makeTranslation(0, 0, 500));
 
         let addedTool = realityEditor.gui.pocket.createFrame('spatialPatch', {
             noUserInteraction: true,
