@@ -141,6 +141,7 @@ export class CameraVis {
         let now = Date.now();
         let serialization = {
             key: '',
+            id: this.id,
             container: Array.from(this.container.matrix.elements),
             phone: Array.from(this.phone.matrix.elements),
             texture: this.texture.image.toDataURL('image/jpeg', 0.7),

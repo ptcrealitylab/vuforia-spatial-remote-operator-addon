@@ -4,9 +4,17 @@ import {VisualDiff} from './VisualDiff.js';
 
 /**
  * All data serialized to store a CameraVis patch (3d picture)
- * Notably `key` corresponds to frame key
+ * - `key`: frame (tool) key, globally unique
+ * - id: camera id, may not be persistent across reboots of
+ *   camera app
+ * - container: matrix from threejs
+ * - phone: matrix from threejs
+ * - texture: base64 encoded texture image
+ * - textureDepth: base64 encoded depth texture image
+ * - creationTime: time of patch creation in ms since epoch (Date.now())
  * @typedef {{
  *   key: string,
+ *   id: string,
  *   container: Array<number>,
  *   phone: Array<number>,
  *   texture: string,
