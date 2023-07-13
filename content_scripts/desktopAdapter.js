@@ -175,9 +175,55 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         setupKeyboardWhenReady();
 
+        let fileDrop = new realityEditor.gui.FileDrop(document.body);
+        let fileUpload = new realityEditor.network.FileUpload();
+        
+        fileDrop.onFileDropped((file) => {
+            console.log(file);
+            
+            let worldObject = realityEditor.worldObjects.getBestWorldObject();
+            fileUpload.setServerPath(worldObject.ip, realityEditor.network.getPort(worldObject), worldObject.objectId);
+            
+            // upload the file to the server
+            fileUpload.uploadFilesToServer([file], (serverFilepath) => {
+                console.log('uploaded to filepath', serverFilepath);
+                
+                // show some sort of notification
+                let message = 'File was successfully uploaded';
+                showNotification(message, 3000);
+                
+                // add a tool and store the path of the file in its publicData
+                // realityEditor.spatialCursor.addToolAtScreenCenter('searchDigitalThread', { moveToCursor: true });
+            });
+        });
+
         setTimeout(() => {
             update();
         }, 100);
+    }
+    
+    function showNotification(message, timeMs = 3000) {
+        // create UI
+        let notificationUI = document.createElement('div');
+        notificationUI.classList.add('statusBar');
+        if (realityEditor.device.environment.variables.layoutUIForPortrait) {
+            notificationUI.classList.add('statusBarPortrait');
+        }
+        notificationUI.style.top = realityEditor.device.environment.variables.screenTopOffset + 'px';
+        document.body.appendChild(notificationUI);
+
+        let notificationTextContainer = document.createElement('div');
+        notificationUI.classList.add('statusBarText');
+        notificationUI.appendChild(notificationTextContainer);
+
+        // show and populate with message
+        notificationUI.classList.add('statusBar');
+        notificationUI.classList.remove('statusBarHidden');
+        notificationTextContainer.innerHTML = message;
+        
+        setTimeout(() => {
+            document.body.removeChild(notificationUI);
+        }, timeMs);
     }
 
     function calculateProjectionMatrices(viewportWidth, viewportHeight) {
