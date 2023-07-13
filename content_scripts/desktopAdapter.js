@@ -193,7 +193,29 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 showNotification(message, 3000);
                 
                 // add a tool and store the path of the file in its publicData
-                // realityEditor.spatialCursor.addToolAtScreenCenter('searchDigitalThread', { moveToCursor: true });
+                realityEditor.spatialCursor.addToolAtScreenCenter('linkedFile', {
+                    moveToCursor: true,
+                    onToolUploadComplete: (frame) => {
+                        console.log('added linkedFile tool', frame);
+                        
+                        // TODO: wait for the tool to load so that the node appears on the tool
+
+                        // write the filepath into the publicData of the node
+                        const writeFilepathToNode = (nodeKey) => {
+                            const dataKey = 'filePath';
+                            realityEditor.network.realtime.writePublicData(frame.objectId, frame.uuid, nodeKey, dataKey, serverFilepath);
+                        }
+
+                        const existingNodeKey = Object.keys(frame.nodes).find(name => name.includes('storage'));
+                        if (existingNodeKey) {
+                            writeFilepathToNode(existingNodeKey);
+                        } else {
+                            realityEditor.network.onNodeAddedToFrame(frame.objectId, frame.uuid, (newNodeKey) => {
+                                writeFilepathToNode(newNodeKey);
+                            });
+                        }
+                    }
+                });
             });
         });
 
@@ -203,7 +225,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     }
     
     function showNotification(message, timeMs = 3000) {
-        // create UI
         let notificationUI = document.createElement('div');
         notificationUI.classList.add('statusBar');
         if (realityEditor.device.environment.variables.layoutUIForPortrait) {
