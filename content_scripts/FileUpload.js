@@ -55,10 +55,10 @@ createNameSpace('realityEditor.network');
                 }
                 // File(s) uploaded.
                 console.log('successful upload');
-                let mediaUuid = JSON.parse(xhr.responseText).mediaUuid;
+                let fileName = JSON.parse(xhr.responseText).fileName;
                 // let extension = isVideo ? '.mov' : '.jpg';
                 // let filepath = 'http://' + this.serverIp + ':' + this.serverPort + '/mediaFile/' + this.objectId + '/' + mediaUuid + extension;
-                let filepath = 'http://' + this.serverIp + ':' + this.serverPort + '/mediaFile/' + this.objectId + '/' + mediaUuid;
+                let filepath = 'http://' + this.serverIp + ':' + this.serverPort + '/mediaFile/' + this.objectId + '/' + fileName;
                 callback(filepath);
             };
 
