@@ -21,10 +21,7 @@ launchButton.addEventListener('pointerup', function () {
     case ShaderMode.HIDDEN:
         shaderMode = ShaderMode.SOLID;
         break;
-    case ShaderMode.SOLID:
-        shaderMode = ShaderMode.DIFF;
-        break;
-    case ShaderMode.DIFF: // skips over DIFF_DEPTH for now
+    case ShaderMode.SOLID: // skips over DIFF and DIFF_DEPTH for now
     default:
         shaderMode = ShaderMode.HIDDEN;
         break;
