@@ -24,8 +24,7 @@ createNameSpace('realityEditor.gui');
         Follow1stPerson: 'Follow 1st-Person',
         Follow3rdPerson: 'Follow 3rd-Person',
         StopFollowing: 'Stop Following',
-        ClonePatch: 'Clone Patch',
-        UndoPatch: 'Undo Patch',
+        TakeSpatialSnapshot: 'Take Spatial Snapshot',
         OrbitCamera: 'Orbit Camera',
         ResetCameraPosition: 'Reset Camera Position',
         GettingStarted: 'Getting Started',
@@ -103,11 +102,8 @@ createNameSpace('realityEditor.gui');
         const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.History, toggleAnalyticsSettings);
 
-        const clonePatch = new MenuItem(ITEM.ClonePatch, { shortcutKey: 'P', disabled: true }, null);
-        menuBar.addItemToMenu(MENU.History, clonePatch);
-
-        const undoPatch = new MenuItem(ITEM.UndoPatch, { shortcutKey: '' }, null);
-        menuBar.addItemToMenu(MENU.History, undoPatch);
+        const takeSpatialSnapshot = new MenuItem(ITEM.TakeSpatialSnapshot, { shortcutKey: 'P', disabled: true }, null);
+        menuBar.addItemToMenu(MENU.History, takeSpatialSnapshot);
 
         const toggleVoxelizer = new MenuItem(ITEM.Voxelizer, { shortcutKey: '', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.History, toggleVoxelizer);

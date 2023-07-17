@@ -83,7 +83,7 @@ import {ShaderMode} from './Shaders.js';
                 }
             });
 
-            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ClonePatch, () => {
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TakeSpatialSnapshot, () => {
                 this.clonePatches(ShaderMode.SOLID);
             });
 
@@ -545,7 +545,7 @@ import {ShaderMode} from './Shaders.js';
 
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.AdvanceCameraShader, true);
 
-            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.ClonePatch, true);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TakeSpatialSnapshot, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
             Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
