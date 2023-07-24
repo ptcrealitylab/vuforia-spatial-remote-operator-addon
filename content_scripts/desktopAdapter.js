@@ -176,7 +176,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         setupKeyboardWhenReady();
 
         setTimeout(() => {
-            update();
+            realityEditor.gui.threejsScene.setAnimationLoop(() => {update();});
         }, 100);
     }
 
@@ -663,7 +663,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // start the update loop when the remote operator is shown
         realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
-            update(); // start update loop
+            realityEditor.gui.threejsScene.setAnimationLoop(() => {update();}); // start update loop
+
             calculateProjectionMatrices(window.innerWidth, window.innerHeight); // update proj matrices
         });
     }
@@ -683,9 +684,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // TODO: ensure that visibleObjects that aren't known objects get filtered out
 
         realityEditor.gui.ar.draw.update(getVisibleObjects());
-
-        // repeat loop on next render
-        requestAnimationFrame(update);
     }
 
     function getVisibleObjects() {
