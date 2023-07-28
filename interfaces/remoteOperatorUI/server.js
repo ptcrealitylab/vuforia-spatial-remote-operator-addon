@@ -215,5 +215,7 @@ module.exports.start = function start() {
 
     });
 
-    app.listen(31337);
+    const port = 31337;
+    app.listen(port);
+    console.info("Reality Zone Viewer video/skeleton server listening on port " + port);
 };
