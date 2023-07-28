@@ -183,7 +183,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
     function calculateProjectionMatrices(viewportWidth, viewportHeight) {
         const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
         var desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, viewportWidth/ viewportHeight, 10, 300000);
-        console.debug('calculated desktop projection matrix:', desktopProjectionMatrix);
 
         unityProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, -viewportWidth / viewportHeight, 10, 300000);
 
@@ -199,7 +198,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         const menuBar = realityEditor.gui.getMenuBar();
 
         menuBar.addCallbackToItem(realityEditor.gui.ITEM.DarkMode, (value) => {
-            console.log('dark mode', value);
             if (value) {
                 menuBar.domElement.classList.remove('desktopMenuBarLight');
                 Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
@@ -293,11 +291,9 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
      */
     function projectionMatrixFrom(vFOV, aspect, near, far) {
         var top = near * Math.tan((Math.PI / 180) * 0.5 * vFOV );
-        console.debug('top', top);
         var height = 2 * top;
         var width = aspect * height;
         var left = -0.5 * width;
-        console.debug(vFOV, aspect, near, far);
         return makePerspective( left, left + width, top, top - height, near, far );
     }
 
@@ -314,9 +310,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         var b = ( top + bottom ) / ( top - bottom );
         var c = - ( far + near ) / ( far - near );
         var d = - 2 * far * near / ( far - near );
-
-        console.debug('makePerspective', x, y, a, b, c);
-
+        
         te[ 0 ] = x;    te[ 4 ] = 0;    te[ 8 ] = a;    te[ 12 ] = 0;
         te[ 1 ] = 0;    te[ 5 ] = y;    te[ 9 ] = b;    te[ 13] = 0;
         te[ 2 ] = 0;    te[ 6 ] = 0;    te[ 10 ] = c;   te[ 14 ] = d;
@@ -388,7 +382,7 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 // isUsingCustomPrimaryIP = toggleValue;
             },
             function(textValue) {
-                console.log('zone text was set to ' + textValue);
+                // console.log('zone text was set to ' + textValue);
             },
             { ignoreOnload: true });
 
@@ -435,8 +429,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // intercept postMessage calls to the messageHandlers and manually handle each case by functionName
         window.webkit.messageHandlers.realityEditor.postMessage = function(messageBody) {
-            // console.log('intercepted message to native -> ', messageBody);
-
             switch (messageBody.functionName) {
             case 'setPause':
                 setPause();
@@ -453,15 +445,12 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 // case 'getUDPMessages':
                 //     getUDPMessages(messageBody.callback);
             case 'muteMicrophone':
-                console.log('mute remote operator');
                 realityEditor.gui.ar.desktopRenderer.muteMicrophoneForCameraVis();
                 break;
             case 'unmuteMicrophone':
-                console.log('unmute remote operator');
                 realityEditor.gui.ar.desktopRenderer.unmuteMicrophoneForCameraVis();
                 break;
             default:
-                // console.log('could not find desktop implementation of app.' + messageBody.functionName);
                 return;
             }
         };
@@ -490,7 +479,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         // @deprecated
         // todo: remove
         realityEditor.network.realtime.addDesktopSocketMessageListener('/matrix/visibleObjects', function(msgContent) {
-            console.log('received matrix message: ' + msgContent);
             // serverSocket.on('/matrix/visibleObjects', function(msgContent) {
             if (!isPaused) {
                 if (msgContent.ip && msgContent.port) {
@@ -507,11 +495,8 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
         });
 
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
-            console.log('object discovered: ' + objectKey + ' (desktop)');
-
             // make objects show up by default at the origin
             if (object.matrix.length === 0) {
-                console.log('putting object ' + object.name + ' at the origin');
                 object.matrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
                 visibleObjects[objectKey] = realityEditor.gui.ar.utilities.newIdentityMatrix();
             }
@@ -525,7 +510,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
                     // emit an event if this is a newly "discovered" matrix
                     if ((!object.matrix || object.matrix.length !== 16) && msgData.newValue.length === 16) {
-                        console.log('discovered a matrix for an object that didn\'t have one before');
                         callbackHandler.triggerCallbacks('objectMatrixDiscovered', {objectKey: msgData.objectKey});
                     }
 
@@ -591,10 +575,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
                             window.localStorage.setItem('realityEditor.desktopAdapter.projectionMatrix', JSON.stringify(msgContent.projectionMatrix));
                             window.localStorage.setItem('realityEditor.desktopAdapter.realProjectionMatrix', JSON.stringify(msgContent.realProjectionMatrix));
-                            console.log('projection matrix:', msgContent.realProjectionMatrix);
-
-                            console.log('msgContent.projectionMatrix', msgContent);
-                            console.log('finished connecting to ' + msgContent);
                             currentConnectedDeviceIP = msgContent.ip;
 
                             _saveMatrixInterval = setInterval(function() {
@@ -606,7 +586,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
             }
 
             if (typeof msgContent.action !== 'undefined') {
-                console.log(msgContent.action);
                 if (typeof msgContent.action === 'string') {
                     try {
                         msgContent.action = JSON.parse(msgContent.action);
@@ -647,8 +626,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         if (deviceDropdown.selected) {
             var selectedDevice = deviceDropdown.selected.element.id;
-            // console.log('selected device is ' + selectedDevice);
-
             if (areIPsEqual(selectedDevice, deviceMessageIsFrom)) {
                 return true;
             }
@@ -822,8 +799,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
                 }
             }
             if (typeof message.action !== 'undefined' && message.action === 'zoneDiscovered' && message.ip && message.port) {
-                // console.log('zoneDiscoveredListener', message);
-
                 // create a new web socket with the zone at the specified address received over UDP
                 let potentialZoneAddress =  realityEditor.network.getURL(message.ip, realityEditor.network.getPort(message), '');
 
@@ -846,7 +821,6 @@ window.DEBUG_DISABLE_DROPDOWNS = false;
 
         // only establish a new connection if we don't already have one with that server
         if (socketsIps.indexOf(zoneIp) < 0) {
-            console.log('zoip', zoneIp);
             let socketId = zoneIp.includes(getPrimaryZoneIP()) ? 'primary' : 'secondary';
 
             // zoneConnectionSwitch.innerHTML = '[CONNECTED TO ZONE]';
