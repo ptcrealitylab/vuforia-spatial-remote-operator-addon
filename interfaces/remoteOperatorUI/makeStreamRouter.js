@@ -23,7 +23,6 @@ module.exports = function makeStreamRouter(app) {
         onError: []
     };
     app.ws('/colorProvider', function(ws, req) {
-        console.log('new colorPro ws');
         const id = requestId(req);
         ws.on('message', function(msg, _isBinary) {
             const msgWithId = messageWithId(msg, id);
@@ -52,7 +51,6 @@ module.exports = function makeStreamRouter(app) {
     });
 
     app.ws('/depthProvider', function(ws, req) {
-        console.log('new depthPro ws');
         const id = requestId(req);
         ws.on('message', function(msg, _isBinary) {
             const msgWithId = messageWithId(msg, id);
@@ -67,7 +65,6 @@ module.exports = function makeStreamRouter(app) {
     });
 
     app.ws('/matrixProvider', function(ws, req) {
-        console.log('new matrixPro ws');
         const id = requestId(req);
         ws.on('message', function(matricesMsg, _isBinary) {
             const matrices = JSON.parse(matricesMsg);
@@ -106,17 +103,14 @@ module.exports = function makeStreamRouter(app) {
     });
 
     app.ws('/color', function(ws) {
-        console.log('new color ws');
         colorPool.push(ws);
     });
 
     app.ws('/depth', function(ws) {
-        console.log('new depth ws');
         depthPool.push(ws);
     });
 
     app.ws('/matrix', function(ws) {
-        console.log('new matrix ws');
         matrixPool.push(ws);
     });
 
@@ -125,11 +119,9 @@ module.exports = function makeStreamRouter(app) {
     let idToSocket = {};
 
     app.ws('/signalling', function(ws, req) {
-        console.log('new signalling ws', req.ip);
         let wsId;
 
         ws.on('message', function(msgRaw) {
-            // console.log('signal ws message', msgRaw);
             let msg;
             try {
                 msg = JSON.parse(msgRaw);
@@ -223,7 +215,6 @@ module.exports = function makeStreamRouter(app) {
             frameData[id].matrix = matrix;
         }
         if (frameData[id].color && frameData[id].depth && frameData[id].matrix) {
-            // console.log('have color, depth, and matrix for id: ' + id);
             callbacks.onFrame.forEach(function(cb) {
                 cb(frameData[id].color, frameData[id].depth, frameData[id].matrix, id);
             });
