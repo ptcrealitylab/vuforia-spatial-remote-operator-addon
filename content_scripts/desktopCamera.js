@@ -88,6 +88,9 @@ createNameSpace('realityEditor.device.desktopCamera');
     ];
     exports.perspectives = perspectives;
 
+    let videoPlaybackTargets = {};
+    let videoPlayback = realityEditor.gui.ar.videoPlayback;
+
     // used for transitioning from AR view to remote operator virtual camera
     let didAddModeTransitionListeners = false;
     let virtualCameraEnabled = false;
@@ -266,6 +269,48 @@ createNameSpace('realityEditor.device.desktopCamera');
             virtualCamera.stopFollowing();
             if (unityCamera) {
                 unityCamera.stopFollowing();
+            }
+        });
+
+        videoPlayback.onVideoCreated(player => {
+            videoPlaybackTargets[player.id] = {
+                videoPlayer: player,
+                isPlaying: false
+            };
+            console.log('onVideoCreated', id, videoPlaybackTargets[id]);
+        });
+        videoPlayback.onVideoDisposed(id => {
+            console.log('onVideoDisposed', id);
+            delete videoPlaybackTargets[id];
+        });
+        videoPlayback.onVideoPlayed(player => {
+            if (typeof videoPlaybackTargets[player.id] === 'undefined') {
+                console.warn('playing unknown video');
+                return;
+            }
+            videoPlaybackTargets[player.id].isPlaying = true;
+            console.log('onVideoPlayed', player.id, player);
+        });
+        videoPlayback.onVideoPaused(player => {
+            if (typeof videoPlaybackTargets[player.id] === 'undefined') {
+                console.warn('pausing unknown video');
+                return;
+            }
+            videoPlaybackTargets[player.id].isPlaying = false;
+            console.log('onVideoPaused', player.id, player);
+        });
+
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.FollowVideo, () => {
+            if (Object.values(videoPlaybackTargets).length > 0) {
+                let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
+                let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
+                if (!sceneGraphNode) {
+                    let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+                    let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraPlaybackNode' + thisVideoPlayer.id, parentNode);
+                    sceneGraphNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
+                }
+                sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
+                followVirtualizer(thisVideoPlayer.id, sceneGraphNode, 3000, false);
             }
         });
 
@@ -581,6 +626,20 @@ createNameSpace('realityEditor.device.desktopCamera');
         update(false);
         requestAnimationFrame(onFrame);
     }
+
+    /**
+     * Move the sceneNode associated with the videoPlayback to match its three.js object's position
+     */
+    function updateFollowVideoPlayback() {
+        if (Object.values(videoPlaybackTargets).length > 0) {
+            let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
+            let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
+            if (sceneGraphNode) {
+                sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
+            }
+        }
+    }
+    
     /**
      * Main update function
      * @param forceCameraUpdate - Whether this update forces virtualCamera to
@@ -589,6 +648,8 @@ createNameSpace('realityEditor.device.desktopCamera');
     function update(forceCameraUpdate) {
         if (virtualCamera && virtualCameraEnabled) {
             try {
+                updateFollowVideoPlayback();
+                
                 if (forceCameraUpdate || !virtualCamera.isRendering2DVideo()) {
                     virtualCamera.update();
                 }
