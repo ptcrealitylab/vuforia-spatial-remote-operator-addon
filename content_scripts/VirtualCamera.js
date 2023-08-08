@@ -81,7 +81,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 onPanToggled: [],
                 onRotateToggled: [],
                 onScaleToggled: [],
-                onStopFollowing: [] // other modules can discover when pan/rotate forced this camera out of follow mode
+                onStopFollowing: [], // other modules can discover when pan/rotate forced this camera out of follow mode
+                onFirstPersonDistanceToggled: []
             };
 
             this.normalModePrompt = null;
@@ -508,6 +509,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (this.preStopFollowingDistanceToTarget === null) { return; }
             let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
             this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preStopFollowingDistanceToTarget));
+        }
+        onFirstPersonDistanceToggled(callback) {
+            this.callbacks.onFirstPersonDistanceToggled.push(callback);
         }
         onStopFollowing(callback) {
             this.callbacks.onStopFollowing.push(callback);
@@ -1048,9 +1052,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
                 this.followingState.currentlyRendering2DVideo = true;
 
+                this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(true));
+
             } else if (this.followingState.currentlyRendering2DVideo && this.followingState.currentFollowingDistance > 0) {
                 realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
                 this.followingState.currentlyRendering2DVideo = false;
+
+                this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(false));
             }
         }
     }

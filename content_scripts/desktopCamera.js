@@ -8,6 +8,8 @@
 
 createNameSpace('realityEditor.device.desktopCamera');
 
+import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarget.js';
+
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
  * Responsible for manipulating the camera position and resulting view matrix, on remote desktop clients
@@ -152,6 +154,28 @@ createNameSpace('realityEditor.device.desktopCamera');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
         virtualCameraEnabled = true;
 
+        let followCoordinator = new CameraFollowCoordinator(virtualCamera);
+        followCoordinator.addMenuItems();
+        console.log(followCoordinator);
+        
+        function addCameraVisCallbacks() {
+            let cameraVisCoordinator = realityEditor.gui.ar.desktopRenderer.getCameraVisCoordinator();
+            if (!cameraVisCoordinator) {
+                console.log('addCameraVisCallbacks failed');
+                setTimeout(addCameraVisCallbacks, 100);
+                return;
+            }
+            console.log('addCameraVisCallbacks succeeded');
+            cameraVisCoordinator.onCameraVisCreated(cameraVis => {
+                let sceneNode;
+                followCoordinator.addFollowTarget(cameraVis.id, cameraVis.mesh, sceneNode, cameraVis);
+            });
+            cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
+                followCoordinator.removeFollowTarget(cameraVis.id);
+            });
+        }
+        addCameraVisCallbacks();
+
         // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
 
@@ -277,17 +301,28 @@ createNameSpace('realityEditor.device.desktopCamera');
                 videoPlayer: player,
                 isPlaying: false
             };
-            console.log('onVideoCreated', id, videoPlaybackTargets[id]);
+            console.log('onVideoCreated', player.id, player);
+
+            let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+            let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraPlaybackNode' + player.id, parentNode);
+            let sceneNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
+            // player.pointCloud is undefined here, so we add it in when the video starts playing
+            followCoordinator.addFollowTarget(player.id, player.pointCloud, sceneNode, player);
         });
         videoPlayback.onVideoDisposed(id => {
             console.log('onVideoDisposed', id);
             delete videoPlaybackTargets[id];
+            
+            followCoordinator.removeFollowTarget(id);
         });
         videoPlayback.onVideoPlayed(player => {
             if (typeof videoPlaybackTargets[player.id] === 'undefined') {
                 console.warn('playing unknown video');
                 return;
             }
+
+            followCoordinator.followTargets[player.id].pointCloudMesh = player.pointCloud;
+
             videoPlaybackTargets[player.id].isPlaying = true;
             console.log('onVideoPlayed', player.id, player);
         });
@@ -311,6 +346,7 @@ createNameSpace('realityEditor.device.desktopCamera');
                 }
                 sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
                 followVirtualizer(thisVideoPlayer.id, sceneGraphNode, 3000, false);
+                thisVideoPlayer.enableFirstPersonMode();
             }
         });
 

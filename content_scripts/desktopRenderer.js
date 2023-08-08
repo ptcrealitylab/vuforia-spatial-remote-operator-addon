@@ -611,6 +611,10 @@ import {ShaderMode} from './Shaders.js';
     }
     
     exports.initService = initService;
+    
+    exports.getCameraVisCoordinator = () => {
+        return cameraVisCoordinator;
+    }
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
