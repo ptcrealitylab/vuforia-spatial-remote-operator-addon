@@ -8,7 +8,7 @@
 
 createNameSpace('realityEditor.device.desktopCamera');
 
-import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarget.js';
+import { CameraFollowCoordinator } from './CameraFollowTarget.js';
 
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
@@ -24,19 +24,10 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
     // used to render an icon at the target position to help you navigate the scene
     let rotateCenterElementId = null;
 
-    var targetOnLoad = 'origin'; // window.localStorage.getItem('selectedObjectKey');
-
-    /** @type {Dropdown} - DOM element to choose which object to target for the camera */
-    var objectDropdown;
-
     // polyfill for requestAnimationFrame to provide a smooth update loop
     let requestAnimationFrame = window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
     let virtualCamera;
-
-    // adds another camera to the scene with the right coordinate system for the old virtualizer project
-    const ENABLE_LEGACY_UNITY_VIRTUALIZER = false;
-    let unityCamera;
 
     let knownInteractionStates = {
         pan: false,
@@ -198,20 +189,6 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
             }
         });
 
-        if (ENABLE_LEGACY_UNITY_VIRTUALIZER) {
-            let invertedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('INVERTED_COORDINATES', undefined, undefined, [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-            let invertedCoordinatesNode = realityEditor.sceneGraph.getSceneNodeById(invertedCoordinatesNodeId);
-
-            // the 1.1 should be a 1, but it's a bit off because the area target scan wasn't perfectly scanned with the same axes as the original calibrated model
-            let rotatedCoordinatesNodeId = realityEditor.sceneGraph.addVisualElement('ROTATED_COORDINATES', invertedCoordinatesNode, undefined, makeGroundPlaneRotationY(Math.PI * 1.1));
-            let rotatedCoordinatesNode = realityEditor.sceneGraph.getSceneNodeById(rotatedCoordinatesNodeId);
-
-            // let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', invertedCoordinatesNode);
-            let unityCameraNodeId = realityEditor.sceneGraph.addVisualElement('UNITY_CAMERA', rotatedCoordinatesNode);
-            let unityCameraNode = realityEditor.sceneGraph.getSceneNodeById(unityCameraNodeId);
-            unityCamera = new realityEditor.device.VirtualCamera(unityCameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
-        }
-
         onFrame();
 
         // disable right-click context menu so we can use right-click to rotate camera
@@ -223,38 +200,17 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
             console.warn('Slider components for settings menu not available, skipping', e);
         }
 
-        createObjectSelectionDropdown();
-
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetCameraPosition, () => {
             console.log('reset camera position');
             virtualCamera.reset();
-            if (unityCamera) {
-                unityCamera.reset();
-            }
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.UnityVirtualizers, (value) => {
-            if (objectDropdown) {
-                if (value && !window.DEBUG_DISABLE_DROPDOWNS) {
-                    objectDropdown.dom.style.display = '';
-                } else {
-                    objectDropdown.dom.style.display = 'none';
-                }
-            }
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.OrbitCamera, (value) => {
             virtualCamera.idleOrbitting = value;
-            if (unityCamera) {
-                unityCamera.idleOrbitting = value;
-            }
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.StopFollowing, () => {
             virtualCamera.stopFollowing();
-            if (unityCamera) {
-                unityCamera.stopFollowing();
-            }
         });
 
         videoPlayback.onVideoCreated(player => {
@@ -387,9 +343,6 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
         }
 
         virtualCamera.follow(virtualizerSceneNode, virtualizerId, initialDistance, shouldRender2D);
-        if (unityCamera) {
-            unityCamera.follow(virtualizerSceneNode, virtualizerId, initialDistance, shouldRender2D);
-        }
 
         if (shouldRender2D) { // change to flat shader
             realityEditor.gui.ar.desktopRenderer.showCameraCanvas(virtualizerId);
@@ -413,7 +366,7 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
             }
         });
 
-        realityEditor.gui.settings.addSlider('Pan Sensitivity', 'how fast keybord pans camera', 'cameraPanSensitivity',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
+        realityEditor.gui.settings.addSlider('Pan Sensitivity', 'how fast keyboard pans camera', 'cameraPanSensitivity',  '../../../svg/cameraPan.svg', 0.5, function(newValue) {
             if (DEBUG) {
                 console.log('pan value = ' + newValue);
             }
@@ -425,93 +378,6 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
             }
         });
     }
-
-    function createObjectSelectionDropdown() {
-        if (!objectDropdown) {
-
-            var textStates = {
-                collapsedUnselected: 'Select Camera Target',
-                expandedEmpty: 'No Objects Discovered',
-                expandedOptions: 'Select an Object',
-                selected: 'Selected: '
-            };
-
-            objectDropdown = new realityEditor.gui.dropdown.Dropdown('objectDropdown', textStates, {width: '400px', left: '310px', top: '30px'}, document.body, true, onObjectSelectionChanged, onObjectExpandedChanged);
-
-            objectDropdown.addSelectable('origin', 'World Origin');
-
-            objectDropdown.dom.style.display = 'none'; // defaults to hidden
-
-            Object.keys(objects).forEach(function(objectKey) {
-                tryAddingObjectToDropdown(objectKey);
-            });
-
-            // when an object is detected, check if we need to add it to the dropdown
-            realityEditor.network.addObjectDiscoveredCallback(function(_object, objectKey) {
-                tryAddingObjectToDropdown(objectKey);
-                if (objectKey === targetOnLoad) {
-                    setTimeout(function() {
-                        selectObject(objectKey);
-                    }, 500);
-                }
-            });
-        }
-    }
-
-    function tryAddingObjectToDropdown(objectKey) {
-        var alreadyContained = objectDropdown.selectables.map(function(selectableObj) {
-            return selectableObj.id;
-        }).indexOf(objectKey) > -1;
-
-        if (!alreadyContained) {
-            // don't show objects that don't have a valid matrix... todo: add them to menu as soon as a first valid matrix is received
-            var object = realityEditor.getObject(objectKey);
-            if (object.matrix && object.matrix.length === 16) {
-                objectDropdown.addSelectable(objectKey, objectKey);
-            }
-
-            let INCLUDE_TOOLS_IN_DROPDOWN = false;
-            if (INCLUDE_TOOLS_IN_DROPDOWN) {
-                for (let frameKey in object.frames) {
-                    tryAddingFrameToDropdown(objectKey, frameKey);
-                }
-            }
-        }
-    }
-
-    function tryAddingFrameToDropdown(objectKey, frameKey) {
-        var alreadyContained = objectDropdown.selectables.map(function(selectable) {
-            return selectable.id;
-        }).indexOf(frameKey) > -1;
-
-        if (!alreadyContained) {
-            // don't show objects that don't have a valid matrix... todo: add them to menu as soon as a first valid matrix is received
-            var frame = realityEditor.getFrame(objectKey, frameKey);
-            if (frame) {
-                objectDropdown.addSelectable(frameKey, frameKey);
-            }
-        }
-    }
-
-    function onObjectSelectionChanged(selected) {
-        if (selected && selected.element) {
-            virtualCamera.selectObject(selected.element.id);
-        } else {
-            virtualCamera.deselectTarget();
-        }
-    }
-
-    function selectObject(objectKey) { // todo use this in objectselectionchanged and element clicked
-        objectDropdown.setText('Selected: ' + objectKey, true);
-        virtualCamera.selectObject(objectKey);
-        window.localStorage.setItem('selectedObjectKey', objectKey);
-    }
-
-    function onObjectExpandedChanged(_isExpanded) {
-        // console.log(isExpanded);
-    }
-
-    // messageButtonIcon.src = 'addons/spatialCommunication/bw-message.svg';
 
     function panToggled() {
         if (cameraTargetIcon) {
@@ -615,10 +481,6 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
                         cameraTargetIcon = {};
                         cameraTargetIcon.visible = false;
-                    }
-
-                    if (unityCamera) {
-                        unityCamera.update();
                     }
 
                     let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
