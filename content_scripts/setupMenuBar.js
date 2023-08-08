@@ -17,7 +17,6 @@ createNameSpace('realityEditor.gui');
         SpaghettiMap: 'Spaghetti Map',
         ModelVisibility: 'Model Visibility',
         ModelTexture: 'Model Texture',
-        UnityVirtualizers: 'Unity Virtualizers',
         SurfaceAnchors: 'Surface Anchors',
         VideoPlayback: 'Video Timeline',
         Voxelizer: 'Model Voxelizer',
@@ -81,9 +80,6 @@ createNameSpace('realityEditor.gui');
 
         const toggleViewCones = new MenuItem(ITEM.ViewCones, { shortcutKey: 'K', toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.View, toggleViewCones);
-
-        const toggleUnityVirtualizers = new MenuItem(ITEM.UnityVirtualizers, { shortcutKey: 'V', toggle: true, defaultVal: false }, null); // other module can attach a callback later
-        menuBar.addItemToMenu(MENU.View, toggleUnityVirtualizers);
 
         const toggleCutoutViewFrustums = new MenuItem(ITEM.CutoutViewFrustums, { toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.View, toggleCutoutViewFrustums);
