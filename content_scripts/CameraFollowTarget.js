@@ -1,4 +1,4 @@
-export const perspectives = [
+export const PERSPECTIVES = [
     {
         keyboardShortcut: '_1',
         menuBarName: 'Follow 1st-Person',
@@ -72,65 +72,7 @@ export class CameraFollowCoordinator {
     removeFollowTarget(id) {
         delete this.followTargets[id];
     }
-    addMenuItems() {
-        // realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.FollowVideo, () => {
-        //     if (Object.values(videoPlaybackTargets).length > 0) {
-        //         let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
-        //         let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
-        //         if (!sceneGraphNode) {
-        //             let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
-        //             let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraPlaybackNode' + thisVideoPlayer.id, parentNode);
-        //             sceneGraphNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
-        //         }
-        //         sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
-        //         followVirtualizer(thisVideoPlayer.id, sceneGraphNode, 3000, false);
-        //         thisVideoPlayer.enableFirstPersonMode();
-        //     }
-        // });
-        // // Setup Following Menu
-        // perspectives.forEach(info => {
-        //     const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: true }, () => {
-        //         currentFollowIndex = lastFollowingIndex; // resumes following the previously followed camera. defaults to 0
-        //         let followTarget = chooseFollowTarget(currentFollowIndex);
-        //         if (!followTarget) {
-        //             console.warn('Can\'t find a virtualizer to follow');
-        //             return;
-        //         }
-        //
-        //         followVirtualizer(followTarget.id, followTarget.sceneNode, info.distanceToCamera, info.render2DVideo);
-        //     });
-        //     realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
-        // });
-        //
-        // // TODO: enable (or add) this only if there are more than one virtualizers
-        // let changeTargetButtons = [
-        //     { name: 'Follow Next Target', shortcutKey: 'RIGHT', dIndex: 1 },
-        //     { name: 'Follow Previous Target', shortcutKey: 'LEFT',  dIndex: -1 }
-        // ];
-        //
-        // changeTargetButtons.forEach(itemInfo => {
-        //     const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: false }, () => {
-        //         if (currentlyFollowingId === null) {
-        //             return; // can't swap targets if not following anything
-        //         }
-        //
-        //         let numVirtualizers = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes().length;
-        //         currentFollowIndex = (currentFollowIndex + itemInfo.dIndex) % numVirtualizers;
-        //         if (currentFollowIndex < 0) {
-        //             currentFollowIndex += numVirtualizers;
-        //         }
-        //
-        //         let followTarget = chooseFollowTarget(currentFollowIndex);
-        //         if (!followTarget) {
-        //             console.warn('Can\'t find a virtualizer to follow');
-        //             return;
-        //         }
-        //         followVirtualizer(followTarget.id, followTarget.sceneNode);
-        //         lastFollowingIndex = currentFollowIndex;
-        //     });
-        //     realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, item);
-        // });
-    }
+
     follow(targetId) {
         this.currentFollowTarget = this.followTargets[targetId];
         if (!this.currentFollowTarget) return;
@@ -155,5 +97,73 @@ export class CameraFollowCoordinator {
     }
     chooseFollowTarget() {
         
+    }
+    addMenuItems() {
+        let menuBar = realityEditor.gui.getMenuBar();
+        
+        menuBar.addCallbackToItem(realityEditor.gui.ITEM.FollowVideo, () => {
+            if (Object.values(this.followTargets).length === 0) return;
+            let thisTarget = Object.values(this.followTargets)[0];
+            let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisTarget.id);
+            sceneGraphNode.setLocalMatrix(thisTarget.pointCloudMesh.matrix.elements);
+            this.follow(thisTarget.id);
+            // followVirtualizer(thisVideoPlayer.id, sceneGraphNode, 3000, false);
+            // thisVideoPlayer.enableFirstPersonMode();
+        });
+        
+        // Setup Following Menu
+        PERSPECTIVES.forEach(info => {
+            const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: false }, () => {
+                // currentFollowIndex = lastFollowingIndex; // resumes following the previously followed camera. defaults to 0
+                // let followTarget = chooseFollowTarget(currentFollowIndex);
+                if (Object.values(this.followTargets).length === 0) {
+                    console.warn('Can\'t find a virtualizer to follow');
+                    return;
+                }
+
+                let thisTarget = Object.values(this.followTargets)[0];
+                
+                this.followDistance = info.distanceToCamera;
+                this.isRendering2d = info.render2DVideo;
+
+                this.follow(thisTarget.id);
+                // followVirtualizer(followTarget.id, followTarget.sceneNode, info.distanceToCamera, info.render2DVideo);
+            });
+            menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
+        });
+
+        // TODO: enable (or add) this only if there are more than one virtualizers
+        const changeTargetButtons = [
+            { name: 'Follow Next Target', shortcutKey: 'RIGHT', dIndex: 1 },
+            { name: 'Follow Previous Target', shortcutKey: 'LEFT',  dIndex: -1 }
+        ];
+
+        changeTargetButtons.forEach(itemInfo => {
+            const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: false }, () => {
+                if (Object.values(this.followTargets).length === 0) return; // can't swap targets if not following anything
+                if (!this.currentFollowTarget) return;
+                
+                // let newIndex = Math.floor(Math.random() * Object.values(this.followTargets).length);
+                let numTargets = Object.values(this.followTargets).length;
+                
+                this.currentFollowIndex = (this.currentFollowIndex + itemInfo.dIndex) % numTargets;
+                if (this.currentFollowIndex < 0) {
+                    this.currentFollowIndex += numTargets;
+                }
+
+                // let followTarget = chooseFollowTarget(currentFollowIndex);
+                let followTarget = Object.values(this.followTargets)[this.currentFollowIndex];
+                if (!followTarget) {
+                    console.warn('Can\'t find a virtualizer to follow');
+                    return;
+                }
+                // followVirtualizer(followTarget.id, followTarget.sceneNode);
+                
+                this.follow(followTarget.id);
+                
+                // this.lastFollowingIndex = this.currentFollowIndex;
+            });
+            menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, item);
+        });
     }
 }
