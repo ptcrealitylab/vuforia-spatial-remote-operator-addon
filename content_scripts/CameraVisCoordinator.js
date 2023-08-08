@@ -547,9 +547,9 @@ import {ShaderMode} from './Shaders.js';
 
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.TakeSpatialSnapshot, true);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
-            Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
-                realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
-            });
+            // Object.values(realityEditor.device.desktopCamera.perspectives).forEach(info => {
+            //     realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
+            // });
 
             this.callbacks.onCameraVisCreated.forEach(cb => {
                 cb(this.cameras[id]);

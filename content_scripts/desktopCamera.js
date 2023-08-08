@@ -26,9 +26,6 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
 
     var targetOnLoad = 'origin'; // window.localStorage.getItem('selectedObjectKey');
 
-    var DEBUG_SHOW_LOGGER = false;
-    var closestObjectLog = null; // if DEBUG_SHOW_LOGGER, this will be a text field
-
     /** @type {Dropdown} - DOM element to choose which object to target for the camera */
     var objectDropdown;
 
@@ -52,45 +49,10 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
     let pointerPosition = { x: 0, y: 0 };
     let cameraTargetIcon = null;
 
-    let currentFollowIndex = 0; // which virtualizer we are currently following
-    let lastFollowingIndex = 0; // lets you start following the camera you were previously following. defaults to camera 0
+    let followCoordinator = null;
     let currentlyFollowingId = null;
-    // defines each of the menu shortcuts to follow the virtualizer
-    const perspectives = [
-        {
-            keyboardShortcut: '_1',
-            menuBarName: 'Follow 1st-Person',
-            distanceToCamera: 0,
-            render2DVideo: true
-        },
-        {
-            keyboardShortcut: '_2',
-            menuBarName: 'Follow 1st-Person (Wide)',
-            distanceToCamera: 1500,
-            render2DVideo: false
-        },
-        {
-            keyboardShortcut: '_3',
-            menuBarName: 'Follow 3rd-Person',
-            distanceToCamera: 3000,
-            render2DVideo: false
-        },
-        {
-            keyboardShortcut: '_4',
-            menuBarName: 'Follow 3rd-Person (Wide)',
-            distanceToCamera: 4500,
-            render2DVideo: false
-        },
-        {
-            keyboardShortcut: '_5',
-            menuBarName: 'Follow Aerial',
-            distanceToCamera: 6000,
-            render2DVideo: false
-        }
-    ];
-    exports.perspectives = perspectives;
 
-    let videoPlaybackTargets = {};
+    // let videoPlaybackTargets = {};
     let videoPlayback = realityEditor.gui.ar.videoPlayback;
 
     // used for transitioning from AR view to remote operator virtual camera
@@ -154,7 +116,7 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
         virtualCameraEnabled = true;
 
-        let followCoordinator = new CameraFollowCoordinator(virtualCamera);
+        followCoordinator = new CameraFollowCoordinator(virtualCamera);
         followCoordinator.addMenuItems();
         console.log(followCoordinator);
         
@@ -167,8 +129,7 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
             }
             console.log('addCameraVisCallbacks succeeded');
             cameraVisCoordinator.onCameraVisCreated(cameraVis => {
-                let sceneNode;
-                followCoordinator.addFollowTarget(cameraVis.id, cameraVis.mesh, sceneNode, cameraVis);
+                followCoordinator.addFollowTarget(cameraVis.id, cameraVis.mesh, cameraVis.sceneGraphNode, cameraVis);
             });
             cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
                 followCoordinator.removeFollowTarget(cameraVis.id);
@@ -297,10 +258,10 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
         });
 
         videoPlayback.onVideoCreated(player => {
-            videoPlaybackTargets[player.id] = {
-                videoPlayer: player,
-                isPlaying: false
-            };
+            // videoPlaybackTargets[player.id] = {
+            //     videoPlayer: player,
+            //     isPlaying: false
+            // };
             console.log('onVideoCreated', player.id, player);
 
             let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
@@ -311,54 +272,44 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
         });
         videoPlayback.onVideoDisposed(id => {
             console.log('onVideoDisposed', id);
-            delete videoPlaybackTargets[id];
+            // delete videoPlaybackTargets[id];
             
             followCoordinator.removeFollowTarget(id);
         });
         videoPlayback.onVideoPlayed(player => {
-            if (typeof videoPlaybackTargets[player.id] === 'undefined') {
-                console.warn('playing unknown video');
-                return;
-            }
+            // if (typeof videoPlaybackTargets[player.id] === 'undefined') {
+            //     console.warn('playing unknown video');
+            //     return;
+            // }
 
             followCoordinator.followTargets[player.id].pointCloudMesh = player.pointCloud;
 
-            videoPlaybackTargets[player.id].isPlaying = true;
+            // videoPlaybackTargets[player.id].isPlaying = true;
             console.log('onVideoPlayed', player.id, player);
         });
         videoPlayback.onVideoPaused(player => {
-            if (typeof videoPlaybackTargets[player.id] === 'undefined') {
-                console.warn('pausing unknown video');
-                return;
-            }
-            videoPlaybackTargets[player.id].isPlaying = false;
+            // if (typeof videoPlaybackTargets[player.id] === 'undefined') {
+            //     console.warn('pausing unknown video');
+            //     return;
+            // }
+            // videoPlaybackTargets[player.id].isPlaying = false;
             console.log('onVideoPaused', player.id, player);
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.FollowVideo, () => {
-            if (Object.values(videoPlaybackTargets).length > 0) {
-                let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
-                let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
-                if (!sceneGraphNode) {
-                    let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
-                    let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraPlaybackNode' + thisVideoPlayer.id, parentNode);
-                    sceneGraphNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
-                }
-                sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
-                followVirtualizer(thisVideoPlayer.id, sceneGraphNode, 3000, false);
-                thisVideoPlayer.enableFirstPersonMode();
-            }
-        });
-
-        if (DEBUG_SHOW_LOGGER) {
-            closestObjectLog = document.createElement('div');
-            closestObjectLog.style.position = 'absolute';
-            closestObjectLog.style.left = 0;
-            closestObjectLog.style.top = 0;
-            closestObjectLog.style.fontFamily = 'sans-serif';
-            closestObjectLog.style.color = 'cyan';
-            document.body.appendChild(closestObjectLog);
-        }
+        // realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.FollowVideo, () => {
+        //     if (Object.values(videoPlaybackTargets).length > 0) {
+        //         let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
+        //         let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
+        //         if (!sceneGraphNode) {
+        //             let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+        //             let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraPlaybackNode' + thisVideoPlayer.id, parentNode);
+        //             sceneGraphNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
+        //         }
+        //         sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
+        //         followVirtualizer(thisVideoPlayer.id, sceneGraphNode, 3000, false);
+        //         thisVideoPlayer.enableFirstPersonMode();
+        //     }
+        // });
 
         const keyboard = new realityEditor.device.KeyboardListener();
 
@@ -412,50 +363,6 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
                     loadCameraData(key - 1);
                 }
             })
-        });
-
-        // Setup Following Menu
-        perspectives.forEach(info => {
-            const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: true }, () => {
-                currentFollowIndex = lastFollowingIndex; // resumes following the previously followed camera. defaults to 0
-                let followTarget = chooseFollowTarget(currentFollowIndex);
-                if (!followTarget) {
-                    console.warn('Can\'t find a virtualizer to follow');
-                    return;
-                }
-
-                followVirtualizer(followTarget.id, followTarget.sceneNode, info.distanceToCamera, info.render2DVideo);
-            });
-            realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
-        });
-
-        // TODO: enable (or add) this only if there are more than one virtualizers
-        let changeTargetButtons = [
-            { name: 'Follow Next Target', shortcutKey: 'RIGHT', dIndex: 1 },
-            { name: 'Follow Previous Target', shortcutKey: 'LEFT',  dIndex: -1 }
-        ];
-
-        changeTargetButtons.forEach(itemInfo => {
-            const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: false }, () => {
-                if (currentlyFollowingId === null) {
-                    return; // can't swap targets if not following anything
-                }
-
-                let numVirtualizers = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes().length;
-                currentFollowIndex = (currentFollowIndex + itemInfo.dIndex) % numVirtualizers;
-                if (currentFollowIndex < 0) {
-                    currentFollowIndex += numVirtualizers;
-                }
-
-                let followTarget = chooseFollowTarget(currentFollowIndex);
-                if (!followTarget) {
-                    console.warn('Can\'t find a virtualizer to follow');
-                    return;
-                }
-                followVirtualizer(followTarget.id, followTarget.sceneNode);
-                lastFollowingIndex = currentFollowIndex;
-            });
-            realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, item);
         });
     }
 
@@ -667,13 +574,19 @@ import { CameraFollowTarget, CameraFollowCoordinator } from './CameraFollowTarge
      * Move the sceneNode associated with the videoPlayback to match its three.js object's position
      */
     function updateFollowVideoPlayback() {
-        if (Object.values(videoPlaybackTargets).length > 0) {
-            let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
-            let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
-            if (sceneGraphNode) {
-                sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
-            }
-        }
+        if (!followCoordinator) return;
+        Object.values(followCoordinator.followTargets).forEach(followTarget => {
+            if (!followTarget.sceneNode || !followTarget.pointCloudMesh) return;
+            followTarget.sceneNode.setLocalMatrix(followTarget.pointCloudMesh.parent.matrix.elements);
+        });
+
+        // if (Object.values(videoPlaybackTargets).length > 0) {
+        //     let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
+        //     let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
+        //     if (sceneGraphNode) {
+        //         sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
+        //     }
+        // }
     }
     
     /**
