@@ -67,9 +67,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.followingState = {
                 active: false,
                 selectedId: null,
-                virtualizerId: null,
+                // virtualizerId: null,
                 currentFollowingDistance: 0,
-                currentlyRendering2DVideo: false,
+                // currentlyRendering2DVideo: false,
                 // three.js objects used to calculate the following trajectory
                 unstabilizedContainer: null,
                 stabilizedContainer: null,
@@ -190,10 +190,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // restrict deltaY between [-100, 100], to prevent mouse wheel deltaY so large that camera cannot focus on focus point when zooming in
                 let wheelAmt = Math.max(-100, Math.min(100, event.deltaY));
                 this.mouseInput.unprocessedScroll += wheelAmt;
-                if (this.followingState && this.followingState.currentlyRendering2DVideo) {
-                    this.followingState.currentlyRendering2DVideo = false;
-                    realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
-                }
+                // if (this.followingState) { // && this.followingState.currentlyRendering2DVideo) {
+                //     // this.followingState.currentlyRendering2DVideo = false;
+                //     // realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                //     // this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(false));
+                // }
                 event.preventDefault();
 
                 // update scale callbacks based on whether you've scrolled in this 150ms time period
@@ -300,9 +301,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         this.mouseInput.unprocessedDX += xOffset;
                         this.mouseInput.unprocessedDY += yOffset;
 
-                        if (this.followingState && this.followingState.currentlyRendering2DVideo) {
-                            this.followingState.currentlyRendering2DVideo = false;
-                            realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                        if (this.followingState.active) { // && this.followingState.currentlyRendering2DVideo) {
+                            // this.followingState.currentlyRendering2DVideo = false;
+                            // realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                            this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(false));
                         }
 
                         this.mouseInput.last.x = event.pageX;
@@ -577,7 +579,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (this.followingState.active) {
                 this.updateFollowing();
             } else {
-                this.stopFollowing();
+                // this.stopFollowing();
             }
 
             let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
@@ -764,7 +766,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
 
-            let shouldSmoothCamera = !this.isRendering2DVideo() && !this.zoomOutTransition;
+            // let shouldSmoothCamera = !this.isRendering2DVideo() && !this.zoomOutTransition;
+            let shouldSmoothCamera = !this.followingState.active && !this.zoomOutTransition;
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
@@ -805,27 +808,33 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         }
 
 
-        isRendering2DVideo() {
-            return (this.followingState.active && this.followingState.currentlyRendering2DVideo);
-        }
+        // isRendering2DVideo() {
+        //     return (this.followingState.active && this.followingState.currentlyRendering2DVideo);
+        // }
 
         /////////////////////////////
         // FOLLOWING THE VIRTUALIZER
         /////////////////////////////
-        follow(sceneNodeToFollow, virtualizerId, initialFollowDistance, isRendering2D) {
-            if (this.followingState.active) {
-                this.stopFollowing();
-            }
+        follow(sceneNodeToFollow, initialFollowDistance) { // , isRendering2D) {
+            // if (this.followingState.active) {
+            //     this.stopFollowing();
+            // }
 
             this.followingState.active = true;
-            this.followingState.virtualizerId = virtualizerId;
+            // this.followingState.virtualizerId = virtualizerId;
             this.followingState.selectedId = sceneNodeToFollow.id;
             if (typeof initialFollowDistance !== 'undefined') {
                 this.followingState.currentFollowingDistance = initialFollowDistance; // can adjust with scroll wheel
+                
+                if (initialFollowDistance <= 0) {
+                    this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(true));
+                } else {
+                    this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(false));
+                }
             }
-            if (typeof isRendering2D !== 'undefined') {
-                this.followingState.currentlyRendering2DVideo = isRendering2D;
-            }
+            // if (typeof isRendering2D !== 'undefined') {
+            //     this.followingState.currentlyRendering2DVideo = isRendering2D;
+            // }
 
             this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
         }
@@ -863,10 +872,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         stopFollowing() {
             this.followingState.active = false;
             this.followingState.selectedId = null;
-            if (this.followingState.virtualizerId) {
-                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
-                this.followingState.virtualizerId = null;
-            }
+            // if (this.followingState.virtualizerId) {
+            //     // realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+            //     this.followingState.virtualizerId = null;
+            // }
+            
+            // this.callbacks.onFirstPersonDistanceToggled.forEach(cb => {cb(false)});
 
             if (this.preStopFollowingDistanceToTarget !== null) {
                 this.zoomBackToPreStopFollowLevel();
@@ -1046,17 +1057,19 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             z = 1500 * (10000 / (distanceToCamera + 2000));
             targetObject.position.set(0, 0, z);
             targetObject.matrixWorldNeedsUpdate = true;
+            
+            // console.log(distanceToCamera, this.followingState.currentFollowingDistance); // , this.followingState.currentlyRendering2DVideo);
 
             // Trigger the virtualizer shader to render flat video when we reach first-person perspective
-            if (this.followingState.currentFollowingDistance <= 0 && !this.followingState.currentlyRendering2DVideo) {
-                realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
-                this.followingState.currentlyRendering2DVideo = true;
+            if (this.followingState.currentFollowingDistance <= 0) { // && !this.followingState.currentlyRendering2DVideo) {
+                // realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
+                // this.followingState.currentlyRendering2DVideo = true;
 
                 this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(true));
 
-            } else if (this.followingState.currentlyRendering2DVideo && this.followingState.currentFollowingDistance > 0) {
-                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
-                this.followingState.currentlyRendering2DVideo = false;
+            } else { // this.followingState.currentlyRendering2DVideo && 
+                // realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                // this.followingState.currentlyRendering2DVideo = false;
 
                 this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(false));
             }

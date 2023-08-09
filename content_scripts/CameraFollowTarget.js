@@ -48,55 +48,71 @@ export class CameraFollowCoordinator {
          */
         this.followTargets = {};
         this.currentFollowTarget = null;
-        this.isRendering2d = false;
+        // this.isRendering2d = false;
         this.followDistance = 3000;
         this.currentFollowIndex = 0;
         
         this.virtualCamera.onFirstPersonDistanceToggled((isFirstPerson) => {
             if (!this.currentFollowTarget) return;
             if (!this.currentFollowTarget.firstPersonEnabler) return;
-            if (isFirstPerson && !this.isRendering2d) {
+            if (isFirstPerson) { // && !this.isRendering2d) {
+                console.log('enable first person');
                 this.currentFollowTarget.firstPersonEnabler.enableFirstPersonMode();
-            } else if (!isFirstPerson && this.isRendering2d) {
+            } else if (!isFirstPerson) { // && this.isRendering2d) {
+                console.log('disable first person');
                 this.currentFollowTarget.firstPersonEnabler.disableFirstPersonMode();
             }
-            this.isRendering2d = isFirstPerson;
+            // this.isRendering2d = isFirstPerson;
+        });
+
+        this.virtualCamera.onStopFollowing(() => {
+            this.unfollow();
         });
     }
     addFollowTarget(id, pointCloudMesh, sceneNode, firstPersonEnabler) {
         this.followTargets[id] = new CameraFollowTarget(id, pointCloudMesh, sceneNode, firstPersonEnabler);
-        // TODO: to go to first person, we can do firstPersonEnabler.enableFirstPersonMode();
-        
         console.log('added follow target', this.followTargets);
     }
     removeFollowTarget(id) {
         delete this.followTargets[id];
     }
-
     follow(targetId) {
+        if (this.currentFollowTarget && targetId !== this.currentFollowTarget.id) {
+            this.unfollow();
+        }
         this.currentFollowTarget = this.followTargets[targetId];
+        console.log('follow ', targetId, this.currentFollowTarget);
         if (!this.currentFollowTarget) return;
-        this.virtualCamera.follow(this.currentFollowTarget.sceneNode, targetId, this.followDistance, this.isRendering2d);
+        this.virtualCamera.follow(this.currentFollowTarget.sceneNode, this.followDistance); // , this.isRendering2d);
     }
     unfollow() {
+        if (!this.currentFollowTarget) return;
+        console.log('unfollow');
+        this.currentFollowTarget.firstPersonEnabler.disableFirstPersonMode();
         this.currentFollowTarget = null;
     }
     followNext() {
-        this.currentFollowIndex++;
-        if (this.currentFollowIndex > Object.keys(this.followTargets).length) {
-            this.currentFollowIndex = 0;
-        }
+        if (!this.currentFollowTarget) return;
+        // this.unfollow();
+        let numTargets = Object.keys(this.followTargets).length;
+        this.currentFollowIndex = (this.currentFollowIndex + 1) % numTargets;
         this.chooseFollowTarget(this.currentFollowIndex);
     }
     followPrevious() {
-        this.currentFollowIndex--;
-        if (this.currentFollowIndex < 0) {
-            this.currentFollowIndex = Object.keys(this.followTargets).length;
-        }
+        if (!this.currentFollowTarget) return;
+        // this.unfollow();
+        let numTargets = Object.keys(this.followTargets).length;
+        this.currentFollowIndex = (this.currentFollowIndex - 1) % numTargets;
+        if (this.currentFollowIndex < 0) { this.currentFollowIndex += numTargets; }
         this.chooseFollowTarget(this.currentFollowIndex);
     }
-    chooseFollowTarget() {
-        
+    chooseFollowTarget(index) {
+        let followTarget = Object.values(this.followTargets)[index];
+        if (!followTarget) {
+            console.warn('Can\'t find a virtualizer to follow');
+            return;
+        }
+        this.follow(followTarget.id);
     }
     addMenuItems() {
         let menuBar = realityEditor.gui.getMenuBar();
@@ -124,7 +140,7 @@ export class CameraFollowCoordinator {
                 let thisTarget = Object.values(this.followTargets)[0];
                 
                 this.followDistance = info.distanceToCamera;
-                this.isRendering2d = info.render2DVideo;
+                // this.isRendering2d = info.render2DVideo;
 
                 this.follow(thisTarget.id);
                 // followVirtualizer(followTarget.id, followTarget.sceneNode, info.distanceToCamera, info.render2DVideo);
@@ -142,26 +158,7 @@ export class CameraFollowCoordinator {
             const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: false }, () => {
                 if (Object.values(this.followTargets).length === 0) return; // can't swap targets if not following anything
                 if (!this.currentFollowTarget) return;
-                
-                // let newIndex = Math.floor(Math.random() * Object.values(this.followTargets).length);
-                let numTargets = Object.values(this.followTargets).length;
-                
-                this.currentFollowIndex = (this.currentFollowIndex + itemInfo.dIndex) % numTargets;
-                if (this.currentFollowIndex < 0) {
-                    this.currentFollowIndex += numTargets;
-                }
-
-                // let followTarget = chooseFollowTarget(currentFollowIndex);
-                let followTarget = Object.values(this.followTargets)[this.currentFollowIndex];
-                if (!followTarget) {
-                    console.warn('Can\'t find a virtualizer to follow');
-                    return;
-                }
-                // followVirtualizer(followTarget.id, followTarget.sceneNode);
-                
-                this.follow(followTarget.id);
-                
-                // this.lastFollowingIndex = this.currentFollowIndex;
+                (itemInfo.dIndex > 0) ? this.followNext() : this.followPrevious();
             });
             menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, item);
         });
