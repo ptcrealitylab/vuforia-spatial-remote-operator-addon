@@ -108,6 +108,7 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         virtualCameraEnabled = true;
 
         followCoordinator = new CameraFollowCoordinator(virtualCamera);
+        window.followCoordinator = followCoordinator;
         followCoordinator.addMenuItems();
         console.log(followCoordinator);
         
@@ -334,30 +335,6 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         };
     }
 
-    // initialDistance is optional – if included, it will change the camera distance, if not it will keep it the same
-    // shouldRender2D is optional – if included, it will either start or stop the first-person renderer, if not it will keep it the same
-    function followVirtualizer(virtualizerId, virtualizerSceneNode, initialDistance, shouldRender2D) {
-        let wasFollowingIn2D = false;
-        if (currentlyFollowingId) {
-            wasFollowingIn2D = realityEditor.gui.ar.desktopRenderer.getVirtualizers2DRenderingState()[currentlyFollowingId];
-        }
-
-        virtualCamera.follow(virtualizerSceneNode, virtualizerId, initialDistance, shouldRender2D);
-
-        if (shouldRender2D) { // change to flat shader
-            realityEditor.gui.ar.desktopRenderer.showCameraCanvas(virtualizerId);
-        } else if (shouldRender2D === false) { // change to 3d shader
-            realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(virtualizerId);
-        } else {
-            if (wasFollowingIn2D) { // if old follow target was using flat shader, new should use it too
-                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(currentlyFollowingId);
-                realityEditor.gui.ar.desktopRenderer.showCameraCanvas(virtualizerId);
-            }
-        }
-
-        currentlyFollowingId = virtualizerId;
-    }
-
     function addSensitivitySlidersToMenu() {
         // add sliders for strafe, rotate, and zoom sensitivity
         realityEditor.gui.settings.addSlider('Zoom Sensitivity', 'how fast scroll wheel zooms camera', 'cameraZoomSensitivity',  '../../../svg/cameraZoom.svg', 0.5, function(newValue) {
@@ -380,21 +357,18 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
     }
 
     function panToggled() {
-        if (cameraTargetIcon) {
-            cameraTargetIcon.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
-        }
+        if (!cameraTargetIcon) return;
+        cameraTargetIcon.visible = knownInteractionStates.pan || knownInteractionStates.rotate || knownInteractionStates.scale;
         updateInteractionCursor(cameraTargetIcon.visible, 'addons/vuforia-spatial-remote-operator-addon/cameraPan.svg');
     }
     function rotateToggled() {
-        if (cameraTargetIcon) {
-            cameraTargetIcon.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
-        }
+        if (!cameraTargetIcon) return;
+        cameraTargetIcon.visible = knownInteractionStates.rotate || knownInteractionStates.pan || knownInteractionStates.scale;
         updateInteractionCursor(cameraTargetIcon.visible, 'addons/vuforia-spatial-remote-operator-addon/cameraRotate.svg');
     }
     function scaleToggled() {
-        if (cameraTargetIcon) {
-            cameraTargetIcon.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
-        }
+        if (!cameraTargetIcon) return;
+        cameraTargetIcon.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
         // if (!cameraTargetIcon.visible) {
         //     updateInteractionCursor(false);
         // }
@@ -465,9 +439,9 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
             try {
                 updateFollowVideoPlayback();
                 
-                if (forceCameraUpdate || !virtualCamera.isRendering2DVideo()) {
+                // if (forceCameraUpdate) { // || !virtualCamera.isRendering2DVideo()) {
                     virtualCamera.update();
-                }
+                // }
 
                 let worldObject = realityEditor.worldObjects.getBestWorldObject();
                 if (worldObject) {
