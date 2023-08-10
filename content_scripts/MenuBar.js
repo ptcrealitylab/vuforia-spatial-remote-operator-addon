@@ -68,6 +68,14 @@ createNameSpace('realityEditor.gui');
             menu.addItem(item);
             this.redraw();
         }
+        removeItemFromMenu(menuName, itemText) {
+            let menu = this.menus.find(menu => {
+                return menu.name === menuName;
+            });
+            if (!menu) return;
+            menu.removeItem(itemText);
+            this.redraw();
+        }
         // Note: assumes items in different menus don't have duplicate names
         addCallbackToItem(itemName, callback) {
             let item = this.getItemByName(itemName);
@@ -149,6 +157,14 @@ createNameSpace('realityEditor.gui');
             let dropdown = this.domElement.querySelector('.desktopMenuBarMenuDropdown');
             dropdown.appendChild(menuItem.domElement);
             menuItem.parent = this;
+        }
+        removeItem(itemText) {
+            let itemIndex = this.items.map(item => item.text).indexOf(itemText);
+            if (itemIndex < 0) return;
+            let menuItem = this.items[itemIndex];
+            let dropdown = this.domElement.querySelector('.desktopMenuBarMenuDropdown');
+            dropdown.removeChild(menuItem.domElement);
+            this.items.splice(itemIndex, 1);
         }
         redraw(index) {
             if (typeof index !== 'undefined') { this.menuIndex = index; }
