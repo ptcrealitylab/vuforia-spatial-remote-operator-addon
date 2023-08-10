@@ -121,7 +121,8 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
             }
             console.log('addCameraVisCallbacks succeeded');
             cameraVisCoordinator.onCameraVisCreated(cameraVis => {
-                followCoordinator.addFollowTarget(cameraVis.id, cameraVis.mesh, cameraVis.sceneGraphNode, cameraVis);
+                let displayName = `Live Video ${cameraVis.id}`;
+                followCoordinator.addFollowTarget(cameraVis.id, displayName, cameraVis.mesh, cameraVis.sceneGraphNode, cameraVis);
             });
             cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
                 followCoordinator.removeFollowTarget(cameraVis.id);
@@ -213,6 +214,9 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.StopFollowing, () => {
             virtualCamera.stopFollowing();
         });
+        
+        const videoRecordingNumberMap = {};
+        let videoRecordingCount = 1;
 
         videoPlayback.onVideoCreated(player => {
             // videoPlaybackTargets[player.id] = {
@@ -220,12 +224,18 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
             //     isPlaying: false
             // };
             console.log('onVideoCreated', player.id, player);
+            
+            if (typeof videoRecordingNumberMap[player.id] === 'undefined') {
+                videoRecordingNumberMap[player.id] = videoRecordingCount;
+                videoRecordingCount++;
+            }
 
             let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
             let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraPlaybackNode' + player.id, parentNode);
             let sceneNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
+            let displayName = `Video Recording ${videoRecordingNumberMap[player.id]}`;
             // player.pointCloud is undefined here, so we add it in when the video starts playing
-            followCoordinator.addFollowTarget(player.id, player.pointCloud, sceneNode, player);
+            followCoordinator.addFollowTarget(player.id, displayName, player.pointCloud, sceneNode, player);
         });
         videoPlayback.onVideoDisposed(id => {
             console.log('onVideoDisposed', id);

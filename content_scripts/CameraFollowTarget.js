@@ -32,8 +32,9 @@ export const PERSPECTIVES = [
 ];
 
 export class CameraFollowTarget {
-    constructor(id, pointCloudMesh, sceneNode, firstPersonEnabler) {
+    constructor(id, displayName, pointCloudMesh, sceneNode, firstPersonEnabler) {
         this.id = id;
+        this.displayName = displayName;
         this.pointCloudMesh = pointCloudMesh;
         this.sceneNode = sceneNode;
         this.firstPersonEnabler = firstPersonEnabler;
@@ -69,12 +70,14 @@ export class CameraFollowCoordinator {
             this.unfollow();
         });
     }
-    addFollowTarget(id, pointCloudMesh, sceneNode, firstPersonEnabler) {
-        this.followTargets[id] = new CameraFollowTarget(id, pointCloudMesh, sceneNode, firstPersonEnabler);
+    addFollowTarget(id, displayName, pointCloudMesh, sceneNode, firstPersonEnabler) {
+        this.followTargets[id] = new CameraFollowTarget(id, displayName, pointCloudMesh, sceneNode, firstPersonEnabler);
         console.log('added follow target', this.followTargets);
+        this.updateFollowMenu();
     }
     removeFollowTarget(id) {
         delete this.followTargets[id];
+        this.updateFollowMenu();
     }
     follow(targetId) {
         if (this.currentFollowTarget && targetId !== this.currentFollowTarget.id) {
@@ -121,7 +124,9 @@ export class CameraFollowCoordinator {
             if (Object.values(this.followTargets).length === 0) return;
             let thisTarget = Object.values(this.followTargets)[0];
             let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisTarget.id);
-            sceneGraphNode.setLocalMatrix(thisTarget.pointCloudMesh.matrix.elements);
+            if (thisTarget.pointCloudMesh && thisTarget.pointCloudMesh.matrix) {
+                sceneGraphNode.setLocalMatrix(thisTarget.pointCloudMesh.matrix.elements);
+            }
             this.follow(thisTarget.id);
             // followVirtualizer(thisVideoPlayer.id, sceneGraphNode, 3000, false);
             // thisVideoPlayer.enableFirstPersonMode();
@@ -162,5 +167,55 @@ export class CameraFollowCoordinator {
             });
             menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, item);
         });
+    }
+    updateFollowMenu() {
+        let menuBar = realityEditor.gui.getMenuBar();
+        let numTargets = Object.keys(this.followTargets).length;
+        if (numTargets === 0) {
+            menuBar.hideMenu(realityEditor.gui.followMenu);
+        } else {
+            menuBar.unhideMenu(realityEditor.gui.followMenu);
+        }
+
+        let itemsToRemove = [];
+        // remove items that don't match current set of follow targets
+        realityEditor.gui.followMenu.items.forEach(menuItem => {
+            itemsToRemove.push(menuItem.text);
+        });
+
+        itemsToRemove.forEach(itemText => {
+            menuBar.removeItemFromMenu(realityEditor.gui.MENU.Follow, itemText);
+            console.log(`removed ${itemText} from follow menu`);
+        });
+
+        let itemsToAdd = [];
+
+        // add follow targets that don't exist yet in menu items
+        Object.values(this.followTargets).forEach(followTarget => {
+            itemsToAdd.push(followTarget.displayName);
+        });
+
+        itemsToAdd.forEach(displayName => {
+            let itemText = `Follow ${displayName}`;
+            this.addTargetToFollowMenu(displayName, itemText);
+            console.log(`added ${itemText} from follow menu`);
+        });
+    }
+    addTargetToFollowMenu(displayName, menuItemText) {
+        let menuBar = realityEditor.gui.getMenuBar();
+        const targetItem = new realityEditor.gui.MenuItem(menuItemText, { toggle: false, disabled: false }, () => {
+            if (Object.values(this.followTargets).length === 0) {
+                console.warn('Can\'t find a virtualizer to follow');
+                return;
+            }
+            // let thisTarget = this.followTargets[targetId];
+            // search the targets for one whose displayName matches the item text
+            let targetDisplayNames = Object.values(this.followTargets).map(target => target.displayName);
+            let index = targetDisplayNames.indexOf(displayName);
+            let thisTarget = Object.values(this.followTargets)[index];
+            if (!thisTarget) return;
+            this.follow(thisTarget.id);
+        });
+        menuBar.addItemToMenu(realityEditor.gui.MENU.Follow, targetItem);
     }
 }

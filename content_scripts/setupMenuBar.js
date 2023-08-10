@@ -6,6 +6,7 @@ createNameSpace('realityEditor.gui');
     const MENU = Object.freeze({
         View: 'View',
         Camera: 'Camera',
+        Follow: 'Follow',
         History: 'History',
         Help: 'Help',
         Develop: 'Develop'
@@ -55,6 +56,10 @@ createNameSpace('realityEditor.gui');
         // menuBar.addMenu(new Menu('Edit'));
         menuBar.addMenu(new Menu(MENU.View));
         menuBar.addMenu(new Menu(MENU.Camera));
+        let followMenu = new Menu(MENU.Follow); // keep a reference, so we can show/hide it on demand
+        exports.followMenu = followMenu;
+        menuBar.addMenu(followMenu);
+        menuBar.hideMenu(followMenu);
         menuBar.addMenu(new Menu(MENU.History));
         let developMenu = new Menu(MENU.Develop); // keep a reference, so we can show/hide it on demand
         menuBar.addMenu(developMenu);
@@ -106,7 +111,7 @@ createNameSpace('realityEditor.gui');
         menuBar.addItemToMenu(MENU.History, toggleVoxelizer);
 
         const followVideo = new MenuItem(ITEM.FollowVideo, { toggle: false }, null);
-        menuBar.addItemToMenu(MENU.Camera, followVideo);
+        menuBar.addItemToMenu(MENU.Follow, followVideo);
 
         const stopFollowing = new MenuItem(ITEM.StopFollowing, { shortcutKey: '_0', toggle: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, stopFollowing);
@@ -146,7 +151,7 @@ createNameSpace('realityEditor.gui');
             //         realityEditor.device.deleteFrame(frame, objectKey, frameKey);
             //     }
             // }
-            let objectKey = '_WORLD_instantScancm14a1gx_Lesaou7om0z';
+            let objectKey = realityEditor.worldObjects.getBestWorldObject().objectId;
             let object = realityEditor.getObject(objectKey);
             for (let frame in object.frames) {
                 if (object.frames.hasOwnProperty(frame)) {
