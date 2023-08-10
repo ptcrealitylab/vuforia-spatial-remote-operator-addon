@@ -86,12 +86,20 @@ export class CameraFollowCoordinator {
         this.currentFollowTarget = this.followTargets[targetId];
         console.log('follow ', targetId, this.currentFollowTarget);
         if (!this.currentFollowTarget) return;
+        if (this.currentFollowTarget.firstPersonEnabler && this.currentFollowTarget.firstPersonEnabler.onCameraStartedFollowing) {
+            this.currentFollowTarget.firstPersonEnabler.onCameraStartedFollowing();
+        }
         this.virtualCamera.follow(this.currentFollowTarget.sceneNode, this.followDistance); // , this.isRendering2d);
     }
     unfollow() {
         if (!this.currentFollowTarget) return;
         console.log('unfollow');
-        this.currentFollowTarget.firstPersonEnabler.disableFirstPersonMode();
+        if (this.currentFollowTarget.firstPersonEnabler) {
+            if (this.currentFollowTarget.firstPersonEnabler.onCameraStoppedFollowing) {
+                this.currentFollowTarget.firstPersonEnabler.onCameraStoppedFollowing();
+            }
+            this.currentFollowTarget.firstPersonEnabler.disableFirstPersonMode();
+        }
         this.currentFollowTarget = null;
     }
     followNext() {
@@ -142,7 +150,10 @@ export class CameraFollowCoordinator {
                     return;
                 }
 
-                let thisTarget = Object.values(this.followTargets)[0];
+                if (this.currentFollowIndex >= Object.keys(this.followTargets).length) {
+                    this.currentFollowIndex = 0;
+                }
+                let thisTarget = Object.values(this.followTargets)[this.currentFollowIndex];
                 
                 this.followDistance = info.distanceToCamera;
                 // this.isRendering2d = info.render2DVideo;
