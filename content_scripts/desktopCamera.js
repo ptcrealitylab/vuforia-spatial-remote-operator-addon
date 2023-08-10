@@ -219,10 +219,6 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         let videoRecordingCount = 1;
 
         videoPlayback.onVideoCreated(player => {
-            // videoPlaybackTargets[player.id] = {
-            //     videoPlayer: player,
-            //     isPlaying: false
-            // };
             console.log('onVideoCreated', player.id, player);
             
             if (typeof videoRecordingNumberMap[player.id] === 'undefined') {
@@ -239,29 +235,72 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         });
         videoPlayback.onVideoDisposed(id => {
             console.log('onVideoDisposed', id);
-            // delete videoPlaybackTargets[id];
-            
             followCoordinator.removeFollowTarget(id);
         });
         videoPlayback.onVideoPlayed(player => {
-            // if (typeof videoPlaybackTargets[player.id] === 'undefined') {
-            //     console.warn('playing unknown video');
-            //     return;
-            // }
-
-            followCoordinator.followTargets[player.id].pointCloudMesh = player.pointCloud;
-
-            // videoPlaybackTargets[player.id].isPlaying = true;
+            if (followCoordinator.followTargets[player.id] && player.pointCloud) {
+                followCoordinator.followTargets[player.id].pointCloudMesh = player.pointCloud;
+            }
             console.log('onVideoPlayed', player.id, player);
         });
         videoPlayback.onVideoPaused(player => {
-            // if (typeof videoPlaybackTargets[player.id] === 'undefined') {
-            //     console.warn('pausing unknown video');
-            //     return;
-            // }
-            // videoPlaybackTargets[player.id].isPlaying = false;
             console.log('onVideoPaused', player.id, player);
         });
+
+        realityEditor.network.addPostMessageHandler('analyticsOpen', (msgData) => {
+            let displayName = 'Analytics';
+            let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+            let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('AnalyticsNode' + msgData.frame, parentNode);
+            let sceneNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
+            
+            let pointCloudMesh = null;
+            let firstPersonEnabler = null;
+            
+            followCoordinator.addFollowTarget(msgData.frame, displayName, pointCloudMesh, sceneNode, firstPersonEnabler);
+
+            // if (!analyticsByFrame[msgData.frame]) {
+            //     analyticsByFrame[msgData.frame] = makeAnalytics(msgData.frame);
+            // }
+            // activeFrame = msgData.frame;
+            // analyticsByFrame[msgData.frame].open();
+            // realityEditor.app.enableHumanTracking();
+        });
+
+        realityEditor.network.addPostMessageHandler('analyticsClose', (msgData) => {
+            // if (!analyticsByFrame[msgData.frame]) {
+            //     return;
+            // }
+            // analyticsByFrame[msgData.frame].close();
+            // if (activeFrame === msgData.frame) {
+            //     activeFrame = noneFrame;
+            // }
+
+            followCoordinator.removeFollowTarget(msgData.frame);
+        });
+        //
+        // realityEditor.network.addPostMessageHandler('analyticsFocus', (msgData) => {
+        //     if (!analyticsByFrame[msgData.frame]) {
+        //         analyticsByFrame[msgData.frame] = makeAnalytics(msgData.frame);
+        //     }
+        //     if (activeFrame !== msgData.frame) {
+        //         const activeAnalytics = getActiveAnalytics();
+        //         if (activeAnalytics !== realityEditor.analytics.getDefaultAnalytics()) {
+        //             activeAnalytics.blur(); // Default analytics should only lose 2D UI manually via menu bar
+        //         }
+        //     }
+        //     activeFrame = msgData.frame;
+        //     analyticsByFrame[msgData.frame].focus();
+        // });
+        //
+        // realityEditor.network.addPostMessageHandler('analyticsBlur', (msgData) => {
+        //     if (!analyticsByFrame[msgData.frame]) {
+        //         return;
+        //     }
+        //     analyticsByFrame[msgData.frame].blur();
+        //     if (activeFrame === msgData.frame) {
+        //         activeFrame = noneFrame;
+        //     }
+        // });
 
         // realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.FollowVideo, () => {
         //     if (Object.values(videoPlaybackTargets).length > 0) {
@@ -426,17 +465,92 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
     function updateFollowVideoPlayback() {
         if (!followCoordinator) return;
         Object.values(followCoordinator.followTargets).forEach(followTarget => {
-            if (!followTarget.sceneNode || !followTarget.pointCloudMesh) return;
-            followTarget.sceneNode.setLocalMatrix(followTarget.pointCloudMesh.parent.matrix.elements);
-        });
+            if (followTarget.sceneNode && followTarget.pointCloudMesh) {
+                followTarget.sceneNode.setLocalMatrix(followTarget.pointCloudMesh.parent.matrix.elements);
+            } else {
+                let matchingAnalytics = realityEditor.analytics.getAnalyticsByFrame(followTarget.id);
+                if (!matchingAnalytics) return;
+                // console.log(matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones);
+                if (matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones.length === 0) return;
+                // TODO: for now we're following the first person detected in that timestamp, but if we support tracking multiple people at once then this might not work
+                let joints = matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].pose.joints;
+                let THREE = realityEditor.gui.threejsScene.THREE;
+                let headPosition = joints.head.position;
+                let neckPosition = joints.neck.position;
+                let leftShoulderPosition = joints.left_shoulder.position;
+                
+                const neckToHeadVector = new THREE.Vector3().subVectors(headPosition, neckPosition).normalize();
+                const neckToShoulderVector = new THREE.Vector3().subVectors(leftShoulderPosition, neckPosition).normalize();
 
-        // if (Object.values(videoPlaybackTargets).length > 0) {
-        //     let thisVideoPlayer = Object.values(videoPlaybackTargets)[0].videoPlayer;
-        //     let sceneGraphNode = realityEditor.sceneGraph.getVisualElement('CameraPlaybackNode' + thisVideoPlayer.id);
-        //     if (sceneGraphNode) {
-        //         sceneGraphNode.setLocalMatrix(thisVideoPlayer.phone.matrix.elements);
-        //     }
-        // }
+                const neckRotationAxis = new THREE.Vector3().crossVectors(neckToHeadVector, neckToShoulderVector).normalize();
+                // const neckRotationAngle = 0; //neckToHeadVector.angleTo(neckToShoulderVector);
+
+                // Calculate the angle between the neck-to-head and neck-to-shoulder vectors
+                const angle = 0; // Math.PI / 2; // neckToHeadVector.angleTo(neckToShoulderVector);
+
+// Create a quaternion using the rotation axis and angle
+                const quaternion = new THREE.Quaternion().setFromAxisAngle(neckRotationAxis, angle);
+
+// Compose the quaternion with the head position to create a transformation matrix
+//                 const scale = new THREE.Vector3(1, 1, 1); // Assuming no scaling is needed
+                // const matrix = new THREE.Matrix4().compose(headPosition, quaternion, scale);
+
+
+                // const neckRotationMatrix = new THREE.Matrix4().makeRotationAxis(neckRotationAxis, neckRotationAngle);
+                // // neckPosition.clone().normalize()
+                // const neckRotationMatrix = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), neckRotationAxis, neckToHeadVector);
+                // neckRotationMatrix.setPosition(0, 0, 0);
+
+                // Calculate the forward direction (opposite of the neck-to-head vector)
+                const forwardDirection = neckToHeadVector.clone().negate().normalize();
+
+// Calculate the up direction (cross product of forward and neck-to-shoulder)
+                const upDirection = new THREE.Vector3(0, 1, 0); //neckToShoulderVector.clone().cross(forwardDirection).normalize();
+
+// Calculate the right direction (cross product of up and forward)
+                const rightDirection = upDirection.clone().cross(forwardDirection).normalize();
+
+// Create a rotation matrix using these basis vectors
+                const neckRotationMatrix = new THREE.Matrix4().makeBasis(rightDirection, upDirection, forwardDirection);
+
+                // Convert the rotation matrix to a quaternion
+                const neckRotationQuaternion = new THREE.Quaternion().setFromRotationMatrix(neckRotationMatrix);
+
+// Compose the transformation matrix using the head position and the rotation quaternion
+                const scale = new THREE.Vector3(1, 1, 1); // Assuming no scaling is needed
+                const transformationMatrix = new THREE.Matrix4().compose(headPosition, neckRotationQuaternion, scale);
+
+                
+                const headMatrix = new THREE.Matrix4();
+                headMatrix.setPosition(headPosition);
+                
+                let offsetMatrix = matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].renderer.jointsMesh.matrixWorld;
+                
+                headMatrix.multiplyMatrices(offsetMatrix, headMatrix);
+
+                const finalMatrix = new THREE.Matrix4().compose(headPosition, quaternion, scale);
+                
+                // matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].renderer.jointsMesh.matrixWorld
+
+                // headMatrix.multiplyMatrices(neckRotationMatrix, headMatrix);
+
+                // let newHeadPosition = new THREE.Vector3(headPosition.x, headPosition.y, headPosition.z);
+                // headMatrix.setPosition(headPosition);
+                
+                // let head_neck = neckPosition.sub(headPosition).normalize();
+                // let shoulder_neck = leftShoulderPosition.sub(neckPosition).normalize();
+                // let forwardVector = head_neck.cross(shoulder_neck).normalize();
+
+                followTarget.sceneNode.setLocalMatrix(transformationMatrix.elements);
+                
+                // followTarget.sceneNode.setLocalMatrix([
+                //     1, 0, 0, 0,
+                //     0, 1, 0, 0,
+                //     0, 0, 1, 0,
+                //     headPosition.x, headPosition.y, headPosition.z, 1
+                // ]);
+            }
+        });
     }
     
     /**
