@@ -54,23 +54,20 @@ if (exports.enabled) {
         // Load the userinterface codebase (including all add-ons) using the server's LocalUIApp class
         // and serve the userinterface on port 8081
         try {
+            console.info(`UI path for Remote Operator: ${userinterfacePath}`);
             const localUIApp = new LocalUIApp(userinterfacePath, addonFolders);
             localUIApp.setup();
-
-            console.log('successfully created local_ui_app for remote operator');
-
             startHTTPServer(localUIApp, 8081);
         } catch (e) {
-            console.warn('CANNOT START REMOTE OPERATOR ON PORT 8081: ', e);
+            console.error('Failed to start Remote Operator: ', e);
         }
     }
 
     try {
         const rzvServer = require('./server.js');
         rzvServer.start();
-        console.log('successfully created reality-zone-viewer skeleton');
     } catch (e) {
-        console.warn('unable to start rzv skeleton', e);
+        console.error('Unable to start Reality Zone Viewer video/skeleton server', e);
     }
 }
 
@@ -87,7 +84,7 @@ function startHTTPServer(localUIApp, port) {
     const identityFolderName = '.identity';
 
     http.listen(port, function() {
-        console.log('~~~ started remote operator on port ' + port);
+        console.info('Remote Operator listening on port ' + port);
 
         // serves the camera poses that correspond to a recorded rgb+depth 3d video
         localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {
@@ -123,7 +120,6 @@ function startHTTPServer(localUIApp, port) {
             }
 
             const videoSize = fs.statSync(videoPath).size;
-            // console.log('Video Size = ' + Math.round(videoSize / 1000)  + 'kb');
 
             // Parse Range (example: "bytes=32324-")
             const CHUNK_SIZE = 10 ** 6; // 1 MB
@@ -168,15 +164,10 @@ function startHTTPServer(localUIApp, port) {
         });
 
         function socketServer() {
-
             io.on('connection', function (socket) {
-
-                console.log('connected to socket', socket.id);
-
                 socket.on('/subscribe/editorUpdates', function (msg) {
-
                     var msgContent = JSON.parse(msg);
-                    console.log('/subscribe/editorUpdates', msgContent);
+                    // console.log('/subscribe/editorUpdates', msgContent);
 
                     // realityEditorSocketArray[socket.id] = {object: msgContent.object, protocol: thisProtocol};
 
@@ -238,8 +229,7 @@ function startHTTPServer(localUIApp, port) {
                 try {
                     connectTo6DMouse();
                 } catch (e) {
-                    console.log('Did not connect to input hardware. Control remote operator with mouse' +
-                        ' scroll wheel, right-click drag and shift-right-click-drag');
+                    // Did not connect to input hardware. Control remote operator with mouse + scroll wheel, right-click drag and shift-right-click-drag
                 }
 
                 function connectTo6DMouse() {
@@ -271,7 +261,6 @@ function startHTTPServer(localUIApp, port) {
                                         y: mouseTranslation.y * 20,
                                         z: mouseTranslation.z * 20
                                     };
-                                    console.log('callibrated mouse at ', callibration);
                                 }
                             } else {
                                 io.emit('/mouse/transformation', {

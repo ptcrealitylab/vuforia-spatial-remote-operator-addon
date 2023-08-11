@@ -88,6 +88,13 @@ createNameSpace('realityEditor.device.desktopCamera');
     ];
     exports.perspectives = perspectives;
 
+    // used for transitioning from AR view to remote operator virtual camera
+    let didAddModeTransitionListeners = false;
+    let virtualCameraEnabled = false;
+    let cameraTransitionPosition_AR = null;
+    let cameraTransitionTarget_AR = null;
+    let cameraTransitionPosition_VR = null;
+    let cameraTransitionTarget_VR = null;
 
     function makeGroundPlaneRotationX(theta) {
         var c = Math.cos(theta), s = Math.sin(theta);
@@ -120,6 +127,8 @@ createNameSpace('realityEditor.device.desktopCamera');
             return;
         }
 
+        addModeTransitionListeners();
+
         if (realityEditor.device.environment.isARMode()) { return; }
 
         if (!realityEditor.sceneGraph.getSceneNodeById('CAMERA')) { // reload after camera has been created
@@ -138,6 +147,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
+        virtualCameraEnabled = true;
 
         // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
@@ -577,7 +587,7 @@ createNameSpace('realityEditor.device.desktopCamera');
      * update even if it's in 2d (locked follow) mode
      */
     function update(forceCameraUpdate) {
-        if (virtualCamera) {
+        if (virtualCamera && virtualCameraEnabled) {
             try {
                 if (forceCameraUpdate || !virtualCamera.isRendering2DVideo()) {
                     virtualCamera.update();
@@ -614,6 +624,135 @@ createNameSpace('realityEditor.device.desktopCamera');
                 }
             }
         }
+    }
+
+    let transitionPercent = -1;
+    
+    // these only affect the camera when you load the remote operator view in the AR app, not in the browser
+    function addModeTransitionListeners() {
+        if (didAddModeTransitionListeners) return;
+        didAddModeTransitionListeners = true;
+
+        // move the camera based on the combination of the transitionPercent and the transition endpoint positions
+        const processDevicePosition = () => {
+            if (transitionPercent <= 0 || transitionPercent === 1) {
+                virtualCamera.zoomOutTransition = false;
+                return;
+            }
+            if (!cameraTransitionPosition_AR || !cameraTransitionTarget_AR ||
+                !cameraTransitionPosition_VR || !cameraTransitionTarget_VR) return;
+
+            // only starts moving after the first 5% of the pinch gesture / slider
+            let percent = Math.max(0, Math.min(1, (transitionPercent - 0.1) / 0.9));
+
+            let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+
+            virtualCamera.position = [
+                (1.0 - percent) * cameraTransitionPosition_AR[0] + percent * cameraTransitionPosition_VR[0],
+                (1.0 - percent) * cameraTransitionPosition_AR[1] + percent * cameraTransitionPosition_VR[1],
+                (1.0 - percent) * cameraTransitionPosition_AR[2] + percent * cameraTransitionPosition_VR[2]
+            ];
+            virtualCamera.position[1] -= groundPlaneNode.worldMatrix[13]; // TODO: this works but spatial cursor ends up in weird positions
+
+            virtualCamera.targetPosition = [
+                (1.0 - percent) * cameraTransitionTarget_AR[0] + percent * cameraTransitionTarget_VR[0],
+                (1.0 - percent) * cameraTransitionTarget_AR[1] + percent * cameraTransitionTarget_VR[1],
+                (1.0 - percent) * cameraTransitionTarget_AR[2] + percent * cameraTransitionTarget_VR[2]
+            ];
+            virtualCamera.targetPosition[1] -= groundPlaneNode.worldMatrix[13]; // TODO: this works but spatial cursor ends up in weird positions
+
+            virtualCamera.zoomOutTransition = percent !== 0 && percent !== 1;
+        }
+
+        // when the slider or pinch gesture updates, move the virtual camera based on the transition endpoints
+        realityEditor.device.modeTransition.onTransitionPercent((percent) => {
+            transitionPercent = percent;
+            if (!virtualCamera) return; // wait for virtual camera to initialize
+            virtualCamera.pauseTouchGestures = percent < 1;
+            processDevicePosition();
+        });
+
+        // when the device itself moves, update the transition endpoints
+        realityEditor.device.modeTransition.onDeviceCameraPosition((_cameraMatrix) => {
+            let deviceNode = realityEditor.sceneGraph.getDeviceNode();
+            let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
+            let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], deviceNode, worldNode);
+
+            // get the current camera target position, so we maintain the same perspective when we turn on the scene
+            // defaults the target position to 1 meter in front of the camera
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, worldNode, deviceNode);
+            let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
+
+            if (position) {
+                cameraTransitionPosition_AR = [...position];
+            }
+            if (targetPosition) {
+                cameraTransitionTarget_AR = [...targetPosition];
+                cameraTransitionTarget_VR = [...targetPosition];
+            }
+            cameraTransitionPosition_VR = virtualCamera.getRelativePosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
+
+            if (transitionPercent === 1) {
+                cameraTransitionTarget_VR = [...virtualCamera.targetPosition];
+                cameraTransitionPosition_VR = [...virtualCamera.position];
+            }
+
+            processDevicePosition();
+        });
+        
+        // move the virtual camera to a good starting position when the remote operator first loads in the AR app
+        // TODO: there's some redundant code in here that should be removed and rely on onDeviceCameraPosition instead
+        realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
+            if (virtualCameraEnabled) return; // don't do this multiple times per transition
+            virtualCameraEnabled = true;
+            if (!virtualCamera) return;
+
+            // get the current camera position
+            let cameraNode = realityEditor.sceneGraph.getCameraNode();
+            let deviceNode = realityEditor.sceneGraph.getDeviceNode();
+            let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let position = realityEditor.sceneGraph.convertToNewCoordSystem([0, 0, 0], cameraNode, groundPlaneNode);
+
+            // get the current camera target position, so we maintain the same perspective when we turn on the scene
+            // defaults the target position to 1 meter in front of the camera
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode, deviceNode);
+            let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
+
+            if (position) {
+                cameraTransitionPosition_AR = [...position];
+                virtualCamera.position = [...position];
+            }
+            if (targetPosition) {
+                cameraTransitionTarget_AR = [...targetPosition];
+                virtualCamera.targetPosition = [...targetPosition];
+            }
+
+            // calculate the end position of the transition, and assign to the _VR variables
+            cameraTransitionPosition_VR = virtualCamera.getRelativePosition(cameraTransitionPosition_AR, cameraTransitionTarget_AR, 0, 3000, 8000);
+            cameraTransitionTarget_VR = [...targetPosition]; // where you're looking doesn't change
+
+            if (virtualCamera.focusTargetCube) {
+                virtualCamera.focusTargetCube.position.copy({
+                    x: targetPosition[0],
+                    y: targetPosition[1],
+                    z: targetPosition[2]
+                });
+                virtualCamera.mouseInput.lastWorldPos = [...targetPosition];
+            }
+
+            virtualCamera.zoomOutTransition = true;
+
+            // force it to update
+            virtualCamera.update();
+        });
+        realityEditor.device.modeTransition.onRemoteOperatorHidden(() => {
+            virtualCameraEnabled = false;
+            virtualCamera.zoomOutTransition = false;
+            cameraTransitionPosition_AR = null;
+            cameraTransitionTarget_AR = null;
+            cameraTransitionPosition_VR = null;
+            cameraTransitionTarget_VR = null;
+        });
     }
 
     exports.update = update;

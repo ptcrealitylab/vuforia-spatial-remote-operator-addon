@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100px" height="100px" viewBox="0 0 100 100" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>spatialPatch-bounded</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="spatialPatch-bounded">
+            <rect id="Rectangle" fill-opacity="0" fill="#000000" x="0" y="0" width="100" height="100" rx="20"></rect>
+            <rect id="Rectangle" stroke="#FFFFFF" stroke-width="4" x="28" y="24" width="45" height="45" rx="2"></rect>
+            <rect id="Rectangle" fill="#FFFFFF" x="26" y="67" width="49" height="10" rx="2"></rect>
+        </g>
+    </g>
+</svg>
