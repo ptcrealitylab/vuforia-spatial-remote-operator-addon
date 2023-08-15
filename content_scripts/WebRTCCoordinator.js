@@ -6,7 +6,6 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
 
-    const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
     class WebRTCCoordinator {
@@ -28,12 +27,13 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 this.ws.addEventListener('message', this.onWsMessage);
             } else {
                 this.ws.on('message', this.onToolsocketMessage);
-                this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify({
+                this.ws.message('unused', {
+                    id: 'signalling',
+                    data: {
                         command: 'joinNetwork',
                         src: this.consumerId,
                         role: 'consumer',
-                    })),
+                    },
                 });
             }
 
@@ -143,7 +143,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             if (body.id !== 'signalling') {
                 return;
             }
-            this.onWsMessage({data: decoder.decode(bin.data)});
+            if (bin && bin.data) {
+                this.onWsMessage({data: decoder.decode(bin.data)});
+            } else {
+                this.onWsMessage({data: body.data});
+            }
         }
 
         initConnection(otherId) {
@@ -349,8 +353,9 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             if (this.ws instanceof WebSocket) {
                 this.ws.send(JSON.stringify(message));
             } else {
-                this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify(message)),
+                this.ws.message('unused', {
+                    id: 'signalling',
+                    data: message,
                 });
             }
         }
