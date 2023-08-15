@@ -143,7 +143,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             if (body.id !== 'signalling') {
                 return;
             }
-            if (bin) {
+            if (bin && bin.data) {
                 this.onWsMessage({data: decoder.decode(bin.data)});
             } else {
                 this.onWsMessage({data: JSON.stringify(body.data)});
