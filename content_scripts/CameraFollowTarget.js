@@ -89,11 +89,28 @@ export class CameraFollowCoordinator {
         if (this.currentFollowTarget.firstPersonEnabler && this.currentFollowTarget.firstPersonEnabler.onCameraStartedFollowing) {
             this.currentFollowTarget.firstPersonEnabler.onCameraStartedFollowing();
         }
+        // check if targetId is a frame id... if so, try to focus that envelope
+        realityEditor.envelopeManager.focusEnvelope(targetId);
+        // try to get the frameKey from the firstPersonEnabler
+        if (this.currentFollowTarget.firstPersonEnabler) {
+            if (typeof this.currentFollowTarget.firstPersonEnabler.frameKey !== 'undefined') {
+                realityEditor.envelopeManager.focusEnvelope(this.currentFollowTarget.firstPersonEnabler.frameKey );
+            }
+        }
+
         this.virtualCamera.follow(this.currentFollowTarget.sceneNode, this.followDistance); // , this.isRendering2d);
     }
     unfollow() {
         if (!this.currentFollowTarget) return;
         console.log('unfollow');
+
+        realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.id);
+        if (this.currentFollowTarget.firstPersonEnabler) {
+            if (typeof this.currentFollowTarget.firstPersonEnabler.frameKey !== 'undefined') {
+                realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.firstPersonEnabler.frameKey );
+            }
+        }
+
         if (this.currentFollowTarget.firstPersonEnabler) {
             if (this.currentFollowTarget.firstPersonEnabler.onCameraStoppedFollowing) {
                 this.currentFollowTarget.firstPersonEnabler.onCameraStoppedFollowing();
