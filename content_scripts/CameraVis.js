@@ -9,6 +9,7 @@ import {
     ShaderMode
 } from './Shaders.js';
 import {VisualDiff} from './VisualDiff.js';
+import {Followable} from '../../src/gui/ar/CameraFollowTarget.js';
 
 const debug = false;
 
@@ -21,8 +22,12 @@ function setMatrixFromArray(matrix, array) {
     );
 }
 
-export class CameraVis {
+export class CameraVis extends Followable {
     constructor(id, floorOffset, color) {
+        let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+        let displayName = `Live Video ${id}`;
+        super('CameraVisFollowable_' + id, displayName, parentNode);
+
         this.id = id;
         this.firstPersonMode = false;
         this.shaderMode = ShaderMode.SOLID;
@@ -45,7 +50,9 @@ export class CameraVis {
 
         this.maxDepthMeters = 5; // this goes down if lidar is pointed at a wall/floor/object closer than 5 meters
 
-        let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+        // this.followable = new Followable('CameraVis_' + id);
+        // this.followable.enableFirstPersonMode()
+
         // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
         // let parentNode = realityEditor.sceneGraph.getSceneNodeById(elementId);
         let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraVis_' + id, parentNode);
@@ -336,6 +343,10 @@ export class CameraVis {
             this.sceneGraphNode.setLocalMatrix(newMatrix);
         }
 
+        if (this.sceneNode) {
+            this.sceneNode.setLocalMatrix(newMatrix);
+        }
+
         if (this.firstPersonMode) {
             let matrix = this.getSceneNodeMatrix();
             let eye = new THREE.Vector3(0, 0, 0);
@@ -393,6 +404,8 @@ export class CameraVis {
         }
     }
 
+    /* ---------------- Override Followable Functions ---------------- */
+    
     enableFirstPersonMode() {
         this.firstPersonMode = true;
         if (this.shaderMode === ShaderMode.SOLID) {
@@ -406,7 +419,13 @@ export class CameraVis {
             this.setShaderMode(ShaderMode.SOLID);
         }
     }
+    
+    updateSceneNode() {
+        this.sceneNode.setLocalMatrix(this.phone.matrix.elements);
+    }
 
+    /* ---------------- </Override Followable Functions>  ---------------- */
+    
     enableFrustumCutout() {
         this.cutoutViewFrustum = true;
     }

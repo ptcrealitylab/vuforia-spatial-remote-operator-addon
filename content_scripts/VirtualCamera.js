@@ -10,6 +10,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     const DISPLAY_PERSPECTIVE_CUBES = false;
     const FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER = 1000; // what point to focus on when we rotate/pan away from following
+    const MIN_FIRST_PERSON_DISTANCE = 1500;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, floorOffset) {
@@ -826,7 +827,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (typeof initialFollowDistance !== 'undefined') {
                 this.followingState.currentFollowingDistance = initialFollowDistance; // can adjust with scroll wheel
                 
-                if (initialFollowDistance <= 0) {
+                if (initialFollowDistance <= MIN_FIRST_PERSON_DISTANCE) {
                     this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(true));
                 } else {
                     this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(false));
@@ -950,6 +951,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.followingState.unstabilizedContainer.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.threeJsContainer.add(this.followingState.unstabilizedContainer);
 
+                let debugCube = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+                this.followingState.unstabilizedContainer.add(debugCube);
+
                 // These boxes could be groups / empty objects rather than meshes, but we have them to help debug
                 let forwardTarget = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({ color: '#0000ff' }));
                 forwardTarget.position.set(0, 0, FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER);
@@ -1061,7 +1065,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // console.log(distanceToCamera, this.followingState.currentFollowingDistance); // , this.followingState.currentlyRendering2DVideo);
 
             // Trigger the virtualizer shader to render flat video when we reach first-person perspective
-            if (this.followingState.currentFollowingDistance <= 0) { // && !this.followingState.currentlyRendering2DVideo) {
+            if (this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE) { // && !this.followingState.currentlyRendering2DVideo) {
                 // realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
                 // this.followingState.currentlyRendering2DVideo = true;
 
