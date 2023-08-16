@@ -8,7 +8,7 @@
 
 createNameSpace('realityEditor.device.desktopCamera');
 
-import { CameraFollowCoordinator } from './CameraFollowTarget.js';
+import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFollowTarget.js';
 
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
@@ -56,24 +56,47 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
     let cameraTransitionPosition_VR = null;
     let cameraTransitionTarget_VR = null;
 
-    function makeGroundPlaneRotationX(theta) {
-        var c = Math.cos(theta), s = Math.sin(theta);
-        return [
-            1, 0, 0, 0,
-            0, c, -s, 0,
-            0, s, c, 0,
-            0, 0, 0, 1
-        ];
-    }
+    let analyticsFollowables = {};
+    let analyticsInstanceCount = 0;
 
-    function makeGroundPlaneRotationY(theta) {
-        var c = Math.cos(theta), s = Math.sin(theta);
-        return [
-            c, 0, s, 0,
-            0, 1, 0, 0,
-            -s, 0, c, 0,
-            0, 0, 0, 1
-        ];
+    class AnalyticsFollowable extends Followable {
+        constructor(frameKey) {
+            let parentNode = realityEditor.sceneGraph.getVisualElement('AnalyticsCameraGroupContainer');
+            if (!parentNode) {
+                let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
+                let analyticsCameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('AnalyticsCameraGroupContainer', gpNode);
+                parentNode = realityEditor.sceneGraph.getSceneNodeById(analyticsCameraGroupContainerId);
+                let transformationMatrix = realityEditor.gui.ar.utilities.makeGroundPlaneRotationX(Math.PI / 2);
+                transformationMatrix[13] = -storedFloorOffset; // ground plane translation
+                parentNode.setLocalMatrix(transformationMatrix);
+            }
+            // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            analyticsInstanceCount++;
+            let displayName = `Analytics ${analyticsInstanceCount}`;
+            super(`AnalyticsFollowable_${frameKey}`, displayName, parentNode);
+            
+            this.frameKey = frameKey;
+        }
+        updateSceneNode() {
+            let matchingAnalytics = realityEditor.analytics.getAnalyticsByFrame(this.frameKey);
+            if (!matchingAnalytics) return;
+            if (matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones.length === 0) return;
+            // TODO: for now we're following the first person detected in that timestamp, but if we support tracking multiple people at once then this might not work
+            let joints = matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].pose.joints;
+            let THREE = realityEditor.gui.threejsScene.THREE;
+            let headPosition = joints.head.position;
+            let neckPosition = joints.neck.position;
+            let leftShoulderPosition = joints.left_shoulder.position;
+            const neckToHeadVector = new THREE.Vector3().subVectors(headPosition, neckPosition).normalize();
+            const neckToShoulderVector = new THREE.Vector3().subVectors(leftShoulderPosition, neckPosition).normalize();
+            const neckRotationAxis = new THREE.Vector3().crossVectors(neckToHeadVector, neckToShoulderVector).normalize();
+            const neckRotationMatrix = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), neckRotationAxis, neckToHeadVector);
+            let finalMatrix = new THREE.Matrix4().setPosition(neckPosition.x, neckPosition.y + storedFloorOffset, neckPosition.z);
+            finalMatrix.multiplyMatrices(finalMatrix, neckRotationMatrix); // multiply the rotation after the position so that it doesn't affect the position
+            this.sceneNode.setLocalMatrix(finalMatrix.elements);
+
+            // this.sceneNode.setLocalMatrix(this.phone.matrix.elements);
+        }
     }
 
     /**
@@ -101,18 +124,6 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         }
 
         let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
-        let cameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('CameraGroupContainer', parentNode);
-        let cameraGroupContainer = realityEditor.sceneGraph.getSceneNodeById(cameraGroupContainerId);
-        let transformationMatrix = makeGroundPlaneRotationX(0);
-        transformationMatrix[13] = -floorOffset; // ground plane translation
-        cameraGroupContainer.setLocalMatrix(transformationMatrix);
-
-        // TODO: this is an experiment for the analytics
-        let analyticsCameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('AnalyticsCameraGroupContainer', parentNode);
-        let analyticsCameraGroupContainer = realityEditor.sceneGraph.getSceneNodeById(analyticsCameraGroupContainerId);
-        transformationMatrix = makeGroundPlaneRotationX(Math.PI / 2);
-        transformationMatrix[13] = -floorOffset; // ground plane translation
-        analyticsCameraGroupContainer.setLocalMatrix(transformationMatrix);
 
         let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
         virtualCamera = new realityEditor.device.VirtualCamera(cameraNode, 1, 0.001, 10, INITIAL_CAMERA_POSITION, floorOffset);
@@ -225,37 +236,16 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.StopFollowing, () => {
             virtualCamera.stopFollowing();
         });
-        
-        const followItemNumberMap = {
-            videoRecording: {},
-            analyics: {}
-        }
-        let videoRecordingCount = 1;
-        let analyticsCount = 1;
 
         videoPlayback.onVideoCreated(player => {
             console.log('onVideoCreated', player.id, player);
-            
-            if (typeof followItemNumberMap.videoRecording[player.id] === 'undefined') {
-                followItemNumberMap.videoRecording[player.id] = videoRecordingCount;
-                videoRecordingCount++;
-            }
-
-            let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
-            let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraPlaybackNode' + player.id, parentNode);
-            let sceneNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
-            let displayName = `Video Recording ${followItemNumberMap.videoRecording[player.id]}`;
-            // player.pointCloud is undefined here, so we add it in when the video starts playing
-            followCoordinator.addFollowTarget(player.id, displayName, player.pointCloud, sceneNode, player);
+            followCoordinator.addFollowTarget(player);
         });
         videoPlayback.onVideoDisposed(id => {
             console.log('onVideoDisposed', id);
             followCoordinator.removeFollowTarget(id);
         });
         videoPlayback.onVideoPlayed(player => {
-            if (followCoordinator.followTargets[player.id] && player.pointCloud) {
-                followCoordinator.followTargets[player.id].pointCloudMesh = player.pointCloud;
-            }
             console.log('onVideoPlayed', player.id, player);
         });
         videoPlayback.onVideoPaused(player => {
@@ -263,19 +253,10 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
         });
 
         realityEditor.network.addPostMessageHandler('analyticsOpen', (msgData) => {
-            if (typeof followItemNumberMap.analyics[msgData.frame] === 'undefined') {
-                followItemNumberMap.analyics[msgData.frame] = analyticsCount;
-                analyticsCount++;
+            if (typeof analyticsFollowables[msgData.frame] === 'undefined') {
+                analyticsFollowables[msgData.frame] = new AnalyticsFollowable(msgData.frame);
             }
-            let displayName = `Analytics ${followItemNumberMap.analyics[msgData.frame]}`;
-            // TODO: figure out a better way to generalize the following across analytics/cameraVis etc without needing different parent transformations
-            // let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
-            let parentNode = realityEditor.sceneGraph.getVisualElement('AnalyticsCameraGroupContainer');
-            let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('AnalyticsNode' + msgData.frame, parentNode);
-            let sceneNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
-            let pointCloudMesh = null;
-            let firstPersonEnabler = null;
-            followCoordinator.addFollowTarget(msgData.frame, displayName, pointCloudMesh, sceneNode, firstPersonEnabler);
+            followCoordinator.addFollowTarget(analyticsFollowables[msgData.frame]);
         });
 
         realityEditor.network.addPostMessageHandler('analyticsClose', (msgData) => {
@@ -425,35 +406,6 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
     }
 
     /**
-     * Move the sceneNode associated with the videoPlayback to match its three.js object's position
-     */
-    function updateFollowVideoPlayback() {
-        if (!followCoordinator) return;
-        Object.values(followCoordinator.followTargets).forEach(followTarget => {
-            if (followTarget.sceneNode && followTarget.pointCloudMesh) {
-                followTarget.sceneNode.setLocalMatrix(followTarget.pointCloudMesh.parent.matrix.elements);
-            } else {
-                let matchingAnalytics = realityEditor.analytics.getAnalyticsByFrame(followTarget.id);
-                if (!matchingAnalytics) return;
-                if (matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones.length === 0) return;
-                // TODO: for now we're following the first person detected in that timestamp, but if we support tracking multiple people at once then this might not work
-                let joints = matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].pose.joints;
-                let THREE = realityEditor.gui.threejsScene.THREE;
-                let headPosition = joints.head.position;
-                let neckPosition = joints.neck.position;
-                let leftShoulderPosition = joints.left_shoulder.position;
-                const neckToHeadVector = new THREE.Vector3().subVectors(headPosition, neckPosition).normalize();
-                const neckToShoulderVector = new THREE.Vector3().subVectors(leftShoulderPosition, neckPosition).normalize();
-                const neckRotationAxis = new THREE.Vector3().crossVectors(neckToHeadVector, neckToShoulderVector).normalize();
-                const neckRotationMatrix = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), neckRotationAxis, neckToHeadVector);
-                let finalMatrix = new THREE.Matrix4().setPosition(neckPosition.x, neckPosition.y + storedFloorOffset, neckPosition.z);
-                finalMatrix.multiplyMatrices(finalMatrix, neckRotationMatrix); // multiply the rotation after the position so that it doesn't affect the position
-                followTarget.sceneNode.setLocalMatrix(finalMatrix.elements);
-            }
-        });
-    }
-    
-    /**
      * Main update function
      * @param forceCameraUpdate - Whether this update forces virtualCamera to
      * update even if it's in 2d (locked follow) mode
@@ -461,7 +413,8 @@ import { CameraFollowCoordinator } from './CameraFollowTarget.js';
     function update(forceCameraUpdate) {
         if (virtualCamera && virtualCameraEnabled) {
             try {
-                updateFollowVideoPlayback();
+                // updateFollowVideoPlayback();
+                followCoordinator.update();
                 
                 // if (forceCameraUpdate) { // || !virtualCamera.isRendering2DVideo()) {
                     virtualCamera.update();
