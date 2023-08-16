@@ -37,8 +37,7 @@ createNameSpace('realityEditor.gui');
         ToggleHumanPoses: 'Human Poses',
         DarkMode: 'Dark Mode',
         CutoutViewFrustums: 'Cut Out 3D Videos',
-        ShowFPS: 'Show FPS',
-        FollowVideo: 'Follow Video'
+        ShowFPS: 'Show FPS'
     });
     exports.ITEM = ITEM;
 
@@ -109,9 +108,6 @@ createNameSpace('realityEditor.gui');
 
         const toggleVoxelizer = new MenuItem(ITEM.Voxelizer, { shortcutKey: '', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.History, toggleVoxelizer);
-
-        const followVideo = new MenuItem(ITEM.FollowVideo, { toggle: false }, null);
-        menuBar.addItemToMenu(MENU.Follow, followVideo);
 
         const stopFollowing = new MenuItem(ITEM.StopFollowing, { shortcutKey: '_0', toggle: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, stopFollowing);

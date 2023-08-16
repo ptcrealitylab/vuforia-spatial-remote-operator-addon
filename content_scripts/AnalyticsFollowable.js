@@ -17,12 +17,15 @@ export class AnalyticsFollowable extends Followable {
             transformationMatrix[13] = -1 * realityEditor.gui.ar.areaCreator.calculateFloorOffset(); // ground plane translation
             parentNode.setLocalMatrix(transformationMatrix);
         }
-        let displayName = `Analytics ${AnalyticsFollowable.count}`;
-        super(`AnalyticsFollowable_${frameKey}`, displayName, parentNode);
+        let menuItemName = `Analytics ${AnalyticsFollowable.count}`;
+        super(`AnalyticsFollowable_${frameKey}`, menuItemName, parentNode);
 
         this.frameKey = frameKey;
         this.floorOffset = realityEditor.gui.ar.areaCreator.calculateFloorOffset();
     }
+
+    // continuously updates the sceneNode to be positioned a bit behind the
+    // person's chest joint, rotated to match the direction that the person is facing
     updateSceneNode() {
         let matchingAnalytics = realityEditor.analytics.getAnalyticsByFrame(this.frameKey);
         if (!matchingAnalytics) return;
@@ -31,19 +34,21 @@ export class AnalyticsFollowable extends Followable {
         //  tracking multiple people at once then need to implement a way to switch to follow the second person
         let joints = matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].pose.joints;
         let THREE = realityEditor.gui.threejsScene.THREE;
+        // we calculate the direction the person is facing by crossing two vectors:
+        // the neckToHead vector, and the neckToLeftShoulder vector
         let headPosition = joints.head.position;
         let neckPosition = joints.neck.position;
         let leftShoulderPosition = joints.left_shoulder.position;
         const neckToHeadVector = new THREE.Vector3().subVectors(headPosition, neckPosition).normalize();
         const neckToShoulderVector = new THREE.Vector3().subVectors(leftShoulderPosition, neckPosition).normalize();
         const neckRotationAxis = new THREE.Vector3().crossVectors(neckToHeadVector, neckToShoulderVector).normalize();
-        // calculate the rotation matrix by looking in the direction of the forward vector
+        // lookAt gives a convenient way to construct a rotation matrix by looking in the direction of the cross product
         const neckRotationMatrix = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), neckRotationAxis, new THREE.Vector3(0, 1, 0));
-        // calculate the position by adding the floor position to the chest position
+        // calculate the chest position relative to the floor
         let finalMatrix = new THREE.Matrix4().setPosition(joints.chest.position.x, joints.chest.position.y + this.floorOffset, joints.chest.position.z);
-        // multiply the rotation after the position so that it doesn't affect the position
-        finalMatrix.multiplyMatrices(finalMatrix, neckRotationMatrix); 
-        // move the position of the follow target to be 3 meters behind the person (so you better center them in your view)
+        // order matters! multiply the rotation after the position so that it doesn't affect the position
+        finalMatrix.multiplyMatrices(finalMatrix, neckRotationMatrix);
+        // move the position of the follow target to be 3 meters behind the person (better centers them in your view)
         let adjustment = new THREE.Matrix4().setPosition(0, 0, -3000);
         finalMatrix.multiplyMatrices(finalMatrix, adjustment);
         this.sceneNode.setLocalMatrix(finalMatrix.elements);

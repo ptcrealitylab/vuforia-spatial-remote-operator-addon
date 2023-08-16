@@ -1,4 +1,4 @@
-export const PERSPECTIVES = [
+const PERSPECTIVES = [
     {
         keyboardShortcut: '_1',
         menuBarName: 'Follow 1st-Person',
@@ -24,6 +24,11 @@ export const PERSPECTIVES = [
         menuBarName: 'Follow Aerial',
         distanceToCamera: 6000,
     }
+];
+
+const changeTargetButtons = [
+    { name: 'Follow Next Target', shortcutKey: 'RIGHT', dIndex: 1 },
+    { name: 'Follow Previous Target', shortcutKey: 'LEFT',  dIndex: -1 }
 ];
 
 /**
@@ -64,11 +69,6 @@ export class CameraFollowCoordinator {
             this.unfollow();
         });
     }
-    update() {
-        Object.values(this.followTargets).forEach(followTarget => {
-            followTarget.followable.updateSceneNode();
-        });
-    }
     addFollowTarget(followable) {
         this.followTargets[followable.id] = new CameraFollowTarget(followable);
         this.updateFollowMenu();
@@ -86,8 +86,8 @@ export class CameraFollowCoordinator {
         if (this.currentFollowTarget.followable) {
             this.currentFollowTarget.followable.onCameraStartedFollowing();
         }
-        // try to focus 
-        realityEditor.envelopeManager.focusEnvelope(targetId);
+        
+        // if the followable specifies a frameKey, try to focus on that envelope when following
         if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
             realityEditor.envelopeManager.focusEnvelope(this.currentFollowTarget.followable.frameKey );
         }
@@ -97,7 +97,7 @@ export class CameraFollowCoordinator {
     unfollow() {
         if (!this.currentFollowTarget) return;
 
-        realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.id);
+        // if the followable specifies a frameKey, try to stop focusing
         if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
             realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.followable.frameKey );
         }
@@ -109,17 +109,16 @@ export class CameraFollowCoordinator {
         if (!this.currentFollowTarget) return;
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex + 1) % numTargets;
-        this.chooseFollowTarget(this.currentFollowIndex);
+        this.followTargetAtIndex(this.currentFollowIndex);
     }
     followPrevious() {
         if (!this.currentFollowTarget) return;
-        // this.unfollow();
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex - 1) % numTargets;
         if (this.currentFollowIndex < 0) { this.currentFollowIndex += numTargets; }
-        this.chooseFollowTarget(this.currentFollowIndex);
+        this.followTargetAtIndex(this.currentFollowIndex);
     }
-    chooseFollowTarget(index) {
+    followTargetAtIndex(index) {
         let followTarget = Object.values(this.followTargets)[index];
         if (!followTarget) {
             console.warn('Can\'t find a virtualizer to follow');
@@ -127,20 +126,22 @@ export class CameraFollowCoordinator {
         }
         this.follow(followTarget.id);
     }
+    update() {
+        Object.values(this.followTargets).forEach(followTarget => {
+            try {
+                followTarget.followable.updateSceneNode();
+            } catch (_e) {
+                // console.warn('error in updateSceneNode for one of the followTargets')
+            }
+        });
+    }
     addMenuItems() {
         let menuBar = realityEditor.gui.getMenuBar();
+        let numTargets = Object.keys(this.followTargets).length;
 
-        menuBar.addCallbackToItem(realityEditor.gui.ITEM.FollowVideo, () => {
-            if (Object.values(this.followTargets).length === 0) return;
-            let thisTarget = Object.values(this.followTargets)[0];
-            this.follow(thisTarget.id);
-        });
-
-        // Setup Following Menu
+        // Setup Following Menu Items for each perspective
         PERSPECTIVES.forEach(info => {
-            const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: false }, () => {
-                // currentFollowIndex = lastFollowingIndex; // resumes following the previously followed camera. defaults to 0
-                // let followTarget = chooseFollowTarget(currentFollowIndex);
+            const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: (numTargets === 0) }, () => {
                 if (Object.values(this.followTargets).length === 0) {
                     console.warn('Can\'t find a virtualizer to follow');
                     return;
@@ -158,14 +159,8 @@ export class CameraFollowCoordinator {
             menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
         });
 
-        // TODO: enable (or add) this only if there are more than one virtualizers
-        const changeTargetButtons = [
-            { name: 'Follow Next Target', shortcutKey: 'RIGHT', dIndex: 1 },
-            { name: 'Follow Previous Target', shortcutKey: 'LEFT',  dIndex: -1 }
-        ];
-
         changeTargetButtons.forEach(itemInfo => {
-            const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: false }, () => {
+            const item = new realityEditor.gui.MenuItem(itemInfo.name, { shortcutKey: itemInfo.shortcutKey, toggle: false, disabled: (numTargets === 0) }, () => {
                 if (Object.values(this.followTargets).length === 0) return; // can't swap targets if not following anything
                 if (!this.currentFollowTarget) return;
                 (itemInfo.dIndex > 0) ? this.followNext() : this.followPrevious();
@@ -173,13 +168,30 @@ export class CameraFollowCoordinator {
             menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, item);
         });
     }
+    // Updates the Follow menu to contain a menu item for each available follow target
     updateFollowMenu() {
         let menuBar = realityEditor.gui.getMenuBar();
         let numTargets = Object.keys(this.followTargets).length;
+
+        // show/hide Follow menu and enable/disable following buttons if >0 targets
         if (numTargets === 0) {
             menuBar.hideMenu(realityEditor.gui.followMenu);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, false);
+            Object.values(PERSPECTIVES).forEach(info => {
+                realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, false);
+            });
+            changeTargetButtons.forEach(info => {
+                realityEditor.gui.getMenuBar().setItemEnabled(info.name, false);
+            });
         } else {
             menuBar.unhideMenu(realityEditor.gui.followMenu);
+            realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
+            Object.values(PERSPECTIVES).forEach(info => {
+                realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
+            });
+            changeTargetButtons.forEach(info => {
+                realityEditor.gui.getMenuBar().setItemEnabled(info.name, true);
+            });
         }
 
         let itemsToRemove = [];
