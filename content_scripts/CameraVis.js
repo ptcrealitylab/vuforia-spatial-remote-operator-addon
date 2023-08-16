@@ -26,11 +26,23 @@ export class CameraVis extends Followable {
     static count = 0;
 
     constructor(id, floorOffset, color) {
+        // first we must set up the Followable so that the remote operator
+        // camera system will be able to follow this video...
         CameraVis.count++;
         let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
-        let displayName = `Live Video ${CameraVis.count}`;
-        super('CameraVisFollowable_' + id, displayName, parentNode);
+        if (!parentNode) {
+            let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let cameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('CameraGroupContainer', gpNode);
+            parentNode = realityEditor.sceneGraph.getSceneNodeById(cameraGroupContainerId);
+            let transformationMatrix = realityEditor.gui.ar.utilities.makeGroundPlaneRotationX(0);
+            transformationMatrix[13] = -1 * floorOffset;
+            parentNode.setLocalMatrix(transformationMatrix);
+        }
+        // count (e.g. 1) is more user-friendly than the id (e.g. prov123)
+        let menuItemName = `Live Video ${CameraVis.count}`;
+        super('CameraVisFollowable_' + id, menuItemName, parentNode);
 
+        // then the CameraVis can initialize as usual...
         this.id = id;
         this.firstPersonMode = false;
         this.shaderMode = ShaderMode.SOLID;

@@ -44,9 +44,6 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
     let followCoordinator = null;
     let currentlyFollowingId = null;
 
-    // let videoPlaybackTargets = {};
-    let videoPlayback = realityEditor.gui.ar.videoPlayback;
-
     // used for transitioning from AR view to remote operator virtual camera
     let didAddModeTransitionListeners = false;
     let virtualCameraEnabled = false;
@@ -90,14 +87,14 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
         followCoordinator.addMenuItems();
         console.log(followCoordinator);
 
+        // ---- Add and remove follow targets when virtualizers connect ---- //
+
         function addCameraVisCallbacks() {
             let cameraVisCoordinator = realityEditor.gui.ar.desktopRenderer.getCameraVisCoordinator();
             if (!cameraVisCoordinator) {
-                console.log('addCameraVisCallbacks failed');
                 setTimeout(addCameraVisCallbacks, 100);
                 return;
             }
-            console.log('addCameraVisCallbacks succeeded');
             cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                 followCoordinator.addFollowTarget(cameraVis);
             });
@@ -192,20 +189,24 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
             virtualCamera.stopFollowing();
         });
 
+        // ---- Add and remove follow targets when video players are created ---- //
+        
+        let videoPlayback = realityEditor.gui.ar.videoPlayback;
         videoPlayback.onVideoCreated(player => {
-            console.log('onVideoCreated', player.id, player);
             followCoordinator.addFollowTarget(player);
         });
         videoPlayback.onVideoDisposed(id => {
-            console.log('onVideoDisposed', id);
             followCoordinator.removeFollowTarget(id);
         });
-        videoPlayback.onVideoPlayed(player => {
-            console.log('onVideoPlayed', player.id, player);
-        });
-        videoPlayback.onVideoPaused(player => {
-            console.log('onVideoPaused', player.id, player);
-        });
+        // TODO: should we do anything when videos pause/resume?
+        // videoPlayback.onVideoPlayed(_player => {
+        //     console.log('onVideoPlayed', player.id, player);
+        // });
+        // videoPlayback.onVideoPaused(_player => {
+        //     console.log('onVideoPaused', player.id, player);
+        // });
+
+        // ---- Add and remove follow targets when analytics are opened ---- //
 
         realityEditor.network.addPostMessageHandler('analyticsOpen', (msgData) => {
             if (typeof analyticsFollowables[msgData.frame] === 'undefined') {
@@ -215,7 +216,8 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
         });
 
         realityEditor.network.addPostMessageHandler('analyticsClose', (msgData) => {
-            followCoordinator.removeFollowTarget(msgData.frame);
+            if (!analyticsFollowables[msgData.frame]) return;
+            followCoordinator.removeFollowTarget(analyticsFollowables[msgData.frame].id);
         });
 
         const keyboard = new realityEditor.device.KeyboardListener();
@@ -271,18 +273,6 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
                 }
             })
         });
-    }
-
-    // based on the index you pass in, it will retrieve the virtualizer camera at that index
-    function chooseFollowTarget(index) {
-        let virtualizerSceneNodes = realityEditor.gui.ar.desktopRenderer.getCameraVisSceneNodes();
-        if (virtualizerSceneNodes.length === 0) { return null; }
-        index = Math.min(index, virtualizerSceneNodes.length - 1);
-        const thisVirtualizerId = parseInt(virtualizerSceneNodes[index].id.match(/\d+/)[0]); // TODO: extract this in a less fragile way
-        return {
-            id: thisVirtualizerId,
-            sceneNode: virtualizerSceneNodes[index]
-        };
     }
 
     function addSensitivitySlidersToMenu() {
@@ -362,14 +352,15 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
 
     /**
      * Main update function
-     * @param forceCameraUpdate - Whether this update forces virtualCamera to
+     * @param _forceCameraUpdate - Whether this update forces virtualCamera to
      * update even if it's in 2d (locked follow) mode
      */
-    function update(forceCameraUpdate) {
+    function update(_forceCameraUpdate) {
         if (virtualCamera && virtualCameraEnabled) {
             try {
-                // updateFollowVideoPlayback();
-                followCoordinator.update();
+                if (followCoordinator) {
+                    followCoordinator.update();
+                }
 
                 // if (forceCameraUpdate) { // || !virtualCamera.isRendering2DVideo()) {
                 virtualCamera.update();
