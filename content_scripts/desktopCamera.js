@@ -8,7 +8,8 @@
 
 createNameSpace('realityEditor.device.desktopCamera');
 
-import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFollowTarget.js';
+import { CameraFollowCoordinator } from '../../src/gui/ar/CameraFollowTarget.js';
+import { AnalyticsFollowable } from './AnalyticsFollowable.js';
 
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
@@ -23,8 +24,6 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
 
     // used to render an icon at the target position to help you navigate the scene
     let rotateCenterElementId = null;
-    
-    let storedFloorOffset = 0;
 
     // polyfill for requestAnimationFrame to provide a smooth update loop
     let requestAnimationFrame = window.requestAnimationFrame ||
@@ -57,47 +56,6 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
     let cameraTransitionTarget_VR = null;
 
     let analyticsFollowables = {};
-    let analyticsInstanceCount = 0;
-
-    class AnalyticsFollowable extends Followable {
-        constructor(frameKey) {
-            let parentNode = realityEditor.sceneGraph.getVisualElement('AnalyticsCameraGroupContainer');
-            if (!parentNode) {
-                let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
-                let analyticsCameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('AnalyticsCameraGroupContainer', gpNode);
-                parentNode = realityEditor.sceneGraph.getSceneNodeById(analyticsCameraGroupContainerId);
-                let transformationMatrix = realityEditor.gui.ar.utilities.makeGroundPlaneRotationX(Math.PI / 2);
-                transformationMatrix[13] = -storedFloorOffset; // ground plane translation
-                parentNode.setLocalMatrix(transformationMatrix);
-            }
-            // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
-            analyticsInstanceCount++;
-            let displayName = `Analytics ${analyticsInstanceCount}`;
-            super(`AnalyticsFollowable_${frameKey}`, displayName, parentNode);
-            
-            this.frameKey = frameKey;
-        }
-        updateSceneNode() {
-            let matchingAnalytics = realityEditor.analytics.getAnalyticsByFrame(this.frameKey);
-            if (!matchingAnalytics) return;
-            if (matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones.length === 0) return;
-            // TODO: for now we're following the first person detected in that timestamp, but if we support tracking multiple people at once then this might not work
-            let joints = matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].pose.joints;
-            let THREE = realityEditor.gui.threejsScene.THREE;
-            let headPosition = joints.head.position;
-            let neckPosition = joints.neck.position;
-            let leftShoulderPosition = joints.left_shoulder.position;
-            const neckToHeadVector = new THREE.Vector3().subVectors(headPosition, neckPosition).normalize();
-            const neckToShoulderVector = new THREE.Vector3().subVectors(leftShoulderPosition, neckPosition).normalize();
-            const neckRotationAxis = new THREE.Vector3().crossVectors(neckToHeadVector, neckToShoulderVector).normalize();
-            const neckRotationMatrix = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), neckRotationAxis, neckToHeadVector);
-            let finalMatrix = new THREE.Matrix4().setPosition(neckPosition.x, neckPosition.y + storedFloorOffset, neckPosition.z);
-            finalMatrix.multiplyMatrices(finalMatrix, neckRotationMatrix); // multiply the rotation after the position so that it doesn't affect the position
-            this.sceneNode.setLocalMatrix(finalMatrix.elements);
-
-            // this.sceneNode.setLocalMatrix(this.phone.matrix.elements);
-        }
-    }
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -109,8 +67,6 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
             }, 100);
             return;
         }
-        
-        storedFloorOffset = floorOffset;
 
         addModeTransitionListeners();
 
@@ -133,7 +89,7 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
         window.followCoordinator = followCoordinator;
         followCoordinator.addMenuItems();
         console.log(followCoordinator);
-        
+
         function addCameraVisCallbacks() {
             let cameraVisCoordinator = realityEditor.gui.ar.desktopRenderer.getCameraVisCoordinator();
             if (!cameraVisCoordinator) {
@@ -143,8 +99,7 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
             }
             console.log('addCameraVisCallbacks succeeded');
             cameraVisCoordinator.onCameraVisCreated(cameraVis => {
-                let displayName = `Live Video ${cameraVis.id}`;
-                followCoordinator.addFollowTarget(cameraVis.id, displayName, cameraVis.mesh, cameraVis.sceneGraphNode, cameraVis);
+                followCoordinator.addFollowTarget(cameraVis);
             });
             cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
                 followCoordinator.removeFollowTarget(cameraVis.id);
@@ -268,7 +223,7 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
         // Setup Save/Load Camera Position System
         // Allows for quickly jumping between different camera positions
         let getSavedCameraDataLocalStorageKey = (index) => `savedCameraData${index}-${realityEditor.sceneGraph.getWorldId()}`;
-        
+
         const saveCameraData = (index) => {
             const cameraPosition = [...virtualCamera.position];
             const cameraDirection = virtualCamera.getCameraDirection();
@@ -276,7 +231,7 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
             const cameraDataJsonString = JSON.stringify(cameraData);
             localStorage.setItem(getSavedCameraDataLocalStorageKey(index), cameraDataJsonString);
         }
-        
+
         const loadCameraData = (index) => {
             const cameraDataJsonString = localStorage.getItem(getSavedCameraDataLocalStorageKey(index));
             if (!cameraDataJsonString) {
@@ -291,7 +246,7 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
                 console.warn('Error parsing saved camera position data', e);
             }
         }
-        
+
         // Only one gets a menu item to avoid crowding, but they all get a shortcut key
         const saveCameraPositionMenuItem = new realityEditor.gui.MenuItem('Save Camera Position', { shortcutKey: '_1', modifiers: ['ALT'], toggle: false, disabled: false }, () => {
             saveCameraData(0);
@@ -415,9 +370,9 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
             try {
                 // updateFollowVideoPlayback();
                 followCoordinator.update();
-                
+
                 // if (forceCameraUpdate) { // || !virtualCamera.isRendering2DVideo()) {
-                    virtualCamera.update();
+                virtualCamera.update();
                 // }
 
                 let worldObject = realityEditor.worldObjects.getBestWorldObject();
@@ -450,7 +405,7 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
     }
 
     let transitionPercent = -1;
-    
+
     // these only affect the camera when you load the remote operator view in the AR app, not in the browser
     function addModeTransitionListeners() {
         if (didAddModeTransitionListeners) return;
@@ -522,7 +477,7 @@ import { CameraFollowCoordinator, Followable } from '../../src/gui/ar/CameraFoll
 
             processDevicePosition();
         });
-        
+
         // move the virtual camera to a good starting position when the remote operator first loads in the AR app
         // TODO: there's some redundant code in here that should be removed and rely on onDeviceCameraPosition instead
         realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
