@@ -9,7 +9,7 @@ import {
     ShaderMode
 } from './Shaders.js';
 import {VisualDiff} from './VisualDiff.js';
-import {Followable} from '../../src/gui/ar/CameraFollowTarget.js';
+import {Followable} from '../../src/gui/ar/Followable.js';
 
 const debug = false;
 

@@ -8,7 +8,7 @@
 
 createNameSpace('realityEditor.device.desktopCamera');
 
-import { CameraFollowCoordinator } from '../../src/gui/ar/CameraFollowTarget.js';
+import { CameraFollowCoordinator } from './CameraFollowCoordinator.js';
 import { AnalyticsFollowable } from './AnalyticsFollowable.js';
 
 /**

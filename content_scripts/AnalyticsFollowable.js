@@ -1,4 +1,4 @@
-import { Followable } from '../../src/gui/ar/CameraFollowTarget.js';
+import { Followable } from '../../src/gui/ar/Followable.js';
 
 /**
  * Constructs and updates the sceneNode to follow a humanPoseAnalyzer's pose object
@@ -43,8 +43,8 @@ export class AnalyticsFollowable extends Followable {
         let finalMatrix = new THREE.Matrix4().setPosition(joints.chest.position.x, joints.chest.position.y + this.floorOffset, joints.chest.position.z);
         // multiply the rotation after the position so that it doesn't affect the position
         finalMatrix.multiplyMatrices(finalMatrix, neckRotationMatrix); 
-        // move the position of the follow target to be 2 meters behind the person (so you better center them in your view)
-        let adjustment = new THREE.Matrix4().setPosition(0, 0, -2000);
+        // move the position of the follow target to be 3 meters behind the person (so you better center them in your view)
+        let adjustment = new THREE.Matrix4().setPosition(0, 0, -3000);
         finalMatrix.multiplyMatrices(finalMatrix, adjustment);
         this.sceneNode.setLocalMatrix(finalMatrix.elements);
     }
