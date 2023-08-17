@@ -58,7 +58,7 @@ createNameSpace('realityEditor.gui');
         let followMenu = new Menu(MENU.Follow); // keep a reference, so we can show/hide it on demand
         exports.followMenu = followMenu;
         menuBar.addMenu(followMenu);
-        menuBar.hideMenu(followMenu);
+        menuBar.disableMenu(followMenu);
         menuBar.addMenu(new Menu(MENU.History));
         let developMenu = new Menu(MENU.Develop); // keep a reference, so we can show/hide it on demand
         menuBar.addMenu(developMenu);
@@ -110,7 +110,8 @@ createNameSpace('realityEditor.gui');
         menuBar.addItemToMenu(MENU.History, toggleVoxelizer);
 
         const stopFollowing = new MenuItem(ITEM.StopFollowing, { shortcutKey: '_0', toggle: false, disabled: true }, null);
-        menuBar.addItemToMenu(MENU.Camera, stopFollowing);
+        exports.stopFollowingItem = stopFollowing;
+        menuBar.addItemToMenu(MENU.Follow, stopFollowing);
 
         const orbitCamera = new MenuItem(ITEM.OrbitCamera, { shortcutKey: 'O', toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.Camera, orbitCamera);
