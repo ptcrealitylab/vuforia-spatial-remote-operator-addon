@@ -1,3 +1,4 @@
+const followPerspectiveMenuText = 'Follow Perspective';
 const PERSPECTIVES = [
     {
         keyboardShortcut: '_1',
@@ -82,17 +83,20 @@ export class CameraFollowCoordinator {
             this.unfollow();
         }
         this.currentFollowTarget = this.followTargets[targetId];
+        // make sure the follow index updates if we manually select a follow target
+        this.currentFollowIndex = Object.keys(this.followTargets).indexOf(targetId);
         if (!this.currentFollowTarget) return;
         if (this.currentFollowTarget.followable) {
             this.currentFollowTarget.followable.onCameraStartedFollowing();
         }
-        
+
         // if the followable specifies a frameKey, try to focus on that envelope when following
         if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
             realityEditor.envelopeManager.focusEnvelope(this.currentFollowTarget.followable.frameKey );
         }
 
         this.virtualCamera.follow(this.currentFollowTarget.followable.sceneNode, this.followDistance);
+        this.updateFollowMenu();
     }
     unfollow() {
         if (!this.currentFollowTarget) return;
@@ -104,6 +108,7 @@ export class CameraFollowCoordinator {
         this.currentFollowTarget.followable.onCameraStoppedFollowing();
         this.currentFollowTarget.followable.disableFirstPersonMode();
         this.currentFollowTarget = null;
+        this.updateFollowMenu();
     }
     followNext() {
         if (!this.currentFollowTarget) return;
@@ -139,6 +144,9 @@ export class CameraFollowCoordinator {
         let menuBar = realityEditor.gui.getMenuBar();
         let numTargets = Object.keys(this.followTargets).length;
 
+        const perspectiveItemMenu = new realityEditor.gui.MenuItemSubmenu(followPerspectiveMenuText, { toggle: false, disabled: false });
+        menuBar.addItemToMenu(realityEditor.gui.MENU.Follow, perspectiveItemMenu);
+
         // Setup Following Menu Items for each perspective
         PERSPECTIVES.forEach(info => {
             const followItem = new realityEditor.gui.MenuItem(info.menuBarName, { shortcutKey: info.keyboardShortcut, toggle: false, disabled: (numTargets === 0) }, () => {
@@ -156,7 +164,7 @@ export class CameraFollowCoordinator {
 
                 this.follow(thisTarget.id);
             });
-            menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, followItem);
+            perspectiveItemMenu.addItemToSubmenu(followItem)
         });
 
         changeTargetButtons.forEach(itemInfo => {
@@ -165,8 +173,15 @@ export class CameraFollowCoordinator {
                 if (!this.currentFollowTarget) return;
                 (itemInfo.dIndex > 0) ? this.followNext() : this.followPrevious();
             });
-            menuBar.addItemToMenu(realityEditor.gui.MENU.Camera, item);
+            menuBar.addItemToMenu(realityEditor.gui.MENU.Follow, item);
         });
+
+        // move this one to the bottom of the menu by adding it again
+        menuBar.addItemToMenu(realityEditor.gui.MENU.Follow, realityEditor.gui.stopFollowingItem);
+
+        // adds a horizontal rule to the menu to visually separate these items from the list of followables
+        let separator2 = new realityEditor.gui.MenuItem('', { isSeparator: true });
+        menuBar.addItemToMenu(realityEditor.gui.MENU.Follow, separator2);
     }
     // Updates the Follow menu to contain a menu item for each available follow target
     updateFollowMenu() {
@@ -175,28 +190,43 @@ export class CameraFollowCoordinator {
 
         // show/hide Follow menu and enable/disable following buttons if >0 targets
         if (numTargets === 0) {
-            menuBar.hideMenu(realityEditor.gui.followMenu);
+            menuBar.disableMenu(realityEditor.gui.followMenu);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, false);
             Object.values(PERSPECTIVES).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, false);
             });
-            changeTargetButtons.forEach(info => {
-                realityEditor.gui.getMenuBar().setItemEnabled(info.name, false);
-            });
         } else {
-            menuBar.unhideMenu(realityEditor.gui.followMenu);
+            menuBar.enableMenu(realityEditor.gui.followMenu);
             realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.StopFollowing, true);
             Object.values(PERSPECTIVES).forEach(info => {
                 realityEditor.gui.getMenuBar().setItemEnabled(info.menuBarName, true);
             });
-            changeTargetButtons.forEach(info => {
-                realityEditor.gui.getMenuBar().setItemEnabled(info.name, true);
-            });
         }
+
+        // only enable the change-target buttons if following and there's another
+        let changeTargetsEnabled = numTargets >= 2 && this.currentFollowTarget;
+        changeTargetButtons.forEach(info => {
+            realityEditor.gui.getMenuBar().setItemEnabled(info.name, changeTargetsEnabled);
+        });
+
+        // don't remove the Stop Following or Prev/Next items
+        let itemsToSkip = [
+            realityEditor.gui.ITEM.StopFollowing,
+            followPerspectiveMenuText
+        ];
+        changeTargetButtons.forEach(itemInfo => {
+            itemsToSkip.push(itemInfo.name);
+        });
+        PERSPECTIVES.forEach(itemInfo => {
+            itemsToSkip.push(itemInfo.menuBarName);
+        });
 
         let itemsToRemove = [];
         // remove items that don't match current set of follow targets
         realityEditor.gui.followMenu.items.forEach(menuItem => {
+            if (itemsToSkip.includes(menuItem.text)) return;
+            if (menuItem.options.isSeparator) return;
+
             itemsToRemove.push(menuItem.text);
         });
 
