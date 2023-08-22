@@ -59,6 +59,7 @@ export class CameraFollowCoordinator {
         this.virtualCamera.onFirstPersonDistanceToggled((isFirstPerson, currentDistance) => {
             if (!this.currentFollowTarget) return;
             this.currentFollowTarget.followable.onFollowDistanceUpdated(currentDistance);
+            this.currentFollowTarget.isFollowing2D = isFirstPerson;
             if (isFirstPerson) {
                 this.currentFollowTarget.followable.enableFirstPersonMode();
             } else if (!isFirstPerson) {

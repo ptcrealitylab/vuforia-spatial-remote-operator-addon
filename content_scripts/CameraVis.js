@@ -177,8 +177,6 @@ export class CameraVis extends Followable {
         };
     }
 
-
-
     setupDebugCubes() {
         let debugDepth = new THREE.MeshBasicMaterial({
             map: this.textureDepth,
@@ -346,6 +344,10 @@ export class CameraVis extends Followable {
             this.historyMesh.setPoints(this.historyPoints);
         }
 
+        if (this.sceneNode) {
+            this.sceneNode.setLocalMatrix(newMatrix);
+        }
+
         if (this.firstPersonMode) {
             let matrix = this.getSceneNodeMatrix();
             let eye = new THREE.Vector3(0, 0, 0);
@@ -404,6 +406,10 @@ export class CameraVis extends Followable {
     }
 
     /* ---------------- Override Followable Functions ---------------- */
+
+    doesOverrideCameraUpdatesInFirstPerson() {
+        return true;
+    }
     
     enableFirstPersonMode() {
         this.firstPersonMode = true;
@@ -420,7 +426,8 @@ export class CameraVis extends Followable {
     }
     
     updateSceneNode() {
-        this.sceneNode.setLocalMatrix(this.phone.matrix.elements);
+        // doing it here causes significant jitter - the matrix is instead set in the above setMatrix function
+        // this.sceneNode.setLocalMatrix(this.phone.matrix.elements);
     }
 
     /* ---------------- </Override Followable Functions>  ---------------- */

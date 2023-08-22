@@ -564,7 +564,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.targetPosition = relLookAt.toArray();
         }
         // this needs to be called externally each frame that you want it to update
-        update() {
+        update(options = { skipApplying: false }) {
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
 
@@ -757,14 +757,16 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
 
             // disables smoothing while following, to provide a tighter sync with the followed element
-            let shouldSmoothCamera = !this.followingState.active && !this.zoomOutTransition;
+            let shouldSmoothCamera = !this.isFollowingFirstPerson() && !this.zoomOutTransition;
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
-            if (this.cameraNode.id === 'CAMERA') {
-                realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
-            } else {
-                this.cameraNode.setLocalMatrix(newCameraMatrix);
+            if (!options.skipApplying) {
+                if (this.cameraNode.id === 'CAMERA') {
+                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+                } else {
+                    this.cameraNode.setLocalMatrix(newCameraMatrix);
+                }
             }
 
             // allows us to schedule code to trigger exactly after the camera has updated its position N times
@@ -795,6 +797,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             endPosition = add(endPosition, scalarMultiply(verticalVector, yDist));
             endPosition = add(startPosition, scalarMultiply(forwardVector, zDist));
             return endPosition;
+        }
+
+        isFollowingFirstPerson() {
+            return this.followingState.active &&
+                this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE
         }
 
         /////////////////////////////
@@ -1030,8 +1037,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             targetObject.matrixWorldNeedsUpdate = true;
 
             // Trigger the virtualizer shader to render flat video when we reach first-person perspective
-            let isFirstPerson = this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE;
-            this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(isFirstPerson, this.followingState.currentFollowingDistance));
+            // let isFirstPerson = this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE;
+            this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(this.isFollowingFirstPerson(), this.followingState.currentFollowingDistance));
         }
     }
 
