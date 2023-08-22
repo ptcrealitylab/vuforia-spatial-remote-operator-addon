@@ -352,19 +352,23 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
 
     /**
      * Main update function
-     * @param _forceCameraUpdate - Whether this update forces virtualCamera to
+     * @param forceCameraUpdate - Whether this update forces virtualCamera to
      * update even if it's in 2d (locked follow) mode
      */
-    function update(_forceCameraUpdate) {
+    function update(forceCameraUpdate) {
         if (virtualCamera && virtualCameraEnabled) {
             try {
                 if (followCoordinator) {
                     followCoordinator.update();
                 }
 
-                // if (forceCameraUpdate) { // || !virtualCamera.isRendering2DVideo()) {
-                virtualCamera.update();
-                // }
+                let skipUpdate = followCoordinator.currentFollowTarget &&
+                    followCoordinator.currentFollowTarget.followable &&
+                    followCoordinator.currentFollowTarget.isFollowing2D &&
+                    followCoordinator.currentFollowTarget.followable.doesOverrideCameraUpdatesInFirstPerson();
+
+                let skipApplying = skipUpdate && !forceCameraUpdate;
+                virtualCamera.update({ skipApplying: skipApplying });
 
                 let worldObject = realityEditor.worldObjects.getBestWorldObject();
                 if (worldObject) {
