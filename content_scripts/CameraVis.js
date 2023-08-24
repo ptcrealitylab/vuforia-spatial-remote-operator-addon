@@ -9,6 +9,7 @@ import {
     ShaderMode
 } from './Shaders.js';
 import {VisualDiff} from './VisualDiff.js';
+import {Followable} from '../../src/gui/ar/Followable.js';
 
 const debug = false;
 
@@ -21,8 +22,27 @@ function setMatrixFromArray(matrix, array) {
     );
 }
 
-export class CameraVis {
+export class CameraVis extends Followable {
+    static count = 0;
+
     constructor(id, floorOffset, color) {
+        // first we must set up the Followable so that the remote operator
+        // camera system will be able to follow this video...
+        CameraVis.count++;
+        let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
+        if (!parentNode) {
+            let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            let cameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('CameraGroupContainer', gpNode);
+            parentNode = realityEditor.sceneGraph.getSceneNodeById(cameraGroupContainerId);
+            let transformationMatrix = realityEditor.gui.ar.utilities.makeGroundPlaneRotationX(0);
+            transformationMatrix[13] = -1 * floorOffset;
+            parentNode.setLocalMatrix(transformationMatrix);
+        }
+        // count (e.g. 1) is more user-friendly than the id (e.g. prov123)
+        let menuItemName = `Live Video ${CameraVis.count}`;
+        super('CameraVisFollowable_' + id, menuItemName, parentNode);
+
+        // then the CameraVis can initialize as usual...
         this.id = id;
         this.firstPersonMode = false;
         this.shaderMode = ShaderMode.SOLID;
@@ -44,12 +64,6 @@ export class CameraVis {
         this.container.add(this.phone);
 
         this.maxDepthMeters = 5; // this goes down if lidar is pointed at a wall/floor/object closer than 5 meters
-
-        let parentNode = realityEditor.sceneGraph.getVisualElement('CameraGroupContainer');
-        // let parentNode = realityEditor.sceneGraph.getGroundPlaneNode();
-        // let parentNode = realityEditor.sceneGraph.getSceneNodeById(elementId);
-        let sceneGraphNodeId = realityEditor.sceneGraph.addVisualElement('CameraVis_' + id, parentNode);
-        this.sceneGraphNode = realityEditor.sceneGraph.getSceneNodeById(sceneGraphNodeId);
 
         this.cameraMeshGroup = new THREE.Group();
 
@@ -162,8 +176,6 @@ export class CameraVis {
             ),
         };
     }
-
-
 
     setupDebugCubes() {
         let debugDepth = new THREE.MeshBasicMaterial({
@@ -332,8 +344,8 @@ export class CameraVis {
             this.historyMesh.setPoints(this.historyPoints);
         }
 
-        if (this.sceneGraphNode) {
-            this.sceneGraphNode.setLocalMatrix(newMatrix);
+        if (this.sceneNode) {
+            this.sceneNode.setLocalMatrix(newMatrix);
         }
 
         if (this.firstPersonMode) {
@@ -393,6 +405,12 @@ export class CameraVis {
         }
     }
 
+    /* ---------------- Override Followable Functions ---------------- */
+
+    doesOverrideCameraUpdatesInFirstPerson() {
+        return true;
+    }
+    
     enableFirstPersonMode() {
         this.firstPersonMode = true;
         if (this.shaderMode === ShaderMode.SOLID) {
@@ -406,7 +424,14 @@ export class CameraVis {
             this.setShaderMode(ShaderMode.SOLID);
         }
     }
+    
+    updateSceneNode() {
+        // doing it here causes significant jitter - the matrix is instead set in the above setMatrix function
+        // this.sceneNode.setLocalMatrix(this.phone.matrix.elements);
+    }
 
+    /* ---------------- </Override Followable Functions>  ---------------- */
+    
     enableFrustumCutout() {
         this.cutoutViewFrustum = true;
     }
