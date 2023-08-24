@@ -6,6 +6,7 @@ createNameSpace('realityEditor.gui');
     const MENU = Object.freeze({
         View: 'View',
         Camera: 'Camera',
+        Follow: 'Follow',
         History: 'History',
         Help: 'Help',
         Develop: 'Develop'
@@ -17,7 +18,6 @@ createNameSpace('realityEditor.gui');
         SpaghettiMap: 'Spaghetti Map',
         ModelVisibility: 'Model Visibility',
         ModelTexture: 'Model Texture',
-        UnityVirtualizers: 'Unity Virtualizers',
         SurfaceAnchors: 'Surface Anchors',
         VideoPlayback: 'Video Timeline',
         Voxelizer: 'Model Voxelizer',
@@ -55,6 +55,10 @@ createNameSpace('realityEditor.gui');
         // menuBar.addMenu(new Menu('Edit'));
         menuBar.addMenu(new Menu(MENU.View));
         menuBar.addMenu(new Menu(MENU.Camera));
+        let followMenu = new Menu(MENU.Follow); // keep a reference, so we can show/hide it on demand
+        exports.followMenu = followMenu;
+        menuBar.addMenu(followMenu);
+        menuBar.disableMenu(followMenu);
         menuBar.addMenu(new Menu(MENU.History));
         let developMenu = new Menu(MENU.Develop); // keep a reference, so we can show/hide it on demand
         menuBar.addMenu(developMenu);
@@ -81,9 +85,6 @@ createNameSpace('realityEditor.gui');
         const toggleViewCones = new MenuItem(ITEM.ViewCones, { shortcutKey: 'K', toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.View, toggleViewCones);
 
-        const toggleUnityVirtualizers = new MenuItem(ITEM.UnityVirtualizers, { shortcutKey: 'V', toggle: true, defaultVal: false }, null); // other module can attach a callback later
-        menuBar.addItemToMenu(MENU.View, toggleUnityVirtualizers);
-
         const toggleCutoutViewFrustums = new MenuItem(ITEM.CutoutViewFrustums, { toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.View, toggleCutoutViewFrustums);
 
@@ -109,7 +110,8 @@ createNameSpace('realityEditor.gui');
         menuBar.addItemToMenu(MENU.History, toggleVoxelizer);
 
         const stopFollowing = new MenuItem(ITEM.StopFollowing, { shortcutKey: '_0', toggle: false, disabled: true }, null);
-        menuBar.addItemToMenu(MENU.Camera, stopFollowing);
+        exports.stopFollowingItem = stopFollowing;
+        menuBar.addItemToMenu(MENU.Follow, stopFollowing);
 
         const orbitCamera = new MenuItem(ITEM.OrbitCamera, { shortcutKey: 'O', toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.Camera, orbitCamera);
@@ -146,7 +148,7 @@ createNameSpace('realityEditor.gui');
             //         realityEditor.device.deleteFrame(frame, objectKey, frameKey);
             //     }
             // }
-            let objectKey = '_WORLD_instantScancm14a1gx_Lesaou7om0z';
+            let objectKey = realityEditor.worldObjects.getBestWorldObject().objectId;
             let object = realityEditor.getObject(objectKey);
             for (let frame in object.frames) {
                 if (object.frames.hasOwnProperty(frame)) {

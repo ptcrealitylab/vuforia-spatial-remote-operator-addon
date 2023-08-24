@@ -241,7 +241,7 @@ import {ShaderMode} from './Shaders.js';
                         cameraVisCoordinator.connect();
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
-                            cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+                            cameraVisSceneNodes.push(cameraVis.sceneNode);
 
                             // add to cameraVisFrustums so that material uniforms can be updated
                             cameraVisFrustums.push(cameraVis.id);
@@ -250,7 +250,7 @@ import {ShaderMode} from './Shaders.js';
                         cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
                             console.log('onCameraVisRemoved', cameraVis);
                             cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
-                                return sceneNode !== cameraVis.sceneGraphNode;
+                                return sceneNode !== cameraVis.sceneNode;
                             });
 
                             // remove from cameraVisFrustums so that material uniforms can be updated
@@ -611,6 +611,10 @@ import {ShaderMode} from './Shaders.js';
     }
     
     exports.initService = initService;
+    
+    exports.getCameraVisCoordinator = () => {
+        return cameraVisCoordinator;
+    }
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
