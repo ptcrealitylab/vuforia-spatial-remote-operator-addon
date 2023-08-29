@@ -261,23 +261,27 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 }
             }.bind(this));
 
-            // enter fly mode
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'f' || e.key === 'F') {
-                    this.isFlying = !this.isFlying;
-                    if (this.isFlying) {
-                        document.body.requestPointerLock();
-                    } else {
-                        document.exitPointerLock();
-                    }
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleFlyMode, (toggled) => {
+                this.isFlying = toggled;
+                if (this.isFlying) {
+                    document.body.requestPointerLock();
+                } else {
+                    document.exitPointerLock();
                 }
             });
 
             document.addEventListener('pointerlockchange', () => {
                 if (document.pointerLockElement === document.body) {
-                    this.isFlying = true;
+                    if (!this.isFlying) {
+                        realityEditor.gui.getMenuBar().getItemByName(realityEditor.gui.ITEM.ToggleFlyMode).switchToggle();
+                        this.isFlying = true;
+                    }
                 } else if (document.pointerLockElement === null) {
-                    this.isFlying = false;
+                    if (this.isFlying) {
+                        // make sure the menu item toggle state updates in response to escape key, etc
+                        realityEditor.gui.getMenuBar().getItemByName(realityEditor.gui.ITEM.ToggleFlyMode).switchToggle();
+                        this.isFlying = false;
+                    }
                 }
                 this.switchMode();
             });
