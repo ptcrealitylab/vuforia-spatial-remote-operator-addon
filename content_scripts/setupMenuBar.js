@@ -37,7 +37,8 @@ createNameSpace('realityEditor.gui');
         ToggleHumanPoses: 'Human Poses',
         DarkMode: 'Dark Mode',
         CutoutViewFrustums: 'Cut Out 3D Videos',
-        ShowFPS: 'Show FPS'
+        ShowFPS: 'Show FPS',
+        ToggleFlyMode: 'Fly Mode'
     });
     exports.ITEM = ITEM;
 
@@ -96,6 +97,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleDarkMode = new MenuItem(ITEM.DarkMode, { toggle: true, defaultVal: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleDarkMode);
+
+        const toggleFlyMode = new MenuItem(ITEM.ToggleFlyMode, { toggle: true, shortcutKey: 'F', defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.Camera, toggleFlyMode);
 
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
