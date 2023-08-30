@@ -146,15 +146,17 @@ createNameSpace('realityEditor.gui');
             //         realityEditor.device.deleteFrame(frame, objectKey, frameKey);
             //     }
             // }
-            let objectKey = '_WORLD_instantScancm14a1gx_Lesaou7om0z';
-            let object = realityEditor.getObject(objectKey);
-            for (let frame in object.frames) {
-                if (object.frames.hasOwnProperty(frame)) {
-                    console.log(object.frames[frame]);
-                    let frameKey = object.frames[frame].uuid;
-                    realityEditor.device.deleteFrame(frame, objectKey, frameKey);
+            function deleteAllFramesInObject(object, objectKey) { // todo Steve: buggy, still need to fix
+                console.log(object);
+                for (let frame in object.frames) {
+                    if (object.frames.hasOwnProperty(frame)) {
+                        console.log(object.frames[frame]);
+                        let frameKey = object.frames[frame].uuid;
+                        realityEditor.device.deleteFrame(frame, objectKey, frameKey);
+                    }
                 }
             }
+            realityEditor.forEachObject(deleteAllFramesInObject);
         });
         menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
 
