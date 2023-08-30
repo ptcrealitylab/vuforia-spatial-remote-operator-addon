@@ -178,6 +178,16 @@ createNameSpace('realityEditor.device.desktopAdapter');
                         startY: touchPosition.y
                     };
                 }
+            } else if (code === keyboard.keyCodes.R) {
+                // rotate tool towards camera a single time when you press the R key while dragging a tool
+                let tool = realityEditor.device.getEditingVehicle();
+                if (!tool) return;
+                let toolSceneNode = realityEditor.sceneGraph.getSceneNodeById(tool.uuid);
+                if (!toolSceneNode) return;
+                // we don't include scale in new matrix otherwise it can shrink/grow
+                let modelMatrix = realityEditor.sceneGraph.getModelMatrixLookingAt(tool.uuid, 'CAMERA', {flipX: true, flipY: true, includeScale: false});
+                let rootNode = realityEditor.sceneGraph.getSceneNodeById('ROOT');
+                toolSceneNode.setPositionRelativeTo(rootNode, modelMatrix);
             }
         });
         keyboard.onKeyUp(function(code) {
