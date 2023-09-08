@@ -190,6 +190,14 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
         });
 
         // ---- Add and remove follow targets when video players are created ---- //
+
+        realityEditor.network.addPostMessageHandler('followCameraOnPlayback', (msgData) => {
+            followCoordinator.followTargets.forEach((followTarget) => {
+                if (followTarget.frameKey === msgData.frame) {
+                    followCoordinator.follow(followTarget.frameKey)
+                }
+            });
+        });
         
         let videoPlayback = realityEditor.gui.ar.videoPlayback;
         videoPlayback.onVideoCreated(player => {
