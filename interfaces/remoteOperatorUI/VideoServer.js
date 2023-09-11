@@ -25,7 +25,7 @@ const utils = require('./utilities');
 class VideoServer {
     constructor(outputPath) {
         this.outputPath = outputPath;
-        console.log('Created a VideoServer with path: ' + this.outputPath);
+        console.info('Virtualizer recordings path: ' + this.outputPath);
 
         VideoFileManager.initWithOutputPath(outputPath);
         // we rebuild/save the persistentInfo on server restart so that it doesn't get out-of-sync with filesystem state
@@ -84,7 +84,7 @@ class VideoServer {
             // ...the chunk count won't match up and it will skip concatenating for now...
             // ...it will reattempt each time you restart the server.
             setTimeout(() => {
-                console.log('try to concat rescaled videos after waiting awhile after recording stopped');
+                // try to concat rescaled videos after waiting awhile after recording stopped
                 VideoFileManager.buildPersistentInfo(); // recompile persistent info so session metadata contains new chunks
                 this.concatChunksIntoSessionVideo(deviceId);
             }, 1000 * (lastChunkIndex + 1)); // delay 1 second per chunk we need to process, should give plenty of time
@@ -92,7 +92,7 @@ class VideoServer {
     }
     concatChunksIntoSessionVideo(deviceId) {
         if (!fs.existsSync(path.join(this.outputPath, deviceId))) {
-            console.log('concat, dir doesnt exist', path.join(this.outputPath, deviceId));
+            console.error('Failed to concat video chunks, directory does not exist', path.join(this.outputPath, deviceId));
             return;
         }
 
@@ -111,14 +111,11 @@ class VideoServer {
                 let tmpFilename = matchingFiles.length > 0 ? matchingFiles[0] : null;
                 if (tmpFilename) {
                     let numberOfChunks = parseInt(tmpFilename.match(/_\d+.json/)[0].match(/\d+/)[0]) + 1;
-                    console.log(deviceId + ':' + sessionId + ' should have ' + numberOfChunks + ' chunks');
                     if (s.processed_chunks.length !== numberOfChunks && s.unprocessed_chunks.length === numberOfChunks) {
-                        console.log('there are some unprocessed chunks not present in the processed chunks', s.processed_chunks.length, s.unprocessed_chunks.length);
+                        // there are some unprocessed chunks not present in the processed chunks
                         return; // skip concatenating this session
                     }
                 }
-
-                console.log('time to concatenate!');
 
                 if (!s.color) { s.color = this.concatFiles(deviceId, sessionId, constants.DIR_NAMES.color, s.processed_chunks); }
                 if (!s.depth) { s.depth = this.concatFiles(deviceId, sessionId, constants.DIR_NAMES.depth, s.processed_chunks); }
@@ -170,14 +167,12 @@ class VideoServer {
         if (fs.existsSync(outputPath)) {
             return filename; // already exists, return early
         }
-        console.log('we still need to process poses for ' + deviceId + ' (session ' + sessionId + ')');
 
         // load all pose chunks. each is a json file with a timestamped list of poses for 15 seconds of the video
         let files = fs.readdirSync(path.join(this.outputPath, deviceId, constants.DIR_NAMES.unprocessed_chunks, 'pose'));
         files = files.filter(filename => {
             return filename.includes(sessionId);
         });
-        console.log('unprocessed pose chunks: ', files);
 
         // the concatenated file contains a correctly-ordered array with all of the poses from each chunk's array
         let poseData = [];
@@ -220,8 +215,6 @@ class VideoServer {
                         let byteSizeDepth = fs.statSync(depthFilePath).size;
                         if (byteSizeColor > 48 && byteSizeDepth > 48) {
                             filesToScale.push(filename);
-                        } else {
-                            console.log('skipping ' + filename + ' due to incomplete size');
                         }
                     }
                 }

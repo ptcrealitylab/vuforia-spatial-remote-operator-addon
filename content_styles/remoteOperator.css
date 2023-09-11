@@ -100,12 +100,17 @@ body > * {
     background-color: rgba(255,255,255, 0.2) !important;
 }
 
+.desktopMenuBarMenuTitleDisabled {
+    color: rgb(75, 75, 75);
+    pointer-events: none;
+}
+
 .desktopMenuBarMenuDropdown {
-    /* TODO: how to best adapth width of menubar to comfortably fit contents? (not an issue now, but may want to) */
+    /* TODO: how to best adapt width of menubar to comfortably fit contents? (not an issue now, but may want to) */
     width: 250px;
     background-color: rgba(0,0,0, 0.9);
     border-radius: 5px;
-    overflow: hidden;
+    /*overflow: hidden;*/
 }
 
 .desktopMenuBarLight {
@@ -117,7 +122,7 @@ body > * {
 }
 
 .desktopMenuBarItem {
-    width: 100%;
+    width: calc(100% - 10px);
     padding-left: 10px;
     height: 30px;
     cursor: pointer;
@@ -125,11 +130,18 @@ body > * {
 }
 
 .desktopMenuBarItem:hover {
-    background-color: rgba(255,255,255, 0.1);
+    background-color: rgba(55, 55, 55, 0.9);
 }
 
 .desktopMenuBarItemTextToggle {
     padding-left: 20px;
+}
+
+.desktopMenuBarItemSeparator {
+    pointer-events: none;
+    cursor: unset;
+    height: 8px;
+    padding: 0;
 }
 
 .desktopMenuBarItemDisabled {
@@ -151,7 +163,7 @@ body > * {
     opacity: 0.5;
 }
 
-.desktopMenuBarItemShortcut {
+.desktopMenuBarItemArrow {
     position: absolute;
     right: 15px;
     top: 0;
@@ -159,11 +171,27 @@ body > * {
     text-align: center;
 }
 
+.desktopMenuBarSubmenu {
+    left: 100%;
+    width: 250px;
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+.desktopMenuBarItemShortcut {
+    position: absolute;
+    right: 15px;
+    top: 0;
+    width: 30px;
+    text-align: center;
+    color: rgb(155, 155, 155);
+}
+
 .desktopMenuBarItemShortcutModifier {
     position: absolute;
     right: 45px;
     top: 0;
     text-align: right;
+    color: rgb(155, 155, 155);
 }
 
 .mode-prompt {
@@ -179,6 +207,7 @@ body > * {
     justify-content: center;
     align-items: center;
     font-size: 1em;
+    pointer-events: none;
 
     transition: opacity 0.3s ease;
 }

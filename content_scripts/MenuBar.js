@@ -30,6 +30,14 @@ createNameSpace('realityEditor.gui');
                         if (typeof item.onKeyDown === 'function') {
                             item.onKeyDown(code, modifiers);
                         }
+                        // also add keyboard shortcuts to one-level-deep of submenus
+                        if (item.hasSubmenu) {
+                            item.submenu.items.forEach(subItem => {
+                                if (typeof subItem.onKeyDown === 'function') {
+                                    subItem.onKeyDown(code, modifiers);
+                                }
+                            });
+                        }
                     });
                 });
             });
@@ -49,6 +57,16 @@ createNameSpace('realityEditor.gui');
             menu.isHidden = false;
             this.redraw();
         }
+        disableMenu(menu) {
+            if (menu.isDisabled) { return; }
+            menu.isDisabled = true;
+            this.redraw();
+        }
+        enableMenu(menu) {
+            if (!menu.isDisabled) { return; }
+            menu.isDisabled = false;
+            this.redraw();
+        }
         onMenuTitleClicked(menu) {
             if (menu.isOpen) {
                 if (this.openMenu && this.openMenu !== menu) {
@@ -66,6 +84,14 @@ createNameSpace('realityEditor.gui');
                 this.menus.push(menu);
             }
             menu.addItem(item);
+            this.redraw();
+        }
+        removeItemFromMenu(menuName, itemText) {
+            let menu = this.menus.find(menu => {
+                return menu.name === menuName;
+            });
+            if (!menu) return;
+            menu.removeItem(itemText);
             this.redraw();
         }
         // Note: assumes items in different menus don't have duplicate names
@@ -89,11 +115,23 @@ createNameSpace('realityEditor.gui');
             let match = null;
             this.menus.forEach(menu => {
                 if (match) { return; } // only add to the first match
+                // search the menu and one-level-deep of submenus for the matching item
                 let item = menu.items.find(item => {
+                    if (item.hasSubmenu) {
+                        return item.submenu.items.find(subItem => {
+                            return subItem.text === itemName;
+                        });
+                    }
                     return item.text === itemName;
                 });
                 if (item) {
-                    match = item;
+                    if (item.hasSubmenu) {
+                        match = item.submenu.items.find(subItem => {
+                            return subItem.text === itemName;
+                        });
+                    } else {
+                        match = item;
+                    }
                 }
             });
             return match;
@@ -116,6 +154,7 @@ createNameSpace('realityEditor.gui');
             this.items = [];
             this.isOpen = false;
             this.isHidden = false;
+            this.isDisabled = false;
             this.buildDom();
             this.menuIndex = 0;
             this.onMenuTitleClicked = null; // MenuBar can inject callback here to coordinate multiple menus
@@ -145,10 +184,22 @@ createNameSpace('realityEditor.gui');
             this.redraw();
         }
         addItem(menuItem) {
+            let existingIndex = this.items.indexOf(menuItem);
+            if (existingIndex > -1) {
+                this.items.splice(existingIndex, 1); // move item to bottom if already contains it
+            }
             this.items.push(menuItem);
             let dropdown = this.domElement.querySelector('.desktopMenuBarMenuDropdown');
             dropdown.appendChild(menuItem.domElement);
             menuItem.parent = this;
+        }
+        removeItem(itemText) {
+            let itemIndex = this.items.map(item => item.text).indexOf(itemText);
+            if (itemIndex < 0) return;
+            let menuItem = this.items[itemIndex];
+            let dropdown = this.domElement.querySelector('.desktopMenuBarMenuDropdown');
+            dropdown.removeChild(menuItem.domElement);
+            this.items.splice(itemIndex, 1);
         }
         redraw(index) {
             if (typeof index !== 'undefined') { this.menuIndex = index; }
@@ -172,6 +223,12 @@ createNameSpace('realityEditor.gui');
                 this.domElement.style.display = 'none';
             } else {
                 this.domElement.style.display = '';
+            }
+
+            if (this.isDisabled) {
+                this.domElement.classList.add('desktopMenuBarMenuTitleDisabled');
+            } else {
+                this.domElement.classList.remove('desktopMenuBarMenuTitleDisabled');
             }
         }
     }
@@ -197,6 +254,11 @@ createNameSpace('realityEditor.gui');
             textElement.classList.add('desktopMenuBarItemText');
             textElement.innerText = this.text;
 
+            if (this.options.isSeparator) {
+                this.domElement.classList.add('desktopMenuBarItemSeparator');
+                textElement.innerHTML = '<hr>';
+            }
+
             if (this.options.toggle) {
                 let checkmark = document.createElement('div');
                 checkmark.classList.add('desktopMenuBarItemCheckmark');
@@ -218,7 +280,7 @@ createNameSpace('realityEditor.gui');
                 shortcut.classList.add('desktopMenuBarItemShortcut');
                 shortcut.innerText = getShortcutDisplay(this.options.shortcutKey);
                 this.domElement.appendChild(shortcut);
-                
+
                 const shortcutModifier = document.createElement('div');
                 shortcutModifier.classList.add('desktopMenuBarItemShortcutModifier');
                 shortcutModifier.innerText = this.options.modifiers ? this.options.modifiers.map(modifier => getShortcutDisplay(modifier)).join(' ') : '';
@@ -344,7 +406,71 @@ createNameSpace('realityEditor.gui');
         return keyCodeName;
     };
 
+    class Submenu extends Menu {
+        constructor(name) {
+            super(name);
+        }
+        redraw(index) {
+            this.isOpen = true; // submenu is always considered open (hidden by its menuItem, not by itself)
+            super.redraw(index);
+
+            this.domElement.style.left = ''; // don't override the css left to be at 0
+
+            // hide the title of the dropdown
+            let title = this.domElement.querySelector('.desktopMenuBarMenuTitle');
+            if (title) {
+                title.style.display = 'none';
+            }
+        }
+    }
+
+    class MenuItemSubmenu extends MenuItem {
+        constructor(text, options, onClick) {
+            super(text, options, onClick);
+
+            this.hasSubmenu = true;
+
+            // add an arrow to signal that this one has a submenu
+            let arrow = document.createElement('div');
+            arrow.classList.add('desktopMenuBarItemArrow');
+            arrow.innerText = '>';
+            this.domElement.appendChild(arrow);
+
+            this.buildSubMenu();
+
+            this.domElement.addEventListener('pointerover', () => {
+                this.showSubMenu();
+            });
+
+            this.domElement.addEventListener('pointerout', () => {
+                this.hideSubMenu();
+            });
+        }
+        addItemToSubmenu(menuItem) {
+            this.submenu.addItem(menuItem);
+        }
+        buildSubMenu() {
+            // the name of the submenu doesn't matter because it isn't rendered
+            this.submenu = new Submenu('Sub Menu');
+            this.submenu.redraw()
+            this.submenu.domElement.classList.add('desktopMenuBarSubmenu');
+            this.domElement.appendChild(this.submenu.domElement);
+            this.hideSubMenu();
+        }
+        showSubMenu() {
+            this.submenu.domElement.classList.remove('hiddenDropdown');
+            this.submenu.domElement.classList.add('desktopMenuBarSubmenu');
+        }
+        hideSubMenu() {
+            if (!this.submenu.domElement) return;
+            if (!this.submenu.domElement.parentElement) return;
+            this.submenu.domElement.classList.add('hiddenDropdown');
+            this.submenu.domElement.classList.remove('desktopMenuBarSubmenu');
+        }
+    }
+
     exports.MenuBar = MenuBar;
     exports.Menu = Menu;
     exports.MenuItem = MenuItem;
+    exports.MenuItemSubmenu = MenuItemSubmenu;
 })(realityEditor.gui);

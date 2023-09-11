@@ -144,7 +144,6 @@ module.exports = {
 
         let jsonPath = path.join(outputPath, 'videoInfo.json');
         fs.writeFileSync(jsonPath, JSON.stringify(persistentInfo, null, 4));
-        console.log('saved recorded video metadata to ' + jsonPath);
     },
     getUnprocessedChunkFilePaths: (deviceId, colorOrDepth = constants.DIR_NAMES.color) => {
         return getNestedFilePaths(deviceId, constants.DIR_NAMES.unprocessed_chunks, colorOrDepth);
