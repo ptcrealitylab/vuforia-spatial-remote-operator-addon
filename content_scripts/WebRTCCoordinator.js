@@ -3,7 +3,6 @@ createNameSpace('realityEditor.device.cameraVis');
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
 (function(exports) {
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
 
@@ -24,17 +23,17 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.onWsMessage = this.onWsMessage.bind(this);
             this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
 
-            if (!PROXY) {
+            if (ws instanceof WebSocket) {
                 this.ws.addEventListener('open', this.onWsOpen);
                 this.ws.addEventListener('message', this.onWsMessage);
             } else {
                 this.ws.on('message', this.onToolsocketMessage);
-                this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify({
+                this.ws.message('unused', {
+                    id: 'signalling', data: {
                         command: 'joinNetwork',
                         src: this.consumerId,
                         role: 'consumer',
-                    })),
+                    },
                 });
             }
 
@@ -144,7 +143,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             if (body.id !== 'signalling') {
                 return;
             }
-            this.onWsMessage({data: decoder.decode(bin.data)});
+            if (bin && bin.data) {
+                this.onWsMessage({data: decoder.decode(bin.data)});
+            } else {
+                this.onWsMessage({data: JSON.stringify(body.data)});
+            }
         }
 
         initConnection(otherId) {
@@ -347,12 +350,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         sendSignallingMessage(message) {
-            if (PROXY) {
-                this.ws.message('unused', {id: 'signalling'}, null, {
-                    data: encoder.encode(JSON.stringify(message)),
-                });
-            } else {
+            if (this.ws instanceof WebSocket) {
                 this.ws.send(JSON.stringify(message));
+            } else {
+                this.ws.message('unused', {id: 'signalling', data: message});
             }
         }
 

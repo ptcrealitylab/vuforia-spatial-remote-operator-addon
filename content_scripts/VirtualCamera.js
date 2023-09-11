@@ -10,6 +10,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
     const DISPLAY_PERSPECTIVE_CUBES = false;
     const FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER = 1000; // what point to focus on when we rotate/pan away from following
+    const MIN_FIRST_PERSON_DISTANCE = 0;
 
     class VirtualCamera {
         constructor(cameraNode, kTranslation, kRotation, kScale, initialPosition, floorOffset) {
@@ -60,14 +61,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 unprocessedDX: 0,
                 unprocessedDY: 0,
             };
+            this.pauseTouchGestures = false;
+            this.zoomOutTransition = false;
             this.keyboard = new realityEditor.device.KeyboardListener();
             this.followerName = 'cameraFollower' + cameraNode.id;
             this.followingState = {
                 active: false,
                 selectedId: null,
-                virtualizerId: null,
                 currentFollowingDistance: 0,
-                currentlyRendering2DVideo: false,
                 // three.js objects used to calculate the following trajectory
                 unstabilizedContainer: null,
                 stabilizedContainer: null,
@@ -79,7 +80,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 onPanToggled: [],
                 onRotateToggled: [],
                 onScaleToggled: [],
-                onStopFollowing: [] // other modules can discover when pan/rotate forced this camera out of follow mode
+                onStopFollowing: [], // other modules can discover when pan/rotate forced this camera out of follow mode
+                onFirstPersonDistanceToggled: []
             };
 
             this.normalModePrompt = null;
@@ -107,6 +109,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         }
         addFlyAndNormalModePrompts() {
+            // don't show keyboard controls when remote operator loaded into AR app
+            if (realityEditor.device.environment.isWithinToolboxApp()) return;
+            
             // add normal mode prompt
             this.normalModePrompt = document.createElement('div');
             this.normalModePrompt.classList.add('mode-prompt');
@@ -184,10 +189,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // restrict deltaY between [-100, 100], to prevent mouse wheel deltaY so large that camera cannot focus on focus point when zooming in
                 let wheelAmt = Math.max(-100, Math.min(100, event.deltaY));
                 this.mouseInput.unprocessedScroll += wheelAmt;
-                if (this.followingState && this.followingState.currentlyRendering2DVideo) {
-                    this.followingState.currentlyRendering2DVideo = false;
-                    realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
-                }
                 event.preventDefault();
 
                 // update scale callbacks based on whether you've scrolled in this 150ms time period
@@ -260,23 +261,27 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 }
             }.bind(this));
 
-            // enter fly mode
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'f' || e.key === 'F') {
-                    this.isFlying = !this.isFlying;
-                    if (this.isFlying) {
-                        document.body.requestPointerLock();
-                    } else {
-                        document.exitPointerLock();
-                    }
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleFlyMode, (toggled) => {
+                this.isFlying = toggled;
+                if (this.isFlying) {
+                    document.body.requestPointerLock();
+                } else {
+                    document.exitPointerLock();
                 }
             });
 
             document.addEventListener('pointerlockchange', () => {
                 if (document.pointerLockElement === document.body) {
-                    this.isFlying = true;
+                    if (!this.isFlying) {
+                        realityEditor.gui.getMenuBar().getItemByName(realityEditor.gui.ITEM.ToggleFlyMode).switchToggle();
+                        this.isFlying = true;
+                    }
                 } else if (document.pointerLockElement === null) {
-                    this.isFlying = false;
+                    if (this.isFlying) {
+                        // make sure the menu item toggle state updates in response to escape key, etc
+                        realityEditor.gui.getMenuBar().getItemByName(realityEditor.gui.ITEM.ToggleFlyMode).switchToggle();
+                        this.isFlying = false;
+                    }
                 }
                 this.switchMode();
             });
@@ -294,9 +299,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         this.mouseInput.unprocessedDX += xOffset;
                         this.mouseInput.unprocessedDY += yOffset;
 
-                        if (this.followingState && this.followingState.currentlyRendering2DVideo) {
-                            this.followingState.currentlyRendering2DVideo = false;
-                            realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
+                        if (this.followingState.active) {
+                            this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(false, this.followingState.currentFollowingDistance));
                         }
 
                         this.mouseInput.last.x = event.pageX;
@@ -353,6 +357,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Handle two-finger drag to pan
             const handlePan = (event) => {
                 event.preventDefault();
+
+                // don't allow pan within the AR app, because two-finger-gesture is used to transition between AR<>VR
+                if (realityEditor.device.environment.isWithinToolboxApp()) return;
+                
                 if (event.touches.length === 2) {
                     analyzeTouchMovement(event); // pans because isStrafeRequested is true
 
@@ -368,6 +376,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Handle pinch to zoom
             const handlePinch = (event) => {
                 event.preventDefault();
+                
+                // don't allow pinch within the AR app, because pinch is used to transition between AR<>VR
+                if (realityEditor.device.environment.isWithinToolboxApp()) return;
+
                 if (event.touches.length === 2) {
                     const touch1 = event.touches[0];
                     const touch2 = event.touches[1];
@@ -388,6 +400,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // Add multitouch event listeners to the document
             document.addEventListener('touchstart',  (event) => {
                 if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
+                // while pinching to enter remote operator in AR app, don't trigger additional camera gestures
+                if (this.pauseTouchGestures) return;
 
                 isMultitouchGestureActive = true;
 
@@ -410,6 +424,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             });
             document.addEventListener('touchmove',  (event) => {
                 if (!isMultitouchGestureActive) return;
+                if (this.pauseTouchGestures) return;
                 event.preventDefault();
 
                 // Ensure regular zoom level
@@ -433,6 +448,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.mouseInput.isRotateRequested = false;
                 this.mouseInput.isStrafeRequested = false; // do we add this, or only if zero touches left?
                 isMultitouchGestureActive = false;
+
+                if (this.pauseTouchGestures) return;
 
                 // tapping without dragging moves the focus cube to the tapped location
                 if (!didMoveAtAll) {
@@ -491,6 +508,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let cameraNormalizedVector = normalize(add(this.position, negate(this.targetPosition)));
             this.position = add(this.targetPosition, scalarMultiply(cameraNormalizedVector, this.preStopFollowingDistanceToTarget));
         }
+        onFirstPersonDistanceToggled(callback) {
+            this.callbacks.onFirstPersonDistanceToggled.push(callback);
+        }
         onStopFollowing(callback) {
             this.callbacks.onStopFollowing.push(callback);
         }
@@ -548,14 +568,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.targetPosition = relLookAt.toArray();
         }
         // this needs to be called externally each frame that you want it to update
-        update() {
+        update(options = { skipApplying: false }) {
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
 
             if (this.followingState.active) {
                 this.updateFollowing();
-            } else {
-                this.stopFollowing();
             }
 
             let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
@@ -722,7 +740,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // TODO: add back keyboard controls
             // TODO: add back 6D mouse controls
 
-            if (!this.mouseInput.isRotateRequested || this.isFlying) {
+            // this is where the velocity gets added to the position...
+            // anything that modifies the camera movement should be above this line in the update function
+            if (!this.mouseInput.isRotateRequested || this.isFlying || this.zoomOutTransition) {
                 let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
                 let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
                 // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
@@ -740,14 +760,17 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
 
-            let shouldSmoothCamera = !this.isRendering2DVideo();
+            // disables smoothing while following, to provide a tighter sync with the followed element
+            let shouldSmoothCamera = !this.isFollowingFirstPerson() && !this.zoomOutTransition;
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
-            if (this.cameraNode.id === 'CAMERA') {
-                realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
-            } else {
-                this.cameraNode.setLocalMatrix(newCameraMatrix);
+            if (!options.skipApplying) {
+                if (this.cameraNode.id === 'CAMERA') {
+                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+                } else {
+                    this.cameraNode.setLocalMatrix(newCameraMatrix);
+                }
             }
 
             // allows us to schedule code to trigger exactly after the camera has updated its position N times
@@ -763,26 +786,39 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             callbacksToTrigger.forEach(cb => cb());
         }
 
-        isRendering2DVideo() {
-            return (this.followingState.active && this.followingState.currentlyRendering2DVideo);
+        // returns the position [xDist,yDist,zDist] within the coordinate system defined by startPosition and startTargetPosition
+        getRelativePosition(startPosition, startTargetPosition, xDist = 0, yDist = 0, zDist = 1000) {
+            let ev = startPosition;
+            let cv = startTargetPosition;
+            let uv = [0, 1, 0];
+
+            let forwardVector = normalize(add(ev, negate(cv))); // vector from the camera to the center point
+            let horizontalVector = normalize(crossProduct(uv, forwardVector)); // a "right" vector, orthogonal to n and the lookup vector
+            let verticalVector = crossProduct(forwardVector, horizontalVector); // resulting orthogonal vector to n and u, as the up vector isn't necessarily one anymore
+
+            let endPosition = [...startPosition];
+            endPosition = add(endPosition, scalarMultiply(horizontalVector, xDist));
+            endPosition = add(endPosition, scalarMultiply(verticalVector, yDist));
+            endPosition = add(startPosition, scalarMultiply(forwardVector, zDist));
+            return endPosition;
+        }
+
+        isFollowingFirstPerson() {
+            return this.followingState.active &&
+                this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE
         }
 
         /////////////////////////////
         // FOLLOWING THE VIRTUALIZER
         /////////////////////////////
-        follow(sceneNodeToFollow, virtualizerId, initialFollowDistance, isRendering2D) {
-            if (this.followingState.active) {
-                this.stopFollowing();
-            }
-
+        follow(sceneNodeToFollow, initialFollowDistance) {
             this.followingState.active = true;
-            this.followingState.virtualizerId = virtualizerId;
             this.followingState.selectedId = sceneNodeToFollow.id;
             if (typeof initialFollowDistance !== 'undefined') {
                 this.followingState.currentFollowingDistance = initialFollowDistance; // can adjust with scroll wheel
-            }
-            if (typeof isRendering2D !== 'undefined') {
-                this.followingState.currentlyRendering2DVideo = isRendering2D;
+                
+                let isFirstPerson = initialFollowDistance <= MIN_FIRST_PERSON_DISTANCE;
+                this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(isFirstPerson, this.followingState.currentFollowingDistance));
             }
 
             this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
@@ -821,10 +857,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         stopFollowing() {
             this.followingState.active = false;
             this.followingState.selectedId = null;
-            if (this.followingState.virtualizerId) {
-                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
-                this.followingState.virtualizerId = null;
-            }
 
             if (this.preStopFollowingDistanceToTarget !== null) {
                 this.zoomBackToPreStopFollowLevel();
@@ -896,6 +928,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.followingState.unstabilizedContainer.matrixAutoUpdate = false;
                 this.followingState.unstabilizedContainer.visible = DISPLAY_PERSPECTIVE_CUBES;
                 this.threeJsContainer.add(this.followingState.unstabilizedContainer);
+
+                let debugCube = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+                this.followingState.unstabilizedContainer.add(debugCube);
 
                 // These boxes could be groups / empty objects rather than meshes, but we have them to help debug
                 let forwardTarget = new THREE.Mesh(new THREE.BoxGeometry(40, 40, 40), new THREE.MeshBasicMaterial({ color: '#0000ff' }));
@@ -1006,14 +1041,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             targetObject.matrixWorldNeedsUpdate = true;
 
             // Trigger the virtualizer shader to render flat video when we reach first-person perspective
-            if (this.followingState.currentFollowingDistance <= 0 && !this.followingState.currentlyRendering2DVideo) {
-                realityEditor.gui.ar.desktopRenderer.showCameraCanvas(this.followingState.virtualizerId);
-                this.followingState.currentlyRendering2DVideo = true;
-
-            } else if (this.followingState.currentlyRendering2DVideo && this.followingState.currentFollowingDistance > 0) {
-                realityEditor.gui.ar.desktopRenderer.hideCameraCanvas(this.followingState.virtualizerId);
-                this.followingState.currentlyRendering2DVideo = false;
-            }
+            // let isFirstPerson = this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE;
+            this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(this.isFollowingFirstPerson(), this.followingState.currentFollowingDistance));
         }
     }
 

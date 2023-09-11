@@ -9,7 +9,8 @@
 createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
-import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
+import {UNIFORMS, MAX_VIEW_FRUSTUMS} from '../../src/gui/ViewFrustum.js';
+import {ShaderMode} from './Shaders.js';
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
@@ -18,7 +19,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
  */
 
 (function(exports) {
-    const PROXY = /(\w+\.)?toolboxedge.net/.test(window.location.host);
+    const PROXY = !window.location.port || window.location.port === "443";
 
     /**
      * @type {Canvas} - the DOM element where the images streamed from a reality zone are rendered
@@ -54,6 +55,11 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
     let cameraVisSceneNodes = [];
 
     let cameraVisFrustums = [];
+    
+    let didInit = false;
+
+    let didAddModeTransitionListeners = false;
+    let gltfUpdateCallbacks = [];
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -64,7 +70,12 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             return;
         }
 
+        addModeTransitionListeners();
+        
         if (realityEditor.device.environment.isARMode()) { return; }
+        if (didInit) return;
+
+        didInit = true;
 
         const renderingFlagName = 'loadingWorldMesh';
         realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
@@ -73,7 +84,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
         realityEditor.network.addObjectDiscoveredCallback(function(object, objectKey) {
             if (isGlbLoaded) { return; } // only do this for the first world object detected
 
-            let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId();
+            // let primaryWorldId = realityEditor.device.desktopAdapter.getPrimaryWorldId();
+            let primaryWorldId = realityEditor.network.discovery.getPrimaryWorldInfo() ?
+                realityEditor.network.discovery.getPrimaryWorldInfo().id : null;
             let isConnectedViaIp = window.location.hostname.split('').every(char => '0123456789.'.includes(char)); // Already know hostname is valid, this is enough to check for IP
             let isSameIp = object.ip === window.location.hostname;
             let isWorldObject = object.isWorldObject || object.type === 'world';
@@ -163,6 +176,22 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                             if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
                                 obj.material.dispose(); // free resources from the advanced material
                                 obj.material = obj.originalMaterial;
+
+                                gltfUpdateCallbacks.push((percent) => {
+                                    let scaledPercent = percent * 20; // fully fades in when slider is 5% activated
+                                    // TODO: figure out best-looking transition. for now, just make it appear all at once
+                                    if (percent < 0.05) {
+                                        scaledPercent = 0;
+                                    } else {
+                                        scaledPercent = 1;
+                                    }
+                                    if (scaledPercent < 1) {
+                                        obj.material.transparent = true;
+                                    } else {
+                                        obj.material.transparent = false;
+                                    }
+                                    obj.material.opacity = Math.max(0, Math.min(1.0, scaledPercent));
+                                });
                             }
                         }
                     });
@@ -193,6 +222,8 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                     }
 
                     function setupMenuBar() {
+                        if (realityEditor.device.environment.isWithinToolboxApp()) return;
+
                         if (!realityEditor.gui.getMenuBar) {
                             setTimeout(setupMenuBar, 100);
                             return;
@@ -210,7 +241,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                         cameraVisCoordinator.connect();
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
-                            cameraVisSceneNodes.push(cameraVis.sceneGraphNode);
+                            cameraVisSceneNodes.push(cameraVis.sceneNode);
 
                             // add to cameraVisFrustums so that material uniforms can be updated
                             cameraVisFrustums.push(cameraVis.id);
@@ -219,7 +250,7 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
                         cameraVisCoordinator.onCameraVisRemoved(cameraVis => {
                             console.log('onCameraVisRemoved', cameraVis);
                             cameraVisSceneNodes = cameraVisSceneNodes.filter(sceneNode => {
-                                return sceneNode !== cameraVis.sceneGraphNode;
+                                return sceneNode !== cameraVis.sceneNode;
                             });
 
                             // remove from cameraVisFrustums so that material uniforms can be updated
@@ -258,7 +289,9 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             checkExist();
         });
 
-        document.body.style.backgroundColor = 'rgb(50,50,50)';
+        if (!realityEditor.device.environment.isWithinToolboxApp()) {
+            document.body.style.backgroundColor = 'rgb(50,50,50)';
+        }
 
         // create background canvas and supporting canvasses
 
@@ -330,6 +363,29 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
             }
         );
     }
+
+    /**
+     * @param {ShaderMode} shaderMode - initial shader mode to set on the patches
+     * @return {{[key: string]: THREE.Object3D}} map from key to patch
+     */
+    function cloneCameraVisPatches(shaderMode = ShaderMode.SOLID) {
+        if (!cameraVisCoordinator) {
+            return null;
+        }
+        return cameraVisCoordinator.clonePatches(shaderMode);
+    }
+    exports.cloneCameraVisPatches = cloneCameraVisPatches;
+
+    /**
+     * @return {{[key: string]: THREE.Object3D}} map from key to patch
+     */
+    function getCameraVisPatches() {
+        if (!cameraVisCoordinator) {
+            return null;
+        }
+        return cameraVisCoordinator.patches;
+    }
+    exports.getCameraVisPatches = getCameraVisPatches;
 
     function showCameraCanvas(id) {
         if (cameraVisCoordinator) {
@@ -520,6 +576,45 @@ import { UNIFORMS, MAX_VIEW_FRUSTUMS } from '../../src/gui/ViewFrustum.js';
 
     exports.muteMicrophoneForCameraVis = muteMicrophoneForCameraVis;
     exports.unmuteMicrophoneForCameraVis = unmuteMicrophoneForCameraVis;
+
+    // when transitioning from AR to VR, add or remove the gltf from the three.js scene
+    function addModeTransitionListeners() {
+        if (didAddModeTransitionListeners) return;
+        didAddModeTransitionListeners = true;
+
+        realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
+            initService(); // init if needed
+            showScene();
+        });
+
+        realityEditor.device.modeTransition.onRemoteOperatorHidden(() => {
+            hideScene();
+        });
+
+        realityEditor.device.modeTransition.onTransitionPercent((percent) => {
+            gltfUpdateCallbacks.forEach(callback => {
+                callback(percent);
+            });
+        });
+    }
+    
+    function showScene() {
+        if (!gltf) return;
+        gltf.visible = true;
+        realityEditor.gui.threejsScene.addToScene(gltf);
+    }
+    
+    function hideScene() {
+        if (!gltf) return;
+        gltf.visible = false;
+        realityEditor.gui.threejsScene.removeFromScene(gltf);
+    }
+    
+    exports.initService = initService;
+    
+    exports.getCameraVisCoordinator = () => {
+        return cameraVisCoordinator;
+    }
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);
