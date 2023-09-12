@@ -79,33 +79,24 @@ export class CameraFollowCoordinator {
         delete this.followTargets[id];
         this.updateFollowMenu();
     }
-    follow(targetId) {
+    follow(targetId, followDistance) {
         if (this.currentFollowTarget && targetId !== this.currentFollowTarget.id) {
             this.unfollow();
         }
         this.currentFollowTarget = this.followTargets[targetId];
-        // make sure the follow index updates if we manually select a follow target
         this.currentFollowIndex = Object.keys(this.followTargets).indexOf(targetId);
-        if (!this.currentFollowTarget) return;
+        if (!this.currentFollowTarget) {
+            return;
+        }
         if (this.currentFollowTarget.followable) {
             this.currentFollowTarget.followable.onCameraStartedFollowing();
         }
-
-        // if the followable specifies a frameKey, try to focus on that envelope when following
-        if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
-            realityEditor.envelopeManager.focusEnvelope(this.currentFollowTarget.followable.frameKey );
-        }
-
         this.virtualCamera.follow(this.currentFollowTarget.followable.sceneNode, this.followDistance);
         this.updateFollowMenu();
     }
     unfollow() {
         if (!this.currentFollowTarget) return;
-
-        // if the followable specifies a frameKey, try to stop focusing
-        if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
-            realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.followable.frameKey );
-        }
+        
         this.currentFollowTarget.followable.onCameraStoppedFollowing();
         this.currentFollowTarget.followable.disableFirstPersonMode();
         this.currentFollowTarget = null;
@@ -113,12 +104,14 @@ export class CameraFollowCoordinator {
     }
     followNext() {
         if (!this.currentFollowTarget) return;
+        this.close2D_UI();
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex + 1) % numTargets;
         this.followTargetAtIndex(this.currentFollowIndex);
     }
     followPrevious() {
         if (!this.currentFollowTarget) return;
+        this.close2D_UI();
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex - 1) % numTargets;
         if (this.currentFollowIndex < 0) { this.currentFollowIndex += numTargets; }
@@ -130,7 +123,14 @@ export class CameraFollowCoordinator {
             console.warn('Can\'t find a virtualizer to follow');
             return;
         }
+        realityEditor.envelopeManager.focusEnvelope(followTarget.followable.frameKey);
         this.follow(followTarget.id);
+    }
+    close2D_UI() {
+        // if the followable specifies a frameKey, try to stop focusing
+        if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
+            realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.followable.frameKey );
+        }
     }
     update() {
         Object.values(this.followTargets).forEach(followTarget => {
