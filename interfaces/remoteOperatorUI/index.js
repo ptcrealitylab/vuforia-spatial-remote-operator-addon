@@ -78,7 +78,7 @@ function startHTTPServer(localUIApp, port) {
     var callibrationFrames = 100;
 
     const http = require('http').Server(localUIApp.app);
-    const io = require('socket.io')(http);
+    const io = require('socket.io')(server8080.http);
 
     const objectsPath = server.getObjectsPath();
     const identityFolderName = '.identity';
