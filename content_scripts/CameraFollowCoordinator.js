@@ -100,6 +100,7 @@ export class CameraFollowCoordinator {
         this.currentFollowTarget.followable.onCameraStoppedFollowing();
         this.currentFollowTarget.followable.disableFirstPersonMode();
         this.currentFollowTarget = null;
+        this.virtualCamera.stopFollowing();
         this.updateFollowMenu();
     }
     followNext() {
