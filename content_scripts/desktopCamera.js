@@ -195,9 +195,16 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
             const cameraTargets = followCoordinator.followTargets;
             for (let cameraTarget in cameraTargets) {
                 if (cameraTargets[cameraTarget].followable.frameKey === msgData.frame) {
-                    //todo - follow distance is also passed into follow (param now added). Update follow function to
-                    // use the camera target as the first arg
                     followCoordinator.follow(cameraTargets[cameraTarget].id, 3000);
+                }
+            }
+        });
+
+        realityEditor.network.addPostMessageHandler('stopFollowingCamera', (msgData) => {
+            const cameraTargets = followCoordinator.followTargets;
+            for (let cameraTarget in cameraTargets) {
+                if (cameraTargets[cameraTarget].followable.frameKey === msgData.frame) {
+                    followCoordinator.unfollow();
                 }
             }
         });
