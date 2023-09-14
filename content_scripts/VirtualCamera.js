@@ -768,6 +768,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (!options.skipApplying) {
                 if (this.cameraNode.id === 'CAMERA') {
                     realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+                    let cameraNode = realityEditor.sceneGraph.getCameraNode();
+                    cameraNode.needsRerender = true;
                 } else {
                     this.cameraNode.setLocalMatrix(newCameraMatrix);
                 }
