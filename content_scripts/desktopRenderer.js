@@ -146,12 +146,16 @@ import {ShaderMode} from './Shaders.js';
                     navmesh.maxX - navmesh.minX,
                     navmesh.maxZ - navmesh.minZ
                 );
+                let ceilingY = {
+                    maxY: navmesh.maxY,
+                    minY: navmesh.minY
+                };
                 let center = {
                     x: (navmesh.maxX + navmesh.minX) / 2,
                     y: navmesh.minY,
                     z: (navmesh.maxZ + navmesh.minZ) / 2,
                 };
-                realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh) {
+                realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, ceilingY, center, function(createdMesh) {
 
                     realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
 
