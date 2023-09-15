@@ -91,6 +91,7 @@ export class CameraFollowCoordinator {
         if (this.currentFollowTarget.followable) {
             this.currentFollowTarget.followable.onCameraStartedFollowing();
         }
+        this.followDistance = followDistance;
         this.virtualCamera.follow(this.currentFollowTarget.followable.sceneNode, this.followDistance);
         this.updateFollowMenu();
     }
