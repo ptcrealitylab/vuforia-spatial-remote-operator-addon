@@ -173,7 +173,9 @@ import {ShaderMode} from './Shaders.js';
                             obj.oldMaterial = greyMaterial;
 
                             // to improve performance on mobile devices, switch to simpler material (has very large effect)
-                            if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
+                            // TODO: to re-enable frustum culling on desktop, add this: && !realityEditor.device.environment.isDesktop()
+                            //  so that we don't swap to the original material on desktop. also need to update threejsScene.js
+                            if (typeof obj.originalMaterial !== 'undefined') {
                                 obj.material.dispose(); // free resources from the advanced material
                                 obj.material = obj.originalMaterial;
 
