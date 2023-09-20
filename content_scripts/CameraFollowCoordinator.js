@@ -84,10 +84,9 @@ export class CameraFollowCoordinator {
             this.unfollow();
         }
         this.currentFollowTarget = this.followTargets[targetId];
+        // make sure the follow index updates if we manually select a follow target
         this.currentFollowIndex = Object.keys(this.followTargets).indexOf(targetId);
-        if (!this.currentFollowTarget) {
-            return;
-        }
+        if (!this.currentFollowTarget) return;
         if (this.currentFollowTarget.followable) {
             this.currentFollowTarget.followable.onCameraStartedFollowing();
         }
@@ -126,7 +125,7 @@ export class CameraFollowCoordinator {
             return;
         }
         realityEditor.envelopeManager.focusEnvelope(followTarget.followable.frameKey);
-        this.follow(followTarget.id);
+        this.follow(followTarget.id, this.followDistance);
     }
     close2D_UI() {
         // if the followable specifies a frameKey, try to stop focusing
@@ -165,7 +164,7 @@ export class CameraFollowCoordinator {
 
                 this.followDistance = info.distanceToCamera;
 
-                this.follow(thisTarget.id);
+                this.follow(thisTarget.id, this.followDistance);
             });
             perspectiveItemMenu.addItemToSubmenu(followItem)
         });
@@ -261,7 +260,7 @@ export class CameraFollowCoordinator {
             let index = targetDisplayNames.indexOf(displayName);
             let thisTarget = Object.values(this.followTargets)[index];
             if (!thisTarget) return;
-            this.follow(thisTarget.id);
+            this.follow(thisTarget.id, this.followDistance);
         });
         menuBar.addItemToMenu(realityEditor.gui.MENU.Follow, targetItem);
     }
