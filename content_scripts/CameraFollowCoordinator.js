@@ -105,14 +105,14 @@ export class CameraFollowCoordinator {
     }
     followNext() {
         if (!this.currentFollowTarget) return;
-        this.close2D_UI();
+        this.close2DUI();
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex + 1) % numTargets;
         this.followTargetAtIndex(this.currentFollowIndex);
     }
     followPrevious() {
         if (!this.currentFollowTarget) return;
-        this.close2D_UI();
+        this.close2DUI();
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex - 1) % numTargets;
         if (this.currentFollowIndex < 0) { this.currentFollowIndex += numTargets; }
@@ -127,7 +127,7 @@ export class CameraFollowCoordinator {
         realityEditor.envelopeManager.focusEnvelope(followTarget.followable.frameKey);
         this.follow(followTarget.id, this.followDistance);
     }
-    close2D_UI() {
+    close2DUI() {
         // if the followable specifies a frameKey, try to stop focusing
         if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
             realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.followable.frameKey );
