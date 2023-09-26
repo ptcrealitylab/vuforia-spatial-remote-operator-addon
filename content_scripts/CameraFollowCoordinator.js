@@ -79,7 +79,7 @@ export class CameraFollowCoordinator {
         delete this.followTargets[id];
         this.updateFollowMenu();
     }
-    follow(targetId) {
+    follow(targetId, followDistance) {
         if (this.currentFollowTarget && targetId !== this.currentFollowTarget.id) {
             this.unfollow();
         }
@@ -90,35 +90,31 @@ export class CameraFollowCoordinator {
         if (this.currentFollowTarget.followable) {
             this.currentFollowTarget.followable.onCameraStartedFollowing();
         }
-
-        // if the followable specifies a frameKey, try to focus on that envelope when following
-        if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
-            realityEditor.envelopeManager.focusEnvelope(this.currentFollowTarget.followable.frameKey );
+        if (typeof followDistance !== 'undefined') {
+            this.followDistance = followDistance;
         }
-
         this.virtualCamera.follow(this.currentFollowTarget.followable.sceneNode, this.followDistance);
         this.updateFollowMenu();
     }
     unfollow() {
         if (!this.currentFollowTarget) return;
-
-        // if the followable specifies a frameKey, try to stop focusing
-        if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
-            realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.followable.frameKey );
-        }
+        
         this.currentFollowTarget.followable.onCameraStoppedFollowing();
         this.currentFollowTarget.followable.disableFirstPersonMode();
         this.currentFollowTarget = null;
+        this.virtualCamera.stopFollowing();
         this.updateFollowMenu();
     }
     followNext() {
         if (!this.currentFollowTarget) return;
+        this.close2DUI();
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex + 1) % numTargets;
         this.followTargetAtIndex(this.currentFollowIndex);
     }
     followPrevious() {
         if (!this.currentFollowTarget) return;
+        this.close2DUI();
         let numTargets = Object.keys(this.followTargets).length;
         this.currentFollowIndex = (this.currentFollowIndex - 1) % numTargets;
         if (this.currentFollowIndex < 0) { this.currentFollowIndex += numTargets; }
@@ -130,7 +126,14 @@ export class CameraFollowCoordinator {
             console.warn('Can\'t find a virtualizer to follow');
             return;
         }
-        this.follow(followTarget.id);
+        realityEditor.envelopeManager.focusEnvelope(followTarget.followable.frameKey);
+        this.follow(followTarget.id, this.followDistance);
+    }
+    close2DUI() {
+        // if the followable specifies a frameKey, try to stop focusing
+        if (typeof this.currentFollowTarget.followable.frameKey !== 'undefined') {
+            realityEditor.envelopeManager.blurEnvelope(this.currentFollowTarget.followable.frameKey );
+        }
     }
     update() {
         Object.values(this.followTargets).forEach(followTarget => {
@@ -163,7 +166,7 @@ export class CameraFollowCoordinator {
 
                 this.followDistance = info.distanceToCamera;
 
-                this.follow(thisTarget.id);
+                this.follow(thisTarget.id, this.followDistance);
             });
             perspectiveItemMenu.addItemToSubmenu(followItem)
         });
@@ -259,7 +262,7 @@ export class CameraFollowCoordinator {
             let index = targetDisplayNames.indexOf(displayName);
             let thisTarget = Object.values(this.followTargets)[index];
             if (!thisTarget) return;
-            this.follow(thisTarget.id);
+            this.follow(thisTarget.id, this.followDistance);
         });
         menuBar.addItemToMenu(realityEditor.gui.MENU.Follow, targetItem);
     }
