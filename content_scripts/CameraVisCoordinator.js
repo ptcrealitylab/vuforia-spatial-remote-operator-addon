@@ -58,6 +58,30 @@ import {ShaderMode} from './Shaders.js';
             this.startWebRTC();
 
             this.addPatchToolLifecycleHandlers();
+
+            // add handler for tools to programmatically take spatial snapshots
+            realityEditor.network.addPostMessageHandler('captureSpatialSnapshot', (_msgData) => {
+                this.clonePatches(ShaderMode.SOLID);
+            });
+        }
+        
+        addMobilePatch(key, patch) {
+            // let clonedPatches = {};
+            // for (let camera of Object.values(this.cameras)) {
+            //     const {key, patch} = camera.clonePatch(shaderMode);
+            patch.add();
+            this.patches[key] = patch;
+            // clonedPatches[key] = patch;
+            // Hide for a bit to show the patch in space
+            // camera.mesh.visible = false;
+            // camera.mesh.__hidden = true;
+            //
+            // setTimeout(() => {
+            //     camera.mesh.visible = this.visible;
+            //     camera.mesh.__hidden = !this.visible;
+            // }, 300);
+            // }
+            // return clonedPatches;
         }
 
         addMenuShortcuts() {
