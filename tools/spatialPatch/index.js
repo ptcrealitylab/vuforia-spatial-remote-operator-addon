@@ -1,11 +1,5 @@
 /* global SpatialInterface */
 
-let spatialInterface;
-
-if (!spatialInterface) {
-    spatialInterface = new SpatialInterface();
-}
-
 const ShaderMode = {
     HIDDEN: 'HIDDEN',
     SOLID: 'SOLID',
@@ -14,6 +8,22 @@ const ShaderMode = {
 };
 
 let shaderMode = 'SOLID';
+
+let spatialInterface;
+
+if (!spatialInterface) {
+    spatialInterface = new SpatialInterface();
+
+    let envelopeContents = new EnvelopeContents(spatialInterface, document.body);
+    
+    envelopeContents.onClose(() => {
+        spatialInterface.patchSetShaderMode(ShaderMode.HIDDEN);
+    });
+    
+    envelopeContents.onOpen(() => {
+        spatialInterface.patchSetShaderMode(shaderMode);
+    });
+}
 
 const launchButton = document.getElementById('launchButton');
 launchButton.addEventListener('pointerup', function () {
