@@ -6,7 +6,7 @@ const path = require('path');
 const os = require('os');
 const server = require('@libraries/hardwareInterfaces');
 
-let DEBUG_DISABLE_VIDEO_RECORDING = os.platform() === 'ios';
+let DEBUG_DISABLE_VIDEO_RECORDING = os.platform() === 'ios' || process.env.NODE_ENV === 'test';
 
 let VideoServer;
 if (!DEBUG_DISABLE_VIDEO_RECORDING) {
