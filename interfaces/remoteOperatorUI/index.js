@@ -13,6 +13,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const express = require('express');
 
 const server = require('@libraries/hardwareInterfaces');
 const utilities = require('@libraries/utilities');
@@ -78,7 +79,7 @@ function startHTTPServer(localUIApp, port) {
     var callibrationFrames = 100;
 
     const http = require('http').Server(localUIApp.app);
-    const io = require('socket.io')(server8080.http);
+    const io = require('socket.io')(http);
 
     const objectsPath = server.getObjectsPath();
     const identityFolderName = '.identity';
@@ -151,7 +152,8 @@ function startHTTPServer(localUIApp, port) {
             }
         });
 
-        server8080.webServer.use('/userinterface', localUIApp.app);
+        console.log("-------", __dirname);
+        localUIApp.app.use('/objectDefaultFiles', express.static(__dirname + '/../../../../libraries/objectDefaultFiles/'));
 
         // pass visibleObjects messages to the userinterface
         server.subscribeToMatrixStream(function(visibleObjects) {
