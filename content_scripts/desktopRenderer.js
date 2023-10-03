@@ -10,7 +10,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {UNIFORMS, MAX_VIEW_FRUSTUMS} from '../../src/gui/ViewFrustum.js';
-import {ShaderMode} from './Shaders.js';
+import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js

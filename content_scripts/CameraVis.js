@@ -1,14 +1,14 @@
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {Spaghetti} from '../../src/humanPose/spaghetti.js';
-import {CameraVisPatch} from './CameraVisPatch.js';
+import {CameraVisPatch} from '../../src/spatialCapture/CameraVisPatch.js';
 import {
     createPointCloud,
     createPointCloudMaterial,
     DEPTH_WIDTH,
     DEPTH_HEIGHT,
     ShaderMode
-} from './Shaders.js';
-import {VisualDiff} from './VisualDiff.js';
+} from '../../src/spatialCapture/Shaders.js';;
+import {VisualDiff} from '../../src/spatialCapture/VisualDiff.js';
 import {Followable} from '../../src/gui/ar/Followable.js';
 
 const debug = false;
