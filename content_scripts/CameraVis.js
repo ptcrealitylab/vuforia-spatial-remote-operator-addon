@@ -156,64 +156,33 @@ export class CameraVis extends Followable {
 
         let utils = realityEditor.gui.ar.utilities;
         let worldMatrix = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId()).worldMatrix;
-        
-        // let patchContainerMatrix = Array.from(this.container.matrix.elements);
-        // this.container.position.y = -floorOffset;
-        // patchContainerMatrix[13] += realityEditor.gui.ar.areaCreator.calculateFloorOffset();
-        let patchContainerMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix(); // worldMatrix;
-        
-        // let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
-        // let worldNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId());
-        // // let groundPlaneWorldOffset = gpNode.getMatrixRelativeTo(worldNode);
-        // let groundPlaneWorldOffset = worldNode.getMatrixRelativeTo(gpNode);
-        // console.log('test groundPlaneWorldOffset', groundPlaneWorldOffset);
+        let patchContainerMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
 
-        // let phoneResultMatrix = [];
-        // let storedContainerMatrix = JSON.parse(JSON.stringify(serialization.container));
-        // realityEditor.gui.ar.utilities.multiplyMatrix(groundPlaneWorldOffset, storedContainerMatrix, containerResultMatrix);
-        
-        // let phoneWorldMatrix = Array.from(this.phone.matrixWorld.elements);
-        // realityEditor.gui.ar.utilities.multiplyMatrix(phoneWorldMatrix, groundPlaneWorldOffset, phoneResultMatrix);
-        
+        let updatedPatchContainerMatrix = new THREE.Matrix4();
+        setMatrixFromArray(updatedPatchContainerMatrix, patchContainerMatrix);
+
+        // this works because the world is parented to the same object that the phone is parented to
         let phoneRelativeToWorldMatrix = [];
         utils.multiplyMatrix(Array.from(this.phone.matrixWorld.elements), utils.invertMatrix(worldMatrix), phoneRelativeToWorldMatrix);
-        // Array.from(this.phone.matrixWorld.elements);
-        
-        /*
-                // note that this could be one frame out-of-date if this is flaggedForRecompute
-        let thisWorldMatrix = this.worldMatrix;
-        let thatWorldMatrix = otherNode.worldMatrix;
 
-        // if they're the same, we should get identity matrix
-        let relativeMatrix = [];
-        utils.multiplyMatrix(thisWorldMatrix, utils.invertMatrix(thatWorldMatrix), relativeMatrix);
-
-        return relativeMatrix;
-         */
+        let updatedPatchPhoneMatrix = new THREE.Matrix4();
+        setMatrixFromArray(updatedPatchPhoneMatrix, phoneRelativeToWorldMatrix);
 
         let serialization = {
             key: '',
             id: this.id,
-            container: patchContainerMatrix, //Array.from(this.container.matrix.elements),
-            phone: phoneRelativeToWorldMatrix, //Array.from(this.phone.matrixWorld.elements),
+            container: Array.from(updatedPatchContainerMatrix.elements),
+            phone: Array.from(updatedPatchPhoneMatrix.elements),
             texture: this.texture.image.toDataURL('image/jpeg', 0.7),
             textureDepth: this.textureDepth.image.toDataURL(),
             creationTime: now,
         };
         const frameKey = CameraVisPatch.createToolForPatchSerialization(serialization, shaderMode);
-        
-        let updatedPatchContainerMatrix = new THREE.Matrix4();
-        setMatrixFromArray(updatedPatchContainerMatrix, patchContainerMatrix);
-        
-        let updatedPatchPhoneMatrix = new THREE.Matrix4();
-        setMatrixFromArray(updatedPatchPhoneMatrix, phoneRelativeToWorldMatrix);
 
         return {
             key: frameKey,
             patch: CameraVisPatch.createPatch(
-                // this.container.matrix,
                 updatedPatchContainerMatrix,
-                // this.phone.matrixWorld,
                 updatedPatchPhoneMatrix,
                 this.texture.image,
                 this.textureDepth.image,
