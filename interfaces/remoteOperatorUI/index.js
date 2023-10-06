@@ -283,5 +283,9 @@ function startHTTPServer(localUIApp, port) {
 
         socketServer();
     });
+
+    server.addEventListener('shutdown', () => {
+        http.close();
+    });
 }
 

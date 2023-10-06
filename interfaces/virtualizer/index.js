@@ -715,7 +715,10 @@ if (exports.enabled) {
         });
     });
 
-    http.listen(3020, function() {
+    const httpServer = http.listen(3020, function() {
         console.log('listening on *:3020');
+    });
+    server.addEventListener('shutdown', () => {
+        httpServer.close();
     });
 }

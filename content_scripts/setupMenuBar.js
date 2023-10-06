@@ -38,6 +38,7 @@ createNameSpace('realityEditor.gui');
         DarkMode: 'Dark Mode',
         CutoutViewFrustums: 'Cut Out 3D Videos',
         ShowFPS: 'Show FPS',
+        ActivateProfiler: 'Activate Profiler',
         ToggleFlyMode: 'Fly Mode'
     });
     exports.ITEM = ITEM;
@@ -128,6 +129,15 @@ createNameSpace('realityEditor.gui');
             window.open('https://spatialtoolbox.vuforia.com/', '_blank');
         });
         menuBar.addItemToMenu(MENU.Help, gettingStarted);
+
+        const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { shortcutKey: 'I', toggle: true, defaultVal: false }, (checked) => {
+            if (checked) {
+                if (realityEditor.device.profiling) realityEditor.device.profiling.show();
+            } else {
+                if (realityEditor.device.profiling) realityEditor.device.profiling.hide();
+            }
+        });
+        menuBar.addItemToMenu(MENU.Develop, activateProfiler);
 
         const debugAvatars = new MenuItem(ITEM.DebugAvatarConnections, { toggle: true }, (checked) => {
             realityEditor.avatar.toggleDebugMode(checked);
