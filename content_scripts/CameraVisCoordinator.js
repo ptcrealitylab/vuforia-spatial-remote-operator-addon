@@ -279,6 +279,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             };
             image.src = imageUrl;
         }
+        
+        // TODO: use this to convert raw RVL buffer to image ––– do some debugging to see what format the data needs to be in
 
         renderPointCloudRawDepth(id, rawDepth) {
             const textureKey = 'textureDepth';

@@ -371,10 +371,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
      * @return {{[key: string]: THREE.Object3D}} map from key to patch
      */
     function cloneCameraVisPatches(shaderMode = ShaderMode.SOLID) {
-        if (!cameraVisCoordinator) {
+        let spatialPatchCoordinator = realityEditor.spatialCapture.spatialPatchCoordinator;
+        if (!spatialPatchCoordinator) {
             return null;
         }
-        return cameraVisCoordinator.clonePatches(shaderMode);
+        return spatialPatchCoordinator.clonePatches(shaderMode);
     }
     exports.cloneCameraVisPatches = cloneCameraVisPatches;
 
@@ -382,10 +383,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
      * @return {{[key: string]: THREE.Object3D}} map from key to patch
      */
     function getCameraVisPatches() {
-        if (!cameraVisCoordinator) {
+        let spatialPatchCoordinator = realityEditor.spatialCapture.spatialPatchCoordinator;
+        if (!spatialPatchCoordinator) {
             return null;
         }
-        return cameraVisCoordinator.patches;
+        return spatialPatchCoordinator.patches;
     }
     exports.getCameraVisPatches = getCameraVisPatches;
 
