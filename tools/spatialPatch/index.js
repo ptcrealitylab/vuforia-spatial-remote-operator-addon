@@ -26,6 +26,8 @@ if (!spatialInterface) {
 }
 
 const launchButton = document.getElementById('launchButton');
+launchButton.classList.add('launchButtonExpanded');
+
 launchButton.addEventListener('pointerup', function () {
     launchButton.classList.remove('launchButtonPressed');
 
