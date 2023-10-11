@@ -10,12 +10,13 @@ const ShaderMode = {
 let shaderMode = 'SOLID';
 
 let spatialInterface;
+let envelopeContents;
 
 if (!spatialInterface) {
     spatialInterface = new SpatialInterface();
 
     // allow the tool to be nested inside of envelopes
-    let envelopeContents = new EnvelopeContents(spatialInterface, document.body);
+    envelopeContents = new EnvelopeContents(spatialInterface, document.body);
     
     // hide the associated spatial snapshot when the parent envelope containing this tool closes
     envelopeContents.onClose(() => {
@@ -25,6 +26,15 @@ if (!spatialInterface) {
     // restore the associated spatial snapshot when the parent envelope containing this tool opens
     envelopeContents.onOpen(() => {
         spatialInterface.patchSetShaderMode(shaderMode);
+    });
+
+    // listen for isEditable and expandFrame messages from envelope
+    envelopeContents.onMessageFromEnvelope(function(e) {
+        console.log('spatial patch got message from envelope', e);
+        if (typeof e.toggleVisibility !== 'undefined') {
+            let newShaderMode = e.toggleVisibility ? ShaderMode.SOLID : ShaderMode.HIDDEN;
+            setShaderMode(newShaderMode);
+        }
     });
 }
 
@@ -44,6 +54,14 @@ launchButton.addEventListener('pointerup', function () {
         break;
     }
     setShaderMode(shaderMode);
+    
+    if (envelopeContents) {
+        console.log('spatial patch sending new toggle state to envelope');
+        envelopeContents.sendMessageToEnvelope({
+            toggleVisibility: shaderMode === ShaderMode.SOLID
+        });
+    }
+
     spatialInterface.writePublicData('storage', 'shaderMode', shaderMode);
 }, false);
 
@@ -82,6 +100,14 @@ spatialInterface.onSpatialInterfaceLoaded(function() {
     spatialInterface.addReadPublicDataListener('storage', 'shaderMode', storedShaderMode => {
         if (storedShaderMode !== shaderMode) {
             shaderMode = storedShaderMode;
+
+            if (envelopeContents) {
+                console.log('spatial patch sending stored toggle state to envelope');
+                envelopeContents.sendMessageToEnvelope({
+                    toggleVisibility: shaderMode === ShaderMode.SOLID
+                });
+            }
+
             setShaderMode(shaderMode);
         }
     });
