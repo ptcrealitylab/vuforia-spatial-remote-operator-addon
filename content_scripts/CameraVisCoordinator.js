@@ -4,7 +4,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 import {CameraVis} from './CameraVis.js';
-// import {CameraVisPatch} from './CameraVisPatch.js';
 import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
 
 (function(exports) {
@@ -279,8 +278,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             };
             image.src = imageUrl;
         }
-        
-        // TODO: use this to convert raw RVL buffer to image ––– do some debugging to see what format the data needs to be in
 
         renderPointCloudRawDepth(id, rawDepth) {
             const textureKey = 'textureDepth';
