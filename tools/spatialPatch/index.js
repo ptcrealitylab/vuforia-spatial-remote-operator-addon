@@ -14,12 +14,15 @@ let spatialInterface;
 if (!spatialInterface) {
     spatialInterface = new SpatialInterface();
 
+    // allow the tool to be nested inside of envelopes
     let envelopeContents = new EnvelopeContents(spatialInterface, document.body);
     
+    // hide the associated spatial snapshot when the parent envelope containing this tool closes
     envelopeContents.onClose(() => {
         spatialInterface.patchSetShaderMode(ShaderMode.HIDDEN);
     });
-    
+
+    // restore the associated spatial snapshot when the parent envelope containing this tool opens
     envelopeContents.onOpen(() => {
         spatialInterface.patchSetShaderMode(shaderMode);
     });
@@ -40,11 +43,11 @@ launchButton.addEventListener('pointerup', function () {
         shaderMode = ShaderMode.HIDDEN;
         break;
     }
-    // spatialInterface.patchSetShaderMode(shaderMode);
     setShaderMode(shaderMode);
     spatialInterface.writePublicData('storage', 'shaderMode', shaderMode);
 }, false);
 
+// add some slight visual feedback when you tap on the button
 launchButton.addEventListener('pointerdown', () => {
     launchButton.classList.add('launchButtonPressed');
 });
@@ -54,6 +57,7 @@ const randomDelay = -Math.floor(Math.random() * 100);
 launchButton.style.animationDelay = `${randomDelay}s`;
 
 function setShaderMode(shaderMode) {
+    // add some visual feedback, so you know if it's open or closed
     if (shaderMode === ShaderMode.HIDDEN) {
         launchButton.classList.remove('launchButtonExpanded');
         launchButton.classList.add('launchButtonCollapsed');
@@ -78,7 +82,6 @@ spatialInterface.onSpatialInterfaceLoaded(function() {
     spatialInterface.addReadPublicDataListener('storage', 'shaderMode', storedShaderMode => {
         if (storedShaderMode !== shaderMode) {
             shaderMode = storedShaderMode;
-            // spatialInterface.patchSetShaderMode(shaderMode);
             setShaderMode(shaderMode);
         }
     });
