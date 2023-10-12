@@ -190,6 +190,24 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
         });
 
         // ---- Add and remove follow targets when video players are created ---- //
+
+        realityEditor.network.addPostMessageHandler('followCameraOnPlayback', (msgData) => {
+            const cameraTargets = followCoordinator.followTargets;
+            for (let cameraTarget in cameraTargets) {
+                if (cameraTargets[cameraTarget].followable.frameKey === msgData.frame) {
+                    followCoordinator.follow(cameraTargets[cameraTarget].id, msgData.distance);
+                }
+            }
+        });
+
+        realityEditor.network.addPostMessageHandler('stopFollowingCamera', (msgData) => {
+            const cameraTargets = followCoordinator.followTargets;
+            for (let cameraTarget in cameraTargets) {
+                if (cameraTargets[cameraTarget].followable.frameKey === msgData.frame) {
+                    followCoordinator.unfollow();
+                }
+            }
+        });
         
         let videoPlayback = realityEditor.gui.ar.videoPlayback;
         videoPlayback.onVideoCreated(player => {
