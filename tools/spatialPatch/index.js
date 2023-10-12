@@ -34,6 +34,7 @@ if (!spatialInterface) {
         if (typeof e.toggleVisibility !== 'undefined') {
             let newShaderMode = e.toggleVisibility ? ShaderMode.SOLID : ShaderMode.HIDDEN;
             setShaderMode(newShaderMode);
+            spatialInterface.writePublicData('storage', 'shaderMode', shaderMode);
         }
     });
 }
@@ -74,7 +75,8 @@ launchButton.addEventListener('pointerdown', () => {
 const randomDelay = -Math.floor(Math.random() * 100);
 launchButton.style.animationDelay = `${randomDelay}s`;
 
-function setShaderMode(shaderMode) {
+function setShaderMode(newShaderMode) {
+    shaderMode = newShaderMode;
     // add some visual feedback, so you know if it's open or closed
     if (shaderMode === ShaderMode.HIDDEN) {
         launchButton.classList.remove('launchButtonExpanded');
