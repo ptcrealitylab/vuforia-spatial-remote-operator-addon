@@ -746,9 +746,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
                 let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
                 // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
-                let rotateFactor = -Math.pow(angle / Math.PI, 2) * 4 + 1;
-                this.position = add(this.position, scalarMultiply(this.velocity, rotateFactor));
-                this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, rotateFactor));
+                this.position = add(this.position, this.velocity);
+                this.targetPosition = add(this.targetPosition, this.targetVelocity);
             }
 
             // tween the matrix every frame to animate it to the new position
