@@ -10,7 +10,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {UNIFORMS, MAX_VIEW_FRUSTUMS} from '../../src/gui/ViewFrustum.js';
-import {ShaderMode} from './Shaders.js';
+import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
@@ -371,10 +371,11 @@ import {ShaderMode} from './Shaders.js';
      * @return {{[key: string]: THREE.Object3D}} map from key to patch
      */
     function cloneCameraVisPatches(shaderMode = ShaderMode.SOLID) {
-        if (!cameraVisCoordinator) {
+        let spatialPatchCoordinator = realityEditor.spatialCapture.spatialPatchCoordinator;
+        if (!spatialPatchCoordinator) {
             return null;
         }
-        return cameraVisCoordinator.clonePatches(shaderMode);
+        return spatialPatchCoordinator.clonePatches(shaderMode);
     }
     exports.cloneCameraVisPatches = cloneCameraVisPatches;
 
@@ -382,10 +383,11 @@ import {ShaderMode} from './Shaders.js';
      * @return {{[key: string]: THREE.Object3D}} map from key to patch
      */
     function getCameraVisPatches() {
-        if (!cameraVisCoordinator) {
+        let spatialPatchCoordinator = realityEditor.spatialCapture.spatialPatchCoordinator;
+        if (!spatialPatchCoordinator) {
             return null;
         }
-        return cameraVisCoordinator.patches;
+        return spatialPatchCoordinator.patches;
     }
     exports.getCameraVisPatches = getCameraVisPatches;
 
