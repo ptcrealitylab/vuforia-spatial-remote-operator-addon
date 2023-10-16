@@ -6,7 +6,6 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
 
-    const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
     class WebRTCCoordinator {
@@ -15,7 +14,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.ws = ws;
             this.audioStream = null;
             this.consumerId = consumerId;
-            this.muted = false;
+            this.muted = true;
 
             this.webrtcConnections = {};
 
@@ -44,11 +43,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 },
             }).then((stream) => {
                 this.audioStream = this.improveAudioStream(stream);
-                this.updateMutedState();
                 for (let conn of Object.values(this.webrtcConnections)) {
                     conn.audioStream = this.audioStream;
                     conn.localConnection.addStream(conn.audioStream);
                 }
+                this.updateMutedState();
             });
         }
 
