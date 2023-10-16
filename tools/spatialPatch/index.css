@@ -6,3 +6,15 @@ img {
     background: black;
     border-radius: 30px;
 }
+
+.launchButtonExpanded {
+    opacity: 0.3;
+}
+
+.launchButtonCollapsed {
+    opacity: 0.7;
+}
+
+.launchButtonPressed {
+    opacity: 0.9;
+}

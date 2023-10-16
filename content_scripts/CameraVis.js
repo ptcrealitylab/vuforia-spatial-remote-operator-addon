@@ -1,14 +1,14 @@
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {Spaghetti} from '../../src/humanPose/spaghetti.js';
-import {CameraVisPatch} from './CameraVisPatch.js';
+import {CameraVisPatch} from '../../src/spatialCapture/CameraVisPatch.js';
 import {
     createPointCloud,
     createPointCloudMaterial,
     DEPTH_WIDTH,
     DEPTH_HEIGHT,
     ShaderMode
-} from './Shaders.js';
-import {VisualDiff} from './VisualDiff.js';
+} from '../../src/spatialCapture/Shaders.js';;
+import {VisualDiff} from '../../src/spatialCapture/VisualDiff.js';
 import {Followable} from '../../src/gui/ar/Followable.js';
 
 const debug = false;
@@ -153,11 +153,26 @@ export class CameraVis extends Followable {
      */
     clonePatch(shaderMode) {
         let now = Date.now();
+
+        let utils = realityEditor.gui.ar.utilities;
+        let worldMatrix = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId()).worldMatrix;
+        let patchContainerMatrix = realityEditor.gui.ar.utilities.newIdentityMatrix();
+
+        let updatedPatchContainerMatrix = new THREE.Matrix4();
+        setMatrixFromArray(updatedPatchContainerMatrix, patchContainerMatrix);
+
+        // this works because the world is parented to the same object that the phone is parented to
+        let phoneRelativeToWorldMatrix = [];
+        utils.multiplyMatrix(Array.from(this.phone.matrixWorld.elements), utils.invertMatrix(worldMatrix), phoneRelativeToWorldMatrix);
+
+        let updatedPatchPhoneMatrix = new THREE.Matrix4();
+        setMatrixFromArray(updatedPatchPhoneMatrix, phoneRelativeToWorldMatrix);
+
         let serialization = {
             key: '',
             id: this.id,
-            container: Array.from(this.container.matrix.elements),
-            phone: Array.from(this.phone.matrix.elements),
+            container: Array.from(updatedPatchContainerMatrix.elements),
+            phone: Array.from(updatedPatchPhoneMatrix.elements),
             texture: this.texture.image.toDataURL('image/jpeg', 0.7),
             textureDepth: this.textureDepth.image.toDataURL(),
             creationTime: now,
@@ -167,8 +182,8 @@ export class CameraVis extends Followable {
         return {
             key: frameKey,
             patch: CameraVisPatch.createPatch(
-                this.container.matrix,
-                this.phone.matrix,
+                updatedPatchContainerMatrix,
+                updatedPatchPhoneMatrix,
                 this.texture.image,
                 this.textureDepth.image,
                 now,
