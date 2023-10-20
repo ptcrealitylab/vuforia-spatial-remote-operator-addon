@@ -14,6 +14,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         webrtcIssue: 'Internal WebRTC issue.',
     };
 
+    /**
+     * @param {ErrorMessage} message - human readable error text
+     * @param {Error} error - error responsible for causing this
+     * @param {number} duration - ms duration of notification popup
+     */
     function showError(message, error, duration) {
         console.error('webrtc error', error);
         realityEditor.gui.modal.showScreenTopNotification(message, duration);
