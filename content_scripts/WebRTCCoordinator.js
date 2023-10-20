@@ -47,7 +47,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 });
             }
 
-            navigator.mediaDevices.getUserMedia({
+            this.audioStreamPromise = navigator.mediaDevices.getUserMedia({
                 video: false,
                 audio: {
                     noiseSuppression: true,
@@ -100,7 +100,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }));
         }
 
-        onWsMessage(event) {
+        async onWsMessage(event) {
             let msg;
             try {
                 msg = JSON.parse(event.data);
@@ -114,18 +114,18 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             if (msg.command === 'joinNetwork') {
                 if (msg.role === 'provider') {
-                    this.initConnection(msg.src);
+                    await this.initConnection(msg.src);
                 }
                 return;
             }
 
             if (msg.command === 'discoverPeers' && msg.dest === this.consumerId) {
                 for (let provider of msg.providers) {
-                    this.initConnection(provider);
+                    await this.initConnection(provider);
                 }
                 for (let consumer of msg.consumers) {
                     if (consumer !== this.consumerId) {
-                        this.initConnection(consumer);
+                        await this.initConnection(consumer);
                     }
                 }
                 return;
@@ -139,6 +139,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }
 
             if (!this.webrtcConnections[msg.src]) {
+                if (!this.audioStream) {
+                    await this.audioStreamPromise;
+                }
+
                 this.webrtcConnections[msg.src] = new WebRTCConnection(
                     this.cameraVisCoordinator,
                     this.ws,
@@ -162,7 +166,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }
         }
 
-        initConnection(otherId) {
+        async initConnection(otherId) {
             const conn = this.webrtcConnections[otherId];
             const goodChannelStates = ['connecting', 'open'];
 
@@ -177,6 +181,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 if (!conn.offered) {
                     return;
                 }
+            }
+
+            if (!this.audioStream) {
+                await this.audioStreamPromise;
             }
 
             let newConn = new WebRTCConnection(
@@ -261,24 +269,6 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 }],
             });
 
-            this.receiveChannel = this.localConnection.createDataChannel(
-                'sendChannel',
-                {
-                    ordered: false,
-                    maxRetransmits: 0,
-                },
-            );
-            this.receiveChannel.binaryType = 'arraybuffer';
-            this.receiveChannel.onopen = this.onReceiveChannelStatusChange;
-            this.receiveChannel.onclose = this.onReceiveChannelStatusChange;
-            this.receiveChannel.addEventListener('message', this.onReceiveChannelMessage);
-
-            if (this.audioStream) {
-                this.localConnection.addStream(this.audioStream);
-            } else {
-                console.warn('missing audiostream');
-            }
-
             this.localConnection.addEventListener('icecandidate', (e) => {
                 if (DEBUG) {
                     console.log('webrtc local candidate', e);
@@ -345,6 +335,24 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 });
                 document.body.appendChild(elt);
             });
+
+            this.receiveChannel = this.localConnection.createDataChannel(
+                'sendChannel',
+                {
+                    ordered: false,
+                    maxRetransmits: 0,
+                },
+            );
+            this.receiveChannel.binaryType = 'arraybuffer';
+            this.receiveChannel.onopen = this.onReceiveChannelStatusChange;
+            this.receiveChannel.onclose = this.onReceiveChannelStatusChange;
+            this.receiveChannel.addEventListener('message', this.onReceiveChannelMessage);
+
+            if (this.audioStream) {
+                this.localConnection.addStream(this.audioStream);
+            } else {
+                console.warn('missing audiostream');
+            }
         }
 
         async connect() {
