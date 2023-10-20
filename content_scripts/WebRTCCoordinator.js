@@ -323,8 +323,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                             console.log('autoplay failed', err);
                         }
                         timesFailed += 1;
+                        // this is a delay of 3000 ms = 250 ms * 12 so that
+                        // notifications don't overlap but stay on screen for a
+                        // decent amount of time
                         if (timesFailed > 12) {
-                            showError(ErrorMessage.autoplayBlocked, err, 3000);
+                            showError(ErrorMessage.autoplayBlocked, err, 12 * 250);
                             timesFailed = 0;
                         }
                     }
