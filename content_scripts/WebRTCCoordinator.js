@@ -8,6 +8,17 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
     const decoder = new TextDecoder();
 
+    const ErrorMessage = {
+        autoplayBlocked: 'Autoplay blocked. Interact with page or grant permission in browser settings.',
+        noMicrophonePermissions: 'No microphone permission. Grant permission from browser and refresh page.',
+        webrtcIssue: 'Internal WebRTC issue.',
+    };
+
+    function showError(message, error, duration) {
+        console.error('webrtc error', error);
+        realityEditor.gui.modal.showScreenTopNotification(message, duration);
+    }
+
     class WebRTCCoordinator {
         constructor(cameraVisCoordinator, ws, consumerId) {
             this.cameraVisCoordinator = cameraVisCoordinator;
@@ -48,6 +59,8 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     conn.localConnection.addStream(conn.audioStream);
                 }
                 this.updateMutedState();
+            }).catch(err => {
+                showError(ErrorMessage.noMicrophonePermissions, err, 10000);
             });
         }
 
@@ -311,12 +324,18 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
                 elt.autoplay = true;
                 elt.srcObject = e.streams[0];
+                let timesFailed = 0;
                 let autoplayWhenAvailableInterval = setInterval(() => {
                     try {
                         elt.play();
                     } catch (err) {
                         if (DEBUG) {
                             console.log('autoplay failed', err);
+                        }
+                        timesFailed += 1;
+                        if (timesFailed > 12) {
+                            showError(ErrorMessage.autoplayBlocked, err, 3000);
+                            timesFailed = 0;
                         }
                     }
                 }, 250);
@@ -512,6 +531,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
         onWebRTCError(e) {
             console.error('webrtc error', e);
+            showError(ErrorMessage.webrtcIssue, e, 10000);
         }
 
         disconnect() {
