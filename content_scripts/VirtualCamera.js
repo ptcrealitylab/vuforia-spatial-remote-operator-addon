@@ -162,7 +162,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (this.isFlying) return;
             // conform to spatial cursor mousemove event pageX and pageY
             if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
-                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
+                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY, true).point;
                 if (worldIntersectPoint === undefined) return;
                 // record pointerdown world intersect point, for off-center camera rotation
                 this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
