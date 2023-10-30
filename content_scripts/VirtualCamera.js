@@ -54,6 +54,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 first: { x: 0, y: 0 },
                 last: { x: 0, y: 0 },
                 lastWorldPos: [0, 0, 0],
+                latest: {x: 0, y: 0},
+                isScrollStillProcessing: false,
             };
             this.mouseFlyInput = {
                 justSwitched: true,
@@ -158,11 +160,17 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         }
         // when in normal mode, right click to add a green focus cube to the scene
-        setFocusTargetCube(event) {
+        setFocusTargetCube(event, forceSet = false, fakeEvent = null) {
             if (this.isFlying) return;
             // conform to spatial cursor mousemove event pageX and pageY
-            if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
-                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
+            // if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
+            if (forceSet || event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
+                let worldIntersectPoint = undefined;
+                if (fakeEvent !== null) {
+                    worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(fakeEvent.x, fakeEvent.y, true).point;
+                } else {
+                    worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY, true).point;
+                }
                 if (worldIntersectPoint === undefined) return;
                 // record pointerdown world intersect point, for off-center camera rotation
                 this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
@@ -185,9 +193,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
 
             let scrollTimeout = null;
+            let scrollTimeout2 = null;
             window.addEventListener('wheel', function (event) {
+                if (!this.mouseInput.isScrollStillProcessing) this.setFocusTargetCube(event, true, {x: this.mouseInput.latest.x, y: this.mouseInput.latest.y});
                 // restrict deltaY between [-100, 100], to prevent mouse wheel deltaY so large that camera cannot focus on focus point when zooming in
-                let wheelAmt = Math.max(-100, Math.min(100, event.deltaY));
+                let wheelAmt = Math.max(-60, Math.min(60, event.deltaY));
                 this.mouseInput.unprocessedScroll += wheelAmt;
                 event.preventDefault();
 
@@ -203,6 +213,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.preRotateDistanceToTarget = null;
 
                 }.bind(this), 150);
+
+                if (scrollTimeout2 !== null) {
+                    clearTimeout(scrollTimeout2);
+                    this.mouseInput.isScrollStillProcessing = true;
+                }
+                scrollTimeout2 = setTimeout(function () {
+                    this.mouseInput.isScrollStillProcessing = false;
+                }.bind(this), 500);
             }.bind(this), { passive: false }); // in order to call preventDefault, wheel needs to be active not passive
 
             document.addEventListener('pointerdown', function (event) {
@@ -229,6 +247,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.mouseInput.last.y = event.pageY;
                     // follow a tool if you click it with shift held down
                 }
+            }.bind(this));
+
+            document.addEventListener('pointermove', function (event) {
+                this.mouseInput.latest.x = event.pageX;
+                this.mouseInput.latest.y = event.pageY;
+                if (this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
+                if (!this.mouseInput.isScrollStillProcessing) this.setFocusTargetCube(event, true);
             }.bind(this));
 
             const pointerReset = () => {
