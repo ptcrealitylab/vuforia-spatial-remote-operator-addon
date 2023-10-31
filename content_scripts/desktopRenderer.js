@@ -10,7 +10,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {UNIFORMS, MAX_VIEW_FRUSTUMS} from '../../src/gui/ViewFrustum.js';
-import {ShaderMode} from './Shaders.js';
+import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
@@ -146,12 +146,19 @@ import {ShaderMode} from './Shaders.js';
                     navmesh.maxX - navmesh.minX,
                     navmesh.maxZ - navmesh.minZ
                 );
+                let ceilingAndFloor = {
+                    ceiling: navmesh.maxY,
+                    floor: navmesh.minY
+                };
                 let center = {
                     x: (navmesh.maxX + navmesh.minX) / 2,
                     y: navmesh.minY,
                     z: (navmesh.maxZ + navmesh.minZ) / 2,
                 };
-                realityEditor.gui.threejsScene.addGltfToScene(gltfPath, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, center, function(createdMesh) {
+                let map = navmesh.map;
+                let steepnessMap = navmesh.steepnessMap;
+                let heightMap = navmesh.heightMap;
+                realityEditor.gui.threejsScene.addGltfToScene(gltfPath, map, steepnessMap, heightMap, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, ceilingAndFloor, center, function(createdMesh) {
 
                     realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
 
@@ -371,10 +378,11 @@ import {ShaderMode} from './Shaders.js';
      * @return {{[key: string]: THREE.Object3D}} map from key to patch
      */
     function cloneCameraVisPatches(shaderMode = ShaderMode.SOLID) {
-        if (!cameraVisCoordinator) {
+        let spatialPatchCoordinator = realityEditor.spatialCapture.spatialPatchCoordinator;
+        if (!spatialPatchCoordinator) {
             return null;
         }
-        return cameraVisCoordinator.clonePatches(shaderMode);
+        return spatialPatchCoordinator.clonePatches(shaderMode);
     }
     exports.cloneCameraVisPatches = cloneCameraVisPatches;
 
@@ -382,10 +390,11 @@ import {ShaderMode} from './Shaders.js';
      * @return {{[key: string]: THREE.Object3D}} map from key to patch
      */
     function getCameraVisPatches() {
-        if (!cameraVisCoordinator) {
+        let spatialPatchCoordinator = realityEditor.spatialCapture.spatialPatchCoordinator;
+        if (!spatialPatchCoordinator) {
             return null;
         }
-        return cameraVisCoordinator.patches;
+        return spatialPatchCoordinator.patches;
     }
     exports.getCameraVisPatches = getCameraVisPatches;
 

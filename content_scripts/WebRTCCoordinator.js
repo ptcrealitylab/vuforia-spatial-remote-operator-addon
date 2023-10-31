@@ -6,8 +6,23 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
 
-    const encoder = new TextEncoder();
     const decoder = new TextDecoder();
+
+    const ErrorMessage = {
+        autoplayBlocked: 'Autoplay blocked. Interact with page or grant permission in browser settings.',
+        noMicrophonePermissions: 'No microphone permission. Grant permission from browser and refresh page.',
+        webrtcIssue: 'Internal WebRTC issue.',
+    };
+
+    /**
+     * @param {ErrorMessage} message - human readable error text
+     * @param {Error} error - error responsible for causing this
+     * @param {number} duration - ms duration of notification popup
+     */
+    function showError(message, error, duration) {
+        console.error('webrtc error', error);
+        realityEditor.gui.modal.showScreenTopNotification(message, duration);
+    }
 
     class WebRTCCoordinator {
         constructor(cameraVisCoordinator, ws, consumerId) {
@@ -15,7 +30,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.ws = ws;
             this.audioStream = null;
             this.consumerId = consumerId;
-            this.muted = false;
+            this.muted = true;
 
             this.webrtcConnections = {};
 
@@ -37,18 +52,20 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 });
             }
 
-            navigator.mediaDevices.getUserMedia({
+            this.audioStreamPromise = navigator.mediaDevices.getUserMedia({
                 video: false,
                 audio: {
                     noiseSuppression: true,
                 },
             }).then((stream) => {
                 this.audioStream = this.improveAudioStream(stream);
-                this.updateMutedState();
                 for (let conn of Object.values(this.webrtcConnections)) {
                     conn.audioStream = this.audioStream;
                     conn.localConnection.addStream(conn.audioStream);
                 }
+                this.updateMutedState();
+            }).catch(err => {
+                showError(ErrorMessage.noMicrophonePermissions, err, 10000);
             });
         }
 
@@ -88,7 +105,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }));
         }
 
-        onWsMessage(event) {
+        async onWsMessage(event) {
             let msg;
             try {
                 msg = JSON.parse(event.data);
@@ -102,18 +119,18 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             if (msg.command === 'joinNetwork') {
                 if (msg.role === 'provider') {
-                    this.initConnection(msg.src);
+                    await this.initConnection(msg.src);
                 }
                 return;
             }
 
             if (msg.command === 'discoverPeers' && msg.dest === this.consumerId) {
                 for (let provider of msg.providers) {
-                    this.initConnection(provider);
+                    await this.initConnection(provider);
                 }
                 for (let consumer of msg.consumers) {
                     if (consumer !== this.consumerId) {
-                        this.initConnection(consumer);
+                        await this.initConnection(consumer);
                     }
                 }
                 return;
@@ -127,6 +144,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }
 
             if (!this.webrtcConnections[msg.src]) {
+                if (!this.audioStream) {
+                    await this.audioStreamPromise;
+                }
+
                 this.webrtcConnections[msg.src] = new WebRTCConnection(
                     this.cameraVisCoordinator,
                     this.ws,
@@ -150,7 +171,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }
         }
 
-        initConnection(otherId) {
+        async initConnection(otherId) {
             const conn = this.webrtcConnections[otherId];
             const goodChannelStates = ['connecting', 'open'];
 
@@ -165,6 +186,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 if (!conn.offered) {
                     return;
                 }
+            }
+
+            if (!this.audioStream) {
+                await this.audioStreamPromise;
             }
 
             let newConn = new WebRTCConnection(
@@ -249,24 +274,6 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 }],
             });
 
-            this.receiveChannel = this.localConnection.createDataChannel(
-                'sendChannel',
-                {
-                    ordered: false,
-                    maxRetransmits: 0,
-                },
-            );
-            this.receiveChannel.binaryType = 'arraybuffer';
-            this.receiveChannel.onopen = this.onReceiveChannelStatusChange;
-            this.receiveChannel.onclose = this.onReceiveChannelStatusChange;
-            this.receiveChannel.addEventListener('message', this.onReceiveChannelMessage);
-
-            if (this.audioStream) {
-                this.localConnection.addStream(this.audioStream);
-            } else {
-                console.warn('missing audiostream');
-            }
-
             this.localConnection.addEventListener('icecandidate', (e) => {
                 if (DEBUG) {
                     console.log('webrtc local candidate', e);
@@ -312,12 +319,21 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
                 elt.autoplay = true;
                 elt.srcObject = e.streams[0];
+                let timesFailed = 0;
                 let autoplayWhenAvailableInterval = setInterval(() => {
                     try {
                         elt.play();
                     } catch (err) {
                         if (DEBUG) {
                             console.log('autoplay failed', err);
+                        }
+                        timesFailed += 1;
+                        // this is a delay of 3000 ms = 250 ms * 12 so that
+                        // notifications don't overlap but stay on screen for a
+                        // decent amount of time
+                        if (timesFailed > 12) {
+                            showError(ErrorMessage.autoplayBlocked, err, 12 * 250);
+                            timesFailed = 0;
                         }
                     }
                 }, 250);
@@ -327,6 +343,24 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 });
                 document.body.appendChild(elt);
             });
+
+            this.receiveChannel = this.localConnection.createDataChannel(
+                'sendChannel',
+                {
+                    ordered: false,
+                    maxRetransmits: 0,
+                },
+            );
+            this.receiveChannel.binaryType = 'arraybuffer';
+            this.receiveChannel.onopen = this.onReceiveChannelStatusChange;
+            this.receiveChannel.onclose = this.onReceiveChannelStatusChange;
+            this.receiveChannel.addEventListener('message', this.onReceiveChannelMessage);
+
+            if (this.audioStream) {
+                this.localConnection.addStream(this.audioStream);
+            } else {
+                console.warn('missing audiostream');
+            }
         }
 
         async connect() {
@@ -513,6 +547,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
         onWebRTCError(e) {
             console.error('webrtc error', e);
+            showError(ErrorMessage.webrtcIssue, e, 10000);
         }
 
         disconnect() {

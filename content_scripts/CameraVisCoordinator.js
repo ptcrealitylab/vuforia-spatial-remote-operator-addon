@@ -4,8 +4,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {rvl} from '../../thirdPartyCode/rvl/index.js';
 import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 import {CameraVis} from './CameraVis.js';
-import {CameraVisPatch} from './CameraVisPatch.js';
-import {ShaderMode} from './Shaders.js';
+import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
 
 (function(exports) {
     const debug = false;
@@ -30,7 +29,7 @@ import {ShaderMode} from './Shaders.js';
             this.voxelizer = null;
             this.webRTCCoordinator = null;
             this.cameras = {};
-            this.patches = {};
+            // this.patches = {}; // NOTE: patches have been moved to userinterface src/spatialCapture/SpatialPatchCoordinator
             this.visible = true;
             this.spaghettiVisible = false;
             this.currentShaderModeIndex = 0;
@@ -56,8 +55,6 @@ import {ShaderMode} from './Shaders.js';
             }
 
             this.startWebRTC();
-
-            this.addPatchToolLifecycleHandlers();
         }
 
         addMenuShortcuts() {
@@ -84,7 +81,7 @@ import {ShaderMode} from './Shaders.js';
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.TakeSpatialSnapshot, () => {
-                this.clonePatches(ShaderMode.SOLID);
+                realityEditor.spatialCapture.spatialPatchCoordinator.clonePatches(ShaderMode.SOLID, this.cameras);
             });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.CutoutViewFrustums, (toggled) => {
@@ -97,48 +94,6 @@ import {ShaderMode} from './Shaders.js';
                     }
                 }
             });
-        }
-
-        addPatchToolLifecycleHandlers() {
-            realityEditor.network.addPostMessageHandler('patchHydrate', (msgData) => {
-                const key = msgData.frame;
-                if (this.patches[key]) {
-                    // TODO contemplate updating existing patch
-                    return;
-                }
-                this.restorePatch(msgData.serialization);
-            });
-
-            realityEditor.network.addPostMessageHandler('patchSetShaderMode', (msgData) => {
-                const key = msgData.frame;
-                if (!this.patches[key]) {
-                    return;
-                }
-                this.patches[key].setShaderMode(msgData.shaderMode);
-            });
-
-
-            this.onVehicleDeleted = this.onVehicleDeleted.bind(this);
-            realityEditor.device.registerCallback('vehicleDeleted', this.onVehicleDeleted); // deleted using userinterface
-            realityEditor.network.registerCallback('vehicleDeleted', this.onVehicleDeleted); // deleted using server
-        }
-
-        /**
-         * If tool storing a patch is deleted, delete the
-         * corresponding patch
-         * @param {{objectKey: string?, frameKey: string?, nodeKey: string?}} event
-         */
-        onVehicleDeleted(event) {
-            if (!event.objectKey || !event.frameKey || event.nodeKey) {
-                return;
-            }
-            const key = event.frameKey;
-            if (!this.patches[key]) {
-                return;
-            }
-
-            this.patches[key].remove();
-            delete this.patches[key];
         }
 
         onAnimationFrame() {
@@ -570,49 +525,6 @@ import {ShaderMode} from './Shaders.js';
                 // stop propagation if we hit anything, otherwise pass the event on to the rest of the application
                 e.stopPropagation();
             });
-        }
-
-        restorePatch(serialization) {
-            const containerMatrix = new THREE.Matrix4().fromArray(serialization.container);
-            const phoneMatrix = new THREE.Matrix4().fromArray(serialization.phone);
-            const textureImage = document.createElement('img');
-            textureImage.src = serialization.texture;
-            const textureDepthImage = document.createElement('img');
-            textureDepthImage.src = serialization.textureDepth;
-
-            const patch = CameraVisPatch.createPatch(
-                containerMatrix,
-                phoneMatrix,
-                textureImage,
-                textureDepthImage,
-                serialization.creationTime,
-            );
-            patch.add();
-            this.patches[serialization.key] = patch;
-        }
-
-        /**
-         * Clone patches from every active CameraVis
-         * @param {ShaderMode} shaderMode - initial shader mode for the patches
-         * @return {{[key: string]: CameraVisPatch} map from patch key to patch
-         */
-        clonePatches(shaderMode) {
-            let clonedPatches = {};
-            for (let camera of Object.values(this.cameras)) {
-                const {key, patch} = camera.clonePatch(shaderMode);
-                patch.add();
-                this.patches[key] = patch;
-                clonedPatches[key] = patch;
-                // Hide for a bit to show the patch in space
-                camera.mesh.visible = false;
-                camera.mesh.__hidden = true;
-
-                setTimeout(() => {
-                    camera.mesh.visible = this.visible;
-                    camera.mesh.__hidden = !this.visible;
-                }, 300);
-            }
-            return clonedPatches;
         }
 
         advanceShaderMode() {
