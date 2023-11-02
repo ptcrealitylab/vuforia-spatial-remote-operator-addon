@@ -823,7 +823,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
         }
         deselectTarget() {
-            // set the target position to a point slightly in front of the camera, and then stop following
+            // set the target position to the mouse cursor position, and then stop following
             let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
             if (!selectedNode) { return; }
             let virtualizerMatrixThree = new THREE.Matrix4();
@@ -833,7 +833,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // the new focus of the camera should be the point 1 meter in front of the virtualizer
             let virtualizerForwardPosition = this.followingState.partiallyStabilizedTargetObject.getWorldPosition(new THREE.Vector3());
 
-            this.targetPosition = [virtualizerForwardPosition.x, virtualizerForwardPosition.y, virtualizerForwardPosition.z];
+            // this.targetPosition = [virtualizerForwardPosition.x, virtualizerForwardPosition.y, virtualizerForwardPosition.z];
 
             if (this.preStopFollowingDistanceToTarget === null) {
                 // calculate distance from this.position to virtualizerForwardPosition, so that we can zoom back to this
@@ -859,7 +859,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             if (this.preStopFollowingDistanceToTarget !== null) {
                 this.zoomBackToPreStopFollowLevel();
-                this.preRotateDistanceToTarget = this.preStopFollowingDistanceToTarget;
+                this.preRotateDistanceToTarget = this.preStopFollowingDistanceToTarget; // todo Steve: this.preRotateDistanceToTarget seems not to be used anywhere in the code. Is it still necessary?
                 this.preStopFollowingDistanceToTarget = null;
             }
 
