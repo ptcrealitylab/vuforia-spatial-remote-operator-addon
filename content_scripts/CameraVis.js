@@ -252,7 +252,6 @@ export class CameraVis extends Followable {
         }
         this.lastUpdate = now;
 
-
         if (rawMatricesMsg) {
             let width = this.material.uniforms.width.value;
             let height = this.material.uniforms.height.value;
@@ -269,6 +268,8 @@ export class CameraVis extends Followable {
                 (rawHeight - rawMatricesMsg.principalPoint[1]) / rawHeight * height,
             );
         }
+
+        this.updateViewDependentUniforms();
 
         if (this.time > now || !delayed) {
             this.setMatrix(mat);
@@ -418,6 +419,38 @@ export class CameraVis extends Followable {
             this.material = createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode, this.color);
             this.mesh.material = this.material;
         }
+    }
+
+    // sets the viewAngleSimilarity and viewPositionSimilarity uniforms on the point cloud based on viewer's perspective
+    // shader adds smoothness based on the multiplication of viewAngleSimilarity and viewPositionSimilarity
+    updateViewDependentUniforms() {
+        let viewingCameraForwardVector = realityEditor.gui.ar.utilities.getForwardVector(realityEditor.sceneGraph.getCameraNode().worldMatrix);
+
+        // NOTE: to adjust position-dependent effects, change these values or adjusting viewPositionSimilarity in the solidFragmentShader
+        let MIN_DISTANCE_THRESHOLD = 2000; // closer than this in mm => use smoother shader
+        let MAX_DISTANCE_THRESHOLD = 6000; // further than this in mm => use point cloud shader
+
+        // 1 if viewing from exact direction. 0 if viewing orthogonally or backwards.
+        let thisForwardVector = realityEditor.gui.ar.utilities.getForwardVector(this.phone.matrixWorld.elements);
+        // NOTE: to adjust angle-dependent effects, consider manipulating this number or adjusting viewAngleSimilarity in the solidFragmentShader
+        let viewAngleSimilarity = -1 * realityEditor.gui.ar.utilities.dotProduct(thisForwardVector, viewingCameraForwardVector);
+        viewAngleSimilarity = Math.max(0, viewAngleSimilarity); // limit it to 0 instead of going to -1 if viewing from anti-parallel direction
+
+        // 1 if closer than MIN_DISTANCE_THRESHOLD, 0 if further than MAX_DISTANCE_THRESHOLD
+        let viewingCameraPos = new THREE.Vector3(
+            realityEditor.sceneGraph.getCameraNode().worldMatrix[12],
+            realityEditor.sceneGraph.getCameraNode().worldMatrix[13],
+            realityEditor.sceneGraph.getCameraNode().worldMatrix[14]
+        );
+        let thisPos = new THREE.Vector3();
+        thisPos.setFromMatrixPosition(this.phone.matrixWorld);
+        let viewDistance = viewingCameraPos.distanceTo(thisPos);
+        let distanceFactor = 1.0 - (viewDistance - MIN_DISTANCE_THRESHOLD) / (MAX_DISTANCE_THRESHOLD - MIN_DISTANCE_THRESHOLD);
+        let viewPositionSimilarity = Math.min(1, Math.max(0, distanceFactor));
+
+        this.material.uniforms.viewAngleSimilarity.value = viewAngleSimilarity;
+        this.material.uniforms.viewPositionSimilarity.value = viewPositionSimilarity;
+        this.material.needsUpdate = true;
     }
 
     /* ---------------- Override Followable Functions ---------------- */
