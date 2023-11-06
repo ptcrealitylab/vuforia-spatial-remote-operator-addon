@@ -264,6 +264,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     urls: [
                         'stun:stun.l.google.com:19302',
                         'stun:stun4.l.google.com:19305',
+                        'stun:stun.nextcloud.com:443',
                     ],
                 }, {
                     urls: [
