@@ -31,6 +31,7 @@ createNameSpace('realityEditor.gui');
         ShowDeveloperMenu: 'Show Developer Menu',
         DebugAvatarConnections: 'Debug Avatar Connections',
         DeleteAllTools: 'Delete All Tools',
+        DownloadScan: 'Download Scan',
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
         ToggleAnalyticsSettings: 'Toggle Analytics Settings',
@@ -173,6 +174,9 @@ createNameSpace('realityEditor.gui');
             }
         });
         menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
+
+        const downloadScan = new MenuItem(ITEM.DownloadScan, { disabled: true });
+        menuBar.addItemToMenu(MENU.Develop, downloadScan);
 
         const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
             if (checked) {
