@@ -264,7 +264,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     urls: [
                         'stun:stun.l.google.com:19302',
                         'stun:stun4.l.google.com:19305',
-                        'stun:stun.nextcloud.com:443',
+                    ],
+                }, {
+                    urls: [
+                        'stun:stun.relay.metered.ca:80',
                     ],
                 }, {
                     urls: [
@@ -272,6 +275,12 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     ],
                     username: 'test',
                     credential: 'uWmkoS44agy7GTN',
+                }, {
+                    urls: [
+                        'turn:a.relay.metered.ca:443',
+                    ],
+                    username: 'c35c5795da892aeead553ae7',
+                    credential: 'QNFn8q+yPVb1XG6k',
                 }, {
                     urls: [
                         'turn:toolboxedge.net:3478'
