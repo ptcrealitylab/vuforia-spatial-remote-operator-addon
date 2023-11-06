@@ -272,6 +272,12 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     ],
                     username: 'test',
                     credential: 'uWmkoS44agy7GTN',
+                }, {
+                    urls: [
+                        'turn:toolboxedge.net:3478'
+                    ],
+                    username: 'ptc',
+                    credential: 'pgnhOCNXxwH2rz1qiV2hOuckkOtuu6Tx',
                 }],
             });
 
