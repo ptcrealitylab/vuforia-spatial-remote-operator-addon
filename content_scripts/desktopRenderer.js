@@ -271,6 +271,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                             cameraVisCoordinator.advanceShaderMode();
                         });
 
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.DownloadScan, () => {
+                            window.open(gltfPath, '_blank');
+                        });
+                        realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.DownloadScan, true);
+
                         if (!PROXY) {
                             const createVideoPlayback = () => {
                                 videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
