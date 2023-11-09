@@ -106,6 +106,7 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
 
         // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
+        
 
         virtualCamera.onPanToggled(function(isPanning) {
             if (isPanning && !knownInteractionStates.pan) {
@@ -117,6 +118,7 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
                 // console.log('stop pan');
                 panToggled();
             }
+            realityEditor.gui.ar.positioning.coverFull2DTools(isPanning);
         });
         virtualCamera.onRotateToggled(function(isRotating) {
             if (isRotating && !knownInteractionStates.rotate) {
@@ -129,6 +131,7 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
                 // console.log('stop rotate');
                 rotateToggled();
             }
+            realityEditor.gui.ar.positioning.coverFull2DTools(isRotating);
         });
         virtualCamera.onScaleToggled(function(isScaling) {
             if (isScaling && !knownInteractionStates.scale) {
