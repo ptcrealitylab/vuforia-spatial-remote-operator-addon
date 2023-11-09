@@ -5,6 +5,9 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 (function(exports) {
     const DEPTH_REPR_FORCE_PNG = false;
     const DEBUG = false;
+    // Coordinator re-sends joinNetwork message at this interval of ms until
+    // discoverPeers acknowledgement is received from remote peer
+    const JOIN_NETWORK_INTERVAL = 5000;
 
     const decoder = new TextDecoder();
 
@@ -32,6 +35,9 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.consumerId = consumerId;
             this.muted = true;
 
+            // setInterval result used for repeatedly sending joinNetwork
+            this.joinNetworkInterval = null;
+
             this.webrtcConnections = {};
 
             this.onWsOpen = this.onWsOpen.bind(this);
@@ -43,13 +49,17 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 this.ws.addEventListener('message', this.onWsMessage);
             } else {
                 this.ws.on('message', this.onToolsocketMessage);
-                this.ws.message('unused', {
-                    id: 'signalling', data: {
-                        command: 'joinNetwork',
-                        src: this.consumerId,
-                        role: 'consumer',
-                    },
-                });
+                const joinNetwork = () => {
+                    this.ws.message('unused', {
+                        id: 'signalling', data: {
+                            command: 'joinNetwork',
+                            src: this.consumerId,
+                            role: 'consumer',
+                        },
+                    });
+                }
+                joinNetwork();
+                this.joinNetworkInterval = setInterval(joinNetwork, JOIN_NETWORK_INTERVAL);
             }
 
             this.audioStreamPromise = navigator.mediaDevices.getUserMedia({
@@ -98,11 +108,18 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         onWsOpen() {
-            this.ws.send(JSON.stringify({
-                command: 'joinNetwork',
-                src: this.consumerId,
-                role: 'consumer',
-            }));
+            const joinNetwork = () => {
+                this.ws.send(JSON.stringify({
+                    command: 'joinNetwork',
+                    src: this.consumerId,
+                    role: 'consumer',
+                }));
+            };
+            joinNetwork();
+            if (this.joinNetworkInterval) {
+                clearInterval(this.joinNetworkInterval);
+            }
+            this.joinNetworkInterval = setInterval(joinNetwork, JOIN_NETWORK_INTERVAL);
         }
 
         async onWsMessage(event) {
@@ -125,6 +142,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }
 
             if (msg.command === 'discoverPeers' && msg.dest === this.consumerId) {
+                if (this.joinNetworkInterval) {
+                    clearInterval(this.joinNetworkInterval);
+                    this.joinNetworkInterval = null;
+                }
                 for (let provider of msg.providers) {
                     await this.initConnection(provider);
                 }
