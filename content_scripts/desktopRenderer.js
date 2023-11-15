@@ -61,6 +61,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
     let didAddModeTransitionListeners = false;
     let gltfUpdateCallbacks = [];
 
+    const renderingFlagName = 'loadingWorldMesh';
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -77,7 +79,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
 
         didInit = true;
 
-        const renderingFlagName = 'loadingWorldMesh';
         realityEditor.device.environment.addSuppressedObjectRenderingFlag(renderingFlagName); // hide tools until the model is loaded
 
         // when a new object is detected, check if we need to create a socket connection with its server
@@ -114,10 +115,13 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             // try loading area target GLB file into the threejs scene
             isGlbLoaded = true;
             let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
+            let checkGltfPath = realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/object/' + objectKey + '/checkFileExists/target/target.glb');
 
             function checkExist() {
-                fetch(gltfPath).then(res => {
-                    if (!res.ok) {
+                fetch(checkGltfPath).then((res) => {
+                    return res.json();
+                }).then((body) => {
+                    if (!body.exists) {
                         setTimeout(checkExist, 500);
                     } else {
                         realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
@@ -139,7 +143,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
 
-                realityEditor.device.desktopCamera.initService(floorOffset);
+                initializeCameraSystem(floorOffset);
 
                 let ceilingHeight = Math.max(
                     navmesh.maxY - navmesh.minY,
@@ -203,7 +207,9 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                         }
                     });
 
-                    realityEditor.device.meshLine.inject();
+                    // realityEditor.device.meshLine.inject();
+
+                    initializeSceneAfterMeshLoaded();
 
                     // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
                     let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -374,6 +380,36 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                 logicCanvas.style.pointerEvents = 'none';
             }
         );
+        
+        realityEditor.worldObjects.onDetectedEmptyWorld((objectKey) => {
+            initializeCameraSystem(0);
+            initializeSceneAfterMeshLoaded();
+        });
+    }
+
+    let cameraSystemInitialized = false;
+    function initializeCameraSystem(floorOffset = 0) {
+        if (cameraSystemInitialized) return; // make sure this only happens once
+        cameraSystemInitialized = true;
+
+        realityEditor.device.desktopCamera.initService(floorOffset);
+    }
+
+    let sceneInitialized = false;
+    function initializeSceneAfterMeshLoaded() {
+        if (sceneInitialized) return; // make sure this only happens once
+        sceneInitialized = true;
+
+        realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
+        // let endMarker = document.createElement('div');
+        // endMarker.style.display = 'none';
+        // endMarker.id = 'gltf-added';
+        // document.body.appendChild(endMarker);
+        realityEditor.device.meshLine.inject();
+        // TODO: do we want to do this? Avatars *should* probably initialize here
+        // // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
+        // let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        // realityEditor.worldObjects.setOrigin(objectKey, identity);
     }
 
     /**
