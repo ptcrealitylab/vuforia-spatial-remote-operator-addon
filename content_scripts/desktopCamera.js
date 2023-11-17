@@ -9,7 +9,7 @@
 createNameSpace('realityEditor.device.desktopCamera');
 
 import { CameraFollowCoordinator } from './CameraFollowCoordinator.js';
-import { AnalyticsFollowable } from './AnalyticsFollowable.js';
+import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
@@ -52,7 +52,7 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
     let cameraTransitionPosition_VR = null;
     let cameraTransitionTarget_VR = null;
 
-    let analyticsFollowables = {};
+    let motionStudyFollowables = {};
 
     /**
      * Public init method to enable rendering if isDesktop
@@ -224,18 +224,18 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
         //     console.log('onVideoPaused', player.id, player);
         // });
 
-        // ---- Add and remove follow targets when analytics are opened ---- //
+        // ---- Add and remove follow targets when motion studies are opened ---- //
 
         realityEditor.network.addPostMessageHandler('analyticsOpen', (msgData) => {
-            if (typeof analyticsFollowables[msgData.frame] === 'undefined') {
-                analyticsFollowables[msgData.frame] = new AnalyticsFollowable(msgData.frame);
+            if (typeof motionStudyFollowables[msgData.frame] === 'undefined') {
+                motionStudyFollowables[msgData.frame] = new MotionStudyFollowable(msgData.frame);
             }
-            followCoordinator.addFollowTarget(analyticsFollowables[msgData.frame]);
+            followCoordinator.addFollowTarget(motionStudyFollowables[msgData.frame]);
         });
 
         realityEditor.network.addPostMessageHandler('analyticsClose', (msgData) => {
-            if (!analyticsFollowables[msgData.frame]) return;
-            followCoordinator.removeFollowTarget(analyticsFollowables[msgData.frame].id);
+            if (!motionStudyFollowables[msgData.frame]) return;
+            followCoordinator.removeFollowTarget(motionStudyFollowables[msgData.frame].id);
         });
 
         const keyboard = new realityEditor.device.KeyboardListener();
