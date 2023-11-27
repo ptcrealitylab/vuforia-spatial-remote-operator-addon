@@ -68,12 +68,22 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     noiseSuppression: true,
                 },
             }).then((stream) => {
-                this.audioStream = this.improveAudioStream(stream);
-                for (let conn of Object.values(this.webrtcConnections)) {
-                    conn.audioStream = this.audioStream;
-                    conn.localConnection.addStream(conn.audioStream);
+
+                // completely don't add the audioStream to the webRTC connection if noAudio is specified
+                let searchParams = new URLSearchParams(window.location.search);
+                let noAudioFlag = searchParams.get('noAudio');
+                if (noAudioFlag && JSON.parse(noAudioFlag) === true) {
+                    this.muted = true;
+                    console.warn('Totally disabled audioStream because &noAudio=true in URL');
+                } else {
+                    this.audioStream = this.improveAudioStream(stream);
+                    for (let conn of Object.values(this.webrtcConnections)) {
+                        conn.audioStream = this.audioStream;
+                        conn.localConnection.addStream(conn.audioStream);
+                    }
                 }
                 this.updateMutedState();
+
             }).catch(err => {
                 showError(ErrorMessage.noMicrophonePermissions, err, 10000);
             });
