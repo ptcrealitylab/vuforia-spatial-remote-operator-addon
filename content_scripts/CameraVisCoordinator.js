@@ -1,16 +1,13 @@
 createNameSpace('realityEditor.device.cameraVis');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
-import {rvl} from '../../thirdPartyCode/rvl/index.js';
-import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 import {CameraVis} from './CameraVis.js';
-import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
+import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
 (function(exports) {
     const debug = false;
     const ENABLE_PICTURE_IN_PICTURE = false;
     const FIRST_PERSON_CANVAS = false;
-    const DEPTH_REPR_PNG = false;
     const DEPTH_WIDTH = 256;
     const DEPTH_HEIGHT = 144;
     const CONNECTION_TIMEOUT_MS = 10000;
@@ -21,8 +18,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
         ShaderMode.POINT,
         ShaderMode.HOLO,
     ];
-
-    const urlBase = 'ws://' + window.location.hostname + ':31337/';
 
     exports.CameraVisCoordinator = class CameraVisCoordinator {
         constructor(floorOffset) {
@@ -116,33 +111,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             window.requestAnimationFrame(this.onAnimationFrame);
         }
 
-        connectWsToMatrix(url) {
-            if (realityEditor.cloud.socket) {
-                const ws = realityEditor.cloud.socket;
-
-                ws.on('message', async (route, body, cbObj, bin) => {
-                    if (body.id !== 'matrix') {
-                        return;
-                    }
-
-                    const id = bin.data[0];
-                    // const pktType = bytes[1];
-                    // if (pktType === PKT_MATRIX) {
-                    const mat = new Float32Array(bin.data.slice(1, bin.data.length).buffer);
-                    // }
-                    this.updateMatrix(id, mat, true, null);
-                });
-            } else {
-                const ws = new WebSocket(url);
-                ws.addEventListener('message', async (msg) => {
-                    const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
-                    const id = bytes[0];
-                    const mat = new Float32Array(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                    this.updateMatrix(id, mat, true, null);
-                });
-            }
-        }
-
         updateMatrix(id, mat, delayed, rawMatricesMsg) {
             if (!this.cameras[id]) {
                 this.createCameraVis(id);
@@ -150,61 +118,10 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             this.cameras[id].update(mat, delayed, rawMatricesMsg);
         }
 
-        connect() {
-            const connectWsToTexture = (url, textureKey, mimetype) => {
-                if (realityEditor.cloud.socket) {
-                    const ws = realityEditor.cloud.socket;
-
-                    ws.on('message', async (route, body, cbObj, bin) => {
-                        if (body.id !== 'depth' && body.id !== 'color') {
-                            return;
-                        }
-                        if (body.id === 'depth' && textureKey !== 'textureDepth') {
-                            return;
-                        }
-                        if (body.id === 'color' && textureKey !== 'texture') {
-                            return;
-                        }
-
-                        const bytes = new Uint8Array(bin.data.slice(0, 1));
-                        const id = bytes[0];
-                        const imageBlob = new Blob([bin.data.slice(1, bin.data.length).buffer], {type: mimetype});
-                        const imageUrl = URL.createObjectURL(imageBlob);
-                        this.renderPointCloud(id, textureKey, imageUrl);
-                    });
-                } else {
-                    const ws = new WebSocket(url);
-
-                    ws.addEventListener('message', async (msg) => {
-                        const bytes = new Uint8Array(await msg.data.slice(0, 1).arrayBuffer());
-                        const id = bytes[0];
-                        if (textureKey === 'textureDepth' && !DEPTH_REPR_PNG) {
-                            const parser = new RVLParser(await msg.data.slice(1, msg.data.size).arrayBuffer());
-                            const rawDepth = rvl.decompress(parser.currentFrame.rvlBuf);
-                            this.renderPointCloudRawDepth(id, rawDepth);
-                            return;
-                        }
-
-                        const imageBlob = msg.data.slice(1, msg.data.size, mimetype);
-                        const imageUrl = URL.createObjectURL(imageBlob);
-                        this.renderPointCloud(id, textureKey, imageUrl);
-                    });
-                }
-            };
-
-            const urlColor = urlBase + 'color';
-            const urlDepth = urlBase + 'depth';
-            const urlMatrix = urlBase + 'matrix';
-
-            connectWsToTexture(urlColor, 'texture', 'image/jpeg');
-            connectWsToTexture(urlDepth, 'textureDepth', 'image/png');
-            this.connectWsToMatrix(urlMatrix);
-        }
-
         startWebRTC() {
             const network = 'cam' + Math.floor(Math.random() * 1000);
 
-            const ws = realityEditor.cloud.socket || new WebSocket(urlBase + 'signalling');
+            const ws = realityEditor.cloud.socket || realityEditor.network.realtime.getDesktopSocket();
             this.webRTCCoordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 
