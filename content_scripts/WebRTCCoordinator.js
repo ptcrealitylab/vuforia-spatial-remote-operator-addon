@@ -40,27 +40,18 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             this.webrtcConnections = {};
 
-            this.onWsOpen = this.onWsOpen.bind(this);
-            this.onWsMessage = this.onWsMessage.bind(this);
             this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
 
-            if (ws instanceof WebSocket) {
-                this.ws.addEventListener('open', this.onWsOpen);
-                this.ws.addEventListener('message', this.onWsMessage);
-            } else {
-                this.ws.on('message', this.onToolsocketMessage);
-                const joinNetwork = () => {
-                    this.ws.message('unused', {
-                        id: 'signalling', data: {
-                            command: 'joinNetwork',
-                            src: this.consumerId,
-                            role: 'consumer',
-                        },
-                    });
-                }
-                joinNetwork();
-                this.joinNetworkInterval = setInterval(joinNetwork, JOIN_NETWORK_INTERVAL);
-            }
+            this.ws.on('/signalling', this.onToolsocketMessage);
+            const joinNetwork = () => {
+                this.ws.emit('/signalling', JSON.stringify({
+                    command: 'joinNetwork',
+                    src: this.consumerId,
+                    role: 'consumer',
+                }));
+            };
+            joinNetwork();
+            this.joinNetworkInterval = setInterval(joinNetwork, JOIN_NETWORK_INTERVAL);
 
             this.audioStreamPromise = navigator.mediaDevices.getUserMedia({
                 video: false,
@@ -107,25 +98,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             this.updateMutedState();
         }
 
-        onWsOpen() {
-            const joinNetwork = () => {
-                this.ws.send(JSON.stringify({
-                    command: 'joinNetwork',
-                    src: this.consumerId,
-                    role: 'consumer',
-                }));
-            };
-            joinNetwork();
-            if (this.joinNetworkInterval) {
-                clearInterval(this.joinNetworkInterval);
-            }
-            this.joinNetworkInterval = setInterval(joinNetwork, JOIN_NETWORK_INTERVAL);
-        }
-
-        async onWsMessage(event) {
+        async onToolsocketMessage(msgRaw) {
             let msg;
             try {
-                msg = JSON.parse(event.data);
+                msg = JSON.parse(msgRaw);
             } catch (e) {
                 console.warn('ws parse error', e, event);
                 return;
@@ -179,17 +155,6 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 this.webrtcConnections[msg.src].initLocalConnection();
             }
             this.webrtcConnections[msg.src].onSignallingMessage(msg);
-        }
-
-        onToolsocketMessage(route, body, cbObj, bin) {
-            if (body.id !== 'signalling') {
-                return;
-            }
-            if (bin && bin.data) {
-                this.onWsMessage({data: decoder.decode(bin.data)});
-            } else {
-                this.onWsMessage({data: JSON.stringify(body.data)});
-            }
         }
 
         async initConnection(otherId) {
@@ -427,11 +392,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         sendSignallingMessage(message) {
-            if (this.ws instanceof WebSocket) {
-                this.ws.send(JSON.stringify(message));
-            } else {
-                this.ws.message('unused', {id: 'signalling', data: message});
-            }
+            this.ws.emit('/signalling', JSON.stringify(message));
         }
 
 
