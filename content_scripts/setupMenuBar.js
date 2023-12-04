@@ -34,7 +34,7 @@ createNameSpace('realityEditor.gui');
         DownloadScan: 'Download Scan',
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
-        ToggleAnalyticsSettings: 'Toggle Analytics Settings',
+        ToggleMotionStudySettings: 'Toggle Analytics Settings',
         ToggleHumanPoses: 'Human Poses',
         DarkMode: 'Dark Mode',
         CutoutViewFrustums: 'Cut Out 3D Videos',
@@ -106,8 +106,8 @@ createNameSpace('realityEditor.gui');
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
 
-        const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { toggle: true, defaultVal: false }, null);
-        menuBar.addItemToMenu(MENU.History, toggleAnalyticsSettings);
+        const toggleMotionStudySettings = new MenuItem(ITEM.ToggleMotionStudySettings, { toggle: true, defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.History, toggleMotionStudySettings);
 
         const takeSpatialSnapshot = new MenuItem(ITEM.TakeSpatialSnapshot, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, takeSpatialSnapshot);

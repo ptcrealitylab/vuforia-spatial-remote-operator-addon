@@ -350,7 +350,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             });
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleAnalyticsSettings, () => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleMotionStudySettings, () => {
             if (!realityEditor.humanPose.draw) { return; }
             realityEditor.humanPose.draw.toggleAnalyzerSettingsUI();
         });

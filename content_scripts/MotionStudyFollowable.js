@@ -3,21 +3,21 @@ import { Followable } from '../../src/gui/ar/Followable.js';
 /**
  * Constructs and updates the sceneNode to follow a humanPoseAnalyzer's pose object
  */
-export class AnalyticsFollowable extends Followable {
+export class MotionStudyFollowable extends Followable {
     static count = 0;
 
     constructor(frameKey) {
-        AnalyticsFollowable.count++;
+        MotionStudyFollowable.count++;
         let parentNode = realityEditor.sceneGraph.getVisualElement('AnalyticsCameraGroupContainer');
         if (!parentNode) {
             let gpNode = realityEditor.sceneGraph.getGroundPlaneNode();
-            let analyticsCameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('AnalyticsCameraGroupContainer', gpNode);
-            parentNode = realityEditor.sceneGraph.getSceneNodeById(analyticsCameraGroupContainerId);
+            let motionStudyCameraGroupContainerId = realityEditor.sceneGraph.addVisualElement('AnalyticsCameraGroupContainer', gpNode);
+            parentNode = realityEditor.sceneGraph.getSceneNodeById(motionStudyCameraGroupContainerId);
             let transformationMatrix = realityEditor.gui.ar.utilities.makeGroundPlaneRotationX(Math.PI / 2);
             transformationMatrix[13] = -1 * realityEditor.gui.ar.areaCreator.calculateFloorOffset(); // ground plane translation
             parentNode.setLocalMatrix(transformationMatrix);
         }
-        let menuItemName = `Analytics ${AnalyticsFollowable.count}`;
+        let menuItemName = `Analytics ${MotionStudyFollowable.count}`;
         super(`AnalyticsFollowable_${frameKey}`, menuItemName, parentNode);
 
         this.frameKey = frameKey;
@@ -27,12 +27,12 @@ export class AnalyticsFollowable extends Followable {
     // continuously updates the sceneNode to be positioned a bit behind the
     // person's chest joint, rotated to match the direction that the person is facing
     updateSceneNode() {
-        let matchingAnalytics = realityEditor.analytics.getAnalyticsByFrame(this.frameKey);
-        if (!matchingAnalytics) return;
-        if (matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones.length === 0) return;
+        let matchingMotionStudy = realityEditor.motionStudy.getMotionStudyByFrame(this.frameKey);
+        if (!matchingMotionStudy) return;
+        if (matchingMotionStudy.humanPoseAnalyzer.lastDisplayedClones.length === 0) return;
         // TODO: for now we're following the first clone detected in that timestamp but if we support
         //  tracking multiple people at once then need to implement a way to switch to follow the second person
-        let joints = matchingAnalytics.humanPoseAnalyzer.lastDisplayedClones[0].pose.joints;
+        let joints = matchingMotionStudy.humanPoseAnalyzer.lastDisplayedClones[0].pose.joints;
         let THREE = realityEditor.gui.threejsScene.THREE;
         // we calculate the direction the person is facing by crossing two vectors:
         // the neckToHead vector, and the neckToLeftShoulder vector
