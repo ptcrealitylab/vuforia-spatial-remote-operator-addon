@@ -21,8 +21,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
     const PROXY = !window.location.port || window.location.port === "443";
 
     // polyfill for requestAnimationFrame to provide a smooth update loop
-    let requestAnimationFrame = window.requestAnimationFrame ||
-        window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
+    //let requestAnimationFrame = window.requestAnimationFrame ||
+    //    window.webkitRequestAnimationFrame || function(cb) {setTimeout(cb, 17);};
 
     // holds the most recent set of objectId/matrix pairs so that they can be rendered on the next frame
     let visibleObjects = {};
@@ -112,7 +112,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
         setupKeyboardWhenReady();
 
         setTimeout(() => {
-            update();
+            //update();
+            realityEditor.gui.threejsScene.getInternals().renderer3D.setAnimationLoop(update);
         }, 100);
     }
 
@@ -397,7 +398,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
         // start the update loop when the remote operator is shown
         realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
-            update(); // start update loop
+            //update(); // start update loop
+            realityEditor.gui.threejsScene.getInternals().renderer3D.setAnimationLoop(update);
             calculateProjectionMatrices(window.innerWidth, window.innerHeight); // update proj matrices
         });
     }
@@ -414,7 +416,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
         realityEditor.gui.ar.draw.update(getVisibleObjects());
 
         // repeat loop on next render
-        requestAnimationFrame(update);
+        //requestAnimationFrame(update);
     }
 
     function getVisibleObjects() {
