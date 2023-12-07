@@ -245,7 +245,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                         });
 
                         cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
-                        cameraVisCoordinator.connect();
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
                             cameraVisSceneNodes.push(cameraVis.sceneNode);
