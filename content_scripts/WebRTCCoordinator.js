@@ -44,11 +44,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             this.ws.on('/signalling', this.onToolsocketMessage);
             const joinNetwork = () => {
-                this.ws.emit('/signalling', JSON.stringify({
+                this.ws.emit('/signalling', {
                     command: 'joinNetwork',
                     src: this.consumerId,
                     role: 'consumer',
-                }));
+                });
             };
             joinNetwork();
             this.joinNetworkInterval = setInterval(joinNetwork, JOIN_NETWORK_INTERVAL);
@@ -101,7 +101,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         async onToolsocketMessage(msgRaw) {
             let msg;
             try {
-                msg = JSON.parse(msgRaw);
+                msg = typeof msgRaw === 'string' ? JSON.parse(msgRaw) : msgRaw;
             } catch (e) {
                 console.warn('ws parse error', e, event);
                 return;
@@ -392,7 +392,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         sendSignallingMessage(message) {
-            this.ws.emit('/signalling', JSON.stringify(message));
+            this.ws.emit('/signalling', message);
         }
 
 
