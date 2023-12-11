@@ -40,19 +40,14 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             this.webrtcConnections = {};
 
-            this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
+            this.subscribedObjects = {};
 
-            if (!this.ws.emit) {
-                this.ws.emit = (title, message, data) => {
-                    this.ws.socket.io(title, message, null, data);
-                };
-                this.ws.socket.on('io', (route, msg, res, data) => {
-                    this.ws.emitInt(route, msg, data);
-                });
-            }
+            this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
+            this.sendSignallingMessage = this.sendSignallingMessage.bind(this);
+
             this.ws.on('/signalling', this.onToolsocketMessage);
             const joinNetwork = () => {
-                this.ws.emit('/signalling', {
+                this.sendSignallingMessage({
                     command: 'joinNetwork',
                     src: this.consumerId,
                     role: 'consumer',
@@ -76,6 +71,20 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }).catch(err => {
                 showError(ErrorMessage.noMicrophonePermissions, err, 10000);
             });
+        }
+
+        sendSignallingMessage(message) {
+            let identifier = 'unused';
+            const worldObject = realityEditor.worldObjects.getBestWorldObject();
+            if (worldObject) {
+                identifier = worldObject.port;
+                if (!this.subscribedObjects[identifier]) {
+                    this.subscribedObjects[identifier] = true;
+                    let serverSocket = realityEditor.network.realtime.getServerSocketForObject(worldObject.objectId);
+                    serverSocket.on('/signalling', this.onToolsocketMessage);
+                }
+            }
+            this.ws.emit(realityEditor.network.getIoTitle(identifier, '/signalling'), message);
         }
 
         improveAudioStream(stream) {
@@ -154,6 +163,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 }
 
                 this.webrtcConnections[msg.src] = new WebRTCConnection(
+                    this.sendSignallingMessage,
                     this.cameraVisCoordinator,
                     this.ws,
                     this.audioStream,
@@ -187,6 +197,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }
 
             let newConn = new WebRTCConnection(
+                this.sendSignallingMessage,
                 this.cameraVisCoordinator,
                 this.ws,
                 this.audioStream,
@@ -200,7 +211,8 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     }
 
     class WebRTCConnection {
-        constructor(cameraVisCoordinator, ws, audioStream, consumerId, providerId) {
+        constructor(sendSignallingMessageImpl, cameraVisCoordinator, ws, audioStream, consumerId, providerId) {
+            this.sendSignallingMessageImpl = sendSignallingMessageImpl;
             this.cameraVisCoordinator = cameraVisCoordinator;
             this.ws = ws;
             this.consumerId = consumerId;
@@ -400,9 +412,8 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
         }
 
         sendSignallingMessage(message) {
-            this.ws.emit('/signalling', message);
+            this.sendSignallingMessageImpl(message);
         }
-
 
         onSendChannelStatusChange() {
             if (!this.sendChannel) {
