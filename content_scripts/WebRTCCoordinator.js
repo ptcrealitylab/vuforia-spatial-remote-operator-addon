@@ -42,6 +42,14 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             this.onToolsocketMessage = this.onToolsocketMessage.bind(this);
 
+            if (!this.ws.emit) {
+                this.ws.emit = (title, message, data) => {
+                    this.ws.socket.io(title, message, null, data);
+                };
+                this.ws.socket.on('io', (route, msg, res, data) => {
+                    this.ws.emitInt(route, msg, data);
+                });
+            }
             this.ws.on('/signalling', this.onToolsocketMessage);
             const joinNetwork = () => {
                 this.ws.emit('/signalling', {
