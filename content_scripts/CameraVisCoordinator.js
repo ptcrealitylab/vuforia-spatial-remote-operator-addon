@@ -121,7 +121,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
         startWebRTC() {
             const network = 'cam' + Math.floor(Math.random() * 1000);
 
-            const ws = realityEditor.cloud.socket || realityEditor.network.realtime.getDesktopSocket();
+            const ws = realityEditor.network.realtime.getDesktopSocket();
             this.webRTCCoordinator = new realityEditor.device.cameraVis.WebRTCCoordinator(this, ws, network);
         }
 
