@@ -35,7 +35,6 @@ createNameSpace('realityEditor.gui');
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
         ToggleMotionStudySettings: 'Toggle Analytics Settings',
-        ToggleHumanPoses: 'Human Poses',
         DarkMode: 'Dark Mode',
         CutoutViewFrustums: 'Cut Out 3D Videos',
         ShowFPS: 'Show FPS',
@@ -72,9 +71,6 @@ createNameSpace('realityEditor.gui');
             console.log('toggle point clouds', value);
         });
         menuBar.addItemToMenu(MENU.View, togglePointClouds);
-
-        const toggleHumanPoses = new MenuItem(ITEM.ToggleHumanPoses, { shortcutKey: 'H', toggle: true, defaultVal: true, disabled: false }, null);
-        menuBar.addItemToMenu(MENU.View, toggleHumanPoses);
 
         const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
