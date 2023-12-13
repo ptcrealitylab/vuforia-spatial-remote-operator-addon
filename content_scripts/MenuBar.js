@@ -28,13 +28,21 @@ createNameSpace('realityEditor.gui');
                 this.menus.forEach(menu => {
                     menu.items.forEach(item => {
                         if (typeof item.onKeyDown === 'function') {
-                            item.onKeyDown(code, modifiers);
+                            try {
+                                item.onKeyDown(code, modifiers);
+                            } catch (e) {
+                                console.warn('Error in MenuBar item.onKeyDown', e);
+                            }
                         }
                         // also add keyboard shortcuts to one-level-deep of submenus
                         if (item.hasSubmenu) {
                             item.submenu.items.forEach(subItem => {
                                 if (typeof subItem.onKeyDown === 'function') {
-                                    subItem.onKeyDown(code, modifiers);
+                                    try {
+                                        subItem.onKeyDown(code, modifiers);
+                                    } catch (e) {
+                                        console.warn('Error in MenuBar subItem.onKeyDown', e);
+                                    }
                                 }
                             });
                         }
