@@ -10,7 +10,7 @@ createNameSpace('realityEditor.gui.ar.desktopRenderer');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import {UNIFORMS, MAX_VIEW_FRUSTUMS} from '../../src/gui/ViewFrustum.js';
-import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
+import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
@@ -55,7 +55,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
     let cameraVisSceneNodes = [];
 
     let cameraVisFrustums = [];
-    
+
     let didInit = false;
 
     let didAddModeTransitionListeners = false;
@@ -71,7 +71,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
         }
 
         addModeTransitionListeners();
-        
+
         if (realityEditor.device.environment.isARMode()) { return; }
         if (didInit) return;
 
@@ -180,9 +180,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                             obj.oldMaterial = greyMaterial;
 
                             // to improve performance on mobile devices, switch to simpler material (has very large effect)
-                            // TODO: to re-enable frustum culling on desktop, add this: && !realityEditor.device.environment.isDesktop()
-                            //  so that we don't swap to the original material on desktop. also need to update threejsScene.js
-                            if (typeof obj.originalMaterial !== 'undefined') {
+                            if (!realityEditor.device.environment.isDesktop() && typeof obj.originalMaterial !== 'undefined') {
                                 obj.material.dispose(); // free resources from the advanced material
                                 obj.material = obj.originalMaterial;
 
@@ -247,7 +245,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                         });
 
                         cameraVisCoordinator = new realityEditor.device.cameraVis.CameraVisCoordinator(floorOffset);
-                        cameraVisCoordinator.connect();
                         cameraVisCoordinator.onCameraVisCreated(cameraVis => {
                             console.log('onCameraVisCreated', cameraVis);
                             cameraVisSceneNodes.push(cameraVis.sceneNode);
@@ -273,6 +270,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                             cameraVisCoordinator.advanceShaderMode();
                         });
 
+                        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.DownloadScan, () => {
+                            window.open(gltfPath, '_blank');
+                        });
+                        realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.DownloadScan, true);
+
                         if (!PROXY) {
                             const createVideoPlayback = () => {
                                 videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
@@ -280,7 +282,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
                                 videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
                                 videoPlayback.load();
                                 // window.videoPlayback = videoPlayback;
-                            }
+                            };
 
                             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
                                 if (!videoPlayback) {
@@ -347,14 +349,9 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             });
         });
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleAnalyticsSettings, () => {
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleMotionStudySettings, () => {
             if (!realityEditor.humanPose.draw) { return; }
             realityEditor.humanPose.draw.toggleAnalyzerSettingsUI();
-        });
-
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleHumanPoses, (toggled) => {
-            if (!realityEditor.humanPose.draw) { return; }
-            realityEditor.humanPose.draw.setHumanPosesVisible(toggled);
         });
 
         realityEditor.gui.buttons.registerCallbackForButton(
@@ -534,11 +531,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
     exports.getCameraVisSceneNodes = () => {
         return cameraVisSceneNodes;
     };
-    
+
     exports.updateAreaGltfForCamera = function(cameraId, cameraWorldMatrix, maxDepthMeters) {
         if (!gltf || typeof gltf.traverse === 'undefined') return;
         const utils = realityEditor.gui.ar.utilities;
-        
+
         let cameraPosition = new THREE.Vector3(
             cameraWorldMatrix.elements[12] / 1000,
             cameraWorldMatrix.elements[13] / 1000,
@@ -550,11 +547,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
         let cameraUp = utils.normalize(utils.getUpVector(cameraWorldMatrix.elements));
 
         let thisFrustumPlanes = realityEditor.gui.threejsScene.updateMaterialCullingFrustum(cameraId, cameraPos, cameraLookAtPosition, cameraUp, maxDepthMeters);
-        
+
         gltf.traverse(child => {
             updateFrustumUniforms(child, cameraId, thisFrustumPlanes);
         });
-    }
+    };
 
     function updateFrustumUniforms(mesh, cameraId, frustumPlanes) {
         if (!mesh.material || !mesh.material.uniforms) return;
@@ -571,7 +568,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             let existingFrustums = mesh.material.uniforms[UNIFORMS.frustums].value;
             existingFrustums[cameraFrustumIndex] = frustumPlanes;
             mesh.material.uniforms[UNIFORMS.frustums].value = existingFrustums;
-            mesh.material.needsUpdate = true
+            mesh.material.needsUpdate = true;
         }
     }
 
@@ -608,24 +605,24 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             });
         });
     }
-    
+
     function showScene() {
         if (!gltf) return;
         gltf.visible = true;
         realityEditor.gui.threejsScene.addToScene(gltf);
     }
-    
+
     function hideScene() {
         if (!gltf) return;
         gltf.visible = false;
         realityEditor.gui.threejsScene.removeFromScene(gltf);
     }
-    
+
     exports.initService = initService;
-    
+
     exports.getCameraVisCoordinator = () => {
         return cameraVisCoordinator;
-    }
+    };
 
     realityEditor.addons.addCallback('init', initService);
 })(realityEditor.gui.ar.desktopRenderer);

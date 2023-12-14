@@ -31,10 +31,10 @@ createNameSpace('realityEditor.gui');
         ShowDeveloperMenu: 'Show Developer Menu',
         DebugAvatarConnections: 'Debug Avatar Connections',
         DeleteAllTools: 'Delete All Tools',
+        DownloadScan: 'Download Scan',
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
-        ToggleAnalyticsSettings: 'Toggle Analytics Settings',
-        ToggleHumanPoses: 'Human Poses',
+        ToggleMotionStudySettings: 'Toggle Analytics Settings',
         DarkMode: 'Dark Mode',
         CutoutViewFrustums: 'Cut Out 3D Videos',
         ShowFPS: 'Show FPS',
@@ -72,9 +72,6 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.View, togglePointClouds);
 
-        const toggleHumanPoses = new MenuItem(ITEM.ToggleHumanPoses, { shortcutKey: 'H', toggle: true, defaultVal: true, disabled: false }, null);
-        menuBar.addItemToMenu(MENU.View, toggleHumanPoses);
-
         const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
 
@@ -105,8 +102,8 @@ createNameSpace('realityEditor.gui');
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);
 
-        const toggleAnalyticsSettings = new MenuItem(ITEM.ToggleAnalyticsSettings, { toggle: true, defaultVal: false }, null);
-        menuBar.addItemToMenu(MENU.History, toggleAnalyticsSettings);
+        const toggleMotionStudySettings = new MenuItem(ITEM.ToggleMotionStudySettings, { toggle: true, defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.History, toggleMotionStudySettings);
 
         const takeSpatialSnapshot = new MenuItem(ITEM.TakeSpatialSnapshot, { shortcutKey: 'P', disabled: true }, null);
         menuBar.addItemToMenu(MENU.History, takeSpatialSnapshot);
@@ -173,6 +170,9 @@ createNameSpace('realityEditor.gui');
             }
         });
         menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
+
+        const downloadScan = new MenuItem(ITEM.DownloadScan, { disabled: true });
+        menuBar.addItemToMenu(MENU.Develop, downloadScan);
 
         const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
             if (checked) {
