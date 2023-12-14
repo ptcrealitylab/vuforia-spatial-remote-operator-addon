@@ -54,6 +54,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 first: { x: 0, y: 0 },
                 last: { x: 0, y: 0 },
                 lastWorldPos: [0, 0, 0],
+                latest: {x: 0, y: 0},
             };
             this.mouseFlyInput = {
                 justSwitched: true,
@@ -105,7 +106,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     new THREE.MeshBasicMaterial({color: 0x00ffff})
                 );
                 this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
-                realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
+                // realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
             }
         }
         addFlyAndNormalModePrompts() {
@@ -158,11 +159,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             }
         }
         // when in normal mode, right click to add a green focus cube to the scene
-        setFocusTargetCube(event) {
+        setFocusTargetCube(event, forceSet = false) {
             if (this.isFlying) return;
             // conform to spatial cursor mousemove event pageX and pageY
-            if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
-                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY).point;
+            // if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
+            if (forceSet || event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
+                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY, true).point;
                 if (worldIntersectPoint === undefined) return;
                 // record pointerdown world intersect point, for off-center camera rotation
                 this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
@@ -187,7 +189,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let scrollTimeout = null;
             window.addEventListener('wheel', function (event) {
                 // restrict deltaY between [-100, 100], to prevent mouse wheel deltaY so large that camera cannot focus on focus point when zooming in
-                let wheelAmt = Math.max(-100, Math.min(100, event.deltaY));
+                let wheelAmt = Math.max(-40, Math.min(40, event.deltaY));
                 this.mouseInput.unprocessedScroll += wheelAmt;
                 event.preventDefault();
 
@@ -203,6 +205,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.preRotateDistanceToTarget = null;
 
                 }.bind(this), 150);
+
             }.bind(this), { passive: false }); // in order to call preventDefault, wheel needs to be active not passive
 
             document.addEventListener('pointerdown', function (event) {
@@ -229,6 +232,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.mouseInput.last.y = event.pageY;
                     // follow a tool if you click it with shift held down
                 }
+            }.bind(this));
+
+            document.addEventListener('pointermove', function (event) {
+                this.mouseInput.latest.x = event.pageX;
+                this.mouseInput.latest.y = event.pageY;
+                if (this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
+                this.setFocusTargetCube(event, true);
             }.bind(this));
 
             const pointerReset = () => {
@@ -661,42 +671,30 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
 
                 } else {
+                    let camToFocusCube = magnitude(sub(this.mouseInput.lastWorldPos, this.position));
                     // increase speed as distance increases
                     let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
                     let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
-                    let baseLog = getBaseLog(nonLinearFactor, this.distanceToTarget) / 100;
+                    let baseLog = getBaseLog(nonLinearFactor, camToFocusCube) / 100;
                     
-                    // interpolate camera towards camera target point
+                    // move camera & camera target along the camera <---> focus cube line
                     {
                         let distanceMultiplier = Math.max(1, baseLog);
-                        let vector = scalarMultiply(forwardVector, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
+                        let cameraToFocusUnit = normalize(sub(this.position, this.mouseInput.lastWorldPos));
+                        let vector = scalarMultiply(cameraToFocusUnit, distanceMultiplier * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
                         // if distanceToTarget <= 200, slow down zooming speed quadratically to prevent from zooming too close / beyond the target
-                        if (isZoomingIn && this.distanceToTarget <= 200) {
-                            let scrollFactor = Math.pow(this.distanceToTarget / 200, 2);
+                        if (isZoomingIn && camToFocusCube <= 200) {
+                            let scrollFactor = null;
+                            if (camToFocusCube <= 100) {
+                                scrollFactor = 0;
+                            } else {
+                                scrollFactor = Math.pow(camToFocusCube / 200, 2);
+                            }
                             vector = scalarMultiply(vector, scrollFactor);
                         }
-                        // * 0.7 to prevent the camera from getting too close to the camera target point
-                        this.velocity = add(this.velocity, scalarMultiply(vector, 0.7));
-                    }
+                        this.velocity = add(this.velocity, vector);
 
-                    // interpolate camera target point towards focus point
-                    {
-                        let offset = sub(this.mouseInput.lastWorldPos, this.targetPosition);
-                        let targetToFocus = magnitude(offset);
-                        if (targetToFocus <= 180) {
-                            this.targetPosition = this.mouseInput.lastWorldPos;
-                            this.mouseInput.unprocessedScroll = 0;
-                            this.deselectTarget();
-                            break scrollOperation;
-                        }
-                        // only interpolate camera target point towards focus point if zooming in. maintain targetPosition when zooming out, b/c we're not zooming towards a specific position
-                        if (isZoomingIn) {
-                            // * 0.5 to make distanceMultiplier2 smaller for the camera target to focus point interpolation, to avoid overshooting
-                            let distanceMultiplier2 = -Math.max(1, baseLog) * 0.5;
-                            let targetForwardVector = normalize(offset);
-                            let vector2 = scalarMultiply(targetForwardVector, distanceMultiplier2 * this.speedFactors.scale * getCameraZoomSensitivity() * this.mouseInput.unprocessedScroll);
-                            this.targetVelocity = add(this.targetVelocity, vector2);
-                        }
+                        this.targetVelocity = add(this.targetVelocity, vector);
                     }
                     
                     this.deselectTarget();
@@ -825,7 +823,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.updateParametricTargetAndPosition(this.followingState.currentFollowingDistance);
         }
         deselectTarget() {
-            // set the target position to a point slightly in front of the camera, and then stop following
+            // set the target position to the mouse cursor position, and then stop following
             let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
             if (!selectedNode) { return; }
             let virtualizerMatrixThree = new THREE.Matrix4();
@@ -835,7 +833,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // the new focus of the camera should be the point 1 meter in front of the virtualizer
             let virtualizerForwardPosition = this.followingState.partiallyStabilizedTargetObject.getWorldPosition(new THREE.Vector3());
 
-            this.targetPosition = [virtualizerForwardPosition.x, virtualizerForwardPosition.y, virtualizerForwardPosition.z];
+            // this.targetPosition = [virtualizerForwardPosition.x, virtualizerForwardPosition.y, virtualizerForwardPosition.z];
 
             if (this.preStopFollowingDistanceToTarget === null) {
                 // calculate distance from this.position to virtualizerForwardPosition, so that we can zoom back to this
@@ -861,7 +859,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             if (this.preStopFollowingDistanceToTarget !== null) {
                 this.zoomBackToPreStopFollowLevel();
-                this.preRotateDistanceToTarget = this.preStopFollowingDistanceToTarget;
+                this.preRotateDistanceToTarget = this.preStopFollowingDistanceToTarget; // todo Steve: this.preRotateDistanceToTarget seems not to be used anywhere in the code. Is it still necessary?
                 this.preStopFollowingDistanceToTarget = null;
             }
 
