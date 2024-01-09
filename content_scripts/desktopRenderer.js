@@ -111,6 +111,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 return;
             }
 
+            realityEditor.device.desktopCamera.initService(0);
+
             // try loading area target GLB file into the threejs scene
             isGlbLoaded = true;
             let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
@@ -139,7 +141,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
 
-                realityEditor.device.desktopCamera.initService(floorOffset);
+                // realityEditor.device.desktopCamera.initService(floorOffset); // TODO: update floorOffset in desktopCamera instead of initService here
 
                 let ceilingHeight = Math.max(
                     navmesh.maxY - navmesh.minY,
@@ -205,6 +207,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
                     realityEditor.device.meshLine.inject();
 
+                    // TODO: see if this works if the world has already been initialized as a placeholder
                     // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
                     let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
                     realityEditor.worldObjects.setOrigin(objectKey, identity);
