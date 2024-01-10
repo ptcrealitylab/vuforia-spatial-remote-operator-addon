@@ -111,15 +111,19 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 return;
             }
 
-            realityEditor.device.desktopCamera.initService(0);
+            // realityEditor.device.desktopCamera.initService(0);
+            initializeCameraSystem(0);
+            realityEditor.device.meshLine.inject();
 
             // try loading area target GLB file into the threejs scene
             isGlbLoaded = true;
             let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
-
+            let checkGltfPath = realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/object/' + objectKey + '/checkFileExists/target/target.glb');
             function checkExist() {
-                fetch(gltfPath).then(res => {
-                    if (!res.ok) {
+                fetch(checkGltfPath).then((res) => {
+                    return res.json();
+                }).then((body) => {
+                    if (!body.exists) {
                         setTimeout(checkExist, 500);
                     } else {
                         realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
@@ -141,6 +145,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
 
+                // initializeCameraSystem(floorOffset);
                 // realityEditor.device.desktopCamera.initService(floorOffset); // TODO: update floorOffset in desktopCamera instead of initService here
 
                 let ceilingHeight = Math.max(
@@ -162,7 +167,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 let heightMap = navmesh.heightMap;
                 realityEditor.gui.threejsScene.addGltfToScene(gltfPath, map, steepnessMap, heightMap, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, ceilingAndFloor, center, function(createdMesh) {
 
-                    realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
+                    // realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
+                    initializeSceneAfterMeshLoaded();
 
                     let endMarker = document.createElement('div');
                     endMarker.style.display = 'none';
@@ -205,7 +211,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                         }
                     });
 
-                    realityEditor.device.meshLine.inject();
+                    // realityEditor.device.meshLine.inject();
 
                     // TODO: see if this works if the world has already been initialized as a placeholder
                     // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
@@ -371,6 +377,35 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 logicCanvas.style.pointerEvents = 'none';
             }
         );
+
+        // realityEditor.worldObjects.onDetectedEmptyWorld((objectKey) => {
+        //     initializeCameraSystem(0);
+        //     initializeSceneAfterMeshLoaded();
+        // });
+    }
+
+    let cameraSystemInitialized = false;
+    function initializeCameraSystem(floorOffset = 0) {
+        if (cameraSystemInitialized) return; // make sure this only happens once
+        cameraSystemInitialized = true;
+        realityEditor.device.desktopCamera.initService(floorOffset);
+    }
+
+    let sceneInitialized = false;
+    function initializeSceneAfterMeshLoaded() {
+        if (sceneInitialized) return; // make sure this only happens once
+        sceneInitialized = true;
+
+        realityEditor.device.environment.clearSuppressedObjectRenderingFlag('loadingWorldMesh'); // stop hiding tools
+        // let endMarker = document.createElement('div');
+        // endMarker.style.display = 'none';
+        // endMarker.id = 'gltf-added';
+        // document.body.appendChild(endMarker);
+        // realityEditor.device.meshLine.inject();
+        // TODO: do we want to do this? Avatars *should* probably initialize here
+        // // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
+        // let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        // realityEditor.worldObjects.setOrigin(objectKey, identity);
     }
 
     /**
