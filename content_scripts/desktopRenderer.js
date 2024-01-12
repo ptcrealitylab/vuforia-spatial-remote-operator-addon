@@ -377,11 +377,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 logicCanvas.style.pointerEvents = 'none';
             }
         );
-
-        // realityEditor.worldObjects.onDetectedEmptyWorld((objectKey) => {
-        //     initializeCameraSystem(0);
-        //     initializeSceneAfterMeshLoaded();
-        // });
     }
 
     let cameraSystemInitialized = false;
