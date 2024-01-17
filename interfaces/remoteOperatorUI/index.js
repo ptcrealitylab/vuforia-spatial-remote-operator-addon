@@ -13,6 +13,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const express = require('express');
 
 const server = require('@libraries/hardwareInterfaces');
 const utilities = require('@libraries/utilities');
@@ -77,7 +78,13 @@ function startHTTPServer(localUIApp, port) {
     let mouseConnected = false;
     var callibrationFrames = 100;
 
-    const http = require('http').Server(localUIApp.app);
+    const fs = require('fs');
+    // openssl req -x509 -newkey <crypto_config> -keyout key.pem -out cert.pem -days 3001 -nodes
+    const options = {
+        key: fs.readFileSync('./key.pem'),
+        cert: fs.readFileSync('cert.pem')
+    };
+    const http = require('https').Server(options, localUIApp.app);
     http.on('upgrade', function(req, socket, head) {
         server8080.io.server.server.handleUpgrade(req, socket, head, (ws) => {
             server8080.io.server.server.emit('connection', ws, req);
@@ -169,7 +176,8 @@ function startHTTPServer(localUIApp, port) {
             }
         });
 
-        server8080.webServer.use('/userinterface', localUIApp.app);
+        console.log("-------", __dirname);
+        localUIApp.app.use('/objectDefaultFiles', express.static(__dirname + '/../../../../libraries/objectDefaultFiles/'));
 
         // pass visibleObjects messages to the userinterface
         server.subscribeToMatrixStream(function(visibleObjects) {
