@@ -79,9 +79,8 @@ function startHTTPServer(localUIApp, port) {
     var callibrationFrames = 100;
 
     const fs = require('fs');
-    // openssl req -x509 -newkey <crypto_config> -keyout key.pem -out cert.pem -days 3001 -nodes
-    const options = {
-        key: fs.readFileSync('./key.pem'),
+    let options = {
+        key: fs.readFileSync('key.pem'),
         cert: fs.readFileSync('cert.pem')
     };
     const http = require('https').Server(options, localUIApp.app);
