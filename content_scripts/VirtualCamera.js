@@ -266,6 +266,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             // focus camera on the focus point
             document.addEventListener('keypress', function (e) {
+                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
                 if (e.key === 'g' || e.key === 'G') {
                     this.focus(this.focusTargetCube.position.clone());
                 }
