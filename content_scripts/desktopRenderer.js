@@ -15,7 +15,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 /**
  * @fileOverview realityEditor.device.desktopRenderer.js
  * For remote desktop operation: renders background graphics simulating the context streamed from a connected phone.
- * e.g. a point or plane for each marker, or an entire point cloud of the background contents
+ * e.g. a point or plane for each target, or an entire point cloud of the background contents
  */
 
 (function(exports) {
