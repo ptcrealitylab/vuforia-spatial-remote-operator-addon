@@ -18,8 +18,8 @@ createNameSpace('realityEditor.gui');
         SpaghettiMap: 'Spaghetti Map',
         ModelVisibility: 'Model Visibility',
         ModelTexture: 'Model Texture',
-        SurfaceAnchors: 'Surface Anchors',
-        VideoPlayback: 'Video Timeline',
+        // SurfaceAnchors: 'Surface Anchors',
+        // VideoPlayback: 'Video Timeline',
         Voxelizer: 'Model Voxelizer',
         Follow1stPerson: 'Follow 1st-Person',
         Follow3rdPerson: 'Follow 3rd-Person',
@@ -87,11 +87,11 @@ createNameSpace('realityEditor.gui');
         const toggleCutoutViewFrustums = new MenuItem(ITEM.CutoutViewFrustums, { toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.View, toggleCutoutViewFrustums);
 
-        const toggleSurfaceAnchors = new MenuItem(ITEM.SurfaceAnchors, { shortcutKey: 'SEMICOLON', toggle: true, defaultVal: false }, null); // other module can attach a callback later
-        menuBar.addItemToMenu(MENU.View, toggleSurfaceAnchors);
+        // const toggleSurfaceAnchors = new MenuItem(ITEM.SurfaceAnchors, { shortcutKey: 'SEMICOLON', toggle: true, defaultVal: false }, null); // other module can attach a callback later
+        // menuBar.addItemToMenu(MENU.View, toggleSurfaceAnchors);
 
-        const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
-        menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
+        // const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
+        // menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
 
         const toggleDarkMode = new MenuItem(ITEM.DarkMode, { toggle: true, defaultVal: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleDarkMode);
@@ -127,7 +127,7 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.Help, gettingStarted);
 
-        const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { shortcutKey: 'I', toggle: true, defaultVal: false }, (checked) => {
+        const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
                 if (realityEditor.device.profiling) realityEditor.device.profiling.show();
             } else {

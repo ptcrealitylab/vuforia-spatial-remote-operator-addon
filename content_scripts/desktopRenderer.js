@@ -275,22 +275,22 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                         });
                         realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.DownloadScan, true);
 
-                        if (!PROXY) {
-                            const createVideoPlayback = () => {
-                                videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
-                                videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
-                                videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
-                                videoPlayback.load();
-                                // window.videoPlayback = videoPlayback;
-                            };
-
-                            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
-                                if (!videoPlayback) {
-                                    createVideoPlayback(); // only create it if the user decides to use it
-                                }
-                                videoPlayback.toggleVisibility(toggled);
-                            });
-                        }
+                        // if (!PROXY) {
+                        //     const createVideoPlayback = () => {
+                        //         videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
+                        //         videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));
+                        //         videoPlayback.setHidePointCloudCallback(cameraVisCoordinator.hidePointCloud.bind(cameraVisCoordinator));
+                        //         videoPlayback.load();
+                        //         // window.videoPlayback = videoPlayback;
+                        //     };
+                        //
+                        //     realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.VideoPlayback, (toggled) => {
+                        //         if (!videoPlayback) {
+                        //             createVideoPlayback(); // only create it if the user decides to use it
+                        //         }
+                        //         videoPlayback.toggleVisibility(toggled);
+                        //     });
+                        // }
                     }
 
                     setupMenuBar();
