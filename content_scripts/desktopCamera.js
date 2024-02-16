@@ -85,7 +85,6 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         followCoordinator = new CameraFollowCoordinator(virtualCamera);
         window.followCoordinator = followCoordinator;
         followCoordinator.addMenuItems();
-        console.log(followCoordinator);
 
         // ---- Add and remove follow targets when virtualizers connect ---- //
 
