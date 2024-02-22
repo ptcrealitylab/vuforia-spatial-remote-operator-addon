@@ -83,8 +83,8 @@ function startHTTPServer(localUIApp, port) {
         const fs = require('fs');
         const path = require('path');
         let options = {
-            key: fs.readFileSync(path.dirname(__filename) + '../../../../../key.pem'),
-            cert: fs.readFileSync(path.dirname(__filename) + '../../../../../cert.pem')
+            key: fs.readFileSync('key.pem'),
+            cert: fs.readFileSync('cert.pem')
         };
         http = require('https').Server(options, localUIApp.app);
     } else {
