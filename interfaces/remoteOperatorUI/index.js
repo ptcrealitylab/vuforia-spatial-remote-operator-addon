@@ -78,12 +78,18 @@ function startHTTPServer(localUIApp, port) {
     let mouseConnected = false;
     var callibrationFrames = 100;
 
-    const fs = require('fs');
-    let options = {
-        key: fs.readFileSync('key.pem'),
-        cert: fs.readFileSync('cert.pem')
-    };
-    const http = require('https').Server(options, localUIApp.app);
+    let http = null;
+    if (server8080.useHTTPS) {
+        const fs = require('fs');
+        const url = require('url');
+        let options = {
+            key: fs.readFileSync(dirname(url.fileURLToPath(__filename)) + '/key.pem'),
+            cert: fs.readFileSync(dirname(url.fileURLToPath(__filename)) + '/cert.pem')
+        };
+        http = require('https').Server(options, localUIApp.app);
+    } else {
+        http = require('http').Server(localUIApp.app);
+    }
     http.on('upgrade', function(req, socket, head) {
         server8080.io.server.server.handleUpgrade(req, socket, head, (ws) => {
             server8080.io.server.server.emit('connection', ws, req);
@@ -108,7 +114,7 @@ function startHTTPServer(localUIApp, port) {
     const identityFolderName = '.identity';
 
     http.listen(port, function() {
-        console.info('Remote Operator listening on port ' + port);
+        console.info('Remote Operator listening on port (http' + (server808.useHTTPS ? 's': '') + ')' + port);
 
         // serves the camera poses that correspond to a recorded rgb+depth 3d video
         localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {
