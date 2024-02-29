@@ -113,7 +113,7 @@ function startHTTPServer(localUIApp, port) {
     const identityFolderName = '.identity';
 
     http.listen(port, function() {
-        console.info('Remote Operator listening on port (http' + (server8080.useHTTPS ? 's': '') + ')' + port);
+        console.info('Remote Operator listening on port (http' + (server8080.useHTTPS ? 's': '') + ') ' + port);
 
         // serves the camera poses that correspond to a recorded rgb+depth 3d video
         localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {
