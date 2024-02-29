@@ -120,7 +120,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
             let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
             let checkGltfPath = realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/object/' + objectKey + '/checkFileExists/target/target.glb');
             function checkExist() {
-                fetch(checkGltfPath).then((res) => {
+                let start = Date.now(); // prevent cached responses
+                fetch(`${checkGltfPath}?t=${start}`).then((res) => {
                     return res.json();
                 }).then((body) => {
                     if (!body.exists) {
