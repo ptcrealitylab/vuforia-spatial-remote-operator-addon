@@ -136,7 +136,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
             function createNavmeshCallback(navmesh) {
                 let floorOffset = navmesh.floorOffset * 1000;
-                let buffer = 50;
+                let buffer = 0;
                 floorOffset += buffer;
                 let groundPlaneMatrix = [
                     1, 0, 0, 0,
