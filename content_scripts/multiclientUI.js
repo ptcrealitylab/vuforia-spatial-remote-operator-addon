@@ -230,6 +230,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     realityEditor.gui.threejsScene.addToScene(existingMesh);
                 }
 
+                // turn this off so we don't cover up other people's views when locking onto them
+                // TODO: only do this if you're locked onto someone else or someone else is locked onto you
+                if (existingMesh.visible) {
+                    existingMesh.visible = false;
+                }
+
                 const ANIMATE = false;
                 if (ANIMATE) {
                     // let animatedMatrix = realityEditor.gui.ar.utilities.tweenMatrix(existingMesh.matrix.elements, cameraMatrix, 0.05);

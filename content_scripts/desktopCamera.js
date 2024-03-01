@@ -107,6 +107,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
 
         virtualCamera.onPanToggled(function(isPanning) {
+            if (virtualCamera.lockOnMode) {
+                isPanning = false;
+            }
             if (isPanning && !knownInteractionStates.pan) {
                 knownInteractionStates.pan = true;
                 // console.log('start pan');
@@ -118,6 +121,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             }
         });
         virtualCamera.onRotateToggled(function(isRotating) {
+            if (virtualCamera.lockOnMode) {
+                isRotating = false;
+            }
             if (isRotating && !knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = true;
                 knownInteractionStates.pan = false; // stop panning if you start rotating
@@ -130,6 +136,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             }
         });
         virtualCamera.onScaleToggled(function(isScaling) {
+            if (virtualCamera.lockOnMode) {
+                isScaling = false;
+            }
             if (isScaling && !knownInteractionStates.scale) {
                 knownInteractionStates.scale = true;
                 // console.log('start scale');
@@ -252,6 +261,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         }
 
         const loadCameraData = (index) => {
+            if (virtualCamera.lockOnMode) return;
             const cameraDataJsonString = localStorage.getItem(getSavedCameraDataLocalStorageKey(index));
             if (!cameraDataJsonString) {
                 return;
@@ -290,6 +300,83 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                 }
             })
         });
+
+        // -- follow another avatar (another user's virtual camera) when their avatar profile is clicked on
+        realityEditor.avatar.draw.registerAvatarIconClickEvent((params) => {
+            let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent } = params;
+            console.log('clicked on icon for ', avatarObjectId, avatarProfile.name); // , userInitials, isMyIcon);
+
+            if (virtualCamera && !isMyIcon) {
+                console.log('toggleLockOnMode', avatarObjectId);
+                let newLockOnMode = virtualCamera.toggleLockOnMode(avatarObjectId);
+
+                let avatarObject = realityEditor.getObject(avatarObjectId);
+                let color = realityEditor.avatar.utils.getColor(avatarObject);
+                if (newLockOnMode) {
+                    let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
+                    let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
+                    addBorder(color, description);
+                } else {
+                    removeBorder();
+                }
+            }
+        });
+
+        virtualCamera.onStopLockOnMode(() => {
+            removeBorder();
+        });
+    }
+
+    // Function to add border
+    function addBorder(color, descriptionText) {
+        let existingBorder = document.getElementById('avatar-follow-border');
+        if (existingBorder) {
+            changeBorderColor(color);
+            return;
+        }
+
+        let border = document.createElement('div');
+        border.style.position = 'fixed';
+        border.style.top = '0';
+        border.style.left = '0';
+        border.style.right = '0';
+        border.style.bottom = '0';
+        border.style.border = '8px solid ' + color;
+        border.style.pointerEvents = 'none';
+        border.style.zIndex = '9999';
+        border.id = 'avatar-follow-border';
+
+        if (descriptionText) {
+            let textDiv = document.createElement('div');
+            textDiv.style.position = 'absolute';
+            textDiv.style.left = '50%';
+            textDiv.style.transform = 'translateX(-50%)';
+            textDiv.style.textAlign = 'center';
+            textDiv.style.bottom = '50px';
+            textDiv.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            textDiv.style.padding = '8px 16px';
+            textDiv.style.borderRadius = '15px';
+            textDiv.textContent = descriptionText;
+            border.appendChild(textDiv);
+        }
+
+        document.body.appendChild(border);
+    }
+
+    // Function to remove border
+    function removeBorder() {
+        let border = document.getElementById('avatar-follow-border');
+        if (border) {
+            border.parentNode.removeChild(border);
+        }
+    }
+
+    // Function to change border color
+    function changeBorderColor(color) {
+        let border = document.getElementById('avatar-follow-border');
+        if (border) {
+            border.style.border = '8px solid ' + color;
+        }
     }
 
     function addSensitivitySlidersToMenu() {
