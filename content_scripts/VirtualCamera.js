@@ -77,12 +77,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 levelTargetObject: null, // this is fully stabilized, has height = virtualizer height
                 partiallyStabilizedTargetObject: null // this is actually what we lookAt, in between forwardObj and levelObj
             };
+            this.lockOnMode = null; // directly lock-on to the perspective of another user's virtual camera
+
             this.callbacks = {
                 onPanToggled: [],
                 onRotateToggled: [],
                 onScaleToggled: [],
                 onStopFollowing: [], // other modules can discover when pan/rotate forced this camera out of follow mode
-                onFirstPersonDistanceToggled: []
+                onFirstPersonDistanceToggled: [],
+                onStopLockOnMode: [],
             };
 
             this.normalModePrompt = null;
@@ -98,6 +101,18 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.threeJsContainer.position.y = -floorOffset;
             this.threeJsContainer.rotation.x = Math.PI / 2;
             realityEditor.gui.threejsScene.addToScene(this.threeJsContainer);
+        }
+        toggleLockOnMode(objectId) {
+            if (this.lockOnMode) {
+                this.lockOnMode = null;
+                return false;
+            } else {
+                this.lockOnMode = objectId;
+                return true;
+            }
+        }
+        onStopLockOnMode(cb) {
+            this.callbacks.onStopLockOnMode.push(cb);
         }
         addFocusTargetCube() {
             if (this.focusTargetCube === null) {
@@ -587,6 +602,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.updateFollowing();
             }
 
+            if (this.lockOnMode) {
+                this.updateLockOnMode();
+                return; // stop executing - cannot zoom or pan while in lock-on mode
+            }
+
             let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
             // move camera to cameraPosition and look at cameraTargetPosition
             let newCameraLookAtMatrix = lookAt(this.position[0], this.position[1], this.position[2], this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 0, 1, 0);
@@ -846,6 +866,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (this.followingState.active) {
                     this.stopFollowing();
                 }
+                this.cancelLockOnMode();
             });
         }
         afterOneFrame(callback) {
@@ -864,7 +885,50 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.preStopFollowingDistanceToTarget = null;
             }
 
+            this.cancelLockOnMode();
+
             this.callbacks.onStopFollowing.forEach(cb => cb());
+        }
+        cancelLockOnMode() {
+            if (this.lockOnMode) {
+                this.lockOnMode = null;
+                this.callbacks.onStopLockOnMode.forEach((cb) => {
+                    cb();
+                });
+            }
+        }
+        updateLockOnMode() {
+            // move the camera position to the exact position of the avatar they're set to track
+            if (!this.lockOnMode) return;
+            // this.position
+            let objectSceneNode = realityEditor.sceneGraph.getSceneNodeById(this.lockOnMode);
+            if (!objectSceneNode) return;
+            let lockedOnWorldMatrix = objectSceneNode.worldMatrix;
+
+            // tween the matrix every frame to animate it to the new position
+            // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
+            let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(this.cameraNode.localMatrix);
+            let destinationCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(lockedOnWorldMatrix); //realityEditor.gui.ar.utilities.invertMatrix(newCameraLookAtMatrix);
+            let totalDifference = sumOfElementDifferences(destinationCameraMatrix, currentCameraMatrix);
+            if (totalDifference < 0.00001) {
+                return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
+            }
+
+            // // disables smoothing while following, to provide a tighter sync with the followed element
+            // let shouldSmoothCamera = !this.isFollowingFirstPerson() && !this.zoomOutTransition;
+            // let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
+            let animationSpeed = 1.0; //0.3;
+            let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
+
+            // if (!options.skipApplying) {
+                if (this.cameraNode.id === 'CAMERA') {
+                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+                    let cameraNode = realityEditor.sceneGraph.getCameraNode();
+                    cameraNode.needsRerender = true;
+                } else {
+                    // this.cameraNode.setLocalMatrix(newCameraMatrix);
+                }
+            // }
         }
         // trigger this in the main update loop each frame while we are following, to perform the following camera motion
         updateFollowing() {
