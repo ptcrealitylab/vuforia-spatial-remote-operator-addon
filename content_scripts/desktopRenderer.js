@@ -56,7 +56,9 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
     let cameraVisFrustums = [];
 
-    let didInit = false;
+    let didInit = false; // true as soon as initService is called
+    let cameraSystemInitialized = false; // true when a valid world has been discovered
+    let sceneInitialized = false; // true when the world mesh has loaded
 
     let didAddModeTransitionListeners = false;
     let gltfUpdateCallbacks = [];
@@ -70,8 +72,10 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
             return;
         }
 
+        // always trigger this even on an AR device, since these listeners can trigger initService
         addModeTransitionListeners();
 
+        // only continue initializing the remote renderer if we're not in AR mode (happens on desktop, or by pinching on AR device)
         if (realityEditor.device.environment.isARMode()) { return; }
         if (didInit) return;
 
@@ -111,7 +115,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 return;
             }
 
-            // realityEditor.device.desktopCamera.initService(0);
             initializeCameraSystem(0);
             realityEditor.device.meshLine.inject();
 
@@ -168,13 +171,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 let heightMap = navmesh.heightMap;
                 realityEditor.gui.threejsScene.addGltfToScene(gltfPath, map, steepnessMap, heightMap, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, ceilingAndFloor, center, function(createdMesh) {
 
-                    // realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
                     initializeSceneAfterMeshLoaded();
-
-                    let endMarker = document.createElement('div');
-                    endMarker.style.display = 'none';
-                    endMarker.id = 'gltf-added';
-                    document.body.appendChild(endMarker);
 
                     gltf = createdMesh;
                     gltf.name = 'areaTargetMesh';
@@ -212,9 +209,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                         }
                     });
 
-                    // realityEditor.device.meshLine.inject();
-
-                    // TODO: see if this works if the world has already been initialized as a placeholder
                     // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
                     let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
                     realityEditor.worldObjects.setOrigin(objectKey, identity);
@@ -380,28 +374,28 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
         );
     }
 
-    let cameraSystemInitialized = false;
+    /**
+     * Take care of any initialization steps that should happen as soon as a valid world object has been discovered
+     * @param floorOffset
+     */
     function initializeCameraSystem(floorOffset = 0) {
         if (cameraSystemInitialized) return; // make sure this only happens once
         cameraSystemInitialized = true;
         realityEditor.device.desktopCamera.initService(floorOffset);
     }
 
-    let sceneInitialized = false;
+    /**
+     * Take care of any initialization steps that should happen after the mesh has been loaded
+     */
     function initializeSceneAfterMeshLoaded() {
         if (sceneInitialized) return; // make sure this only happens once
         sceneInitialized = true;
-
         realityEditor.device.environment.clearSuppressedObjectRenderingFlag('loadingWorldMesh'); // stop hiding tools
-        // let endMarker = document.createElement('div');
-        // endMarker.style.display = 'none';
-        // endMarker.id = 'gltf-added';
-        // document.body.appendChild(endMarker);
-        // realityEditor.device.meshLine.inject();
-        // TODO: do we want to do this? Avatars *should* probably initialize here
-        // // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
-        // let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-        // realityEditor.worldObjects.setOrigin(objectKey, identity);
+
+        let endMarker = document.createElement('div');
+        endMarker.style.display = 'none';
+        endMarker.id = 'gltf-added';
+        document.body.appendChild(endMarker);
     }
 
     /**
