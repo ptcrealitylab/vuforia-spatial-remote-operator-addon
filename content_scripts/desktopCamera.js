@@ -108,30 +108,26 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 
         virtualCamera.onPanToggled(function(isPanning) {
             if (virtualCamera.lockOnMode) {
-                isPanning = false;
+                isPanning = false; // can't pan while locked onto another user's perspective
             }
             if (isPanning && !knownInteractionStates.pan) {
                 knownInteractionStates.pan = true;
-                // console.log('start pan');
                 panToggled();
             } else if (!isPanning && knownInteractionStates.pan) {
                 knownInteractionStates.pan = false;
-                // console.log('stop pan');
                 panToggled();
             }
         });
         virtualCamera.onRotateToggled(function(isRotating) {
             if (virtualCamera.lockOnMode) {
-                isRotating = false;
+                isRotating = false; // can't rotate while locked onto another user's perspective
             }
             if (isRotating && !knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = true;
                 knownInteractionStates.pan = false; // stop panning if you start rotating
-                // console.log('start rotate');
                 rotateToggled();
             } else if (!isRotating && knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = false;
-                // console.log('stop rotate');
                 rotateToggled();
             }
         });
@@ -141,11 +137,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             }
             if (isScaling && !knownInteractionStates.scale) {
                 knownInteractionStates.scale = true;
-                // console.log('start scale');
                 scaleToggled();
             } else if (!isScaling && knownInteractionStates.scale) {
                 knownInteractionStates.scale = false;
-                // console.log('stop scale');
                 scaleToggled();
             }
         });
@@ -304,7 +298,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         // -- follow another avatar (another user's virtual camera) when their avatar profile is clicked on
         realityEditor.avatar.draw.registerAvatarIconClickEvent((params) => {
             let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent } = params;
-            console.log('clicked on icon for ', avatarObjectId, avatarProfile.name); // , userInitials, isMyIcon);
+            console.log('clicked on icon for ', avatarObjectId, avatarProfile.name);
 
             if (virtualCamera && !isMyIcon) {
                 console.log('toggleLockOnMode', avatarObjectId);
@@ -315,20 +309,20 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                 if (newLockOnMode) {
                     let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
                     let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
-                    addBorder(color, description);
+                    addScreenBorder(color, description);
                 } else {
-                    removeBorder();
+                    removeScreenBorder();
                 }
             }
         });
 
         virtualCamera.onStopLockOnMode(() => {
-            removeBorder();
+            removeScreenBorder();
         });
     }
 
-    // Function to add border
-    function addBorder(color, descriptionText) {
+    // Add "screen share"-style border to edge of screen to indicate that you are following another user
+    function addScreenBorder(color, descriptionText) {
         let existingBorder = document.getElementById('avatar-follow-border');
         if (existingBorder) {
             changeBorderColor(color);
@@ -336,26 +330,12 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         }
 
         let border = document.createElement('div');
-        border.style.position = 'fixed';
-        border.style.top = '0';
-        border.style.left = '0';
-        border.style.right = '0';
-        border.style.bottom = '0';
         border.style.border = '8px solid ' + color;
-        border.style.pointerEvents = 'none';
-        border.style.zIndex = '9999';
         border.id = 'avatar-follow-border';
 
         if (descriptionText) {
             let textDiv = document.createElement('div');
-            textDiv.style.position = 'absolute';
-            textDiv.style.left = '50%';
-            textDiv.style.transform = 'translateX(-50%)';
-            textDiv.style.textAlign = 'center';
-            textDiv.style.bottom = '50px';
-            textDiv.style.backgroundColor = 'rgba(0,0,0,0.5)';
-            textDiv.style.padding = '8px 16px';
-            textDiv.style.borderRadius = '15px';
+            textDiv.classList.add('fullscreenSubtitle');
             textDiv.textContent = descriptionText;
             border.appendChild(textDiv);
         }
@@ -364,7 +344,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
     }
 
     // Function to remove border
-    function removeBorder() {
+    function removeScreenBorder() {
         let border = document.getElementById('avatar-follow-border');
         if (border) {
             border.parentNode.removeChild(border);
