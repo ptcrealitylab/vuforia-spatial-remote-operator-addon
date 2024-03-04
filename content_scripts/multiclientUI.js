@@ -10,7 +10,7 @@ createNameSpace('realityEditor.device.multiclientUI');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
-(function() {
+(function(exports) {
     let allConnectedCameras = {};
     let isCameraSubscriptionActiveForObject = {};
 
@@ -230,12 +230,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     realityEditor.gui.threejsScene.addToScene(existingMesh);
                 }
 
-                // turn this off so we don't cover up other people's views when locking onto them
-                // TODO: only do this if you're locked onto someone else or someone else is locked onto you
-                if (existingMesh.visible) {
-                    existingMesh.visible = false;
-                }
-
                 const ANIMATE = false;
                 if (ANIMATE) {
                     // let animatedMatrix = realityEditor.gui.ar.utilities.tweenMatrix(existingMesh.matrix.elements, cameraMatrix, 0.05);
@@ -250,6 +244,31 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         }
 
         requestAnimationFrame(update);
+    }
+
+    /**
+     * Temporarily hide the cubes indicating where the other remote operators are viewing the scene from.
+     * Helpful when you're locked onto someone else's view to prevent their cube from obscuring your view.
+     */
+    exports.hideRemoteCameraMeshes = () => {
+        Object.keys(allConnectedCameras).forEach((editorId) => {
+            let existingMesh = realityEditor.gui.threejsScene.getObjectByName('camera_' + editorId);
+            if (existingMesh && existingMesh.visible) {
+                existingMesh.visible = false;
+            }
+        });
+    }
+
+    /**
+     * Restore the cubes indicating where the other remote operators are viewing the scene from.
+     */
+    exports.showRemoteCameraMeshes = () => {
+        Object.keys(allConnectedCameras).forEach((editorId) => {
+            let existingMesh = realityEditor.gui.threejsScene.getObjectByName('camera_' + editorId);
+            if (existingMesh && !existingMesh.visible) {
+                existingMesh.visible = true;
+            }
+        });
     }
 
     realityEditor.addons.addCallback('init', initService);

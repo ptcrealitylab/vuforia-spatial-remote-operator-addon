@@ -310,14 +310,17 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                     let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
                     let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
                     addScreenBorder(color, description);
+                    realityEditor.device.multiclientUI.hideRemoteCameraMeshes();
                 } else {
                     removeScreenBorder();
+                    realityEditor.device.multiclientUI.showRemoteCameraMeshes();
                 }
             }
         });
 
         virtualCamera.onStopLockOnMode(() => {
             removeScreenBorder();
+            realityEditor.device.multiclientUI.showRemoteCameraMeshes();
         });
     }
 
