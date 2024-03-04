@@ -316,14 +316,17 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                     let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
                     let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
                     addBorder(color, description);
+                    realityEditor.avatar.writeMyLockOnMode(avatarObjectId);
                 } else {
                     removeBorder();
+                    realityEditor.avatar.writeMyLockOnMode(null);
                 }
             }
         });
 
         virtualCamera.onStopLockOnMode(() => {
             removeBorder();
+            realityEditor.avatar.writeMyLockOnMode(null);
         });
     }
 
