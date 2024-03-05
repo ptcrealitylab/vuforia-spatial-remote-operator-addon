@@ -311,9 +311,11 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                     let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
                     addScreenBorder(color, description);
                     realityEditor.device.multiclientUI.hideRemoteCameraMeshes();
+                    realityEditor.avatar.writeMyLockOnMode(avatarObjectId);
                 } else {
                     removeScreenBorder();
                     realityEditor.device.multiclientUI.showRemoteCameraMeshes();
+                    realityEditor.avatar.writeMyLockOnMode(null);
                 }
             }
         });
@@ -321,6 +323,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         virtualCamera.onStopLockOnMode(() => {
             removeScreenBorder();
             realityEditor.device.multiclientUI.showRemoteCameraMeshes();
+            realityEditor.avatar.writeMyLockOnMode(null);
         });
     }
 
