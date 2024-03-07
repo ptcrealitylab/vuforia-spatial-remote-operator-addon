@@ -5,7 +5,6 @@
 createNameSpace('realityEditor.device');
 
 (function(exports) {
-
     class KeyboardListener {
         constructor() {
             /**
@@ -118,6 +117,15 @@ createNameSpace('realityEditor.device');
                     });
                 }
             }.bind(this));
+
+            // reset all keys to 'up' if the window loses focus, to prevent cases where a key gets "stuck" down
+            window.addEventListener('blur', () => {
+                for (let code in this.keyStates) {
+                    if (this.keyStates.hasOwnProperty(code)) {
+                        this.keyStates[code] = 'up';
+                    }
+                }
+            });
         }
         onKeyDown(callback) {
             this.callbacks.onKeyDown.push(callback);
