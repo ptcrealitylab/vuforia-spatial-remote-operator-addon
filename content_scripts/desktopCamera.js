@@ -311,11 +311,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                     let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
                     let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
                     addScreenBorder(color, description);
-                    realityEditor.device.multiclientUI.hideRemoteCameraMeshes();
                     realityEditor.avatar.writeMyLockOnMode(avatarObjectId);
                 } else {
                     removeScreenBorder();
-                    realityEditor.device.multiclientUI.showRemoteCameraMeshes();
                     realityEditor.avatar.writeMyLockOnMode(null);
                 }
             }
@@ -323,9 +321,6 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 
         const lockOnToMe = (params) => {
             let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
-            if (avatarObjectId) {
-                realityEditor.device.multiclientUI.hideRemoteCameraMeshes();
-            }
             realityEditor.avatar.writeLockOnToMe(avatarObjectId);
         };
 
@@ -348,12 +343,16 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                         avatarObjectId: objectId,
                     });
                 });
+                if (virtualCamera.lockOnMode) {
+                    virtualCamera.toggleLockOnMode(null);
+                    removeScreenBorder();
+                    realityEditor.avatar.writeMyLockOnMode(null);
+                }
             }
         });
 
         virtualCamera.onStopLockOnMode(() => {
             removeScreenBorder();
-            realityEditor.device.multiclientUI.showRemoteCameraMeshes();
             realityEditor.avatar.writeMyLockOnMode(null);
         });
 
