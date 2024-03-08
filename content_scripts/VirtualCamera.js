@@ -106,10 +106,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (this.lockOnMode) {
                 this.lockOnMode = null;
                 return false;
-            } else {
+            } else if (objectId) {
                 this.lockOnMode = objectId;
                 return true;
             }
+            return false;
         }
         onStopLockOnMode(cb) {
             this.callbacks.onStopLockOnMode.push(cb);
