@@ -295,13 +295,8 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             })
         });
 
-        // -- follow another avatar (another user's virtual camera) when their avatar profile is clicked on
-        realityEditor.avatar.iconMenu.registerAvatarIconClickEvent((params) => {
-            // if (typeof params.buttonText === 'undefined') return;
+        const lockOnToTarget = (params) => {
             let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
-            if (buttonText !== realityEditor.avatar.iconMenu.MENU_ITEMS.FollowThem) return;
-            console.log('clicked on icon for ', avatarObjectId, avatarProfile.name, buttonText);
-
             if (virtualCamera && !isMyIcon) {
                 console.log('toggleLockOnMode', avatarObjectId);
                 if (virtualCamera.lockOnMode && virtualCamera.lockOnMode !== avatarObjectId) {
@@ -324,6 +319,34 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                     realityEditor.avatar.writeMyLockOnMode(null);
                 }
             }
+        };
+
+        const lockOnToMe = (params) => {
+            let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
+            realityEditor.avatar.writeLockOnToMe(avatarObjectId);
+        };
+
+        // -- follow another avatar (another user's virtual camera) when their avatar profile is clicked on
+        realityEditor.avatar.iconMenu.registerAvatarIconClickEvent((params) => {
+            // if (typeof params.buttonText === 'undefined') return;
+            let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
+            console.log('clicked on icon for ', avatarObjectId, avatarProfile.name, buttonText);
+
+            if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowThem) {
+                lockOnToTarget(params);
+            } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowMe) {
+                lockOnToMe(params);
+            } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.AllFollowMe) {
+                // for each other avatar in the same world...
+                let myId = realityEditor.avatar.getMyAvatarId();
+                realityEditor.forEachObject((object, objectId) => {
+                    if (!realityEditor.avatar.utils.isAvatarObject(object)) return; // only lock avatars onto self
+                    if (objectId === myId) return; // don't lock self onto self
+                    lockOnToMe({
+                        avatarObjectId: objectId,
+                    });
+                });
+            }
         });
 
         virtualCamera.onStopLockOnMode(() => {
@@ -331,6 +354,27 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             realityEditor.device.multiclientUI.showRemoteCameraMeshes();
             realityEditor.avatar.writeMyLockOnMode(null);
         });
+
+        realityEditor.avatar.registerOnMyAvatarInitializedCallback((myAvatarObject) => {
+            // detect when other users started/stopped following me
+            const subscriptionCallbacks = {};
+            subscriptionCallbacks[realityEditor.avatar.utils.PUBLIC_DATA_KEYS.userProfile] = (msgContent) => {
+                const userProfile = msgContent.publicData.userProfile;
+                console.log('got updated userProfile in desktopCamera.js', userProfile);
+                lockOnToTarget({
+                    avatarObjectId: userProfile.lockOnMode,
+                    avatarProfile: userProfile,
+                    userInitials: '',
+                    isMyIcon: userProfile.lockOnMode === myAvatarObject.objectId,
+                    pointerEvent: null,
+                    buttonText: null,
+                });
+            };
+            realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
+
+            // TODO: also process the avatar userProfile lockOnMode one time when the avatar first loads?
+        });
+
     }
 
     // Add "screen share"-style border to edge of screen to indicate that you are following another user
