@@ -323,6 +323,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 
         const lockOnToMe = (params) => {
             let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
+            if (avatarObjectId) {
+                realityEditor.device.multiclientUI.hideRemoteCameraMeshes();
+            }
             realityEditor.avatar.writeLockOnToMe(avatarObjectId);
         };
 
@@ -330,7 +333,6 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         realityEditor.avatar.iconMenu.registerAvatarIconClickEvent((params) => {
             // if (typeof params.buttonText === 'undefined') return;
             let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
-            console.log('clicked on icon for ', avatarObjectId, avatarProfile.name, buttonText);
 
             if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowThem) {
                 lockOnToTarget(params);
