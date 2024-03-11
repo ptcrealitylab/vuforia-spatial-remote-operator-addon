@@ -194,28 +194,51 @@ body > * {
     color: rgb(155, 155, 155);
 }
 
-.mode-prompt {
-    position: fixed;
-    left: 50vw;
-    transform: translateX(-50%);
+.mode-prompt-container {
+    position: absolute;
+    right: 0;
+    bottom: 20px;
     width: 320px;
-    height: 100px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 5px;
+    height: max-content;
+    margin-right: 20px;
+    pointer-events: none;
+}
+
+.mode-prompt {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
+    width: 320px;
+    height: max-content;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+    margin-top: 10px;
     font-size: 1em;
     pointer-events: none;
+    padding: 16px;
+    opacity: 0;
+    box-sizing: border-box;
+    animation: 5s ease-in forwards promptFadeIn;
+}
 
-    transition: opacity 0.3s ease;
+.mode-prompt.remove-prompt {
+    animation: promptFadeOut ease-in .3s forwards;
+}
+
+.mode-prompt ul {
+    padding-inline-start: 20px;
 }
 
 .mode-prompt-big-font {
-    font-size: 1.5em;
+    font-size: 1.1em;
+    font-weight: 600;
 }
 
-.fly-mode-prompt {
-    opacity: 0;
+@keyframes promptFadeIn {
+    0% { opacity: 0 }
+    20% { opacity: 1 }
+    80% { opacity: 1 }
+    100% { opacity: 0 }
 }
