@@ -110,12 +110,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
             }
         }
+        // div/container where all prompts get appended to
         createPromptContainer () {
             let promptContainer = document.createElement('div');
             promptContainer.classList.add('mode-prompt-container');
             
             return promptContainer;
         }
+        // function for creating prompts
         createPrompt(titleText, bodyText) {
             // don't show keyboard controls when remote operator loaded into AR app
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
