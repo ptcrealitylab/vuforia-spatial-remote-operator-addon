@@ -133,13 +133,6 @@ export class CameraVis extends Followable {
          * @type {THREE.Object3D}
          */
         this.maskMesh = null;
-                        
-        let maskDepthData = new Uint8Array(2*2*4);
-        for (let i = 0; i < maskDepthData.length; ++i) {
-            maskDepthData[i] = 0;
-        }
-        this.maskTextureDepth = new THREE.DataTexture(maskDepthData, 2, 2);
-        this.maskTextureDepth.needsUpdate = true;
         
         if (debug) {
             this.setupDebugCubes();
@@ -258,10 +251,9 @@ export class CameraVis extends Followable {
         if (this.maskMaterial) this.maskMaterial.dispose();
 
         this.maskMaterial = this.mesh.material.clone();
-        //this.maskMaterial.colorWrite = false;
+        this.maskMaterial.colorWrite = false;
         this.maskMaterial.uniforms.useFarDepth.value = true;
         this.maskMaterial.depthFunc = THREE.AlwaysDepth;
-        //this.maskMaterial.uniforms.mapDepth = this.maskTextureDepth;
         this.maskMesh.material = this.maskMaterial;
     }
 
