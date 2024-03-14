@@ -102,9 +102,8 @@ function startHTTPServer(localUIApp, port) {
     // });
     const io = server8080.io;
 
-
     function ioBroadcast(route, msg) {
-        for (const socket of Object.values(io.sockets.connected)) {
+        for (const socket of io.sockets) {
             socket.emit(route, msg);
         }
     }
@@ -200,14 +199,14 @@ function startHTTPServer(localUIApp, port) {
 
                     // realityEditorSocketArray[socket.id] = {object: msgContent.object, protocol: thisProtocol};
 
-                    // io.sockets.connected[socket.id].emit('object', JSON.stringify({
+                    // socket.emit('object', JSON.stringify({
                     //     object: msgContent.object,
                     //     frame: msgContent.frame,
                     //     node: key,
                     //     data: objects[msgContent.object].frames[msgContent.frame].nodes[key].data
                     // }));
 
-                    // io.sockets.connected[socket.id].emit('object/publicData', JSON.stringify({
+                    // socket.emit('object/publicData', JSON.stringify({
                     //     object: msgContent.object,
                     //     frame: msgContent.frame,
                     //     publicData: publicData
