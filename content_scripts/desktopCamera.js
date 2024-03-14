@@ -210,7 +210,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                 }
             }
         });
-        
+
         let videoPlayback = realityEditor.gui.ar.videoPlayback;
         videoPlayback.onVideoCreated(player => {
             followCoordinator.addFollowTarget(player);
@@ -295,44 +295,43 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             })
         });
 
-        const lockOnToTarget = (params) => {
-            let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
-            if (virtualCamera && !isMyIcon) {
-                console.log('toggleLockOnMode', avatarObjectId);
-                if (virtualCamera.lockOnMode && virtualCamera.lockOnMode !== avatarObjectId) {
-                    // stop following previous and start following new
-                    virtualCamera.toggleLockOnMode(null);
-                }
-                let newLockOnMode = virtualCamera.toggleLockOnMode(avatarObjectId);
-
-                let avatarObject = realityEditor.getObject(avatarObjectId);
+        const lockOnToTarget = (avatarToLockOntoId) => {
+            if (virtualCamera.lockOnMode && virtualCamera.lockOnMode !== avatarToLockOntoId) {
+                // stop following previous and start following new
+                virtualCamera.toggleLockOnMode(null);
+            }
+            let newLockOnMode = virtualCamera.toggleLockOnMode(avatarToLockOntoId);
+            try {
+                let avatarObject = realityEditor.getObject(avatarToLockOntoId);
                 let color = realityEditor.avatar.utils.getColor(avatarObject);
+                let avatarProfile = realityEditor.avatar.getConnectedAvatarList()[avatarToLockOntoId];
+
                 if (newLockOnMode) {
                     let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
                     let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
                     addScreenBorder(color, description);
-                    realityEditor.avatar.writeMyLockOnMode(avatarObjectId);
+                    realityEditor.avatar.writeMyLockOnMode(avatarToLockOntoId);
                 } else {
                     removeScreenBorder();
                     realityEditor.avatar.writeMyLockOnMode(null);
                 }
+            } catch (e) {
+                console.warn('error locking onto target', e);
             }
         };
 
-        const lockOnToMe = (params) => {
-            let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
-            realityEditor.avatar.writeLockOnToMe(avatarObjectId);
+        const lockOnToMe = (otherAvatarId) => {
+            realityEditor.avatar.writeLockOnToMe(otherAvatarId);
         };
 
         // -- follow another avatar (another user's virtual camera) when their avatar profile is clicked on
         realityEditor.avatar.iconMenu.registerAvatarIconClickEvent((params) => {
-            // if (typeof params.buttonText === 'undefined') return;
             let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
 
             if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowThem) {
-                lockOnToTarget(params);
+                lockOnToTarget(avatarObjectId);
             } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowMe) {
-                lockOnToMe(params);
+                lockOnToMe(avatarObjectId);
             } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.AllFollowMe) {
                 // for each other avatar in the same world...
                 let myId = realityEditor.avatar.getMyAvatarId();
@@ -362,14 +361,8 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             subscriptionCallbacks[realityEditor.avatar.utils.PUBLIC_DATA_KEYS.userProfile] = (msgContent) => {
                 const userProfile = msgContent.publicData.userProfile;
                 console.log('got updated userProfile in desktopCamera.js', userProfile);
-                lockOnToTarget({
-                    avatarObjectId: userProfile.lockOnMode,
-                    avatarProfile: userProfile,
-                    userInitials: '',
-                    isMyIcon: userProfile.lockOnMode === myAvatarObject.objectId,
-                    pointerEvent: null,
-                    buttonText: null,
-                });
+                let avatarToLockOntoId = userProfile.lockOnMode;
+                lockOnToTarget(avatarToLockOntoId);
             };
             realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
 
