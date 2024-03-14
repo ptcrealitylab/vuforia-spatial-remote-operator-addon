@@ -123,6 +123,17 @@ export class CameraVis extends Followable {
         this.material = null;
         this.mesh = null;
 
+        /**
+         * this material will overwrite the the scene depth and will not render color
+         * @type {THREE.Material}
+         */
+        this.maskMeshMaterial = null;
+        /**
+         * this shallow copy of the mesh will erase the background depth values, so the original mesh renders ontop of the background
+         * @type {THREE.Object3D}
+         */
+        this.maskMesh = null;
+        
         if (debug) {
             this.setupDebugCubes();
         }
@@ -236,6 +247,16 @@ export class CameraVis extends Followable {
         realityEditor.gui.threejsScene.removeFromScene(this.debugColorCube);
     }
 
+    #updateMaskMaterial() {
+        if (this.maskMaterial) this.maskMaterial.dispose();
+
+        this.maskMaterial = this.mesh.material.clone();
+        this.maskMaterial.colorWrite = false;
+        this.maskMaterial.uniforms.useFarDepth.value = true;
+        this.maskMaterial.depthFunc = THREE.AlwaysDepth;
+        this.maskMesh.material = this.maskMaterial;
+    }
+
     setupPointCloud() {
         const mesh = createPointCloud(this.texture, this.textureDepth, this.shaderMode, this.color);
 
@@ -243,12 +264,18 @@ export class CameraVis extends Followable {
         this.material = mesh.material;
 
         this.phone.add(mesh);
+
+        this.maskMesh = this.mesh.clone();
+        this.maskMesh.renderOrder = realityEditor.gui.threejsScene.RENDER_ORDER_DEPTH_REPLACEMENT;
+        this.mesh.parent.add(this.maskMesh);
+        this.#updateMaskMaterial();
     }
 
     update(mat, delayed, rawMatricesMsg) {
         let now = performance.now();
         if (this.shaderMode === ShaderMode.HOLO) {
             this.material.uniforms.time.value = window.performance.now();
+            this.maskMaterial.uniforms.time.value = this.material.uniforms.time.value;
         }
         this.lastUpdate = now;
 
@@ -263,11 +290,13 @@ export class CameraVis extends Followable {
                 rawMatricesMsg.focalLength[0] / rawWidth * width,
                 rawMatricesMsg.focalLength[1] / rawHeight * height,
             );
+            this.maskMaterial.uniforms.focalLength.value = this.material.uniforms.focalLength.value;
             // convert principal point from image Y-axis bottom-to-top in Vuforia to top-to-bottom in OpenGL
             this.material.uniforms.principalPoint.value = new THREE.Vector2(
                 rawMatricesMsg.principalPoint[0] / rawWidth * width,
                 (rawHeight - rawMatricesMsg.principalPoint[1]) / rawHeight * height,
             );
+            this.maskMaterial.uniforms.principalPoint.value = this.material.uniforms.principalPoint.value;
         }
 
         if (this.time > now || !delayed) {
@@ -417,6 +446,7 @@ export class CameraVis extends Followable {
             }
             this.material = createPointCloudMaterial(this.texture, this.textureDepth, this.shaderMode, this.color);
             this.mesh.material = this.material;
+            this.#updateMaskMaterial();
         }
     }
 
@@ -464,6 +494,7 @@ export class CameraVis extends Followable {
         this.cameraMeshGroupMat.color = color;
         if (this.material && this.material.uniforms.borderColor) {
             this.material.uniforms.borderColor.value = color;
+            this.maskMaterial.uniforms.borderColor.value = this.material.uniforms.borderColor.value;
         }
     }
 
