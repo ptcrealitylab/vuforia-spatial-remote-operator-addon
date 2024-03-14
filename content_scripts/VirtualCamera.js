@@ -145,7 +145,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             normalModeControls2.innerHTML = 'MMB/RMB+Alt - pan, scroll wheel - zoom';
             this.normalModePrompt.appendChild(normalModeControls2);
             document.body.appendChild(this.normalModePrompt);
-            this.normalModePrompt.style.opacity = 0;
             setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 3000);
             // add fly mode prompt
             this.flyModePrompt = document.createElement('div');
