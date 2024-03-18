@@ -325,7 +325,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         };
 
         // -- follow another avatar (another user's virtual camera) when their avatar profile is clicked on
-        realityEditor.avatar.iconMenu.registerAvatarIconClickEvent((params) => {
+        realityEditor.avatar.iconMenu.onAvatarIconMenuItemSelected((params) => {
             let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
 
             if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowThem) {
@@ -338,9 +338,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                 realityEditor.forEachObject((object, objectId) => {
                     if (!realityEditor.avatar.utils.isAvatarObject(object)) return; // only lock avatars onto self
                     if (objectId === myId) return; // don't lock self onto self
-                    lockOnToMe({
-                        avatarObjectId: objectId,
-                    });
+                    lockOnToMe(objectId);
                 });
                 if (virtualCamera.lockOnMode) {
                     virtualCamera.toggleLockOnMode(null);
