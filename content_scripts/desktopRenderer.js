@@ -139,7 +139,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
             function createNavmeshCallback(navmesh) {
                 let floorOffset = navmesh.floorOffset * 1000;
-                let buffer = 0;
+                let buffer = 0; // can be used to offset the mesh from the groundplane, but other alignment issues throughout the system may arise if it isn't 0
                 floorOffset += buffer;
                 let groundPlaneMatrix = [
                     1, 0, 0, 0,
@@ -148,9 +148,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                     0, floorOffset, 0, 1
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
-
-                // initializeCameraSystem(floorOffset);
-                // realityEditor.device.desktopCamera.initService(floorOffset); // TODO: update floorOffset in desktopCamera instead of initService here
 
                 let ceilingHeight = Math.max(
                     navmesh.maxY - navmesh.minY,
