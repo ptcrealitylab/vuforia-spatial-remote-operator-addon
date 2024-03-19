@@ -249,19 +249,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
     }
 
     /**
-     * Hide cubes part of my following group, show all other cubes
+     * Hide cubes part of my following group (who I'm locked onto, and others locked onto that same target)
+     * Show all other cubes
      * @param {THREE.Object3D} cubeMesh
      * @param {string} editorId
      */
     function updateCubeVisibility(cubeMesh, editorId) {
-        let myAvatarId = realityEditor.avatar.getMyAvatarId();
-        // let myAvatarObject = realityEditor.getObject(myAvatarId);
-
-        // TODO: also turn off any cubes who are following the same user as you are
-
-        // make it visible if not locked onto me
+        // get the avatarId that corresponds with this cubeMesh
         let cubeAvatarId = Object.keys(objects).find(objectId => {
-            return objectId.includes(editorId); // THIS RELIES ON THE FACT THAT AVATAR NAMES INCLUDE THE TEMP_UUID
+            return objectId.includes(editorId); // This relies on the fact that the avatar names include the temp_uuid
         });
 
         let isPartOfMyGroup = isAvatarPartOfMyFollowingGroup(cubeAvatarId);
