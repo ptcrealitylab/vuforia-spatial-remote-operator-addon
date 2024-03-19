@@ -77,12 +77,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 levelTargetObject: null, // this is fully stabilized, has height = virtualizer height
                 partiallyStabilizedTargetObject: null // this is actually what we lookAt, in between forwardObj and levelObj
             };
+            this.lockOnMode = null; // directly lock-on to the perspective of another user's virtual camera
+
             this.callbacks = {
                 onPanToggled: [],
                 onRotateToggled: [],
                 onScaleToggled: [],
                 onStopFollowing: [], // other modules can discover when pan/rotate forced this camera out of follow mode
-                onFirstPersonDistanceToggled: []
+                onFirstPersonDistanceToggled: [],
+                onStopLockOnMode: [],
             };
 
             this.promptContainer = this.createPromptContainer();
@@ -99,6 +102,30 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.threeJsContainer.position.y = -floorOffset;
             this.threeJsContainer.rotation.x = Math.PI / 2;
             realityEditor.gui.threejsScene.addToScene(this.threeJsContainer);
+        }
+
+        /**
+         * Start or stop lockOnMode - which snaps your camera view to another user's
+         * @param {string|null} objectId
+         * @returns {boolean}
+         */
+        toggleLockOnMode(objectId) {
+            if (this.lockOnMode) {
+                this.lockOnMode = null;
+                return false;
+            } else if (objectId) {
+                this.lockOnMode = objectId;
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Register a new callback to be triggered when you stop lockOnMode
+         * @param {function} cb
+         */
+        onStopLockOnMode(cb) {
+            this.callbacks.onStopLockOnMode.push(cb);
         }
         addFocusTargetCube() {
             if (this.focusTargetCube === null) {
@@ -602,8 +629,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
 
+            // following lets you choose a target that you can zoom in/out to "drift" behind / follow over the shoulder
             if (this.followingState.active) {
                 this.updateFollowing();
+            }
+
+            // lockOnMode exactly snaps your viewpoint to match the lockOn target's sceneNode matrix
+            if (this.lockOnMode) {
+                this.updateLockOnMode();
+                return; // stop executing - cannot zoom or pan while in lock-on mode
             }
 
             let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
@@ -865,6 +899,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (this.followingState.active) {
                     this.stopFollowing();
                 }
+                this.cancelLockOnMode();
             });
         }
         afterOneFrame(callback) {
@@ -883,7 +918,52 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.preStopFollowingDistanceToTarget = null;
             }
 
+            this.cancelLockOnMode();
+
             this.callbacks.onStopFollowing.forEach(cb => cb());
+        }
+
+        /**
+         * Stops lockOnMode (if currently locked on), and triggers callbacks
+         */
+        cancelLockOnMode() {
+            if (this.lockOnMode) {
+                this.lockOnMode = null;
+                this.callbacks.onStopLockOnMode.forEach((cb) => {
+                    cb();
+                });
+            }
+        }
+        /**
+         * Update the camera position to exactly match the sceneNode of the id stored in this.lockOnMode
+         */
+        updateLockOnMode() {
+            // move the camera position to the exact position of the avatar they're set to track
+            if (!this.lockOnMode) return;
+            let objectSceneNode = realityEditor.sceneGraph.getSceneNodeById(this.lockOnMode);
+            if (!objectSceneNode) return;
+            let lockedOnWorldMatrix = objectSceneNode.worldMatrix;
+            
+            const APPLY_SMOOTHING_TO_LOCK_ON_MODE = false; // this didn't look too good when I turned it on, but we could further experiment with it in future
+
+            let newCameraMatrix;
+            if (APPLY_SMOOTHING_TO_LOCK_ON_MODE) {
+                let totalDifference = sumOfElementDifferences(lockedOnWorldMatrix, this.cameraNode.localMatrix);
+                if (totalDifference < 0.00001) {
+                    return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
+                }
+                let animationSpeed = 0.3;
+                newCameraMatrix = tweenMatrix(this.cameraNode.localMatrix, lockedOnWorldMatrix, animationSpeed);
+            } else {
+                newCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(lockedOnWorldMatrix);
+            }
+
+            // update the three.js camera position
+            if (this.cameraNode.id === 'CAMERA') {
+                realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+                let cameraNode = realityEditor.sceneGraph.getCameraNode();
+                cameraNode.needsRerender = true;
+            }
         }
         // trigger this in the main update loop each frame while we are following, to perform the following camera motion
         updateFollowing() {

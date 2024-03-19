@@ -242,3 +242,25 @@ body > * {
     80% { opacity: 1 }
     100% { opacity: 0 }
 }
+
+#avatar-follow-border {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 8px solid white; /* change the color with JS */
+    pointer-events: none;
+    z-index: 9999; /* go on top of EVERYTHING */
+}
+
+#avatar-follow-border > .fullscreenSubtitle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    bottom: 50px;
+    background-color: rgba(0,0,0,0.5);
+    padding: 8px 16px;
+    border-radius: 15px;
+}

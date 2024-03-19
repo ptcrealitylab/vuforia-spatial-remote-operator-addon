@@ -56,7 +56,9 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
     let cameraVisFrustums = [];
 
-    let didInit = false;
+    let didInit = false; // true as soon as initService is called
+    let cameraSystemInitialized = false; // true when a valid world has been discovered
+    let sceneInitialized = false; // true when the world mesh has loaded
 
     let didAddModeTransitionListeners = false;
     let gltfUpdateCallbacks = [];
@@ -70,8 +72,10 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
             return;
         }
 
+        // always trigger this even on an AR device, since these listeners can trigger initService
         addModeTransitionListeners();
 
+        // only continue initializing the remote renderer if we're not in AR mode (happens on desktop, or by pinching on AR device)
         if (realityEditor.device.environment.isARMode()) { return; }
         if (didInit) return;
 
@@ -111,13 +115,19 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 return;
             }
 
+            initializeCameraSystem(0);
+            realityEditor.device.meshLine.inject();
+
             // try loading area target GLB file into the threejs scene
             isGlbLoaded = true;
             let gltfPath =  realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/obj/' + object.name + '/target/target.glb');
-
+            let checkGltfPath = realityEditor.network.getURL(object.ip, realityEditor.network.getPort(object), '/object/' + objectKey + '/checkFileExists/target/target.glb');
             function checkExist() {
-                fetch(gltfPath).then(res => {
-                    if (!res.ok) {
+                let start = Date.now(); // prevent cached responses
+                fetch(`${checkGltfPath}?t=${start}`).then((res) => {
+                    return res.json();
+                }).then((body) => {
+                    if (!body.exists) {
                         setTimeout(checkExist, 500);
                     } else {
                         realityEditor.app.targetDownloader.createNavmesh(gltfPath, objectKey, createNavmeshCallback);
@@ -129,7 +139,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
             function createNavmeshCallback(navmesh) {
                 let floorOffset = navmesh.floorOffset * 1000;
-                let buffer = 50;
+                let buffer = 0; // can be used to offset the mesh from the groundplane, but other alignment issues throughout the system may arise if it isn't 0
                 floorOffset += buffer;
                 let groundPlaneMatrix = [
                     1, 0, 0, 0,
@@ -138,8 +148,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                     0, floorOffset, 0, 1
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
-
-                realityEditor.device.desktopCamera.initService(floorOffset);
 
                 let ceilingHeight = Math.max(
                     navmesh.maxY - navmesh.minY,
@@ -160,12 +168,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 let heightMap = navmesh.heightMap;
                 realityEditor.gui.threejsScene.addGltfToScene(gltfPath, map, steepnessMap, heightMap, {x: 0, y: -floorOffset, z: 0}, {x: 0, y: 0, z: 0}, ceilingHeight, ceilingAndFloor, center, function(createdMesh) {
 
-                    realityEditor.device.environment.clearSuppressedObjectRenderingFlag(renderingFlagName); // stop hiding tools
-
-                    let endMarker = document.createElement('div');
-                    endMarker.style.display = 'none';
-                    endMarker.id = 'gltf-added';
-                    document.body.appendChild(endMarker);
+                    initializeSceneAfterMeshLoaded();
 
                     gltf = createdMesh;
                     gltf.name = 'areaTargetMesh';
@@ -202,8 +205,6 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                             }
                         }
                     });
-
-                    realityEditor.device.meshLine.inject();
 
                     // this will trigger any onLocalizedWithinWorld callbacks in the userinterface, such as creating the Avatar
                     let identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -368,6 +369,30 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 logicCanvas.style.pointerEvents = 'none';
             }
         );
+    }
+
+    /**
+     * Take care of any initialization steps that should happen as soon as a valid world object has been discovered
+     * @param floorOffset
+     */
+    function initializeCameraSystem(floorOffset = 0) {
+        if (cameraSystemInitialized) return; // make sure this only happens once
+        cameraSystemInitialized = true;
+        realityEditor.device.desktopCamera.initService(floorOffset);
+    }
+
+    /**
+     * Take care of any initialization steps that should happen after the mesh has been loaded
+     */
+    function initializeSceneAfterMeshLoaded() {
+        if (sceneInitialized) return; // make sure this only happens once
+        sceneInitialized = true;
+        realityEditor.device.environment.clearSuppressedObjectRenderingFlag('loadingWorldMesh'); // stop hiding tools
+
+        let endMarker = document.createElement('div');
+        endMarker.style.display = 'none';
+        endMarker.id = 'gltf-added';
+        document.body.appendChild(endMarker);
     }
 
     /**
