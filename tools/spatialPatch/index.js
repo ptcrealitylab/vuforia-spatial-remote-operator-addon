@@ -92,6 +92,10 @@ function setShaderMode(newShaderMode) {
 }
 
 async function generateDescription(serialization) {
+    if (!apiKey) {
+        return;
+    }
+
     const messages = [{
         role: 'system',
         content: SYSTEM_PROMPT,
