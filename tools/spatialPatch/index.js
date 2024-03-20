@@ -1,4 +1,7 @@
-/* global SpatialInterface */
+/* global SpatialInterface, EnvelopeContents */
+
+const SYSTEM_PROMPT = `Describe what you can see in the image, and generate the description so it is suitable to be used for alt-text.`;
+const apiKey = '';
 
 const ShaderMode = {
     HIDDEN: 'HIDDEN',
@@ -17,7 +20,7 @@ if (!spatialInterface) {
 
     // allow the tool to be nested inside of envelopes
     envelopeContents = new EnvelopeContents(spatialInterface, document.body);
-    
+
     // hide the associated spatial snapshot when the parent envelope containing this tool closes
     envelopeContents.onClose(() => {
         spatialInterface.patchSetShaderMode(ShaderMode.HIDDEN);
@@ -55,7 +58,7 @@ launchButton.addEventListener('pointerup', function () {
         break;
     }
     setShaderMode(shaderMode);
-    
+
     if (envelopeContents) {
         console.log('spatial patch sending new toggle state to envelope');
         envelopeContents.sendMessageToEnvelope({
@@ -88,6 +91,50 @@ function setShaderMode(newShaderMode) {
     spatialInterface.patchSetShaderMode(shaderMode);
 }
 
+async function generateDescription(serialization) {
+    if (!apiKey) {
+        return;
+    }
+
+    const messages = [{
+        role: 'system',
+        content: SYSTEM_PROMPT,
+    }, {
+        role: 'user',
+        content: [{
+            type: 'image',
+            image_url: {
+                url: serialization.texture,
+            }
+        }],
+    }];
+
+    const body = {
+        model: 'gpt-4-vision-preview',
+        max_tokens: 4096,
+        temperature: 0,
+        messages,
+    };
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+        const data = await response.json();
+        console.log('got openai', data);
+        serialization.description = data.choices[0].message.content;
+        spatialInterface.writePublicData('storage', 'serialization', serialization);
+    } catch (error) {
+        console.error('not openai', error);
+    }
+}
+
+
 spatialInterface.onSpatialInterfaceLoaded(function() {
     spatialInterface.setVisibilityDistance(100);
     spatialInterface.setMoveDelay(300);
@@ -96,6 +143,9 @@ spatialInterface.onSpatialInterfaceLoaded(function() {
     spatialInterface.initNode('storage', 'storeData');
 
     spatialInterface.addReadPublicDataListener('storage', 'serialization', serialization => {
+        if (!serialization.description) {
+            generateDescription(serialization);
+        }
         spatialInterface.patchHydrate(serialization);
     });
 

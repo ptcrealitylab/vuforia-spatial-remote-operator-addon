@@ -295,6 +295,11 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             })
         });
 
+        /**
+         * Stops following the previous target, tells the virtualCamera lock on to the new target id,
+         * shows visual feedback (a colored screen border), and notifies other clients via the avatar publicData
+         * @param {string} avatarToLockOntoId
+         */
         const lockOnToTarget = (avatarToLockOntoId) => {
             if (virtualCamera.lockOnMode && virtualCamera.lockOnMode !== avatarToLockOntoId) {
                 // stop following previous and start following new
@@ -320,56 +325,62 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             }
         };
 
+        /**
+         * Tells another user to lock onto my view, by sending a message via that avatar's publicData
+         * @param {string} otherAvatarId
+         */
         const lockOnToMe = (otherAvatarId) => {
             realityEditor.avatar.writeLockOnToMe(otherAvatarId);
         };
 
-        // -- follow another avatar (another user's virtual camera) when their avatar profile is clicked on
+        // Depending on which avatar menu item is clicked, perform the right LockOn action
         realityEditor.avatar.iconMenu.onAvatarIconMenuItemSelected((params) => {
-            let {avatarObjectId, avatarProfile, userInitials, isMyIcon, pointerEvent, buttonText } = params;
+            let {avatarObjectId, buttonText } = params;
 
             if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowThem) {
                 lockOnToTarget(avatarObjectId);
             } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowMe) {
                 lockOnToMe(avatarObjectId);
             } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.AllFollowMe) {
-                // for each other avatar in the same world...
+                // for each other avatar in the same world... tell them to lock on to me
                 let myId = realityEditor.avatar.getMyAvatarId();
                 realityEditor.forEachObject((object, objectId) => {
-                    if (!realityEditor.avatar.utils.isAvatarObject(object)) return; // only lock avatars onto self
+                    if (!realityEditor.avatar.utils.isAvatarObject(object)) return; // only works with avatars
                     if (objectId === myId) return; // don't lock self onto self
                     lockOnToMe(objectId);
                 });
+                // if I'm locked onto someone else, stop following them when I ask everyone to follow me
                 if (virtualCamera.lockOnMode) {
                     virtualCamera.toggleLockOnMode(null);
-                    removeScreenBorder();
                     realityEditor.avatar.writeMyLockOnMode(null);
+                    removeScreenBorder();
                 }
             }
         });
 
+        // If virtual camera stops lockOnMode (e.g. using escape key), remove the border and notify others
         virtualCamera.onStopLockOnMode(() => {
             removeScreenBorder();
             realityEditor.avatar.writeMyLockOnMode(null);
         });
 
+        // detect when other users started/stopped following me, by subscribing to my avatar's userProfile
         realityEditor.avatar.registerOnMyAvatarInitializedCallback((myAvatarObject) => {
-            // detect when other users started/stopped following me
             const subscriptionCallbacks = {};
             subscriptionCallbacks[realityEditor.avatar.utils.PUBLIC_DATA_KEYS.userProfile] = (msgContent) => {
                 const userProfile = msgContent.publicData.userProfile;
-                console.log('got updated userProfile in desktopCamera.js', userProfile);
                 let avatarToLockOntoId = userProfile.lockOnMode;
                 lockOnToTarget(avatarToLockOntoId);
             };
             realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
-
-            // TODO: also process the avatar userProfile lockOnMode one time when the avatar first loads?
         });
-
     }
 
-    // Add "screen share"-style border to edge of screen to indicate that you are following another user
+    /**
+     * For lockOnMode: add "screen share"-style border to edge of screen to indicate that you are following another user
+     * @param {string} color - hsl/rgb/hex string
+     * @param {string} descriptionText - what text to display on the screen while following
+     */
     function addScreenBorder(color, descriptionText) {
         let existingBorder = document.getElementById('avatar-follow-border');
         if (existingBorder) {
@@ -391,7 +402,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         document.body.appendChild(border);
     }
 
-    // Function to remove border
+    /**
+     * Remove the colored border when you stop lockOnMode
+     */
     function removeScreenBorder() {
         let border = document.getElementById('avatar-follow-border');
         if (border) {
@@ -399,7 +412,10 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         }
     }
 
-    // Function to change border color
+    /**
+     * Change the lockOnMode screen border color
+     * @param {string} color - hsl/rgb/hex string
+     */
     function changeBorderColor(color) {
         let border = document.getElementById('avatar-follow-border');
         if (border) {
