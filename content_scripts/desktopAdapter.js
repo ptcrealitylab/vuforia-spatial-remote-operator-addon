@@ -143,6 +143,14 @@ createNameSpace('realityEditor.device.desktopAdapter');
                     color: env.groundWireframeColor,
                     thickness: 0.075 // relatively thick
                 });
+                // todo Steve: make ai chatbox turn on dark mode
+                let aiContainer = document.getElementById('ai-chat-tool-container');
+                let searchTextArea = [...aiContainer.querySelectorAll('#searchTextArea')][0];
+                searchTextArea.classList.remove('searchTextArea-light');
+                let myAiDialogues = [...aiContainer.querySelectorAll('.ai-chat-tool-dialogue-my')];
+                myAiDialogues.forEach(dialogue => dialogue.classList.remove('ai-chat-tool-dialogue-my-light'));
+                let aiAiDialogues = [...aiContainer.querySelectorAll('.ai-chat-tool-dialogue-ai')];
+                aiAiDialogues.forEach(dialogue => dialogue.classList.remove('ai-chat-tool-dialogue-ai-light'));
             } else {
                 menuBar.domElement.classList.add('desktopMenuBarLight');
                 Array.from(document.querySelectorAll('.desktopMenuBarMenuDropdown')).forEach(dropdown => {
@@ -154,6 +162,14 @@ createNameSpace('realityEditor.device.desktopAdapter');
                     color: env.groundWireframeColor,
                     thickness: 0.025 // relatively thin
                 });
+                // todo Steve: make ai chatbox turn off dark mode
+                let aiContainer = document.getElementById('ai-chat-tool-container');
+                let searchTextArea = [...aiContainer.querySelectorAll('#searchTextArea')][0];
+                searchTextArea.classList.add('searchTextArea-light');
+                let myAiDialogues = [...aiContainer.querySelectorAll('.ai-chat-tool-dialogue-my')];
+                myAiDialogues.forEach(dialogue => dialogue.classList.add('ai-chat-tool-dialogue-my-light'));
+                let aiAiDialogues = [...aiContainer.querySelectorAll('.ai-chat-tool-dialogue-ai')];
+                aiAiDialogues.forEach(dialogue => dialogue.classList.add('ai-chat-tool-dialogue-ai-light'));
             }
         });
 

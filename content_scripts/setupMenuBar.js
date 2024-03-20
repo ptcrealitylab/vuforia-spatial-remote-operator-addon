@@ -39,7 +39,8 @@ createNameSpace('realityEditor.gui');
         CutoutViewFrustums: 'Cut Out 3D Videos',
         ShowFPS: 'Show FPS',
         ActivateProfiler: 'Activate Profiler',
-        ToggleFlyMode: 'Fly Mode'
+        ToggleFlyMode: 'Fly Mode',
+        ShowAIChatbot: 'Show AI Chatbot',
     });
     exports.ITEM = ITEM;
 
@@ -182,6 +183,15 @@ createNameSpace('realityEditor.gui');
             }
         });
         menuBar.addItemToMenu(MENU.Help, showDeveloper);
+        
+        const showAIChat = new MenuItem(ITEM.ShowAIChatbot, { toggle: true }, (checked) => {
+            if (checked) {
+                realityEditor.ai.showDialogue();
+            } else {
+                realityEditor.ai.hideDialogue();
+            }
+        })
+        menuBar.addItemToMenu(MENU.Help, showAIChat);
 
         document.body.appendChild(menuBar.domElement);
 
