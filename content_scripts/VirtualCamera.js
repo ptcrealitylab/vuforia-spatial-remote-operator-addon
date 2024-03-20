@@ -272,7 +272,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.addEventListener('pointermove', function (event) {
                 this.mouseInput.latest.x = event.pageX;
                 this.mouseInput.latest.y = event.pageY;
-                if (this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
+                // if (this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
+                if (this.idleOrbitting || this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
                 this.setFocusTargetCube(event, true);
             }.bind(this));
 
@@ -303,7 +304,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.addEventListener('keypress', function (e) {
                 if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
                 if (e.key === 'g' || e.key === 'G') {
-                    this.focus(this.focusTargetCube.position.clone());
+                    // this.focus(this.focusTargetCube.position.clone());
                 }
             }.bind(this));
 

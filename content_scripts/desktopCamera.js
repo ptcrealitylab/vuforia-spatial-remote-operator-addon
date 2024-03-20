@@ -660,6 +660,12 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         });
     }
 
+    function focusVirtualCamera(pos, dir) {
+        if (!virtualCamera || !virtualCameraEnabled) return;
+        virtualCamera.focus(pos, dir);
+    }
+
     exports.update = update;
     exports.initService = initService;
+    exports.focusVirtualCamera = focusVirtualCamera;
 })(realityEditor.device.desktopCamera);
