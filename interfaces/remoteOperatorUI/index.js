@@ -77,14 +77,43 @@ function startHTTPServer(localUIApp, port) {
     let mouseConnected = false;
     var callibrationFrames = 100;
 
-    const http = require('http').Server(localUIApp.app);
-    const io = require('socket.io')(http);
+    let http = null;
+    if (server8080.useHTTPS) {
+        const fs = require('fs');
+        const path = require('path');
+        let options = {
+            key: fs.readFileSync('key.pem'),
+            cert: fs.readFileSync('cert.pem')
+        };
+        http = require('https').Server(options, localUIApp.app);
+    } else {
+        http = require('http').Server(localUIApp.app);
+    }
+    http.on('upgrade', function(req, socket, head) {
+        server8080.io.server.server.handleUpgrade(req, socket, head, (ws) => {
+            server8080.io.server.server.emit('connection', ws, req);
+        });
+    });
+
+    // const wrapServer = new WebSocket.Server({server: http});
+    // Slightly janky shim to put the 8081 connections over onto the 8080 handler
+    // wrapServer.on('connection', (...args) => {
+    //     server8080.io.onConnection(...args);
+    // });
+    const io = server8080.io;
+
+
+    function ioBroadcast(route, msg) {
+        for (const socket of Object.values(io.sockets.connected)) {
+            socket.emit(route, msg);
+        }
+    }
 
     const objectsPath = server.getObjectsPath();
     const identityFolderName = '.identity';
 
     http.listen(port, function() {
-        console.info('Remote Operator listening on port ' + port);
+        console.info('Remote Operator listening on port (http' + (server8080.useHTTPS ? 's': '') + ') ' + port);
 
         // serves the camera poses that correspond to a recorded rgb+depth 3d video
         localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {
@@ -155,18 +184,18 @@ function startHTTPServer(localUIApp, port) {
 
         // pass visibleObjects messages to the userinterface
         server.subscribeToMatrixStream(function(visibleObjects) {
-            io.emit('visibleObjects', visibleObjects);
+            ioBroadcast('visibleObjects', visibleObjects);
         });
 
         // pass UDP messages to the userinterface
         server.subscribeToUDPMessages(function(msgContent) {
-            io.emit('udpMessage', msgContent);
+            ioBroadcast('udpMessage', msgContent);
         });
 
         function socketServer() {
             io.on('connection', function (socket) {
                 socket.on('/subscribe/editorUpdates', function (msg) {
-                    var msgContent = JSON.parse(msg);
+                    var _msgContent = JSON.parse(msg);
                     // console.log('/subscribe/editorUpdates', msgContent);
 
                     // realityEditorSocketArray[socket.id] = {object: msgContent.object, protocol: thisProtocol};
@@ -188,7 +217,7 @@ function startHTTPServer(localUIApp, port) {
 
                 socket.on('/matrix/visibleObjects', function (msg) {
                     var msgContent = JSON.parse(msg);
-                    io.emit('/matrix/visibleObjects', msgContent);
+                    ioBroadcast('/matrix/visibleObjects', msgContent);
                 });
 
                 socket.on('/update', function(msg) {
@@ -208,11 +237,11 @@ function startHTTPServer(localUIApp, port) {
                     }
 
                     if (objectKey && frameKey && nodeKey) {
-                        io.emit('/update/node', msgContent);
+                        ioBroadcast('/update/node', msgContent);
                     } else if (objectKey && frameKey) {
-                        io.emit('/update/frame', msgContent);
+                        ioBroadcast('/update/frame', msgContent);
                     } else if (objectKey) {
-                        io.emit('/update/object', msgContent);
+                        ioBroadcast('/update/object', msgContent);
                     }
 
                 });
@@ -263,7 +292,7 @@ function startHTTPServer(localUIApp, port) {
                                     };
                                 }
                             } else {
-                                io.emit('/mouse/transformation', {
+                                ioBroadcast('/mouse/transformation', {
                                     translation: {
                                         x: mouseTranslation.x - callibration.x,
                                         y: mouseTranslation.y - callibration.y,

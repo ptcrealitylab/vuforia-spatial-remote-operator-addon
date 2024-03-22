@@ -228,6 +228,9 @@ import { mergeBufferGeometries } from '../../thirdPartyCode/three/BufferGeometry
 
             let geometry = geometries[0];
             if (geometries.length > 1) {
+                // We may have to contend with a groundPlaneCollider sneaking
+                // into the geometry list, filter it out
+                geometries = geometries.filter(geo => geo.type === 'BufferGeometry');
                 const mergedGeometry = mergeBufferGeometries(geometries);
                 geometry = mergedGeometry;
             }
