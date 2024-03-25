@@ -114,8 +114,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 console.warn('Rejected local world object');
                 return;
             }
-
-            initializeCameraSystem(0);
+            
             realityEditor.device.meshLine.inject();
 
             // try loading area target GLB file into the threejs scene
@@ -148,6 +147,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                     0, floorOffset, 0, 1
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+                initializeCameraSystem(floorOffset);
 
                 let ceilingHeight = Math.max(
                     navmesh.maxY - navmesh.minY,
