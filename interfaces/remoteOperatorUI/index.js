@@ -77,6 +77,8 @@ function startHTTPServer(localUIApp, port) {
     let mouseConnected = false;
     var callibrationFrames = 100;
 
+    const io = server8080.io;
+
     let http = null;
     if (server8080.useHTTPS) {
         const fs = require('fs');
@@ -90,17 +92,16 @@ function startHTTPServer(localUIApp, port) {
         http = require('http').Server(localUIApp.app);
     }
     http.on('upgrade', function(req, socket, head) {
-        server8080.io.server.server.handleUpgrade(req, socket, head, (ws) => {
-            server8080.io.server.server.emit('connection', ws, req);
+        io.server.handleUpgrade(req, socket, head, (ws) => {
+            io.server.emit('connection', ws, req);
         });
     });
 
     // const wrapServer = new WebSocket.Server({server: http});
     // Slightly janky shim to put the 8081 connections over onto the 8080 handler
     // wrapServer.on('connection', (...args) => {
-    //     server8080.io.onConnection(...args);
+    //     io.onConnection(...args);
     // });
-    const io = server8080.io;
 
     function ioBroadcast(route, msg) {
         for (const socket of io.sockets) {
