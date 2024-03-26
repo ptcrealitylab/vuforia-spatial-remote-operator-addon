@@ -105,6 +105,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         }
 
         /**
+         * Updates the vertical position of the three.js container used to offset the following mechanism
+         * This needs to be called anytime the navmesh floorOffset updates, e.g. if you drop in a new gltf model
+         * @param {number} floorOffset
+         */
+        updateFloorOffset(floorOffset) {
+            this.threeJsContainer.position.y = -floorOffset;
+        }
+
+        /**
          * Start or stop lockOnMode - which snaps your camera view to another user's
          * @param {string|null} objectId
          * @returns {boolean}
