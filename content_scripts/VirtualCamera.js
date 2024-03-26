@@ -187,6 +187,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             return prompt;
         }    
         addNormalModePrompt() {
+            if (realityEditor.device.environment.isWithinToolboxApp()) return;
             if (this.isFlying) return;
             
             // add normal mode prompt
@@ -197,6 +198,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.promptContainer.appendChild(normalModePrompt);
         }
         addFlyModePrompt() {
+            if (realityEditor.device.environment.isWithinToolboxApp()) return;
             if (!this.isFlying) return;
         
             // add fly mode prompt
