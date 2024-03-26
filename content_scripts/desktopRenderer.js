@@ -114,7 +114,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                 console.warn('Rejected local world object');
                 return;
             }
-            
+
+            // initialize the camera system first with a 0 floor offset - proper offset gets set after gltf loaded
+            // this lets the camera work even when there's an empty world object (just seeing the holodeck)
+            initializeCameraSystem(0);
+
             realityEditor.device.meshLine.inject();
 
             // try loading area target GLB file into the threejs scene
@@ -147,6 +151,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                     0, floorOffset, 0, 1
                 ];
                 realityEditor.sceneGraph.setGroundPlanePosition(groundPlaneMatrix);
+
+                // update the camera system with the correct floor offset from the navmesh
                 initializeCameraSystem(floorOffset);
 
                 let ceilingHeight = Math.max(
@@ -376,7 +382,11 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
      * @param floorOffset
      */
     function initializeCameraSystem(floorOffset = 0) {
-        if (cameraSystemInitialized) return; // make sure this only happens once
+        if (cameraSystemInitialized) {
+            realityEditor.device.desktopCamera.updateCameraFloorOffset(floorOffset);
+            return;
+        }
+        // make sure this only happens once
         cameraSystemInitialized = true;
         realityEditor.device.desktopCamera.initService(floorOffset);
     }
