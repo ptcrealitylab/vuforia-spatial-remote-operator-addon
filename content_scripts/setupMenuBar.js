@@ -130,7 +130,8 @@ createNameSpace('realityEditor.gui');
 
         // useful in Teams or other iframe-embedded versions of the app, where you are otherwise unable to refresh the page
         const reloadPage = new MenuItem(ITEM.ReloadPage, null, () => {
-            window.location.reload();
+            // reload and bypass the cache (https://stackoverflow.com/questions/2099201/javascript-hard-refresh-of-current-page)
+            window.location.reload(true);
         });
         menuBar.addItemToMenu(MENU.Help, reloadPage);
 
