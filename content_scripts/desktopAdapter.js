@@ -265,6 +265,10 @@ createNameSpace('realityEditor.device.desktopAdapter');
      * @todo Needs to be manually modified as more native calls are added. Add one switch case per native app call.
      */
     function modifyGlobalNamespace() {
+        if (realityEditor.device.environment.isWithinToolboxApp()) {
+            console.warn('Preventing modifyGlobalNamespace - we are within the toolbox app');
+            return;
+        }
         
         // mark that we've manipulated the webkit reference, so that we
         // can still detect isWithinToolboxApp vs running in mobile browser
@@ -303,6 +307,19 @@ createNameSpace('realityEditor.device.desktopAdapter');
             default:
                 return;
             }
+        };
+
+        // we also manually overwrite some of the promise wrappers for certain webkit messageHandlers
+        // else they'll never resolve (e.g. realityEditor.app.promises.setPause().then(success => {...})
+        realityEditor.app.promises.setPause = async () => {
+            return new Promise((resolve, _reject) => {
+                resolve(true); // setPause resolves immediately on desktop
+            });
+        };
+        realityEditor.app.promises.setResume = async () => {
+            return new Promise((resolve, _reject) => {
+                resolve(true); // setResume resolves immediately on desktop
+            });
         };
 
         // don't need to polyfill webkit functions for Chrome here because it is already polyfilled in the userinterface
