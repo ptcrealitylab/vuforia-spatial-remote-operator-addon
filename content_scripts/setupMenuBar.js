@@ -39,7 +39,8 @@ createNameSpace('realityEditor.gui');
         CutoutViewFrustums: 'Cut Out 3D Videos',
         ShowFPS: 'Show FPS',
         ActivateProfiler: 'Activate Profiler',
-        ToggleFlyMode: 'Fly Mode'
+        ToggleFlyMode: 'Fly Mode',
+        ReloadPage: 'Reload Page'
     });
     exports.ITEM = ITEM;
 
@@ -126,6 +127,12 @@ createNameSpace('realityEditor.gui');
             window.open('https://spatialtoolbox.vuforia.com/', '_blank');
         });
         menuBar.addItemToMenu(MENU.Help, gettingStarted);
+
+        // useful in Teams or other iframe-embedded versions of the app, where you are otherwise unable to refresh the page
+        const reloadPage = new MenuItem(ITEM.ReloadPage, null, () => {
+            window.location.reload();
+        });
+        menuBar.addItemToMenu(MENU.Help, reloadPage);
 
         const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { shortcutKey: 'I', toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
