@@ -10,7 +10,7 @@ createNameSpace('realityEditor.device.multiclientUI');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
-(function() {
+(function(exports) {
     let allConnectedCameras = {};
     let isCameraSubscriptionActiveForObject = {};
 
@@ -238,12 +238,78 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 } else {
                     realityEditor.gui.threejsScene.setMatrixFromArray(existingMesh.matrix, cameraMatrix);
                 }
+
+                updateCubeVisibility(existingMesh, editorId);
             });
         } catch (e) {
             console.warn(e);
         }
 
         requestAnimationFrame(update);
+    }
+
+    /**
+     * Hide cubes part of my following group (who I'm locked onto, and others locked onto that same target)
+     * Show all other cubes
+     * @param {THREE.Object3D} cubeMesh
+     * @param {string} editorId
+     */
+    function updateCubeVisibility(cubeMesh, editorId) {
+        // get the avatarId that corresponds with this cubeMesh
+        let cubeAvatarId = Object.keys(objects).find(objectId => {
+            return objectId.includes(editorId); // This relies on the fact that the avatar names include the temp_uuid
+        });
+
+        let isPartOfMyGroup = isAvatarPartOfMyFollowingGroup(cubeAvatarId);
+        if (cubeMesh.visible) {
+            // hide if part of my group
+            if (isPartOfMyGroup) {
+                cubeMesh.visible = false;
+            }
+        } else {
+            // show if not part of my group
+            if (!isPartOfMyGroup) {
+                cubeMesh.visible = true;
+            }
+        }
+    }
+
+    /**
+     * Returns true for:
+     * 1. Any avatars following me
+     * 2. The avatar that I am following
+     * 3. Any avatars following the same avatar as I am
+     */
+    function isAvatarPartOfMyFollowingGroup(cubeAvatarId) {
+        let myAvatarId = realityEditor.avatar.getMyAvatarId();
+        if (!myAvatarId || !cubeAvatarId) return false;
+        if (myAvatarId && cubeAvatarId === myAvatarId) return true; // I am always part of my group
+        let cubeAvatarObject = realityEditor.getObject(cubeAvatarId);
+        if (!cubeAvatarObject) return false; // defaults to false if anything is wrong
+        let myAvatarObject = realityEditor.getObject(myAvatarId);
+        if (!myAvatarId) return false;
+
+        let cubeInfo = realityEditor.avatar.utils.getAvatarNodeInfo(cubeAvatarObject);
+        let cubeNode = realityEditor.getNode(cubeInfo.objectKey, cubeInfo.frameKey, cubeInfo.nodeKey);
+        let cubeUserProfile = cubeNode.publicData.userProfile;
+
+        // 1. any avatars following me
+        if (cubeUserProfile && cubeUserProfile.lockOnMode && cubeUserProfile.lockOnMode === myAvatarId) return true;
+
+        let myInfo = realityEditor.avatar.utils.getAvatarNodeInfo(myAvatarObject);
+        let myNode = realityEditor.getNode(myInfo.objectKey, myInfo.frameKey, myInfo.nodeKey);
+        let myUserProfile = myNode.publicData.userProfile;
+
+        // 2. the avatar that I am following
+        if (myUserProfile && myUserProfile.lockOnMode && myUserProfile.lockOnMode === cubeAvatarId) return true;
+
+        // 3. avatars following the same avatar that I am following
+        let avatarMyAvatarIsFollowing = realityEditor.getObject(myUserProfile.lockOnMode);
+        if (avatarMyAvatarIsFollowing) {
+            if (cubeUserProfile && cubeUserProfile.lockOnMode && cubeUserProfile.lockOnMode === avatarMyAvatarIsFollowing.objectId) return true;
+        }
+
+        return false;
     }
 
     realityEditor.addons.addCallback('init', initService);

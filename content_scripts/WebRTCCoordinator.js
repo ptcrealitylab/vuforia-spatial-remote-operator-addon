@@ -24,7 +24,9 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
      */
     function showError(message, error, duration) {
         console.error('webrtc error', error);
-        realityEditor.gui.modal.showScreenTopNotification(message, duration);
+        // showBannerNotification removes notification after set time so no additional function is needed
+        let webRTCError = realityEditor.gui.modal.showBannerNotification(message, 'webRTCErrorContainer', 'webRTCErrorText', duration);
+        document.body.appendChild(webRTCError);
     }
 
     class WebRTCCoordinator {
