@@ -188,6 +188,12 @@ export class CameraVis extends Followable {
             textureDepth: this.textureDepth.image.toDataURL(),
             creationTime: now,
         };
+
+        const textureImage = document.createElement('img');
+        textureImage.src = serialization.texture;
+        const textureDepthImage = document.createElement('img');
+        textureDepthImage.src = serialization.textureDepth;
+
         const frameKey = CameraVisPatch.createToolForPatchSerialization(serialization, shaderMode);
 
         return {
@@ -195,8 +201,8 @@ export class CameraVis extends Followable {
             patch: CameraVisPatch.createPatch(
                 updatedPatchContainerMatrix,
                 updatedPatchPhoneMatrix,
-                this.texture.image,
-                this.textureDepth.image,
+                textureImage,
+                textureDepthImage,
                 now,
                 shaderMode
             ),
