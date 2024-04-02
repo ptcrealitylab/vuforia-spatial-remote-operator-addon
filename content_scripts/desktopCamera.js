@@ -377,6 +377,18 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
     }
 
     /**
+     * Update the floorOffset of the camera system - useful if new gltf loads with new navmesh/floorOffset
+     * @param {number} floorOffset
+     */
+    function updateCameraFloorOffset(floorOffset) {
+        if (!virtualCamera) {
+            console.warn('cant update camera with floorOffset because no camera yet');
+            return;
+        }
+        virtualCamera.updateFloorOffset(floorOffset);
+    }
+
+    /**
      * For lockOnMode: add "screen share"-style border to edge of screen to indicate that you are following another user
      * @param {string} color - hsl/rgb/hex string
      * @param {string} descriptionText - what text to display on the screen while following
@@ -684,4 +696,5 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
     exports.update = update;
     exports.initService = initService;
     exports.focusVirtualCamera = focusVirtualCamera;
+    exports.updateCameraFloorOffset = updateCameraFloorOffset;
 })(realityEditor.device.desktopCamera);

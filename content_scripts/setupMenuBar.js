@@ -41,6 +41,7 @@ createNameSpace('realityEditor.gui');
         ActivateProfiler: 'Activate Profiler',
         ToggleFlyMode: 'Fly Mode',
         ShowAIChatbot: 'Show AI Chatbot',
+        ReloadPage: 'Reload Page'
     });
     exports.ITEM = ITEM;
 
@@ -127,6 +128,13 @@ createNameSpace('realityEditor.gui');
             window.open('https://spatialtoolbox.vuforia.com/', '_blank');
         });
         menuBar.addItemToMenu(MENU.Help, gettingStarted);
+
+        // useful in Teams or other iframe-embedded versions of the app, where you are otherwise unable to refresh the page
+        const reloadPage = new MenuItem(ITEM.ReloadPage, null, () => {
+            // reload and bypass the cache (https://stackoverflow.com/questions/2099201/javascript-hard-refresh-of-current-page)
+            window.location.reload(true);
+        });
+        menuBar.addItemToMenu(MENU.Help, reloadPage);
 
         const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { shortcutKey: 'I', toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
