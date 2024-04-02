@@ -129,9 +129,6 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             if (DEBUG) {
                 console.log('webrtc msg', msg);
             }
-            if (msgRaw.includes('newDescription')) {
-                console.log('Received desc message', msg);
-            }
 
             if (msg.command === 'joinNetwork') {
                 if (msg.role === 'provider') {
