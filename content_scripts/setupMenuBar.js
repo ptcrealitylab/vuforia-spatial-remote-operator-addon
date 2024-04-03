@@ -88,11 +88,11 @@ createNameSpace('realityEditor.gui');
         const toggleCutoutViewFrustums = new MenuItem(ITEM.CutoutViewFrustums, { toggle: true, defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.View, toggleCutoutViewFrustums);
 
-        const toggleSurfaceAnchors = new MenuItem(ITEM.SurfaceAnchors, { shortcutKey: 'SEMICOLON', toggle: true, defaultVal: false }, null); // other module can attach a callback later
-        menuBar.addItemToMenu(MENU.View, toggleSurfaceAnchors);
-
-        const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
-        menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
+        // Note: these features still exist in the codebase, but have been removed from the menu for now
+        // const toggleSurfaceAnchors = new MenuItem(ITEM.SurfaceAnchors, { shortcutKey: 'SEMICOLON', toggle: true, defaultVal: false }, null); // other module can attach a callback later
+        // menuBar.addItemToMenu(MENU.View, toggleSurfaceAnchors);
+        // const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
+        // menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
 
         const toggleDarkMode = new MenuItem(ITEM.DarkMode, { toggle: true, defaultVal: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleDarkMode);
@@ -122,11 +122,11 @@ createNameSpace('realityEditor.gui');
         const resetCamera = new MenuItem(ITEM.ResetCameraPosition, { shortcutKey: 'ESCAPE' }, null);
         menuBar.addItemToMenu(MENU.Camera, resetCamera);
 
-        const gettingStarted = new MenuItem(ITEM.GettingStarted, null, () => {
-            // TODO: build a better Getting Started / Help experience
-            window.open('https://spatialtoolbox.vuforia.com/', '_blank');
-        });
-        menuBar.addItemToMenu(MENU.Help, gettingStarted);
+        // TODO: build a better Getting Started / Help experience
+        // const gettingStarted = new MenuItem(ITEM.GettingStarted, null, () => {
+        //     window.open('https://spatialtoolbox.vuforia.com/', '_blank');
+        // });
+        // menuBar.addItemToMenu(MENU.Help, gettingStarted);
 
         // useful in Teams or other iframe-embedded versions of the app, where you are otherwise unable to refresh the page
         const reloadPage = new MenuItem(ITEM.ReloadPage, null, () => {
@@ -135,7 +135,7 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.Help, reloadPage);
 
-        const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { shortcutKey: 'I', toggle: true, defaultVal: false }, (checked) => {
+        const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
                 if (realityEditor.device.profiling) realityEditor.device.profiling.show();
             } else {
@@ -158,24 +158,15 @@ createNameSpace('realityEditor.gui');
         });
         menuBar.addItemToMenu(MENU.Develop, showFPS);
 
-        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: true }, (_checked) => {
-            // console.info(objects);
-            // for (let object in objects) {
-            //     let objectKey = object.uuid;
-            //     for (let frame in object.frames) {
-            //         let frameKey = frame.uuid;
-            //         realityEditor.device.deleteFrame(frame, objectKey, frameKey);
-            //     }
-            // }
-            let objectKey = realityEditor.worldObjects.getBestWorldObject().objectId;
-            let object = realityEditor.getObject(objectKey);
-            for (let frame in object.frames) {
-                if (object.frames.hasOwnProperty(frame)) {
-                    console.log(object.frames[frame]);
-                    let frameKey = object.frames[frame].uuid;
-                    realityEditor.device.deleteFrame(frame, objectKey, frameKey);
-                }
-            }
+        const deleteAllTools = new MenuItem(ITEM.DeleteAllTools, { toggle: false }, () => {
+            realityEditor.forEachFrameInAllObjects((objectKey, frameKey) => {
+                let object = realityEditor.getObject(objectKey);
+                if (!object) return;
+                // only delete for regular objects, world objects, and anchor objects - don't delete avatar or human pose frames
+                if (object.type !== 'object' && object.type !== 'world' && object.type !== 'anchor') return;
+                let frameToDelete = realityEditor.getFrame(objectKey, frameKey);
+                realityEditor.device.tryToDeleteSelectedVehicle(frameToDelete);
+            });
         });
         menuBar.addItemToMenu(MENU.Develop, deleteAllTools);
 
