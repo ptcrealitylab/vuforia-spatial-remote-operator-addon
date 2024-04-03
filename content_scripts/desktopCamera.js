@@ -85,7 +85,6 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         followCoordinator = new CameraFollowCoordinator(virtualCamera);
         window.followCoordinator = followCoordinator;
         followCoordinator.addMenuItems();
-        console.log(followCoordinator);
 
         // ---- Add and remove follow targets when virtualizers connect ---- //
 
@@ -108,36 +107,39 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
 
         virtualCamera.onPanToggled(function(isPanning) {
+            if (virtualCamera.lockOnMode) {
+                isPanning = false; // can't pan while locked onto another user's perspective
+            }
             if (isPanning && !knownInteractionStates.pan) {
                 knownInteractionStates.pan = true;
-                // console.log('start pan');
                 panToggled();
             } else if (!isPanning && knownInteractionStates.pan) {
                 knownInteractionStates.pan = false;
-                // console.log('stop pan');
                 panToggled();
             }
         });
         virtualCamera.onRotateToggled(function(isRotating) {
+            if (virtualCamera.lockOnMode) {
+                isRotating = false; // can't rotate while locked onto another user's perspective
+            }
             if (isRotating && !knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = true;
                 knownInteractionStates.pan = false; // stop panning if you start rotating
-                // console.log('start rotate');
                 rotateToggled();
             } else if (!isRotating && knownInteractionStates.rotate) {
                 knownInteractionStates.rotate = false;
-                // console.log('stop rotate');
                 rotateToggled();
             }
         });
         virtualCamera.onScaleToggled(function(isScaling) {
+            if (virtualCamera.lockOnMode) {
+                isScaling = false;
+            }
             if (isScaling && !knownInteractionStates.scale) {
                 knownInteractionStates.scale = true;
-                // console.log('start scale');
                 scaleToggled();
             } else if (!isScaling && knownInteractionStates.scale) {
                 knownInteractionStates.scale = false;
-                // console.log('stop scale');
                 scaleToggled();
             }
         });
@@ -208,7 +210,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                 }
             }
         });
-        
+
         let videoPlayback = realityEditor.gui.ar.videoPlayback;
         videoPlayback.onVideoCreated(player => {
             followCoordinator.addFollowTarget(player);
@@ -253,6 +255,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         }
 
         const loadCameraData = (index) => {
+            if (virtualCamera.lockOnMode) return;
             const cameraDataJsonString = localStorage.getItem(getSavedCameraDataLocalStorageKey(index));
             if (!cameraDataJsonString) {
                 return;
@@ -291,6 +294,145 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                 }
             })
         });
+
+        /**
+         * Stops following the previous target, tells the virtualCamera lock on to the new target id,
+         * shows visual feedback (a colored screen border), and notifies other clients via the avatar publicData
+         * @param {string} avatarToLockOntoId
+         */
+        const lockOnToTarget = (avatarToLockOntoId) => {
+            if (virtualCamera.lockOnMode && virtualCamera.lockOnMode !== avatarToLockOntoId) {
+                // stop following previous and start following new
+                virtualCamera.toggleLockOnMode(null);
+            }
+            let newLockOnMode = virtualCamera.toggleLockOnMode(avatarToLockOntoId);
+            try {
+                let avatarObject = realityEditor.getObject(avatarToLockOntoId);
+                let color = realityEditor.avatar.utils.getColor(avatarObject);
+                let avatarProfile = realityEditor.avatar.getConnectedAvatarList()[avatarToLockOntoId];
+
+                if (newLockOnMode) {
+                    let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
+                    let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
+                    addScreenBorder(color, description);
+                    realityEditor.avatar.writeMyLockOnMode(avatarToLockOntoId);
+                } else {
+                    removeScreenBorder();
+                    realityEditor.avatar.writeMyLockOnMode(null);
+                }
+            } catch (e) {
+                console.warn('error locking onto target', e);
+            }
+        };
+
+        /**
+         * Tells another user to lock onto my view, by sending a message via that avatar's publicData
+         * @param {string} otherAvatarId
+         */
+        const lockOnToMe = (otherAvatarId) => {
+            realityEditor.avatar.writeLockOnToMe(otherAvatarId);
+        };
+
+        // Depending on which avatar menu item is clicked, perform the right LockOn action
+        realityEditor.avatar.iconMenu.onAvatarIconMenuItemSelected((params) => {
+            let {avatarObjectId, buttonText } = params;
+
+            if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowThem) {
+                lockOnToTarget(avatarObjectId);
+            } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.FollowMe) {
+                lockOnToMe(avatarObjectId);
+            } else if (buttonText === realityEditor.avatar.iconMenu.MENU_ITEMS.AllFollowMe) {
+                // for each other avatar in the same world... tell them to lock on to me
+                let myId = realityEditor.avatar.getMyAvatarId();
+                realityEditor.forEachObject((object, objectId) => {
+                    if (!realityEditor.avatar.utils.isAvatarObject(object)) return; // only works with avatars
+                    if (objectId === myId) return; // don't lock self onto self
+                    lockOnToMe(objectId);
+                });
+                // if I'm locked onto someone else, stop following them when I ask everyone to follow me
+                if (virtualCamera.lockOnMode) {
+                    virtualCamera.toggleLockOnMode(null);
+                    realityEditor.avatar.writeMyLockOnMode(null);
+                    removeScreenBorder();
+                }
+            }
+        });
+
+        // If virtual camera stops lockOnMode (e.g. using escape key), remove the border and notify others
+        virtualCamera.onStopLockOnMode(() => {
+            removeScreenBorder();
+            realityEditor.avatar.writeMyLockOnMode(null);
+        });
+
+        // detect when other users started/stopped following me, by subscribing to my avatar's userProfile
+        realityEditor.avatar.registerOnMyAvatarInitializedCallback((myAvatarObject) => {
+            const subscriptionCallbacks = {};
+            subscriptionCallbacks[realityEditor.avatar.utils.PUBLIC_DATA_KEYS.userProfile] = (msgContent) => {
+                const userProfile = msgContent.publicData.userProfile;
+                let avatarToLockOntoId = userProfile.lockOnMode;
+                lockOnToTarget(avatarToLockOntoId);
+            };
+            realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
+        });
+    }
+
+    /**
+     * Update the floorOffset of the camera system - useful if new gltf loads with new navmesh/floorOffset
+     * @param {number} floorOffset
+     */
+    function updateCameraFloorOffset(floorOffset) {
+        if (!virtualCamera) {
+            console.warn('cant update camera with floorOffset because no camera yet');
+            return;
+        }
+        virtualCamera.updateFloorOffset(floorOffset);
+    }
+
+    /**
+     * For lockOnMode: add "screen share"-style border to edge of screen to indicate that you are following another user
+     * @param {string} color - hsl/rgb/hex string
+     * @param {string} descriptionText - what text to display on the screen while following
+     */
+    function addScreenBorder(color, descriptionText) {
+        let existingBorder = document.getElementById('avatar-follow-border');
+        if (existingBorder) {
+            changeBorderColor(color);
+            return;
+        }
+
+        let border = document.createElement('div');
+        border.style.border = '8px solid ' + color;
+        border.id = 'avatar-follow-border';
+
+        if (descriptionText) {
+            let textDiv = document.createElement('div');
+            textDiv.classList.add('fullscreenSubtitle');
+            textDiv.textContent = descriptionText;
+            border.appendChild(textDiv);
+        }
+
+        document.body.appendChild(border);
+    }
+
+    /**
+     * Remove the colored border when you stop lockOnMode
+     */
+    function removeScreenBorder() {
+        let border = document.getElementById('avatar-follow-border');
+        if (border) {
+            border.parentNode.removeChild(border);
+        }
+    }
+
+    /**
+     * Change the lockOnMode screen border color
+     * @param {string} color - hsl/rgb/hex string
+     */
+    function changeBorderColor(color) {
+        let border = document.getElementById('avatar-follow-border');
+        if (border) {
+            border.style.border = '8px solid ' + color;
+        }
     }
 
     function addSensitivitySlidersToMenu() {
@@ -548,4 +690,5 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 
     exports.update = update;
     exports.initService = initService;
+    exports.updateCameraFloorOffset = updateCameraFloorOffset;
 })(realityEditor.device.desktopCamera);
