@@ -297,7 +297,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     credential: 'QNFn8q+yPVb1XG6k',
                 }, {
                     urls: [
-                        'turn:toolboxedge.net:3478'
+                        'turn:spatial.ptc.io:3478'
                     ],
                     username: 'ptc',
                     credential: 'pgnhOCNXxwH2rz1qiV2hOuckkOtuu6Tx',
