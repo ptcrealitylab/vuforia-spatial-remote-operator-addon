@@ -77,17 +77,21 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 levelTargetObject: null, // this is fully stabilized, has height = virtualizer height
                 partiallyStabilizedTargetObject: null // this is actually what we lookAt, in between forwardObj and levelObj
             };
+            this.lockOnMode = null; // directly lock-on to the perspective of another user's virtual camera
+
             this.callbacks = {
                 onPanToggled: [],
                 onRotateToggled: [],
                 onScaleToggled: [],
                 onStopFollowing: [], // other modules can discover when pan/rotate forced this camera out of follow mode
-                onFirstPersonDistanceToggled: []
+                onFirstPersonDistanceToggled: [],
+                onStopLockOnMode: [],
             };
 
-            this.normalModePrompt = null;
-            this.flyModePrompt = null;
-            this.addFlyAndNormalModePrompts();
+            this.promptContainer = this.createPromptContainer();
+            document.body.appendChild(this.promptContainer);
+            this.addNormalModePrompt();
+            this.addFlyModePrompt();
             
             this.focusTargetCube = null;
             this.addFocusTargetCube();
@@ -99,6 +103,39 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.threeJsContainer.rotation.x = Math.PI / 2;
             realityEditor.gui.threejsScene.addToScene(this.threeJsContainer);
         }
+
+        /**
+         * Updates the vertical position of the three.js container used to offset the following mechanism
+         * This needs to be called anytime the navmesh floorOffset updates, e.g. if you drop in a new gltf model
+         * @param {number} floorOffset
+         */
+        updateFloorOffset(floorOffset) {
+            this.threeJsContainer.position.y = -floorOffset;
+        }
+
+        /**
+         * Start or stop lockOnMode - which snaps your camera view to another user's
+         * @param {string|null} objectId
+         * @returns {boolean}
+         */
+        toggleLockOnMode(objectId) {
+            if (this.lockOnMode) {
+                this.lockOnMode = null;
+                return false;
+            } else if (objectId) {
+                this.lockOnMode = objectId;
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Register a new callback to be triggered when you stop lockOnMode
+         * @param {function} cb
+         */
+        onStopLockOnMode(cb) {
+            this.callbacks.onStopLockOnMode.push(cb);
+        }
         addFocusTargetCube() {
             if (this.focusTargetCube === null) {
                 this.focusTargetCube = new THREE.Mesh(
@@ -109,53 +146,73 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // realityEditor.gui.threejsScene.addToScene(this.focusTargetCube);
             }
         }
-        addFlyAndNormalModePrompts() {
+        // div/container where all prompts get appended to
+        createPromptContainer () {
+            let promptContainer = document.createElement('div');
+            promptContainer.classList.add('mode-prompt-container');
+            
+            return promptContainer;
+        }
+        // function for creating prompts
+        createPrompt(titleText, bodyText) {
             // don't show keyboard controls when remote operator loaded into AR app
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
             
             // add normal mode prompt
-            this.normalModePrompt = document.createElement('div');
-            this.normalModePrompt.classList.add('mode-prompt');
-            this.normalModePrompt.style.top = (realityEditor.device.environment.variables.screenTopOffset + 20) + 'px';
-            let normalModeText = document.createElement('div');
-            normalModeText.classList.add('mode-prompt-big-font');
-            normalModeText.innerHTML = 'Entered normal mode';
-            this.normalModePrompt.appendChild(normalModeText);
-            this.normalModePrompt.appendChild(document.createElement('br'));
-            let normalModeControls1 = document.createElement('div');
-            normalModeControls1.innerHTML = 'F - switch mode, G - focus, RMB - rotate,';
-            this.normalModePrompt.appendChild(normalModeControls1);
-            let normalModeControls2 = document.createElement('div');
-            normalModeControls2.innerHTML = 'MMB/RMB+Alt - pan, scroll wheel - zoom';
-            this.normalModePrompt.appendChild(normalModeControls2);
-            document.body.appendChild(this.normalModePrompt);
-            setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 3000);
+            let prompt = document.createElement('div');
+            prompt.classList.add('mode-prompt');
+
+            let modeText = document.createElement('div');
+            modeText.classList.add('mode-prompt-big-font');
+            modeText.innerText = titleText;
+            prompt.appendChild(modeText);
+            
+            let modeControls = document.createElement('ul');
+            if (bodyText.length && bodyText.length > 0) {
+                bodyText.forEach(item => {
+                    let listEl = document.createElement('li');
+                    listEl.innerText = item;
+                    modeControls.appendChild(listEl);
+                })
+            } else if (bodyText.typeof('string')) {
+                let promptText = document.createElement('li');
+                promptText.innerText = bodyText;
+                modeControls.appendChild(promptText);
+            }
+            prompt.appendChild(modeControls);
+            
+            prompt.addEventListener('animationend', () => {
+                this.promptContainer.removeChild(prompt);
+            })
+            return prompt;
+        }    
+        addNormalModePrompt() {
+            if (realityEditor.device.environment.isWithinToolboxApp()) return;
+            if (this.isFlying) return;
+            
+            // add normal mode prompt
+            let promptTitle = 'Entered normal mode';
+            let promptText = ['F - switch mode', 'G - focus', 'RMB - rotate', 'MMB/RMB+Alt - pan', 'scroll wheel - zoom'];
+            
+            let normalModePrompt = this.createPrompt(promptTitle, promptText);
+            this.promptContainer.appendChild(normalModePrompt);
+        }
+        addFlyModePrompt() {
+            if (realityEditor.device.environment.isWithinToolboxApp()) return;
+            if (!this.isFlying) return;
+        
             // add fly mode prompt
-            this.flyModePrompt = document.createElement('div');
-            this.flyModePrompt.classList.add('mode-prompt', 'fly-mode-prompt');
-            this.flyModePrompt.style.top = (realityEditor.device.environment.variables.screenTopOffset + 20) + 'px';
-            let flyModeText = document.createElement('div');
-            flyModeText.classList.add('mode-prompt-big-font');
-            flyModeText.innerHTML = 'Entered fly mode';
-            this.flyModePrompt.appendChild(flyModeText);
-            this.flyModePrompt.appendChild(document.createElement('br'));
-            let flyModeControls1 = document.createElement('div');
-            flyModeControls1.innerHTML = 'F - switch mode, G - focus, Q/E - down/up';
-            this.flyModePrompt.appendChild(flyModeControls1);
-            let flyModeControls2 = document.createElement('div');
-            flyModeControls2.innerHTML = 'W/A/S/D - move, SHIFT - speed up';
-            this.flyModePrompt.appendChild(flyModeControls2);
-            document.body.appendChild(this.flyModePrompt);
+            let promptTitle = 'Entered fly mode';
+            let promptText = ['F - switch mode', 'G - focus', 'Q/E - down/up', 'W/A/S/D - move', 'SHIFT - speed up'];
+
+            let flyModePrompt = this.createPrompt(promptTitle, promptText);
+            this.promptContainer.appendChild(flyModePrompt);
         }
         switchMode() {
             if (this.isFlying) {
-                this.normalModePrompt.style.opacity = '0';
-                this.flyModePrompt.style.opacity = '1';
-                setTimeout(() => {this.flyModePrompt.style.opacity = 0}, 2000);
-            } else {
-                this.flyModePrompt.style.opacity = '0';
-                this.normalModePrompt.style.opacity = '1';
-                setTimeout(() => {this.normalModePrompt.style.opacity = 0}, 2000);
+                this.addFlyModePrompt();
+            } else if (!this.isFlying){
+                this.addNormalModePrompt();
             }
         }
         // when in normal mode, right click to add a green focus cube to the scene
@@ -583,8 +640,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
 
+            // following lets you choose a target that you can zoom in/out to "drift" behind / follow over the shoulder
             if (this.followingState.active) {
                 this.updateFollowing();
+            }
+
+            // lockOnMode exactly snaps your viewpoint to match the lockOn target's sceneNode matrix
+            if (this.lockOnMode) {
+                this.updateLockOnMode();
+                return; // stop executing - cannot zoom or pan while in lock-on mode
             }
 
             let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
@@ -846,6 +910,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 if (this.followingState.active) {
                     this.stopFollowing();
                 }
+                this.cancelLockOnMode();
             });
         }
         afterOneFrame(callback) {
@@ -864,7 +929,52 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.preStopFollowingDistanceToTarget = null;
             }
 
+            this.cancelLockOnMode();
+
             this.callbacks.onStopFollowing.forEach(cb => cb());
+        }
+
+        /**
+         * Stops lockOnMode (if currently locked on), and triggers callbacks
+         */
+        cancelLockOnMode() {
+            if (this.lockOnMode) {
+                this.lockOnMode = null;
+                this.callbacks.onStopLockOnMode.forEach((cb) => {
+                    cb();
+                });
+            }
+        }
+        /**
+         * Update the camera position to exactly match the sceneNode of the id stored in this.lockOnMode
+         */
+        updateLockOnMode() {
+            // move the camera position to the exact position of the avatar they're set to track
+            if (!this.lockOnMode) return;
+            let objectSceneNode = realityEditor.sceneGraph.getSceneNodeById(this.lockOnMode);
+            if (!objectSceneNode) return;
+            let lockedOnWorldMatrix = objectSceneNode.worldMatrix;
+            
+            const APPLY_SMOOTHING_TO_LOCK_ON_MODE = false; // this didn't look too good when I turned it on, but we could further experiment with it in future
+
+            let newCameraMatrix;
+            if (APPLY_SMOOTHING_TO_LOCK_ON_MODE) {
+                let totalDifference = sumOfElementDifferences(lockedOnWorldMatrix, this.cameraNode.localMatrix);
+                if (totalDifference < 0.00001) {
+                    return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
+                }
+                let animationSpeed = 0.3;
+                newCameraMatrix = tweenMatrix(this.cameraNode.localMatrix, lockedOnWorldMatrix, animationSpeed);
+            } else {
+                newCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(lockedOnWorldMatrix);
+            }
+
+            // update the three.js camera position
+            if (this.cameraNode.id === 'CAMERA') {
+                realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+                let cameraNode = realityEditor.sceneGraph.getCameraNode();
+                cameraNode.needsRerender = true;
+            }
         }
         // trigger this in the main update loop each frame while we are following, to perform the following camera motion
         updateFollowing() {
