@@ -10,7 +10,8 @@ module.exports = {
         'realityEditor': 'writable',
         'createNameSpace': 'writable',
         'globalStates': 'writable',
-        'objects': 'writable'
+        'objects': 'writable',
+        'overlayDiv': 'writable',
     },
     'parserOptions': {
         'ecmaVersion': 2022,
