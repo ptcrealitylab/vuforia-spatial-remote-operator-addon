@@ -10,6 +10,7 @@ createNameSpace('realityEditor.device.desktopCamera');
 
 import { CameraFollowCoordinator } from './CameraFollowCoordinator.js';
 import { MotionStudyFollowable } from './MotionStudyFollowable.js';
+import { TouchControlButtons } from './TouchControlButtons.js';
 
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
@@ -42,7 +43,6 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
     let cameraTargetIcon = null;
 
     let followCoordinator = null;
-    let currentlyFollowingId = null;
 
     // used for transitioning from AR view to remote operator virtual camera
     let didAddModeTransitionListeners = false;
@@ -144,9 +144,9 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             }
         });
 
-        virtualCamera.onStopFollowing(() => {
-            currentlyFollowingId = null;
-        });
+        // virtualCamera.onStopFollowing(() => {
+        //     currentlyFollowingId = null;
+        // });
 
         interactionCursor = document.createElement('img');
         interactionCursor.id = 'interactionCursor';
@@ -155,6 +155,12 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         staticInteractionCursor = document.createElement('img');
         staticInteractionCursor.id = 'staticInteractionCursor';
         document.body.appendChild(staticInteractionCursor);
+
+        // necessary to make the interactionCursor start at the right position on touchscreens
+        document.addEventListener('pointerdown', (e) => {
+            pointerPosition.x = e.clientX;
+            pointerPosition.y = e.clientY;
+        });
 
         document.addEventListener('pointermove', function(e) {
             pointerPosition.x = e.clientX;
@@ -177,6 +183,8 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         } catch (e) {
             console.warn('Slider components for settings menu not available, skipping', e);
         }
+
+        setupTouchControlButtons();
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetCameraPosition, () => {
             console.log('reset camera position');
@@ -252,7 +260,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             const cameraData = { cameraPosition, cameraDirection };
             const cameraDataJsonString = JSON.stringify(cameraData);
             localStorage.setItem(getSavedCameraDataLocalStorageKey(index), cameraDataJsonString);
-        }
+        };
 
         const loadCameraData = (index) => {
             if (virtualCamera.lockOnMode) return;
@@ -268,7 +276,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             } catch (e) {
                 console.warn('Error parsing saved camera position data', e);
             }
-        }
+        };
 
         // Only one gets a menu item to avoid crowding, but they all get a shortcut key
         const saveCameraPositionMenuItem = new realityEditor.gui.MenuItem('Save Camera Position', { shortcutKey: '_1', modifiers: ['ALT'], toggle: false, disabled: false }, () => {
@@ -279,7 +287,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         });
         realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, saveCameraPositionMenuItem);
         realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, loadCameraPositionMenuItem);
-        [2,3,4,5,6,7,8,9,0].forEach(key => {
+        [2, 3, 4, 5, 6, 7, 8, 9, 0].forEach(key => {
             // Would be nice to deduplicate some of this logic, shared with MenuBar and MenuItem
             keyboard.onKeyDown((code, activeModifiers) => {
                 if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
@@ -292,7 +300,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                 if (code === keyboard.keyCodes[`_${key}`] && modifierSetsMatch([keyboard.keyCodes['SHIFT']], activeModifiers)) {
                     loadCameraData(key - 1);
                 }
-            })
+            });
         });
 
         /**
@@ -435,6 +443,35 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         }
     }
 
+    /**
+     * More accessible controls for touchscreen devices:
+     * Adds buttons to the screen where the user can toggle between pan/rotate/zoom/pointer
+     * The selected mode will be used by the primary pointer (left click, first tap, etc)
+     */
+    function setupTouchControlButtons() {
+        if (realityEditor.device.environment.isDesktop()) return; // only show them on iPhone/iPad remote operators
+
+        // add the buttons to the screen
+        let touchControlButtons = new TouchControlButtons();
+        document.body.appendChild(touchControlButtons.container);
+        touchControlButtons.container.id = 'touchControlsContainer';
+
+        const FLAG_NAME = 'touchCameraControlButtons';
+
+        touchControlButtons.onModeSelected((mode) => {
+            virtualCamera.setTouchControlMode(mode);
+
+            // prevent avatar pointer from activating when we are in pan/rotate/zoom mode
+            if (mode === 'pan' || mode === 'rotate' || mode === 'zoom') {
+                realityEditor.device.setFlagForPointerOccupiedByCamera(FLAG_NAME);
+            } else {
+                realityEditor.device.clearFlagForPointerOccupiedByCamera(FLAG_NAME);
+            }
+        });
+
+        touchControlButtons.selectMode('pointer'); // select this mode by default
+    }
+
     function addSensitivitySlidersToMenu() {
         // add sliders for strafe, rotate, and zoom sensitivity
         realityEditor.gui.settings.addSlider('Zoom Sensitivity', 'how fast scroll wheel zooms camera', 'cameraZoomSensitivity',  '../../../svg/cameraZoom.svg', 0.5, function(newValue) {
@@ -469,12 +506,31 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
     function scaleToggled() {
         if (!cameraTargetIcon) return;
         cameraTargetIcon.visible = knownInteractionStates.scale || knownInteractionStates.pan || knownInteractionStates.rotate;
-        // if (!cameraTargetIcon.visible) {
-        //     updateInteractionCursor(false);
-        // }
-        updateInteractionCursor(cameraTargetIcon.visible, 'addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
+
+        if (virtualCamera.touchControlMode !== 'zoom') {
+            // most of the time, this is the zooming cursor UI that we use
+            updateInteractionCursor(cameraTargetIcon.visible, 'addons/vuforia-spatial-remote-operator-addon/cameraZoom.svg');
+        } else {
+            // show different UI if you're zooming with touchscreen, which indicates that +Y is zoom in, -Y is out
+            let dynamicImageSrc = 'addons/vuforia-spatial-remote-operator-addon/touch-control-zoom-dynamic.svg';
+            let staticImageInfo = {
+                src: 'addons/vuforia-spatial-remote-operator-addon/touch-control-zoom-static.svg',
+                width: 30,
+                height: 90
+            };
+            updateInteractionCursor(cameraTargetIcon.visible, dynamicImageSrc, staticImageInfo);
+        }
     }
-    function updateInteractionCursor(visible, imageSrc) {
+
+    /**
+     * This updates the state of the two cursor images that appear while you're manipulating the camera. The first
+     * image follows your cursor. The second "static" one appears faintly at the position where you originally clicked
+     * down. The static image defaults to be the same as the moving cursor image, but a different image can be provided.
+     * @param {boolean} visible
+     * @param {string} imageSrc
+     * @param {*|null} staticImageInfo
+     */
+    function updateInteractionCursor(visible, imageSrc, staticImageInfo = {src: null, width: null, height: null}) {
         interactionCursor.style.display = visible ? 'inline' : 'none';
         if (imageSrc) {
             interactionCursor.src = imageSrc;
@@ -486,8 +542,14 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
         }
 
         staticInteractionCursor.style.display = visible ? 'inline' : 'none';
-        if (imageSrc) {
+        if (staticImageInfo && staticImageInfo.src) {
+            staticInteractionCursor.src = staticImageInfo.src;
+            staticInteractionCursor.style.width = `${staticImageInfo.width}px` || '30px';
+            staticInteractionCursor.style.height = `${staticImageInfo.height}px` || '30px';
+        } else if (imageSrc) {
             staticInteractionCursor.src = imageSrc;
+            staticInteractionCursor.style.width = '30px';
+            staticInteractionCursor.style.height = '30px';
         }
         let staticInteractionRect = getRectSafe(staticInteractionCursor);
         if (staticInteractionRect) {
@@ -538,7 +600,6 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
                     let sceneNode = realityEditor.sceneGraph.getSceneNodeById(rotateCenterElementId);
                     sceneNode.setLocalMatrix(virtualCamera.getFocusTargetCubeMatrix());
 
-                    const THREE = realityEditor.gui.threejsScene.THREE;
                     if (!cameraTargetIcon && worldId !== realityEditor.worldObjects.getLocalWorldId()) {
                         cameraTargetIcon = {};
                         cameraTargetIcon.visible = false;
@@ -595,7 +656,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
             virtualCamera.targetPosition[1] -= groundPlaneNode.worldMatrix[13]; // TODO: this works but spatial cursor ends up in weird positions
 
             virtualCamera.zoomOutTransition = percent !== 0 && percent !== 1;
-        }
+        };
 
         // when the slider or pinch gesture updates, move the virtual camera based on the transition endpoints
         realityEditor.device.modeTransition.onTransitionPercent((percent) => {
@@ -613,7 +674,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 
             // get the current camera target position, so we maintain the same perspective when we turn on the scene
             // defaults the target position to 1 meter in front of the camera
-            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, worldNode, deviceNode);
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth / 2, window.innerHeight / 2, 1000, worldNode, deviceNode);
             let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
 
             if (position) {
@@ -648,7 +709,7 @@ import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 
             // get the current camera target position, so we maintain the same perspective when we turn on the scene
             // defaults the target position to 1 meter in front of the camera
-            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth/2, window.innerHeight/2, 1000, groundPlaneNode, deviceNode);
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth / 2, window.innerHeight / 2, 1000, groundPlaneNode, deviceNode);
             let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
 
             if (position) {
