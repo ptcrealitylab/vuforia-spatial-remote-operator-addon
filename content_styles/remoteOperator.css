@@ -1,6 +1,6 @@
 body {
     pointer-events: none;
-    width: 100svw;
+    width: 100svw; /* safe view width and height work with the iPhone floating url bar (sadly vw/vh don't) */
     height: 100svh;
     overflow: hidden;
     -webkit-user-select: none;
@@ -269,6 +269,8 @@ body > * {
     position: absolute;
     bottom: 20px;
     right: 20px;
+    z-index: 1000;
+    transform: translateZ(1000px);
 }
 
 .touchControlButtonContainer {
@@ -276,7 +278,6 @@ body > * {
     height: 44px;
     border-radius: 5px;
     background-color: rgba(0, 0, 0, 0.7);
-    /*border: 2px solid white;*/
     margin-bottom: 10px;
     &.selected {
         background-color: rgba(150, 150, 150, 0.9);

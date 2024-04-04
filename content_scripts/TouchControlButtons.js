@@ -40,8 +40,15 @@ export class TouchControlButtons {
         icon.src = src;
         div.appendChild(icon);
 
+        icon.addEventListener('pointerdown', () => {
+            this.buttonPressedDown = mode;
+        });
+
         icon.addEventListener('pointerup', () => {
-            this.selectMode(mode);
+            if (mode === this.buttonPressedDown) { // make sure you press down and up on the same button
+                this.selectMode(mode);
+            }
+            this.buttonPressedDown = null;
         });
 
         return div;
@@ -49,7 +56,9 @@ export class TouchControlButtons {
     selectMode(mode) {
         this.deselectButtons();
         let button = document.querySelector(`#touchControlButton_${mode}`);
-        button.classList.add('selected');
+        if (button) {
+            button.classList.add('selected');
+        }
 
         this.callbacks.onModeSelected.forEach(cb => {
             cb(mode);
@@ -62,5 +71,13 @@ export class TouchControlButtons {
     }
     onModeSelected(callback) {
         this.callbacks.onModeSelected.push(callback);
+    }
+    activate() {
+        this.container.style.display = '';
+        this.container.style.pointerEvents = '';
+    }
+    deactivate() {
+        this.container.style.display = 'none';
+        this.container.style.pointerEvents = 'none';
     }
 }

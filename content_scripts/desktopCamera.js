@@ -52,6 +52,9 @@ import { TouchControlButtons } from './TouchControlButtons.js';
     let cameraTransitionPosition_VR = null;
     let cameraTransitionTarget_VR = null;
 
+    // on touchscreen VR mode devices, these let us toggle between camera controls and pointer
+    let touchControlButtons = null;
+
     let motionStudyFollowables = {};
 
     /**
@@ -450,9 +453,10 @@ import { TouchControlButtons } from './TouchControlButtons.js';
      */
     function setupTouchControlButtons() {
         if (realityEditor.device.environment.isDesktop()) return; // only show them on iPhone/iPad remote operators
+        if (touchControlButtons) return; // only initialize one time - but remember to show/hide if we go from AR<>VR
 
         // add the buttons to the screen
-        let touchControlButtons = new TouchControlButtons();
+        touchControlButtons = new TouchControlButtons();
         document.body.appendChild(touchControlButtons.container);
         touchControlButtons.container.id = 'touchControlsContainer';
 
@@ -464,7 +468,7 @@ import { TouchControlButtons } from './TouchControlButtons.js';
             // prevent avatar pointer from activating when we are in pan/rotate/zoom mode
             if (mode === 'pan' || mode === 'rotate' || mode === 'zoom') {
                 realityEditor.device.setFlagForPointerOccupiedByCamera(FLAG_NAME);
-            } else {
+            } else { // if 'pointer', or null
                 realityEditor.device.clearFlagForPointerOccupiedByCamera(FLAG_NAME);
             }
         });
@@ -738,6 +742,11 @@ import { TouchControlButtons } from './TouchControlButtons.js';
 
             // force it to update
             virtualCamera.update();
+
+            if (touchControlButtons) {
+                touchControlButtons.activate();
+                touchControlButtons.selectMode('pointer'); // select pointer mode by default
+            }
         });
         realityEditor.device.modeTransition.onRemoteOperatorHidden(() => {
             virtualCameraEnabled = false;
@@ -746,6 +755,11 @@ import { TouchControlButtons } from './TouchControlButtons.js';
             cameraTransitionTarget_AR = null;
             cameraTransitionPosition_VR = null;
             cameraTransitionTarget_VR = null;
+
+            if (touchControlButtons) {
+                touchControlButtons.deactivate();
+                touchControlButtons.selectMode(null); // deselect all modes and propagate state to virtual camera
+            }
         });
     }
 
