@@ -1,6 +1,7 @@
 body {
     pointer-events: none;
-    width: 100svw; /* safe view width and height work with the iPhone floating url bar (sadly vw/vh don't) */
+    /* If unfamiliar with svw/svh, see: https://developer.mozilla.org/en-US/docs/Web/CSS/length#small */
+    width: 100svw; /* "small" view width and height safely work with the iPhone floating url bar (sadly vw/vh don't) */
     height: 100svh;
     overflow: hidden;
     -webkit-user-select: none;
