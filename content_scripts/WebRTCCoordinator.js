@@ -261,6 +261,11 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                         });
                     }
                 } catch (e) {
+                    // This error only occurs as a result of older WebRTC implementations
+                    if (this.localConnection.signalingState === 'stable' && e.name === 'InvalidStateError') {
+                        console.warn('setRemoteDescription error', e);
+                        return;
+                    }
                     this.onWebRTCError(e);
                 }
             }
