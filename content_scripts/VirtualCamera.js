@@ -92,7 +92,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.body.appendChild(this.promptContainer);
             this.addNormalModePrompt();
             this.addFlyModePrompt();
-            
+
             this.focusTargetCube = null;
             this.addFocusTargetCube();
             this.addEventListeners();
@@ -150,14 +150,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         createPromptContainer () {
             let promptContainer = document.createElement('div');
             promptContainer.classList.add('mode-prompt-container');
-            
+
             return promptContainer;
         }
         // function for creating prompts
         createPrompt(titleText, bodyText) {
             // don't show keyboard controls when remote operator loaded into AR app
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
-            
+
             // add normal mode prompt
             let prompt = document.createElement('div');
             prompt.classList.add('mode-prompt');
@@ -166,41 +166,41 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             modeText.classList.add('mode-prompt-big-font');
             modeText.innerText = titleText;
             prompt.appendChild(modeText);
-            
+
             let modeControls = document.createElement('ul');
             if (bodyText.length && bodyText.length > 0) {
                 bodyText.forEach(item => {
                     let listEl = document.createElement('li');
                     listEl.innerText = item;
                     modeControls.appendChild(listEl);
-                })
+                });
             } else if (bodyText.typeof('string')) {
                 let promptText = document.createElement('li');
                 promptText.innerText = bodyText;
                 modeControls.appendChild(promptText);
             }
             prompt.appendChild(modeControls);
-            
+
             prompt.addEventListener('animationend', () => {
                 this.promptContainer.removeChild(prompt);
-            })
+            });
             return prompt;
-        }    
+        }
         addNormalModePrompt() {
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
             if (this.isFlying) return;
-            
+
             // add normal mode prompt
             let promptTitle = 'Entered normal mode';
             let promptText = ['F - switch mode', 'G - focus', 'RMB - rotate', 'MMB/RMB+Alt - pan', 'scroll wheel - zoom'];
-            
+
             let normalModePrompt = this.createPrompt(promptTitle, promptText);
             this.promptContainer.appendChild(normalModePrompt);
         }
         addFlyModePrompt() {
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
             if (!this.isFlying) return;
-        
+
             // add fly mode prompt
             let promptTitle = 'Entered fly mode';
             let promptText = ['F - switch mode', 'G - focus', 'Q/E - down/up', 'W/A/S/D - move', 'SHIFT - speed up'];
@@ -211,7 +211,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         switchMode() {
             if (this.isFlying) {
                 this.addFlyModePrompt();
-            } else if (!this.isFlying){
+            } else if (!this.isFlying) {
                 this.addNormalModePrompt();
             }
         }
@@ -236,10 +236,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.focusTargetCube.position.copy(worldIntersectPoint);
                 }
             }
-        };
+        }
         addEventListeners() {
             if (!realityEditor.device.environment.variables.requiresMouseEvents) {
-                this.addMultitouchEvents();
+                this.addTouchEvents();
                 return;
             }
 
@@ -378,7 +378,26 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 }
             }.bind(this));
         }
-        addMultitouchEvents() {
+        /**
+         * by default, uses multitouch gestures to pan/rotate/zoom, but a specific mode can be passed in
+         * and only that mode will be able to be controlled (and will be controlled by a 1 finger drag)
+         * @param {string} mode
+         */
+        setTouchControlMode(mode) {
+            this.touchControlMode = mode;
+        }
+
+        /**
+         * True if touchControlMode is a camera control mode (not 'pointer' mode or null)
+         */
+        isTouchControlModeActive() {
+            return this.touchControlMode && (this.touchControlMode === 'pan' ||
+                this.touchControlMode === 'rotate' || this.touchControlMode === 'zoom');
+        }
+        /**
+         * Sets up the multitouch gesture controls, as well as the touch controls for specifically-activated modes
+         */
+        addTouchEvents() {
             // on mobile browsers, we add touch controls instead of mouse controls, to move the camera. additional
             // code is added to avoid iOS's pesky safari gestures, such as pull-to-refresh and swiping between tabs
 
@@ -393,21 +412,26 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 event.preventDefault();
             });
 
-            // convert touch movement into rotation or pan amount (unprocessedDX and unprocessedDY)
+            // convert touch movement into rotation, pan, or zoom amount (unprocessedDX, unprocessedDY, unprocessedScroll)
             const analyzeTouchMovement = (event) => {
                 if (this.mouseInput.last.x && this.mouseInput.last.y) {
                     let xOffset = event.pageX - this.mouseInput.last.x;
                     let yOffset = event.pageY - this.mouseInput.last.y;
-                    this.mouseInput.unprocessedDX += xOffset;
-                    this.mouseInput.unprocessedDY += yOffset;
+
+                    if (!this.touchControlMode || this.touchControlMode === 'pan' || this.touchControlMode === 'rotate') {
+                        this.mouseInput.unprocessedDX += xOffset;
+                        this.mouseInput.unprocessedDY += yOffset;
+                    } else if (this.touchControlMode === 'zoom') {
+                        this.mouseInput.unprocessedScroll += (yOffset * 2);
+                    }
                 }
 
                 this.mouseInput.last.x = event.pageX;
                 this.mouseInput.last.y = event.pageY;
-            }
+            };
 
-            // Handle one-finger drag to rotate
-            const handleRotate = (event) => {
+            // Handle one-finger drag to rotate (labeled "multitouch" here to group it with the pinch and pan gestures)
+            const handleMultitouchRotate = (event) => {
                 event.preventDefault();
                 if (event.touches.length === 1) {
                     analyzeTouchMovement(event); // rotates because isRotateRequested is true
@@ -421,15 +445,15 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         }
                     }
                 }
-            }
+            };
 
             // Handle two-finger drag to pan
-            const handlePan = (event) => {
+            const handleMultitouchPan = (event) => {
                 event.preventDefault();
 
                 // don't allow pan within the AR app, because two-finger-gesture is used to transition between AR<>VR
                 if (realityEditor.device.environment.isWithinToolboxApp()) return;
-                
+
                 if (event.touches.length === 2) {
                     analyzeTouchMovement(event); // pans because isStrafeRequested is true
 
@@ -440,12 +464,12 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     this.mouseInput.unprocessedDX *= distancePanFactor;
                     this.mouseInput.unprocessedDY *= distancePanFactor;
                 }
-            }
+            };
 
             // Handle pinch to zoom
-            const handlePinch = (event) => {
+            const handleMultitouchPinch = (event) => {
                 event.preventDefault();
-                
+
                 // don't allow pinch within the AR app, because pinch is used to transition between AR<>VR
                 if (realityEditor.device.environment.isWithinToolboxApp()) return;
 
@@ -464,15 +488,76 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         lastDistance = currentDistance;
                     }
                 }
-            }
+            };
 
-            // Add multitouch event listeners to the document
+            // Handles touchstart events when a specific touchControlMode has been selected
+            const handleTouchControlDown = (event) => {
+                initialPosition = null;
+                this.mouseInput.last.x = 0;
+                this.mouseInput.last.y = 0;
+
+                this.setFocusTargetCube(event);
+
+                if (this.touchControlMode === 'pan') {
+                    this.mouseInput.isStrafeRequested = true;
+                    this.mouseInput.isRotateRequested = false;
+                    this.triggerPanCallbacks(true);
+                } else if (this.touchControlMode === 'rotate') {
+                    this.mouseInput.isRotateRequested = true;
+                    this.mouseInput.isStrafeRequested = false;
+                    this.triggerRotateCallbacks(true);
+                } else if (this.touchControlMode === 'zoom') {
+                    this.triggerScaleCallbacks(true);
+                }
+
+                // the touch visual feedback circle stops working automatically when we're in this mode, so we need to manually update it here
+                if (overlayDiv) {
+                    overlayDiv.style.display = 'inline';
+                    overlayDiv.style.transform = `translate3d(${event.touches[0].clientX}px, ${event.touches[0].clientY}px, 1200px)`;
+                }
+            };
+
+            // Handles touchmove events when a specific touchControlMode has been selected
+            const handleTouchControlMove = (event) => {
+                // pans, rotates, or zooms based on isStrafeRequested, isRotateRequested, and touchControlMode
+                analyzeTouchMovement(event);
+
+                // the touch visual feedback circle stops working automatically when we're in this mode, so we need to manually update it here
+                if (overlayDiv) {
+                    overlayDiv.style.transform = `translate3d(${event.touches[0].clientX}px, ${event.touches[0].clientY}px, 1200px)`;
+                }
+            };
+
+            // Handles touchend events when a specific touchControlMode has been selected
+            const handleTouchControlUp = (_event) => {
+                // stops the visual feedback of the camera control event
+                if (this.touchControlMode === 'pan') {
+                    this.triggerPanCallbacks(false);
+                } else if (this.touchControlMode === 'rotate') {
+                    this.triggerRotateCallbacks(false);
+                } else if (this.touchControlMode === 'zoom') {
+                    this.triggerScaleCallbacks(false);
+                }
+
+                // the touch visual feedback circle stops working automatically when we're in this mode, so we need to manually update it here
+                if (overlayDiv) {
+                    overlayDiv.style.display = 'none';
+                }
+            };
+
+            // Add touch event listeners to the document, which trigger the "TouchControl" functions
+            // if a specific touchControlMode has been selected, or the "multitouch" functions if not
             document.addEventListener('touchstart',  (event) => {
                 if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
                 // while pinching to enter remote operator in AR app, don't trigger additional camera gestures
                 if (this.pauseTouchGestures) return;
 
                 isMultitouchGestureActive = true;
+
+                if (this.isTouchControlModeActive()) {
+                    handleTouchControlDown(event);
+                    return;
+                }
 
                 if (event.touches.length === 1) {
                     initialPosition = null;
@@ -501,14 +586,19 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // Ensure no page offset
                 window.scrollTo(0, 0);
 
+                if (this.isTouchControlModeActive()) {
+                    handleTouchControlMove(event);
+                    return;
+                }
+
                 if (event.touches.length === 1) {
-                    handleRotate(event);
+                    handleMultitouchRotate(event);
 
                 } else if (event.touches.length === 2) {
                     // pans based on overall translation of both fingers
-                    handlePan(event);
+                    handleMultitouchPan(event);
                     // zooms based on changing distance between fingers
-                    handlePinch(event);
+                    handleMultitouchPinch(event);
                     didMoveAtAll = true;
                 }
             });
@@ -523,6 +613,10 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 // tapping without dragging moves the focus cube to the tapped location
                 if (!didMoveAtAll) {
                     this.setFocusTargetCube(event);
+                }
+
+                if (this.isTouchControlModeActive()) {
+                    handleTouchControlUp(event);
                 }
             });
         }
@@ -589,7 +683,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         }
         // set the target position based on the camera direction
         setCameraDirection(cameraDirection) {
-            this.targetPosition = add(this.position, cameraDirection); 
+            this.targetPosition = add(this.position, cameraDirection);
         }
         // if specify a focus direction, the camera will look into that direction. Note that dir is expected to be a unit vector
         // if not, move the camera while keeping its lookAt direction
@@ -616,11 +710,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             newXAxis.x = -camLookAt.z;
             newXAxis.z = camLookAt.x;
             newXAxis.y = 0;
-            
+
             newXAxis.normalize();
 
             // step 1: first change the camera position
-            // method 1: 
+            // method 1:
             const newCamPos = camPos
                 .sub(target)
                 .applyAxisAngle(newXAxis, xRot)
@@ -652,7 +746,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 return; // stop executing - cannot zoom or pan while in lock-on mode
             }
 
-            let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
+            // let previousTargetPosition = [this.targetPosition[0], this.targetPosition[1], this.targetPosition[2]];
             // move camera to cameraPosition and look at cameraTargetPosition
             let newCameraLookAtMatrix = lookAt(this.position[0], this.position[1], this.position[2], this.targetPosition[0], this.targetPosition[1], this.targetPosition[2], 0, 1, 0);
 
@@ -694,7 +788,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.orbit(xRot, yRot, camPos, camLookAt, target);
 
                 this.deselectTarget();
-                
+
                 this.mouseInput.unprocessedDX = 0;
                 this.mouseInput.unprocessedDY = 0;
             }
@@ -721,7 +815,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             // scroll
             scrollOperation: if (this.mouseInput.unprocessedScroll !== 0) {
-                
+
                 // prevent from scrolling while rotating
                 if (this.mouseInput.isRotateRequested) {
                     this.mouseInput.unprocessedScroll = 0;
@@ -742,7 +836,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     let nonLinearFactor = 1.05; // closer to 1 = less intense log (bigger as distance bigger)
                     let isZoomingIn = this.mouseInput.unprocessedScroll < 0;
                     let baseLog = getBaseLog(nonLinearFactor, camToFocusCube) / 100;
-                    
+
                     // move camera & camera target along the camera <---> focus cube line
                     {
                         let distanceMultiplier = Math.max(1, baseLog);
@@ -762,7 +856,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                         this.targetVelocity = add(this.targetVelocity, vector);
                     }
-                    
+
                     this.deselectTarget();
                 }
 
@@ -807,8 +901,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // this is where the velocity gets added to the position...
             // anything that modifies the camera movement should be above this line in the update function
             if (!this.mouseInput.isRotateRequested || this.isFlying || this.zoomOutTransition) {
-                let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
-                let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
+                // let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
+                // let angle = camLookAt.clone().angleTo(new THREE.Vector3(camLookAt.x, 0, camLookAt.z));
                 // rotateFactor is a quadratic function that goes through (+-PI/2, 0) and (0, 1), so that when camera gets closer to 2 poles, the slower it rotates
                 this.position = add(this.position, this.velocity);
                 this.targetPosition = add(this.targetPosition, this.targetVelocity);
@@ -870,7 +964,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
         isFollowingFirstPerson() {
             return this.followingState.active &&
-                this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE
+                this.followingState.currentFollowingDistance <= MIN_FIRST_PERSON_DISTANCE;
         }
 
         /////////////////////////////
@@ -881,7 +975,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             this.followingState.selectedId = sceneNodeToFollow.id;
             if (typeof initialFollowDistance !== 'undefined') {
                 this.followingState.currentFollowingDistance = initialFollowDistance; // can adjust with scroll wheel
-                
+
                 let isFirstPerson = initialFollowDistance <= MIN_FIRST_PERSON_DISTANCE;
                 this.callbacks.onFirstPersonDistanceToggled.forEach(cb => cb(isFirstPerson, this.followingState.currentFollowingDistance));
             }
@@ -893,12 +987,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let selectedNode = realityEditor.sceneGraph.getSceneNodeById(this.followingState.selectedId);
             if (!selectedNode) { return; }
             let virtualizerMatrixThree = new THREE.Matrix4();
-            let relativeMatrix = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId()))
+            let relativeMatrix = selectedNode.getMatrixRelativeTo(realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.getWorldId()));
             realityEditor.gui.threejsScene.setMatrixFromArray(virtualizerMatrixThree, relativeMatrix);
 
             // the new focus of the camera should be the point 1 meter in front of the virtualizer
-            let virtualizerForwardPosition = this.followingState.partiallyStabilizedTargetObject.getWorldPosition(new THREE.Vector3());
-
+            // let virtualizerForwardPosition = this.followingState.partiallyStabilizedTargetObject.getWorldPosition(new THREE.Vector3());
             // this.targetPosition = [virtualizerForwardPosition.x, virtualizerForwardPosition.y, virtualizerForwardPosition.z];
 
             if (this.preStopFollowingDistanceToTarget === null) {
@@ -955,7 +1048,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let objectSceneNode = realityEditor.sceneGraph.getSceneNodeById(this.lockOnMode);
             if (!objectSceneNode) return;
             let lockedOnWorldMatrix = objectSceneNode.worldMatrix;
-            
+
             const APPLY_SMOOTHING_TO_LOCK_ON_MODE = false; // this didn't look too good when I turned it on, but we could further experiment with it in future
 
             let newCameraMatrix;
@@ -1177,7 +1270,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         centerZ = targetPos.z;
         return {a: eyeX, b: eyeY, c: eyeZ, d: centerX, e: centerY, f: centerZ};
     }
-    
+
     // Working look-at matrix generator (with a set of vector3 math functions)
     function lookAt( eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ ) {
         let {a, b, c, d, e, f} = convertToThreejsContainerObjSpace(eyeX, eyeY, eyeZ, centerX, centerY, centerZ);
@@ -1212,9 +1305,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return add(A, negate(B));
     }
 
-    function hadamardProduct(A, B) {
-        return [A[0] * B[0], A[1] * B[1], A[2] * B[2]];
-    }
+    // function hadamardProduct(A, B) {
+    //     return [A[0] * B[0], A[1] * B[1], A[2] * B[2]];
+    // }
 
     function magnitude(A) {
         return Math.sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
@@ -1238,11 +1331,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return A[0] * B[0] + A[1] * B[1] + A[2] * B[2];
     }
 
-    function multiplyMatrixVector(M, v) {
-        return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
-        M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
-        M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
-    }
+    // function multiplyMatrixVector(M, v) {
+    //     return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
+    //         M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
+    //         M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
+    // }
 
     function sumOfElementDifferences(M1, M2) {
         // assumes M1 and M2 are of equal length
@@ -1261,9 +1354,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return Math.min(Math.max(num, min), max);
     }
 
-    function prettyPrint(matrix, precision) {
-        return '[ ' + matrix[0].toFixed(precision) + ', ' + matrix[1].toFixed(precision) + ', ' + matrix[2].toFixed(precision) + ']';
-    }
+    // function prettyPrint(matrix, precision) {
+    //     return '[ ' + matrix[0].toFixed(precision) + ', ' + matrix[1].toFixed(precision) + ', ' + matrix[2].toFixed(precision) + ']';
+    // }
 
     function tweenMatrix(currentMatrix, destination, tweenSpeed) {
         if (typeof tweenSpeed === 'undefined') { tweenSpeed = 0.5; } // default value
@@ -1291,9 +1384,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         return Math.max(0.01, realityEditor.gui.settings.toggleStates.cameraPanSensitivity || 0.5);
     }
 
-    function getCameraRotateSensitivity() {
-        return Math.max(0.01, realityEditor.gui.settings.toggleStates.cameraRotateSensitivity || 0.5);
-    }
+    // function getCameraRotateSensitivity() {
+    //     return Math.max(0.01, realityEditor.gui.settings.toggleStates.cameraRotateSensitivity || 0.5);
+    // }
 
     exports.VirtualCamera = VirtualCamera;
 })(realityEditor.device);
