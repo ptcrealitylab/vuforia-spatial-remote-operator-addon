@@ -282,7 +282,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
                         });
                         realityEditor.gui.getMenuBar().setItemEnabled(realityEditor.gui.ITEM.DownloadScan, true);
 
-                        if (!PROXY) {
+                        const ENABLE_VIDEO_TIMELINE_COMPONENT = false;
+                        if (ENABLE_VIDEO_TIMELINE_COMPONENT && !PROXY) {
                             const createVideoPlayback = () => {
                                 videoPlayback = new realityEditor.videoPlayback.VideoPlaybackCoordinator();
                                 videoPlayback.setPointCloudCallback(cameraVisCoordinator.loadPointCloud.bind(cameraVisCoordinator));

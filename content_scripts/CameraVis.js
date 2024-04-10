@@ -7,7 +7,7 @@ import {
     DEPTH_WIDTH,
     DEPTH_HEIGHT,
     ShaderMode
-} from '../../src/spatialCapture/Shaders.js';;
+} from '../../src/spatialCapture/Shaders.js';
 import {VisualDiff} from '../../src/spatialCapture/VisualDiff.js';
 import {Followable} from '../../src/gui/ar/Followable.js';
 
