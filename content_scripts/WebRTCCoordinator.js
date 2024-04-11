@@ -32,6 +32,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     class WebRTCCoordinator {
         constructor(cameraVisCoordinator, ws, consumerId) {
             this.cameraVisCoordinator = cameraVisCoordinator;
+            /** @type ToolSocket */
             this.ws = ws;
             this.audioStream = null;
             this.consumerId = consumerId;
@@ -154,7 +155,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
             if (msg.dest !== this.consumerId) {
                 if (DEBUG) {
-                    console.warn('discarding not mine', msg);
+                    console.warn('discarding not mine', this.consumerId, msg);
                 }
                 return;
             }
