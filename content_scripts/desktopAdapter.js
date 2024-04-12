@@ -160,7 +160,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
                 });
                 // todo Steve: make ai chatbox turn off dark mode
                 let aiContainer = document.getElementById('ai-chat-tool-container');
-                let searchTextArea = [...aiContainer.querySelectorAll('#searchTextArea')][0];
+                let searchTextArea = aiContainer.querySelector('#searchTextArea');
                 searchTextArea.classList.add('searchTextArea-light');
                 let myAiDialogues = [...aiContainer.querySelectorAll('.ai-chat-tool-dialogue-my')];
                 myAiDialogues.forEach(dialogue => dialogue.classList.add('ai-chat-tool-dialogue-my-light'));
