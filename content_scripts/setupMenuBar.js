@@ -40,6 +40,7 @@ createNameSpace('realityEditor.gui');
         ShowFPS: 'Show FPS',
         ActivateProfiler: 'Activate Profiler',
         ToggleFlyMode: 'Fly Mode',
+        FocusCamera: 'Focus Camera',
         ShowAIChatbot: 'Show AI Chatbot',
         ReloadPage: 'Reload Page'
     });
@@ -100,6 +101,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleFlyMode = new MenuItem(ITEM.ToggleFlyMode, { toggle: true, shortcutKey: 'F', defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.Camera, toggleFlyMode);
+        
+        const focusCamera = new MenuItem(ITEM.FocusCamera, { shortcutKey: 'G' }, null);
+        menuBar.addItemToMenu(MENU.Camera, focusCamera);
 
         const rzvAdvanceCameraShader = new MenuItem(ITEM.AdvanceCameraShader, { disabled: true }, null);
         menuBar.addItemToMenu(MENU.Camera, rzvAdvanceCameraShader);

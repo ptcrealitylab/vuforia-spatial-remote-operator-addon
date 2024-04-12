@@ -294,7 +294,6 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.addEventListener('pointermove', function (event) {
                 this.mouseInput.latest.x = event.pageX;
                 this.mouseInput.latest.y = event.pageY;
-                // if (this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
                 if (this.idleOrbitting || this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
                 this.setFocusTargetCube(event, true);
             }.bind(this));
@@ -322,13 +321,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             document.addEventListener('pointerup', pointerReset);
             document.addEventListener('pointercancel', pointerReset);
 
-            // focus camera on the focus point
-            document.addEventListener('keypress', function (e) {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-                if (e.key === 'g' || e.key === 'G') {
-                    // this.focus(this.focusTargetCube.position.clone());
-                }
-            }.bind(this));
+            realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.FocusCamera, () => {
+                this.focus(this.focusTargetCube.position.clone());
+            });
 
             realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ToggleFlyMode, (toggled) => {
                 this.isFlying = toggled;
