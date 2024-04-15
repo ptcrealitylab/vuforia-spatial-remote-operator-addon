@@ -8,6 +8,7 @@
 
 createNameSpace('realityEditor.device.desktopCamera');
 
+import { Vector3 } from '../../thirdPartyCode/three/three.module.js';
 import { CameraFollowCoordinator } from './CameraFollowCoordinator.js';
 import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 import { TouchControlButtons } from './TouchControlButtons.js';
@@ -384,6 +385,10 @@ import { TouchControlButtons } from './TouchControlButtons.js';
                 lockOnToTarget(avatarToLockOntoId);
             };
             realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
+        });
+
+        realityEditor.ai.registerCallback('shouldFocusVirtualCamera', function (params) {
+            focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z));
         });
     }
 
@@ -770,6 +775,5 @@ import { TouchControlButtons } from './TouchControlButtons.js';
 
     exports.update = update;
     exports.initService = initService;
-    exports.focusVirtualCamera = focusVirtualCamera;
     exports.updateCameraFloorOffset = updateCameraFloorOffset;
 })(realityEditor.device.desktopCamera);
