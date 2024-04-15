@@ -20,13 +20,14 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
     /**
      * @param {ErrorMessage} message - human readable error text
      * @param {Error} error - error responsible for causing this
+     * @param errorId - html element id for parent div
+     * @param errorTextId - html element for error text
      * @param {number} duration - ms duration of notification popup
      */
-    function showError(message, error, duration) {
+    function showError(message, error, errorId, errorTextId, duration) {
         console.error('webrtc error', error);
         // showBannerNotification removes notification after set time so no additional function is needed
-        let webRTCError = realityEditor.gui.modal.showBannerNotification(message, 'webRTCErrorContainer', 'webRTCErrorText', duration);
-        document.body.appendChild(webRTCError);
+        realityEditor.gui.modal.showBannerNotification(message, errorId, errorTextId, duration);
     }
 
     class WebRTCCoordinator {
@@ -72,7 +73,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 }
                 this.updateMutedState();
             }).catch(err => {
-                showError(ErrorMessage.noMicrophonePermissions, err, 10000);
+                showError(ErrorMessage.noMicrophonePermissions, err, 'audioErrorUI', 'audioErrorText', 10000);
             });
         }
 
@@ -368,7 +369,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                         // notifications don't overlap but stay on screen for a
                         // decent amount of time
                         if (timesFailed > 12) {
-                            showError(ErrorMessage.autoplayBlocked, err, 12 * 250);
+                            showError(ErrorMessage.autoplayBlocked, err, 'autoplayErrorUI', 'autoplayErrorText', 12 * 250);
                             timesFailed = 0;
                         }
                     }
@@ -578,7 +579,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
         onWebRTCError(e) {
             console.error('webrtc error', e);
-            showError(ErrorMessage.webrtcIssue, e, 10000);
+            showError(ErrorMessage.webrtcIssue, e, 'webRTCErrorUI', 'webRTCErrorText', 5000);
         }
 
         disconnect() {
