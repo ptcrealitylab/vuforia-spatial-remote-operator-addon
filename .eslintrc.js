@@ -1,8 +1,7 @@
+/* eslint-env node */
 module.exports = {
     'env': {
-        'browser': true,
         'es2022': true,
-        'node': true,
     },
     'extends': 'eslint:recommended',
     'globals': {
@@ -34,5 +33,19 @@ module.exports = {
             },
         ],
         'no-inner-declarations': 'off',
-    }
+    },
+    'overrides': [{
+        'files': [
+            'content_scripts/**/*.js',
+            'tools/**/*.js',
+        ],
+        'env': {
+            'browser': true,
+        }
+    }, {
+        'files': ['interfaces/**/*.js'],
+        'env': {
+            'node': true,
+        }
+    }],
 };
