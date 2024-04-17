@@ -372,16 +372,6 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
                 var msgData = JSON.parse(data);
                 if (msgData.objectKey === objectKey && msgData.propertyPath === 'matrix') {
-
-                    // emit an event if this is a newly "discovered" matrix
-                    if ((!object.matrix || object.matrix.length !== 16) && msgData.newValue.length === 16) {
-                        // TODO callbackHandler is probably a figment of this code's imagination
-                        if (typeof callbackHandler !== 'undefined') {
-                            // eslint-disable-next-line
-                            callbackHandler.triggerCallbacks('objectMatrixDiscovered', {objectKey: msgData.objectKey});
-                        }
-                    }
-
                     // TODO: set sceneGraph localMatrix to msgData.newValue?
                     // var rotatedObjectMatrix = realityEditor.gui.ar.utilities.copyMatrix(msgData.newValue);
                     // object.matrix = rotatedObjectMatrix;
