@@ -15,9 +15,11 @@ module.exports = {
     },
     'parserOptions': {
         'ecmaVersion': 2022,
-        sourceType: 'module',
+        'sourceType': 'module',
     },
     'rules': {
+        'no-shadow': 'off',
+        'no-useless-escape': 'off',
         'no-prototype-builtins': 'off',
         'no-redeclare': [
             'error',
@@ -30,5 +32,6 @@ module.exports = {
                 'argsIgnorePattern': '^_',
             },
         ],
+        'no-inner-declarations': 'off',
     }
 };

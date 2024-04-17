@@ -101,7 +101,7 @@ createNameSpace('realityEditor.gui');
 
         const toggleFlyMode = new MenuItem(ITEM.ToggleFlyMode, { toggle: true, shortcutKey: 'F', defaultVal: false }, null);
         menuBar.addItemToMenu(MENU.Camera, toggleFlyMode);
-        
+
         const focusCamera = new MenuItem(ITEM.FocusCamera, { shortcutKey: 'G' }, null);
         menuBar.addItemToMenu(MENU.Camera, focusCamera);
 
@@ -186,14 +186,14 @@ createNameSpace('realityEditor.gui');
             }
         });
         menuBar.addItemToMenu(MENU.Help, showDeveloper);
-        
+
         const showAIChat = new MenuItem(ITEM.ShowAIChatbot, { toggle: true }, (checked) => {
             if (checked) {
                 realityEditor.ai.showDialogue();
             } else {
                 realityEditor.ai.hideDialogue();
             }
-        })
+        });
         menuBar.addItemToMenu(MENU.Help, showAIChat);
 
         document.body.appendChild(menuBar.domElement);

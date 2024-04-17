@@ -8,7 +8,7 @@ createNameSpace('realityEditor.videoPlayback');
         IOT: 'IOT' // not in use, yet
     });
     const DATA_PIECE_TYPES = Object.freeze({
-        VIDEO_URL: 'VIDEO_URL', // used for VIDEO_3D color and depth 
+        VIDEO_URL: 'VIDEO_URL', // used for VIDEO_3D color and depth
         TIME_SERIES: 'TIME_SERIES' // used for VIDEO_3D poses
     });
 
@@ -211,8 +211,8 @@ createNameSpace('realityEditor.videoPlayback');
         processTimestamp(timestamp) {
             if (!this.filteredDatabase) { return []; }
             let currentSegments = [];
-            for (const [trackId, track] of Object.entries(this.filteredDatabase.tracks)) {
-                for (const [segmentId, segment] of Object.entries(track.segments)) {
+            for (const [_trackId, track] of Object.entries(this.filteredDatabase.tracks)) {
+                for (const [_segmentId, segment] of Object.entries(track.segments)) {
                     if (segment.start <= timestamp && segment.end >= timestamp) {
                         currentSegments.push(segment);
                     }

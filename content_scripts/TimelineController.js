@@ -253,7 +253,7 @@ createNameSpace('realityEditor.videoPlayback');
                 let colorVideo = this.view.getOrCreateVideoElement(segment.trackId, 'color');
                 let depthVideo = this.view.getOrCreateVideoElement(segment.trackId, 'depth');
                 [colorVideo, depthVideo].forEach(video => {
-                    video.playbackRate = playbackSpeed * (segment.timeMultiplier || 1)
+                    video.playbackRate = playbackSpeed * (segment.timeMultiplier || 1);
                 });
             });
         }
@@ -281,7 +281,7 @@ createNameSpace('realityEditor.videoPlayback');
                 this.view.hide();
             }
         }
-        handleSegmentSelected(selectedSegment) {
+        handleSegmentSelected(_selectedSegment) {
             this.renderSelectedSegments();
         }
         handleSegmentDeselected(deselectedSegment) {

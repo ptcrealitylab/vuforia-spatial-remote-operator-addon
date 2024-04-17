@@ -148,7 +148,7 @@ module.exports.start = function start() {
                 broadcast(ws, JSON.stringify(msg));
             }
 
-            processSensorActivations(ws, poses);
+            processSensorActivations(poses);
         }
 
         function doUpdateSensorDescription(desc) {
@@ -161,7 +161,7 @@ module.exports.start = function start() {
             broadcast(ws, JSON.stringify(desc));
         }
 
-        function processSensorActivations(ws, poses) {
+        function processSensorActivations(poses) {
             // for (let pose of poses) {
             //     for (let joint of pose.joints) {
             //         joint.z = -joint.z;
