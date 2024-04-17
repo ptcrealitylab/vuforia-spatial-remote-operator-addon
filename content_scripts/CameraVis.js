@@ -133,7 +133,7 @@ export class CameraVis extends Followable {
          * @type {THREE.Object3D}
          */
         this.maskMesh = null;
-        
+
         if (debug) {
             this.setupDebugCubes();
         }
@@ -461,7 +461,7 @@ export class CameraVis extends Followable {
     doesOverrideCameraUpdatesInFirstPerson() {
         return true;
     }
-    
+
     enableFirstPersonMode() {
         this.firstPersonMode = true;
         if (this.shaderMode === ShaderMode.SOLID) {
@@ -475,14 +475,14 @@ export class CameraVis extends Followable {
             this.setShaderMode(ShaderMode.SOLID);
         }
     }
-    
+
     updateSceneNode() {
         // doing it here causes significant jitter - the matrix is instead set in the above setMatrix function
         // this.sceneNode.setLocalMatrix(this.phone.matrix.elements);
     }
 
     /* ---------------- </Override Followable Functions>  ---------------- */
-    
+
     enableFrustumCutout() {
         this.cutoutViewFrustum = true;
     }

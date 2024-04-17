@@ -157,11 +157,11 @@ createNameSpace('realityEditor.videoPlayback');
 
             // back-fill dates from previous month
             if (firstDayOffset > 0) {
-                Array.from(calDates.children).forEach((elt, i) => {
+                Array.from(calDates.children).forEach((elt, idx) => {
                     if (elt.innerText !== '_') { return; }
-                    let relativeIndex = i - firstDayOffset;
+                    let relativeIndex = idx - firstDayOffset;
                     elt.innerText = new Date(year, monthIndex, relativeIndex + 1).getDate();
-                    calDates.children[i].setAttribute('dayNumber', elt.innerText);
+                    calDates.children[idx].setAttribute('dayNumber', elt.innerText);
                     elt.classList.add('otherMonthDate');
                 });
             }

@@ -26,11 +26,11 @@ module.exports = function makeStreamRouter(app) {
         const id = requestId(req);
         ws.on('message', function(msg, _isBinary) {
             const msgWithId = messageWithId(msg, id);
-            for (let ws of colorPool) {
-                if (ws.bufferedAmount > 10 * 1024) {
+            for (let wsC of colorPool) {
+                if (wsC.bufferedAmount > 10 * 1024) {
                     continue;
                 }
-                ws.send(msgWithId);
+                wsC.send(msgWithId);
             }
             processFrame(id, msg, null, null);
         });
@@ -54,11 +54,11 @@ module.exports = function makeStreamRouter(app) {
         const id = requestId(req);
         ws.on('message', function(msg, _isBinary) {
             const msgWithId = messageWithId(msg, id);
-            for (let ws of depthPool) {
-                if (ws.bufferedAmount > 10 * 1024) {
+            for (let wsD of depthPool) {
+                if (wsD.bufferedAmount > 10 * 1024) {
                     continue;
                 }
-                ws.send(msgWithId);
+                wsD.send(msgWithId);
             }
             processFrame(id, null, msg, null);
         });
@@ -95,8 +95,8 @@ module.exports = function makeStreamRouter(app) {
 
             const msg = Buffer.from(new Float32Array(cameraMat).buffer);
             const msgWithId = messageWithId(msg, id);
-            for (const ws of matrixPool) {
-                ws.send(msgWithId);
+            for (const wsM of matrixPool) {
+                wsM.send(msgWithId);
             }
             processFrame(id, null, null, msg);
         });
@@ -118,7 +118,7 @@ module.exports = function makeStreamRouter(app) {
     let consumers = [];
     let idToSocket = {};
 
-    app.ws('/signalling', function(ws, req) {
+    app.ws('/signalling', function(ws, _req) {
         let wsId;
 
         ws.on('message', function(msgRaw) {
@@ -180,10 +180,10 @@ module.exports = function makeStreamRouter(app) {
             }
         });
 
-        const onClose = function(wsId) {
-            delete idToSocket[wsId];
-            providers = providers.filter(provId => provId !== wsId);
-            consumers = consumers.filter(conId => conId !== wsId);
+        const onClose = function(wsIdClosed) {
+            delete idToSocket[wsIdClosed];
+            providers = providers.filter(provId => provId !== wsIdClosed);
+            consumers = consumers.filter(conId => conId !== wsIdClosed);
         };
 
         ws.on('close', function() {

@@ -50,7 +50,6 @@ if (exports.enabled) {
 
     let obj = null;
     let realityZoneControlInterface = null;
-    let validMatrix = null;
 
     server.subscribeToUDPMessages(function(msgContent) {
         //console.log('received udp message with content: ' + msgContent);
@@ -179,8 +178,8 @@ if (exports.enabled) {
             // extract editorId if included
             let editorId = null;
             try {
-                let parts = data.split(';_;');
-                editorId = parts[2];
+                let partsData = data.split(';_;');
+                editorId = partsData[2];
                 // console.log('received image for ' + editorId);
             } catch (e) {
                 // console.log('error extracting editorId from image data', e);
@@ -295,8 +294,8 @@ if (exports.enabled) {
                 glob(gif_url_token, function (er, files) {
                     //console.log('dir name: ' + __dirname);
                     //console.log('gif urls: ' + files);
-                    for (var i = 0; i < files.length; i++) {
-                        var clean_file = files[i];
+                    for (var j = 0; j < files.length; j++) {
+                        var clean_file = files[j];
                         var pos = clean_file.indexOf('/gifs/');
                         clean_file = clean_file.substring(pos);
                         console.log('adding: ' + clean_file);
@@ -492,7 +491,7 @@ if (exports.enabled) {
                     var poseInfo = JSON.parse(data);
 
                     var cameraPoseMatrix = poseInfo.cameraPoseMatrix;
-                    validMatrix = cameraPoseMatrix;
+                    let validMatrix = cameraPoseMatrix;
 
                     //with RDV origin mode: overwrite with RDV camera to RDV origin matrix
                     if (poseInfo.cameraMode === 'REALITY_ZONE_ORIGIN') {

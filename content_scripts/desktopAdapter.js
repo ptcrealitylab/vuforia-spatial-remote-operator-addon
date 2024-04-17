@@ -114,7 +114,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
     function calculateProjectionMatrices(viewportWidth, viewportHeight) {
         const iPhoneVerticalFOV = 41.22673; // https://discussions.apple.com/thread/250970597
-        const desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, viewportWidth/ viewportHeight, 10, 300000);
+        const desktopProjectionMatrix = projectionMatrixFrom(iPhoneVerticalFOV, viewportWidth / viewportHeight, 10, 300000);
 
         realityEditor.gui.ar.setProjectionMatrix(desktopProjectionMatrix);
 
@@ -236,7 +236,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
         var b = ( top + bottom ) / ( top - bottom );
         var c = - ( far + near ) / ( far - near );
         var d = - 2 * far * near / ( far - near );
-        
+
         te[ 0 ] = x;    te[ 4 ] = 0;    te[ 8 ] = a;    te[ 12 ] = 0;
         te[ 1 ] = 0;    te[ 5 ] = y;    te[ 9 ] = b;    te[ 13] = 0;
         te[ 2 ] = 0;    te[ 6 ] = 0;    te[ 10 ] = c;   te[ 14 ] = d;
@@ -285,7 +285,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
             console.warn('Preventing modifyGlobalNamespace - we are within the toolbox app');
             return;
         }
-        
+
         // mark that we've manipulated the webkit reference, so that we
         // can still detect isWithinToolboxApp vs running in mobile browser
         window.webkitWasTamperedWith = true;
@@ -375,7 +375,11 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
                     // emit an event if this is a newly "discovered" matrix
                     if ((!object.matrix || object.matrix.length !== 16) && msgData.newValue.length === 16) {
-                        callbackHandler.triggerCallbacks('objectMatrixDiscovered', {objectKey: msgData.objectKey});
+                        // TODO callbackHandler is probably a figment of this code's imagination
+                        if (typeof callbackHandler !== 'undefined') {
+                            // eslint-disable-next-line
+                            callbackHandler.triggerCallbacks('objectMatrixDiscovered', {objectKey: msgData.objectKey});
+                        }
                     }
 
                     // TODO: set sceneGraph localMatrix to msgData.newValue?
