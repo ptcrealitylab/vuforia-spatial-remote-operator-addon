@@ -98,7 +98,7 @@ export class CameraFollowCoordinator {
     }
     unfollow() {
         if (!this.currentFollowTarget) return;
-        
+
         this.currentFollowTarget.followable.onCameraStoppedFollowing();
         this.currentFollowTarget.followable.disableFirstPersonMode();
         this.currentFollowTarget = null;
@@ -168,7 +168,7 @@ export class CameraFollowCoordinator {
 
                 this.follow(thisTarget.id, this.followDistance);
             });
-            perspectiveItemMenu.addItemToSubmenu(followItem)
+            perspectiveItemMenu.addItemToSubmenu(followItem);
         });
 
         changeTargetButtons.forEach(itemInfo => {

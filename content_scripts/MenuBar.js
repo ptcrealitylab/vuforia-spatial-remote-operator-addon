@@ -298,7 +298,7 @@ createNameSpace('realityEditor.gui');
                 const thisModifiers = this.options.modifiers ? this.options.modifiers.map(modifier => getKeyboard().keyCodes[modifier]) : [];
                 const modifierSetsMatch = (modifierSet1, modifierSet2) => {
                     return modifierSet1.length === modifierSet2.length && modifierSet1.every(value => modifierSet2.includes(value));
-                }
+                };
                 this.onKeyDown = function(code, activeModifiers) {
                     if (code === thisKeyCode && modifierSetsMatch(thisModifiers, activeModifiers)) {
                         this.triggerItem();
@@ -460,7 +460,7 @@ createNameSpace('realityEditor.gui');
         buildSubMenu() {
             // the name of the submenu doesn't matter because it isn't rendered
             this.submenu = new Submenu('Sub Menu');
-            this.submenu.redraw()
+            this.submenu.redraw();
             this.submenu.domElement.classList.add('desktopMenuBarSubmenu');
             this.domElement.appendChild(this.submenu.domElement);
             this.hideSubMenu();

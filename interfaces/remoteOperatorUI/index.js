@@ -82,7 +82,6 @@ function startHTTPServer(localUIApp, port) {
     let http = null;
     if (server8080.useHTTPS) {
         const fs = require('fs');
-        const path = require('path');
         let options = {
             key: fs.readFileSync('key.pem'),
             cert: fs.readFileSync('cert.pem')
@@ -113,7 +112,7 @@ function startHTTPServer(localUIApp, port) {
     const identityFolderName = '.identity';
 
     http.listen(port, function() {
-        console.info('Remote Operator listening on port (http' + (server8080.useHTTPS ? 's': '') + ') ' + port);
+        console.info('Remote Operator listening on port (http' + (server8080.useHTTPS ? 's' : '') + ') ' + port);
 
         // serves the camera poses that correspond to a recorded rgb+depth 3d video
         localUIApp.app.use('/virtualizer_recording/:deviceId/pose/:filename', function (req, res) {

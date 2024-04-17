@@ -10,7 +10,7 @@ createNameSpace('realityEditor.device.multiclientUI');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
-(function(exports) {
+(function(_exports) {
     let allConnectedCameras = {};
     let isCameraSubscriptionActiveForObject = {};
 
