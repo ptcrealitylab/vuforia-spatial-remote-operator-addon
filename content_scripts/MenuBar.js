@@ -353,6 +353,10 @@ createNameSpace('realityEditor.gui');
                 checkmark.classList.remove('desktopMenuBarItemCheckmarkDisabled');
             }
         }
+        setText(text) {
+            let textElement = this.domElement.querySelector('.desktopMenuBarItemText');
+            textElement.innerText = text;
+        }
         redraw() {
             // currently not used, but can be used to update UI each time menu opens, closes, or contents change
         }
