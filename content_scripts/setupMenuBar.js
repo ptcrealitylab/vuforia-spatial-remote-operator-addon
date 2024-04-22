@@ -41,7 +41,7 @@ createNameSpace('realityEditor.gui');
         ActivateProfiler: 'Activate Profiler',
         ToggleFlyMode: 'Fly Mode',
         FocusCamera: 'Focus Camera',
-        ShowAIChatbot: 'Show AI Chatbot',
+        ShowAIChatbot: 'AI Assist',
         ReloadPage: 'Reload Page'
     });
     exports.ITEM = ITEM;
