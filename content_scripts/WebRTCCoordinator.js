@@ -148,7 +148,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                 }
                 for (let consumer of msg.consumers) {
                     if (consumer !== this.consumerId) {
-                        await this.initConnection(consumer);
+                        //await this.initConnection(consumer);
                     }
                 }
                 return;
@@ -159,6 +159,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
                     console.warn('discarding not mine', this.consumerId, msg);
                 }
                 return;
+            }
+
+            if (!msg.src.startsWith('prov')) {
+              return;
             }
 
             if (!this.webrtcConnections[msg.src]) {
@@ -241,7 +245,7 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
 
         async onSignallingMessage(msg) {
             if (msg.command === 'newIceCandidate') {
-                if (DEBUG) {
+                if (DEBUG || true) {
                     console.log('webrtc remote candidate', msg);
                 }
                 this.localConnection.addIceCandidate(msg.candidate)
@@ -250,6 +254,10 @@ import RVLParser from '../../thirdPartyCode/rvl/RVLParser.js';
             }
 
             if (msg.command === 'newDescription') {
+                if (this.localConnection.signalingState === 'stable') {
+                    console.warn('setRemoteDescription stable drop');
+                    return;
+                }
                 try {
                     await this.localConnection.setRemoteDescription(msg.description);
                     if (!this.offered) {
