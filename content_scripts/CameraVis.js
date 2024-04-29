@@ -12,6 +12,8 @@ import {VisualDiff} from '../../src/spatialCapture/VisualDiff.js';
 import {Followable} from '../../src/gui/ar/Followable.js';
 
 const debug = false;
+// TODO(jhobin): re-enable when Safari behaves
+const enableFastTextureUpload = false;
 
 function setMatrixFromArray(matrix, array) {
     matrix.set(
@@ -108,17 +110,21 @@ export class CameraVis extends Followable {
         this.texture.minFilter = THREE.LinearFilter;
         this.texture.magFilter = THREE.LinearFilter;
         this.texture.generateMipmaps = false;
-        this.texture.isVideoTexture = true;
-        this.texture.update = function() {
-        };
+        if (enableFastTextureUpload) {
+            this.texture.isVideoTexture = true;
+            this.texture.update = function() {
+            };
+        }
 
         this.textureDepth = new THREE.Texture();
         this.textureDepth.minFilter = THREE.LinearFilter;
         this.textureDepth.magFilter = THREE.LinearFilter;
         this.textureDepth.generateMipmaps = false;
-        this.textureDepth.isVideoTexture = true;
-        this.textureDepth.update = function() {
-        };
+        if (enableFastTextureUpload) {
+            this.textureDepth.isVideoTexture = true;
+            this.textureDepth.update = function() {
+            };
+        }
 
         this.material = null;
         this.mesh = null;
