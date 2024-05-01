@@ -1,5 +1,7 @@
 createNameSpace('realityEditor.gui');
 
+import Splatting from '../../src/splatting/Splatting.js';
+
 (function(exports) {
     let menuBar = null;
 
@@ -42,7 +44,8 @@ createNameSpace('realityEditor.gui');
         ToggleFlyMode: 'Fly Mode',
         FocusCamera: 'Focus Camera',
         ShowAIChatbot: 'AI Assist',
-        ReloadPage: 'Reload Page'
+        ReloadPage: 'Reload Page',
+        GSSettingsPanel: 'GS Settings Panel'
     });
     exports.ITEM = ITEM;
 
@@ -195,6 +198,15 @@ createNameSpace('realityEditor.gui');
             }
         });
         menuBar.addItemToMenu(MENU.Help, showAIChat);
+        
+        const gsSettingsPanel = new MenuItem(ITEM.GSSettingsPanel, { toggle: true, defaultVal: false }, (checked) => {
+            if (checked) {
+                Splatting.showGSSettingsPanel()
+            } else {
+                Splatting.hideGSSettingsPanel();
+            }
+        })
+        menuBar.addItemToMenu(MENU.Develop, gsSettingsPanel);
 
         document.body.appendChild(menuBar.domElement);
 

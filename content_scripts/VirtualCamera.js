@@ -5,6 +5,7 @@
 createNameSpace('realityEditor.device');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
+import Splatting from '../../src/splatting/Splatting.js';
 
 (function (exports) {
 
@@ -255,11 +256,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.preRotateDistanceToTarget = null; // if we rotate and scroll, don't lock zoom to pre-rotate level
 
                 if (scrollTimeout !== null) {
+                    Splatting.toggleGSRaycast(false);
                     clearTimeout(scrollTimeout);
                 }
                 scrollTimeout = setTimeout(function () {
                     this.triggerScaleCallbacks(false);
                     this.preRotateDistanceToTarget = null;
+                    Splatting.toggleGSRaycast(true);
 
                 }.bind(this), 150);
 
@@ -278,6 +281,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                         this.setFocusTargetCube(event);
                         this.mouseInput.isRightClick = true;
                         this.mouseInput.isRotateRequested = true;
+                        Splatting.toggleGSRaycast(true);
                         this.triggerRotateCallbacks(true);
                         if (!this.followingState.active) { // we preserve distance to virtualizer if following, not distance to target
                             this.preRotateDistanceToTarget = this.distanceToTarget;
@@ -291,10 +295,21 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 }
             }.bind(this));
 
+            let pointermoveTimeout = null;
             document.addEventListener('pointermove', function (event) {
                 this.mouseInput.latest.x = event.pageX;
                 this.mouseInput.latest.y = event.pageY;
-                if (this.idleOrbitting || this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) return;
+                Splatting.toggleGSRaycast(true);
+                if (pointermoveTimeout !== null) {
+                    clearTimeout(pointermoveTimeout);
+                }
+                pointermoveTimeout = setTimeout(function () {
+                    Splatting.toggleGSRaycast(false);
+                }.bind(this), 150);
+                if (this.idleOrbitting || this.mouseInput.isRotateRequested || this.mouseInput.isStrafeRequested) {
+                    Splatting.toggleGSRaycast(false);
+                    return;
+                }
                 this.setFocusTargetCube(event, true);
             }.bind(this));
 
@@ -303,6 +318,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.mouseInput.isRightClick = false;
                 this.mouseInput.isRotateRequested = false;
                 this.mouseInput.isStrafeRequested = false;
+                Splatting.toggleGSRaycast(false);
 
                 this.mouseInput.first.x = 0;
                 this.mouseInput.first.y = 0;
@@ -339,12 +355,14 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     if (!this.isFlying) {
                         realityEditor.gui.getMenuBar().getItemByName(realityEditor.gui.ITEM.ToggleFlyMode).switchToggle();
                         this.isFlying = true;
+                        Splatting.toggleGSRaycast(false);
                     }
                 } else if (document.pointerLockElement === null) {
                     if (this.isFlying) {
                         // make sure the menu item toggle state updates in response to escape key, etc
                         realityEditor.gui.getMenuBar().getItemByName(realityEditor.gui.ITEM.ToggleFlyMode).switchToggle();
                         this.isFlying = false;
+                        Splatting.toggleGSRaycast(false);
                     }
                 }
                 this.switchMode();
@@ -914,7 +932,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
             // disables smoothing while following, to provide a tighter sync with the followed element
             let shouldSmoothCamera = !this.isFollowingFirstPerson() && !this.zoomOutTransition;
-            let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
+            let animationSpeed = shouldSmoothCamera ? (realityEditor.spatialCursor.isGSActive() ? 0.6 : 0.3) : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
             if (!options.skipApplying) {
