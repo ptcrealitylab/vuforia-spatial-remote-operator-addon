@@ -1,5 +1,7 @@
 createNameSpace('realityEditor.gui');
 
+import Splatting from '../../src/splatting/Splatting.js';
+
 (function(exports) {
     let menuBar = null;
 
@@ -199,9 +201,9 @@ createNameSpace('realityEditor.gui');
         
         const gsSettingsPanel = new MenuItem(ITEM.GSSettingsPanel, { toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
-                realityEditor.splatting.showGSSettingsPanel()
+                Splatting.showGSSettingsPanel()
             } else {
-                realityEditor.splatting.hideGSSettingsPanel();
+                Splatting.hideGSSettingsPanel();
             }
         })
         menuBar.addItemToMenu(MENU.Develop, gsSettingsPanel);
