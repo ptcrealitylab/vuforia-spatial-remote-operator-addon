@@ -262,7 +262,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                 scrollTimeout = setTimeout(function () {
                     this.triggerScaleCallbacks(false);
                     this.preRotateDistanceToTarget = null;
-                    Splatting.toggleGSRaycast(true);
+                    Splatting.toggleGSRaycast(false);
 
                 }.bind(this), 150);
 
