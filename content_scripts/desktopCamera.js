@@ -391,7 +391,7 @@ import { TouchControlButtons } from './TouchControlButtons.js';
         });
 
         realityEditor.ai.registerCallback('shouldFocusVirtualCamera', function (params) {
-            focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z));
+            focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z), params.zoomDistanceMm);
         });
     }
 
@@ -771,9 +771,9 @@ import { TouchControlButtons } from './TouchControlButtons.js';
         });
     }
 
-    function focusVirtualCamera(pos, dir) {
+    function focusVirtualCamera(pos, dir, zoomDistanceMm = 3000) {
         if (!virtualCamera || !virtualCameraEnabled) return;
-        virtualCamera.focus(pos, dir);
+        virtualCamera.focus(pos, dir, zoomDistanceMm);
     }
 
     exports.update = update;
