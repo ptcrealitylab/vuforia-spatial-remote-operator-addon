@@ -209,7 +209,7 @@ import Splatting from '../../src/splatting/Splatting.js';
         })
         menuBar.addItemToMenu(MENU.Develop, gsSettingsPanel);
         
-        const gsCanToggleRaycast = new MenuItem(ITEM.GSToggleRaycast, { toggle: true, defaultVal: true }, (checked) => {
+        const gsCanToggleRaycast = new MenuItem(ITEM.GSToggleRaycast, { shortcutKey: 'FORWARD_SLASH', toggle: true, defaultVal: true }, (checked) => {
             realityEditor.spatialCursor.gsCanToggleRaycast(checked);
         })
         menuBar.addItemToMenu(MENU.Develop, gsCanToggleRaycast);
