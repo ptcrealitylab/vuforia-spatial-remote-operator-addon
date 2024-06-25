@@ -217,12 +217,12 @@ import Splatting from '../../src/splatting/Splatting.js';
             }
         }
         // when in normal mode, right click to add a green focus cube to the scene
-        setFocusTargetCube(event, forceSet = false) {
+        async setFocusTargetCube(event, forceSet = false) {
             if (this.isFlying) return;
             // conform to spatial cursor mousemove event pageX and pageY
             // if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
             if (forceSet || event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
-                let worldIntersectPoint = realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY, true).point;
+                let worldIntersectPoint = (await realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY, true)).point;
                 if (worldIntersectPoint === undefined) return;
                 // record pointerdown world intersect point, for off-center camera rotation
                 this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
@@ -268,7 +268,7 @@ import Splatting from '../../src/splatting/Splatting.js';
 
             }.bind(this), { passive: false }); // in order to call preventDefault, wheel needs to be active not passive
 
-            document.addEventListener('pointerdown', function (event) {
+            document.addEventListener('pointerdown', async function (event) {
                 if (event.button === 2 || event.button === 1) { // 2 is right click, 0 is left, 1 is middle button
                     this.mouseInput.isPointerDown = true;
                     this.mouseInput.isRightClick = false;
@@ -278,7 +278,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                         this.mouseInput.isStrafeRequested = true;
                         this.triggerPanCallbacks(true);
                     } else if (event.button === 2) {
-                        this.setFocusTargetCube(event);
+                        await this.setFocusTargetCube(event);
                         this.mouseInput.isRightClick = true;
                         this.mouseInput.isRotateRequested = true;
                         Splatting.toggleGSRaycast(true);
@@ -296,7 +296,7 @@ import Splatting from '../../src/splatting/Splatting.js';
             }.bind(this));
 
             let pointermoveTimeout = null;
-            document.addEventListener('pointermove', function (event) {
+            document.addEventListener('pointermove', async function (event) {
                 this.mouseInput.latest.x = event.pageX;
                 this.mouseInput.latest.y = event.pageY;
                 Splatting.toggleGSRaycast(true);
@@ -310,7 +310,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                     Splatting.toggleGSRaycast(false);
                     return;
                 }
-                this.setFocusTargetCube(event, true);
+                await this.setFocusTargetCube(event, true);
             }.bind(this));
 
             const pointerReset = () => {
@@ -504,12 +504,12 @@ import Splatting from '../../src/splatting/Splatting.js';
             };
 
             // Handles touchstart events when a specific touchControlMode has been selected
-            const handleTouchControlDown = (event) => {
+            const handleTouchControlDown = async (event) => {
                 initialPosition = null;
                 this.mouseInput.last.x = 0;
                 this.mouseInput.last.y = 0;
 
-                this.setFocusTargetCube(event);
+                await this.setFocusTargetCube(event);
 
                 if (this.touchControlMode === 'pan') {
                     this.mouseInput.isStrafeRequested = true;
@@ -560,7 +560,7 @@ import Splatting from '../../src/splatting/Splatting.js';
 
             // Add touch event listeners to the document, which trigger the "TouchControl" functions
             // if a specific touchControlMode has been selected, or the "multitouch" functions if not
-            document.addEventListener('touchstart',  (event) => {
+            document.addEventListener('touchstart',  async (event) => {
                 if (!realityEditor.device.utilities.isEventHittingBackground(event)) return;
                 // while pinching to enter remote operator in AR app, don't trigger additional camera gestures
                 if (this.pauseTouchGestures) return;
@@ -568,7 +568,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                 isMultitouchGestureActive = true;
 
                 if (this.isTouchControlModeActive()) {
-                    handleTouchControlDown(event);
+                    await handleTouchControlDown(event);
                     return;
                 }
 
@@ -615,7 +615,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                     didMoveAtAll = true;
                 }
             });
-            document.addEventListener('touchend',  (event) => {
+            document.addEventListener('touchend',  async (event) => {
                 initialDistance = 0;
                 this.mouseInput.isRotateRequested = false;
                 this.mouseInput.isStrafeRequested = false; // do we add this, or only if zero touches left?
@@ -625,7 +625,7 @@ import Splatting from '../../src/splatting/Splatting.js';
 
                 // tapping without dragging moves the focus cube to the tapped location
                 if (!didMoveAtAll) {
-                    this.setFocusTargetCube(event);
+                    await this.setFocusTargetCube(event);
                 }
 
                 if (this.isTouchControlModeActive()) {
