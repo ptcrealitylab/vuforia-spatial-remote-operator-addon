@@ -222,7 +222,8 @@ import Splatting from '../../src/splatting/Splatting.js';
             // conform to spatial cursor mousemove event pageX and pageY
             // if (event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
             if (forceSet || event.button === 2 || !realityEditor.device.environment.variables.requiresMouseEvents) {
-                let worldIntersectPoint = (await realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY, true)).point;
+                // Ignore frames for raycasting spatial cursor position if in AR mode, due to visual lag
+                let worldIntersectPoint = (await realityEditor.spatialCursor.getRaycastCoordinates(event.pageX, event.pageY, true, realityEditor.device.environment.isARMode())).point;
                 if (worldIntersectPoint === undefined) return;
                 // record pointerdown world intersect point, for off-center camera rotation
                 this.mouseInput.lastWorldPos = [worldIntersectPoint.x, worldIntersectPoint.y, worldIntersectPoint.z];
