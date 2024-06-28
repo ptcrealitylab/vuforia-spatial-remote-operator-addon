@@ -109,6 +109,7 @@ import { TouchControlButtons } from './TouchControlButtons.js';
 
         // set rotateCenterElementId parent as groundPlaneNode to make the coord space of rotateCenterElementId the same as virtual camera and threejsContainerObj
         rotateCenterElementId = realityEditor.sceneGraph.addVisualElement('rotateCenter', parentNode, undefined, virtualCamera.getFocusTargetCubeMatrix());
+        
 
         virtualCamera.onPanToggled(function(isPanning) {
             if (virtualCamera.lockOnMode) {
@@ -121,6 +122,7 @@ import { TouchControlButtons } from './TouchControlButtons.js';
                 knownInteractionStates.pan = false;
                 panToggled();
             }
+            realityEditor.gui.ar.positioning.coverFull2DTools(isPanning);
         });
         virtualCamera.onRotateToggled(function(isRotating) {
             if (virtualCamera.lockOnMode) {
@@ -134,6 +136,7 @@ import { TouchControlButtons } from './TouchControlButtons.js';
                 knownInteractionStates.rotate = false;
                 rotateToggled();
             }
+            realityEditor.gui.ar.positioning.coverFull2DTools(isRotating);
         });
         virtualCamera.onScaleToggled(function(isScaling) {
             if (virtualCamera.lockOnMode) {
@@ -388,7 +391,7 @@ import { TouchControlButtons } from './TouchControlButtons.js';
         });
 
         realityEditor.ai.registerCallback('shouldFocusVirtualCamera', function (params) {
-            focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z));
+            focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z), params.zoomDistanceMm);
         });
     }
 
@@ -768,9 +771,9 @@ import { TouchControlButtons } from './TouchControlButtons.js';
         });
     }
 
-    function focusVirtualCamera(pos, dir) {
+    function focusVirtualCamera(pos, dir, zoomDistanceMm = 3000) {
         if (!virtualCamera || !virtualCameraEnabled) return;
-        virtualCamera.focus(pos, dir);
+        virtualCamera.focus(pos, dir, zoomDistanceMm);
     }
 
     exports.update = update;

@@ -191,7 +191,7 @@ import Splatting from '../../src/splatting/Splatting.js';
         });
         menuBar.addItemToMenu(MENU.Help, showDeveloper);
 
-        const showAIChat = new MenuItem(ITEM.ShowAIChatbot, { toggle: true }, (checked) => {
+        const showAIChat = new MenuItem(ITEM.ShowAIChatbot, { toggle: true, shortcutKey: 'BACK_SLASH' }, (checked) => {
             if (checked) {
                 realityEditor.ai.showDialogue();
             } else {

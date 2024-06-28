@@ -701,8 +701,8 @@ import Splatting from '../../src/splatting/Splatting.js';
         }
         // if specify a focus direction, the camera will look into that direction. Note that dir is expected to be a unit vector
         // if not, move the camera while keeping its lookAt direction
-        focus(pos, dir) {
-            let zoomFactor = 3000;
+        focus(pos, dir, zoomDistanceMm = 3000) {
+            let zoomFactor = zoomDistanceMm;
             this.targetPosition[0] = pos.x;
             this.targetPosition[1] = pos.y;
             this.targetPosition[2] = pos.z;
