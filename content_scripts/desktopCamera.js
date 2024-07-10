@@ -387,9 +387,11 @@ import { TouchControlButtons } from './TouchControlButtons.js';
             realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
         });
 
-        realityEditor.ai.registerCallback('shouldFocusVirtualCamera', function (params) {
-            focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z));
-        });
+        if (realityEditor.ai) {
+            realityEditor.ai.registerCallback('shouldFocusVirtualCamera', function (params) {
+                focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z));
+            });
+        }
     }
 
     /**
