@@ -12,6 +12,7 @@ import { Vector3 } from '../../thirdPartyCode/three/three.module.js';
 import { CameraFollowCoordinator } from './CameraFollowCoordinator.js';
 import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 import { TouchControlButtons } from './TouchControlButtons.js';
+import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
 
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
@@ -281,6 +282,27 @@ import { TouchControlButtons } from './TouchControlButtons.js';
                 console.warn('Error parsing saved camera position data', e);
             }
         };
+
+        const getCameraPositionDirection = () => {
+            const cameraPosition = [...virtualCamera.position];
+            const cameraDirection = virtualCamera.getCameraDirection();
+            return {
+                position: cameraPosition,
+                direction: cameraDirection,
+            };
+        };
+
+        let memoryBar = new CameraPositionMemoryBar(getCameraPositionDirection);
+
+        memoryBar.onMemorySelected((position, direction) => {
+            if (virtualCamera.lockOnMode) return;
+            try {
+                virtualCamera.position = [...position];
+                virtualCamera.setCameraDirection(direction);
+            } catch (e) {
+                console.warn('Error loading camera position', e);
+            }
+        });
 
         // Only one gets a menu item to avoid crowding, but they all get a shortcut key
         const saveCameraPositionMenuItem = new realityEditor.gui.MenuItem('Save Camera Position', { shortcutKey: '_1', modifiers: ['ALT'], toggle: false, disabled: false }, () => {
