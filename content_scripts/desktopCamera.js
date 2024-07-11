@@ -308,9 +308,17 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                 } catch (e) {
                     console.warn('Error loading camera position', e);
                 }
+                memoryBar.toggleVisibility(false);
+                toggleMemoryBarMenuItem.switchToggle();
             });
+
+            const toggleMemoryBarMenuItem = new realityEditor.gui.MenuItem('Toggle Memory Bar', { shortcutKey: 'PERIOD', toggle: true, disabled: false }, (checked) => {
+                memoryBar.toggleVisibility(checked);
+            });
+            realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, toggleMemoryBarMenuItem);
         });
 
+        // TODO: should this be combined with the memoryBar now?
         // Only one gets a menu item to avoid crowding, but they all get a shortcut key
         const saveCameraPositionMenuItem = new realityEditor.gui.MenuItem('Save Camera Position', { shortcutKey: '_1', modifiers: ['ALT'], toggle: false, disabled: false }, () => {
             saveCameraData(0);
