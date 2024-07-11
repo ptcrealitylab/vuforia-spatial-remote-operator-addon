@@ -31,20 +31,6 @@ export class CameraPositionMemoryBar {
         document.body.appendChild(this.dom);
 
         this.dom.classList.add('hidden-memory-bar');
-
-        let keyboard = new realityEditor.device.KeyboardListener();
-        keyboard.onKeyDown((code) => {
-            if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-
-            // while shift is down, turn on the laser beam
-            if (code === keyboard.keyCodes.PERIOD) {
-                if (this.dom.classList.contains('hidden-memory-bar')) {
-                    this.dom.classList.remove('hidden-memory-bar');
-                } else {
-                    this.dom.classList.add('hidden-memory-bar');
-                }
-            }
-        });
     }
     /**
      * @return {HTMLDivElement}
@@ -93,6 +79,13 @@ export class CameraPositionMemoryBar {
         this.callbacks.onMemoryLoaded.forEach(cb => {
             cb(memory.position, memory.direction);
         });
+    }
+    toggleVisibility(shouldShow) {
+        if (shouldShow) {
+            this.dom.classList.remove('hidden-memory-bar');
+        } else {
+            this.dom.classList.add('hidden-memory-bar');
+        }
     }
 }
 
