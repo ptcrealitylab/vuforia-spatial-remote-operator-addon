@@ -330,6 +330,28 @@ body > * {
     background-size: cover; /* Make sure it fills the container with no stretching */
 }
 
+.camera-position-memory-slot-x {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    border-bottom-left-radius: 5px;
+    background-color: rgb(56, 56, 56);
+    color: white;
+    text-align: center;
+    line-height: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    z-index: 1; /* Ensure it is on top of other elements */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    &:hover {
+        background-color: red;
+    }
+}
+
 .hidden-memory-bar {
     display: none;
 }

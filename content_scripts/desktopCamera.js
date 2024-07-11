@@ -292,16 +292,23 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
             };
         };
 
-        let memoryBar = new CameraPositionMemoryBar(getCameraPositionDirection);
+        let memoryBar = null;
+        // to save and load memories per world object, this need to happen after localization
+        realityEditor.worldObjects.onLocalizedWithinWorld((objectKey) => {
+            if (objectKey === realityEditor.worldObjects.getLocalWorldId()) return; // skip local world
+            if (memoryBar) return; // only do this once
 
-        memoryBar.onMemorySelected((position, direction) => {
-            if (virtualCamera.lockOnMode) return;
-            try {
-                virtualCamera.position = [...position];
-                virtualCamera.setCameraDirection(direction);
-            } catch (e) {
-                console.warn('Error loading camera position', e);
-            }
+            memoryBar = new CameraPositionMemoryBar(objectKey, getCameraPositionDirection);
+
+            memoryBar.onMemorySelected((position, direction) => {
+                if (virtualCamera.lockOnMode) return;
+                try {
+                    virtualCamera.position = [...position];
+                    virtualCamera.setCameraDirection(direction);
+                } catch (e) {
+                    console.warn('Error loading camera position', e);
+                }
+            });
         });
 
         // Only one gets a menu item to avoid crowding, but they all get a shortcut key
