@@ -297,20 +297,23 @@ body > * {
     justify-content: center;
     position: absolute;
     left: 0;
-    top: 150px;
+    top: 180px;
+    z-index: 100;
+    transform: translateZ(100px);
 }
 
 .camera-position-memory-bar {
-    background-color: rgba(0,0,0,0.25);
+    background-color: rgb(50,50,50);
     border-radius: 10px;
     padding: 5px;
+    filter: drop-shadow(0 0 6px black);
 }
 
 .camera-position-memory-slot {
     width: 100px;
     height: 80px;
     border: 2px solid white;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(25,25,25,0.5);
     border-radius: 10px;
     display: inline-block;
     margin: 10px;
@@ -337,7 +340,7 @@ body > * {
     width: 20px;
     height: 20px;
     border-bottom-left-radius: 5px;
-    background-color: rgb(56, 56, 56);
+    background-color: rgb(25,25,25);
     color: white;
     text-align: center;
     line-height: 20px;

@@ -126,11 +126,12 @@ class CameraPositionMemorySlot {
             } else {
                 let { position, direction } = this.parentBar.cameraPositionGetter();
 
-                Splatting.captureScreenshot({ outputWidth: 120, useJpgCompression: true, jpgQuality: 0.7 });
-                setTimeout(() => {
-                    let screenshotImage = Splatting.getMostRecentScreenshot();
+                let captureFunction = realityEditor.spatialCursor.isGSActive() ?
+                    Splatting.captureScreenshot : realityEditor.gui.threejsScene.captureScreenshot;
+
+                captureFunction({ outputWidth: 120, useJpgCompression: true, jpgQuality: 0.7 }).then(screenshotImage => {
                     this.saveMemory(position, direction, screenshotImage, undefined, undefined);
-                }, 100);
+                });
             }
         });
 
