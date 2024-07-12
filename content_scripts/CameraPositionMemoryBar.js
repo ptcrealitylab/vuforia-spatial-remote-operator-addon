@@ -39,7 +39,7 @@ export class CameraPositionMemoryBar {
         barParent.classList.add('camera-position-memory-bar-parent');
 
         let bar = document.createElement('div');
-        bar.classList.add('camera-position-memory-bar')
+        bar.classList.add('camera-position-memory-bar');
         this.memorySlots.forEach(slot => {
             bar.appendChild(slot.dom);
         });
@@ -124,7 +124,7 @@ export class CameraPositionMemoryBar {
      */
     saveMemoryInSlot(index) {
         if (index >= this.memorySlots.length) {
-            console.warn(`memory slot ${index} doesn't exist; only goes up to ${this.memorySlots.length-1}`)
+            console.warn(`memory slot ${index} doesn't exist; only goes up to ${this.memorySlots.length - 1}`);
             return;
         }
         let memorySlot = this.memorySlots[index];
@@ -141,7 +141,7 @@ export class CameraPositionMemoryBar {
      */
     loadMemoryFromSlot(index) {
         if (index >= this.memorySlots.length) {
-            console.warn(`memory slot ${index} doesn't exist; only goes up to ${this.memorySlots.length-1}`)
+            console.warn(`memory slot ${index} doesn't exist; only goes up to ${this.memorySlots.length - 1}`);
             return;
         }
         let memorySlot = this.memorySlots[index];
@@ -210,7 +210,7 @@ class CameraPositionMemorySlot {
      * @return {Promise<{position: number[], direction: number[], screenshotImageSrc: string}>}
      */
     captureMemoryForCurrentState() {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, _reject) => {
             let { position, direction } = this.memoryBar.cameraPositionGetter();
 
             let captureFunction = realityEditor.spatialCursor.isGSActive() ?
