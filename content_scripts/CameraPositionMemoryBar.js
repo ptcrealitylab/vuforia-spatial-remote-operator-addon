@@ -1,14 +1,11 @@
 import Splatting from '../../src/splatting/Splatting.js';
 
-const IMAGE_SRC = {
-    save: 'addons/vuforia-spatial-remote-operator-addon/memory-add.svg',
-    // load: 'addons/vuforia-spatial-remote-operator-addon/memory-load.svg',
-};
-
 // each thumbnail is only a few kb, but we can prevent filling up localStorage with hundreds of metaverses
 // of old thumbnails by imposing a limit, and the thumbnails used least recently will be cleared out
 const MAX_LOCAL_STORAGE_ENTRIES = 100;
 const ID_PATTERN = /^camera-position-memory-slot-\d+-.*$/;
+
+const ADD_MEMORY_SRC = 'addons/vuforia-spatial-remote-operator-addon/memory-add.svg';
 
 /**
  * A UI component that allows you to save and load `CameraPositionMemory`s into one of 5 slots
@@ -22,7 +19,8 @@ export class CameraPositionMemoryBar {
         this.worldId = worldId; // used to save/load memories per-world
         this.cameraPositionGetter = cameraPositionGetter;
         this.callbacks = {
-            onMemoryLoaded: []
+            onMemorySelected: [],
+            onBarVisibilityToggledInternally: [],
         };
 
         const NUM_MEMORIES = 5;
@@ -33,20 +31,40 @@ export class CameraPositionMemoryBar {
         this.dom.classList.add('hidden-memory-bar');
     }
     /**
+     * Create the HTML elements for the memory bar
      * @return {HTMLDivElement}
      */
     buildDom() {
         let barParent = document.createElement('div');
         barParent.classList.add('camera-position-memory-bar-parent');
+
         let bar = document.createElement('div');
         bar.classList.add('camera-position-memory-bar')
         this.memorySlots.forEach(slot => {
             bar.appendChild(slot.dom);
         });
         barParent.appendChild(bar);
+
+        let label = document.createElement('div');
+        label.classList.add('camera-position-memory-bar-label');
+        label.textContent = 'Save or load a camera perspective:';
+        barParent.appendChild(label);
+
+        let barHide = document.createElement('div');
+        barHide.textContent = '–';
+        barHide.style.borderTopRightRadius = '10px';
+        barHide.classList.add('camera-position-memory-slot-x');
+        bar.appendChild(barHide);
+
+        barHide.addEventListener('click', () => {
+            this.toggleVisibility(false);
+            this.callbacks.onBarVisibilityToggledInternally.forEach((cb) => cb(false));
+        });
+
         return barParent;
     }
     /**
+     * Create each of the memory slots, and load them from localStorage if previously saved for this world
      * @param {number} numMemories
      * @return {CameraPositionMemorySlot[]}
      */
@@ -67,19 +85,32 @@ export class CameraPositionMemoryBar {
         return memories;
     }
     /**
+     * Subscribe to when a memory is selected/loaded
      * @param {function} cb
      */
     onMemorySelected(cb) {
-        this.callbacks.onMemoryLoaded.push(cb);
+        this.callbacks.onMemorySelected.push(cb);
     }
     /**
+     * Subscribe to when the bar is hidden using the close button
+     * @param {function} cb
+     */
+    onBarVisibilityToggledInternally(cb) {
+        this.callbacks.onBarVisibilityToggledInternally.push(cb);
+    }
+    /**
+     * Triggers when a memory is clicked on, to tell subscribers to load the memory
      * @param {CameraPositionMemory} memory
      */
     memorySelected(memory) {
-        this.callbacks.onMemoryLoaded.forEach(cb => {
+        this.callbacks.onMemorySelected.forEach(cb => {
             cb(memory.position, memory.direction);
         });
     }
+    /**
+     * Show or hide the memory bar
+     * @param {boolean} shouldShow
+     */
     toggleVisibility(shouldShow) {
         if (shouldShow) {
             this.dom.classList.remove('hidden-memory-bar');
@@ -87,15 +118,49 @@ export class CameraPositionMemoryBar {
             this.dom.classList.add('hidden-memory-bar');
         }
     }
-}
-
-class CameraPositionMemorySlot {
     /**
-     * @param {CameraPositionMemoryBar} parentBar
+     * Saves the current camera perspective as a memory in the provided slot index
      * @param {number} index
      */
-    constructor(parentBar, index) {
-        this.parentBar = parentBar;
+    saveMemoryInSlot(index) {
+        if (index >= this.memorySlots.length) {
+            console.warn(`memory slot ${index} doesn't exist; only goes up to ${this.memorySlots.length-1}`)
+            return;
+        }
+        let memorySlot = this.memorySlots[index];
+        if (!memorySlot) return;
+
+        memorySlot.captureMemoryForCurrentState().then(({position, direction, screenshotImageSrc}) => {
+            memorySlot.saveMemory(position, direction, screenshotImageSrc, undefined, undefined);
+        });
+    }
+
+    /**
+     * Loads the memory from the provided slot index, if one exists
+     * @param {number} index
+     */
+    loadMemoryFromSlot(index) {
+        if (index >= this.memorySlots.length) {
+            console.warn(`memory slot ${index} doesn't exist; only goes up to ${this.memorySlots.length-1}`)
+            return;
+        }
+        let memorySlot = this.memorySlots[index];
+        if (!memorySlot) return;
+
+        memorySlot.loadMemory();
+    }
+}
+
+/**
+ * A single slot of the CameraPositionMemoryBar where a memory can be saved and loaded.
+ */
+class CameraPositionMemorySlot {
+    /**
+     * @param {CameraPositionMemoryBar} memoryBar - the CameraPositionMemoryBar that this belongs to
+     * @param {number} index
+     */
+    constructor(memoryBar, index) {
+        this.memoryBar = memoryBar;
         this.index = index;
         this.dom = this.buildDom();
         this.memory = null;
@@ -110,8 +175,8 @@ class CameraPositionMemorySlot {
 
         let image = document.createElement('div');
         image.classList.add('camera-position-memory-slot-image');
-        // image.src = IMAGE_SRC.save;
-        image.style.backgroundImage = `url('${IMAGE_SRC.save}')`;
+        // image.src = ADD_MEMORY_SRC;
+        image.style.backgroundImage = `url('${ADD_MEMORY_SRC}')`;
         image.style.backgroundSize = '50%';
         slot.appendChild(image);
 
@@ -124,13 +189,8 @@ class CameraPositionMemorySlot {
             if (this.memory) {
                 this.loadMemory();
             } else {
-                let { position, direction } = this.parentBar.cameraPositionGetter();
-
-                let captureFunction = realityEditor.spatialCursor.isGSActive() ?
-                    Splatting.captureScreenshot : realityEditor.gui.threejsScene.captureScreenshot;
-
-                captureFunction({ outputWidth: 120, useJpgCompression: true, jpgQuality: 0.7 }).then(screenshotImage => {
-                    this.saveMemory(position, direction, screenshotImage, undefined, undefined);
+                this.captureMemoryForCurrentState().then(({position, direction, screenshotImageSrc}) => {
+                    this.saveMemory(position, direction, screenshotImageSrc, undefined, undefined);
                 });
             }
         });
@@ -144,6 +204,22 @@ class CameraPositionMemorySlot {
         });
 
         return slot;
+    }
+    /**
+     * Asynchronously takes a snapshot of the current perspective and resolves with the information
+     * @return {Promise<{position: number[], direction: number[], screenshotImageSrc: string}>}
+     */
+    captureMemoryForCurrentState() {
+        return new Promise((resolve, reject) => {
+            let { position, direction } = this.memoryBar.cameraPositionGetter();
+
+            let captureFunction = realityEditor.spatialCursor.isGSActive() ?
+                Splatting.captureScreenshot : realityEditor.gui.threejsScene.captureScreenshot;
+
+            captureFunction({ outputWidth: 120, useJpgCompression: true, jpgQuality: 0.7 }).then(screenshotImageSrc => {
+                resolve({position, direction, screenshotImageSrc});
+            });
+        });
     }
     /**
      * Saves the specified arguments (position/direction/thumbnail) into this slot, and saves to localStorage
@@ -185,8 +261,7 @@ class CameraPositionMemorySlot {
         this.memory = null;
         // reset image to "+"
         let image = this.dom.querySelector('.camera-position-memory-slot-image');
-        // image.src = IMAGE_SRC.save;
-        image.style.backgroundImage = `url('${IMAGE_SRC.save}')`;
+        image.style.backgroundImage = `url('${ADD_MEMORY_SRC}')`;
         image.style.backgroundSize = '50%';
         window.localStorage.removeItem(this.getId());
 
@@ -201,30 +276,29 @@ class CameraPositionMemorySlot {
     loadMemory() {
         this.memory.lastUsedDate = new Date().toISOString(); // update last-used date whenever it's used
         window.localStorage.setItem(this.getId(), this.memory.toString());
-        this.parentBar.memorySelected(this.memory);
+        this.memoryBar.memorySelected(this.memory);
     }
-
     /**
-     * Helper function to get a unique ID for this memory slot in this world
+     * Helper function to get a unique ID for this memory slot in this world, which can be used as a localStorage key
      * @return {string}
      */
     getId() {
-        if (!this.parentBar.worldId) {
+        if (!this.memoryBar.worldId) {
             console.warn('trying to save/load CameraPositionMemory for null world id; something may be wrong');
         }
-        let worldId = this.parentBar.worldId || 'null-world-id';
+        let worldId = this.memoryBar.worldId || 'null-world-id';
         return `camera-position-memory-slot-${this.index}-${worldId}`;
     }
-
     /**
      * Delete the oldest thumbnails from localStorage if more than `limit` thumbnails are saved
-     * @param {number} limit
+     * Sorted by lastUsedDate (last saved or loaded) to hopefully not delete from recently used worlds
+     * Makes sure not to delete thumbnails from the current world
+     * @param {number} limit - how many memories can be stored in localStorage before deleting oldest ones
      */
     manageStoredThumbnails(limit) {
-        // get all of the localStorage memory keys not part of this world
-        let allKeys = this.getAllKeysMatchingPattern(ID_PATTERN);
+        let allKeys = this.getLocalStorageKeysMatchingPattern(ID_PATTERN);
         let keysFromOtherWorlds = allKeys.filter(key => {
-            return !key.includes(this.parentBar.worldId);
+            return !key.includes(this.memoryBar.worldId);
         });
         let numKeysInThisWorld = allKeys.length - keysFromOtherWorlds.length;
         // get and sort them by lastUsedDate, and remove the oldest ones if needed
@@ -232,7 +306,12 @@ class CameraPositionMemorySlot {
         let limitForOtherWorlds = limit - numKeysInThisWorld;
         this.removeOldestKeys(keyAges, limitForOtherWorlds);
     }
-    getAllKeysMatchingPattern(thisRegex) {
+    /**
+     * Helper function for manageStoredThumbnails to get all relevant entries from localStorage
+     * @param {RegExp} thisRegex
+     * @return {string[]}
+     */
+    getLocalStorageKeysMatchingPattern(thisRegex) {
         let keys = [];
         for (let i = 0; i < window.localStorage.length; i++) {
             let key = window.localStorage.key(i);
@@ -242,6 +321,11 @@ class CameraPositionMemorySlot {
         }
         return keys;
     }
+    /**
+     * Helper function to pair up localStorage keys with the lastUsedDate in their associated stored value
+     * @param keys
+     * @return {{key: string, lastUsedDate: Date}[]}
+     */
     getKeyAges(keys) {
         return keys.map(key => {
             let item = JSON.parse(window.localStorage.getItem(key));
@@ -251,6 +335,11 @@ class CameraPositionMemorySlot {
             };
         });
     }
+    /**
+     * Deletes the oldest keys until there are no more than `limit` keys in storage
+     * @param {{key: string, lastUsedDate: Date}[]} keys
+     * @param {number} limit
+     */
     removeOldestKeys(keys, limit) {
         keys.sort((a, b) => a.lastUsedDate - b.lastUsedDate);
         while (keys.length > limit) {
@@ -261,6 +350,9 @@ class CameraPositionMemorySlot {
     }
 }
 
+/**
+ * Simple class to store all of the information associated with a saved camera perspective
+ */
 class CameraPositionMemory {
     constructor(position, direction, thumbnailSrc, lastUsedDate, createdDate) {
         this.position = position;
