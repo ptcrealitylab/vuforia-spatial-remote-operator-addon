@@ -255,34 +255,6 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
 
         const keyboard = new realityEditor.device.KeyboardListener();
 
-        // Setup Save/Load Camera Position System
-        // Allows for quickly jumping between different camera positions
-        let getSavedCameraDataLocalStorageKey = (index) => `savedCameraData${index}-${realityEditor.sceneGraph.getWorldId()}`;
-
-        const saveCameraData = (index) => {
-            const cameraPosition = [...virtualCamera.position];
-            const cameraDirection = virtualCamera.getCameraDirection();
-            const cameraData = { cameraPosition, cameraDirection };
-            const cameraDataJsonString = JSON.stringify(cameraData);
-            localStorage.setItem(getSavedCameraDataLocalStorageKey(index), cameraDataJsonString);
-        };
-
-        const loadCameraData = (index) => {
-            if (virtualCamera.lockOnMode) return;
-            const cameraDataJsonString = localStorage.getItem(getSavedCameraDataLocalStorageKey(index));
-            if (!cameraDataJsonString) {
-                return;
-            }
-            try {
-                const cameraData = JSON.parse(cameraDataJsonString);
-                virtualCamera.position = [...cameraData.cameraPosition];
-                virtualCamera.setCameraDirection(cameraData.cameraDirection);
-                return cameraData;
-            } catch (e) {
-                console.warn('Error parsing saved camera position data', e);
-            }
-        };
-
         const getCameraPositionDirection = () => {
             const cameraPosition = [...virtualCamera.position];
             const cameraDirection = virtualCamera.getCameraDirection();
@@ -308,39 +280,55 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                 } catch (e) {
                     console.warn('Error loading camera position', e);
                 }
-                memoryBar.toggleVisibility(false);
-                toggleMemoryBarMenuItem.switchToggle();
+                const HIDE_AFTER_EACH_SELECTION = false;
+                if (HIDE_AFTER_EACH_SELECTION) {
+                    memoryBar.toggleVisibility(false);
+                    if (toggleMemoryBarMenuItem.isToggled()) {
+                        toggleMemoryBarMenuItem.switchToggle();
+                    }
+                }
+            });
+
+            memoryBar.onBarVisibilityToggledInternally((isVisible) => {
+                if (toggleMemoryBarMenuItem.isToggled() !== isVisible) {
+                    toggleMemoryBarMenuItem.switchToggle();
+                }
             });
 
             const toggleMemoryBarMenuItem = new realityEditor.gui.MenuItem('Toggle Memory Bar', { shortcutKey: 'PERIOD', toggle: true, disabled: false }, (checked) => {
                 memoryBar.toggleVisibility(checked);
             });
             realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, toggleMemoryBarMenuItem);
-        });
 
-        // TODO: should this be combined with the memoryBar now?
-        // Only one gets a menu item to avoid crowding, but they all get a shortcut key
-        const saveCameraPositionMenuItem = new realityEditor.gui.MenuItem('Save Camera Position', { shortcutKey: '_1', modifiers: ['ALT'], toggle: false, disabled: false }, () => {
-            saveCameraData(0);
-        });
-        const loadCameraPositionMenuItem = new realityEditor.gui.MenuItem('Load Camera Position', { shortcutKey: '_1', modifiers: ['SHIFT'], toggle: false, disabled: false }, () => {
-            loadCameraData(0);
-        });
-        realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, saveCameraPositionMenuItem);
-        realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, loadCameraPositionMenuItem);
-        [2, 3, 4, 5, 6, 7, 8, 9, 0].forEach(key => {
-            // Would be nice to deduplicate some of this logic, shared with MenuBar and MenuItem
-            keyboard.onKeyDown((code, activeModifiers) => {
-                if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
-                const modifierSetsMatch = (modifierSet1, modifierSet2) => {
-                    return modifierSet1.length === modifierSet2.length && modifierSet1.every(value => modifierSet2.includes(value));
-                };
-                if (code === keyboard.keyCodes[`_${key}`] && modifierSetsMatch([keyboard.keyCodes['ALT']], activeModifiers)) {
-                    saveCameraData(key - 1);
-                }
-                if (code === keyboard.keyCodes[`_${key}`] && modifierSetsMatch([keyboard.keyCodes['SHIFT']], activeModifiers)) {
-                    loadCameraData(key - 1);
-                }
+            // Only one gets a menu item to avoid crowding, but they all get a shortcut key
+            // TODO: make use of the MenuItemSubmenu (used in the Follow menu) to include all of the shortcuts
+            const saveCameraPositionMenuItem = new realityEditor.gui.MenuItem('Save Camera Position', { shortcutKey: '_1', modifiers: ['ALT'], toggle: false, disabled: false }, () => {
+                memoryBar.saveMemoryInSlot(0);
+            });
+            const loadCameraPositionMenuItem = new realityEditor.gui.MenuItem('Load Camera Position', { shortcutKey: '_1', modifiers: ['SHIFT'], toggle: false, disabled: false }, () => {
+                memoryBar.loadMemoryFromSlot(0);
+            });
+            realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, saveCameraPositionMenuItem);
+            realityEditor.gui.getMenuBar().addItemToMenu(realityEditor.gui.MENU.Camera, loadCameraPositionMenuItem);
+            [2, 3, 4, 5, /*6, 7, 8, 9, 0*/].forEach(key => {
+                // Would be nice to deduplicate some of this logic, shared with MenuBar and MenuItem
+                keyboard.onKeyDown((code, activeModifiers) => {
+                    if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
+                    const modifierSetsMatch = (modifierSet1, modifierSet2) => {
+                        return modifierSet1.length === modifierSet2.length && modifierSet1.every(value => modifierSet2.includes(value));
+                    };
+                    if (code === keyboard.keyCodes[`_${key}`] && modifierSetsMatch([keyboard.keyCodes['ALT']], activeModifiers)) {
+                        memoryBar.saveMemoryInSlot(key - 1);
+
+                        memoryBar.toggleVisibility(true);
+                        if (!toggleMemoryBarMenuItem.isToggled()) {
+                            toggleMemoryBarMenuItem.switchToggle();
+                        }
+                    }
+                    if (code === keyboard.keyCodes[`_${key}`] && modifierSetsMatch([keyboard.keyCodes['SHIFT']], activeModifiers)) {
+                        memoryBar.loadMemoryFromSlot(key - 1);
+                    }
+                });
             });
         });
 
