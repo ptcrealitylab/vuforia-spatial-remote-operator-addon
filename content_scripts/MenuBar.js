@@ -339,6 +339,11 @@ createNameSpace('realityEditor.gui');
                 return false;
             }
         }
+        isToggled() {
+            if (!this.options.toggle) { return false; }
+            let checkmark = this.domElement.querySelector('.desktopMenuBarItemCheckmark');
+            return !checkmark.classList.contains('desktopMenuBarItemCheckmarkHidden');
+        }
         disable() {
             this.domElement.classList.add('desktopMenuBarItemDisabled');
             let checkmark = this.domElement.querySelector('.desktopMenuBarItemCheckmark');
