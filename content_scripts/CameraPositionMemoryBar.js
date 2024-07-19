@@ -1,4 +1,4 @@
-import Splatting from '../../src/splatting/Splatting.js';
+import { captureScreenshot } from '../../src/gui/sceneCapture.js';
 
 // each thumbnail is only a few kb, but we can prevent filling up localStorage with hundreds of metaverses
 // of old thumbnails by imposing a limit, and the thumbnails used least recently will be cleared out
@@ -213,10 +213,9 @@ class CameraPositionMemorySlot {
         return new Promise((resolve, _reject) => {
             let { position, direction } = this.memoryBar.cameraPositionGetter();
 
-            let captureFunction = realityEditor.spatialCursor.isGSActive() ?
-                Splatting.captureScreenshot : realityEditor.gui.threejsScene.captureScreenshot;
+            let canvasId = realityEditor.spatialCursor.isGSActive() ? 'gsCanvas' : 'mainThreejsCanvas';
 
-            captureFunction({ outputWidth: 120, useJpgCompression: true, jpgQuality: 0.7 }).then(screenshotImageSrc => {
+            captureScreenshot(canvasId, { outputWidth: 120, useJpgCompression: true, jpgQuality: 0.7 }).then(screenshotImageSrc => {
                 resolve({position, direction, screenshotImageSrc});
             });
         });
