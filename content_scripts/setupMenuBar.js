@@ -209,19 +209,19 @@ import Splatting from '../../src/splatting/Splatting.js';
             }
         });
         menuBar.addItemToMenu(MENU.Help, showAIChat);
-        
+
         const gsSettingsPanel = new MenuItem(ITEM.GSSettingsPanel, { toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
-                Splatting.showGSSettingsPanel()
+                Splatting.showGSSettingsPanel();
             } else {
                 Splatting.hideGSSettingsPanel();
             }
-        })
+        });
         menuBar.addItemToMenu(MENU.Develop, gsSettingsPanel);
-        
+
         const gsCanToggleRaycast = new MenuItem(ITEM.GSToggleRaycast, { shortcutKey: 'FORWARD_SLASH', toggle: true, defaultVal: true }, (checked) => {
             realityEditor.spatialCursor.gsCanToggleRaycast(checked);
-        })
+        });
         menuBar.addItemToMenu(MENU.Develop, gsCanToggleRaycast);
 
         document.body.appendChild(menuBar.domElement);
