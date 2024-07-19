@@ -34,6 +34,7 @@ import Splatting from '../../src/splatting/Splatting.js';
         DebugAvatarConnections: 'Debug Avatar Connections',
         DeleteAllTools: 'Delete All Tools',
         DownloadScan: 'Download Scan',
+        DownloadZipBackup: 'Download World Object',
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
         ToggleMotionStudySettings: 'Toggle Analytics Settings',
@@ -181,6 +182,15 @@ import Splatting from '../../src/splatting/Splatting.js';
 
         const downloadScan = new MenuItem(ITEM.DownloadScan, { disabled: true });
         menuBar.addItemToMenu(MENU.Develop, downloadScan);
+
+        const downloadZipBackup = new MenuItem(ITEM.DownloadZipBackup, { disabled: false }, () => {
+            let worldObject = realityEditor.worldObjects.getBestWorldObject();
+            if (worldObject) {
+                const objPath = realityEditor.network.getURL(worldObject.ip, realityEditor.network.getPort(worldObject), '/object/' + worldObject.name + '/zipBackup/');
+                window.open(objPath, '_blank');
+            }
+        });
+        menuBar.addItemToMenu(MENU.Develop, downloadZipBackup);
 
         const showDeveloper = new MenuItem(ITEM.ShowDeveloperMenu, { toggle: true }, (checked) => {
             if (checked) {
