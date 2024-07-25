@@ -122,6 +122,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                 knownInteractionStates.pan = false;
                 panToggled();
             }
+            realityEditor.gui.ar.positioning.coverFull2DTools(isPanning);
         });
         virtualCamera.onRotateToggled(function(isRotating) {
             if (virtualCamera.lockOnMode) {
@@ -135,6 +136,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                 knownInteractionStates.rotate = false;
                 rotateToggled();
             }
+            realityEditor.gui.ar.positioning.coverFull2DTools(isRotating);
         });
         virtualCamera.onScaleToggled(function(isScaling) {
             if (virtualCamera.lockOnMode) {
