@@ -74,13 +74,13 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
         update();
 
         let keyboard = new realityEditor.device.KeyboardListener();
-        keyboard.onKeyDown(function(code) {
+        keyboard.onKeyDown(async function(code) {
             if (realityEditor.device.keyboardEvents.isKeyboardActive()) { return; } // ignore if a tool is using the keyboard
 
             // while shift is down, turn on the laser beam
             if (code === keyboard.keyCodes.SHIFT) {
                 let touchPosition = realityEditor.gui.ar.positioning.getMostRecentTouchPosition();
-                realityEditor.avatar.setBeamOn(touchPosition.x, touchPosition.y);
+                await realityEditor.avatar.setBeamOn(touchPosition.x, touchPosition.y);
             }
         });
         keyboard.onKeyUp(function(code) {
