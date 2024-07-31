@@ -55,7 +55,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                 first: { x: 0, y: 0 },
                 last: { x: 0, y: 0 },
                 lastWorldPos: [0, 0, 0],
-                latest: {x: 0, y: 0},
+                startOrbitPos: [0, 0, 0],
             };
             this.mouseFlyInput = {
                 justSwitched: true,
@@ -271,6 +271,10 @@ import Splatting from '../../src/splatting/Splatting.js';
 
             document.addEventListener('pointerdown', async function (event) {
                 if (event.button === 2 || event.button === 1) { // 2 is right click, 0 is left, 1 is middle button
+                    this.mouseInput.first.x = event.pageX;
+                    this.mouseInput.first.y = event.pageY;
+                    this.mouseInput.last.x = event.pageX;
+                    this.mouseInput.last.y = event.pageY;
                     this.mouseInput.isPointerDown = true;
                     this.mouseInput.isRightClick = false;
                     this.mouseInput.isRotateRequested = false;
@@ -279,27 +283,21 @@ import Splatting from '../../src/splatting/Splatting.js';
                         this.mouseInput.isStrafeRequested = true;
                         this.triggerPanCallbacks(true);
                     } else if (event.button === 2) {
+                        this.triggerRotateCallbacks(true); // This sets the rotate icon position, so must happen before awaiting to be accurate
                         await this.setFocusTargetCube(event);
                         this.mouseInput.isRightClick = true;
-                        this.mouseInput.isRotateRequested = true;
+                        this.mouseInput.isRotateRequested = true; // This must occur after awaiting so that we rotate relative to the raycast position, instead of the last rotation target
                         Splatting.toggleGSRaycast(true);
-                        this.triggerRotateCallbacks(true);
                         if (!this.followingState.active) { // we preserve distance to virtualizer if following, not distance to target
                             this.preRotateDistanceToTarget = this.distanceToTarget;
                         }
                     }
-                    this.mouseInput.first.x = event.pageX;
-                    this.mouseInput.first.y = event.pageY;
-                    this.mouseInput.last.x = event.pageX;
-                    this.mouseInput.last.y = event.pageY;
                     // follow a tool if you click it with shift held down
                 }
             }.bind(this));
 
             let pointermoveTimeout = null;
             document.addEventListener('pointermove', async function (event) {
-                this.mouseInput.latest.x = event.pageX;
-                this.mouseInput.latest.y = event.pageY;
                 Splatting.toggleGSRaycast(true);
                 if (pointermoveTimeout !== null) {
                     clearTimeout(pointermoveTimeout);
@@ -323,8 +321,6 @@ import Splatting from '../../src/splatting/Splatting.js';
 
                 this.mouseInput.first.x = 0;
                 this.mouseInput.first.y = 0;
-                this.mouseInput.last.x = 0;
-                this.mouseInput.last.y = 0;
 
                 if (this.preRotateDistanceToTarget !== null) {
                     this.preRotateDistanceToTarget = null;
@@ -639,6 +635,7 @@ import Splatting from '../../src/splatting/Splatting.js';
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
             this.mouseInput.lastWorldPos = [0, 0, 0];
+            this.mouseInput.startOrbitPos = [0, 0, 0];
             this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
         }
         adjustEnvVars(distanceToTarget) {
@@ -789,6 +786,10 @@ import Splatting from '../../src/splatting/Splatting.js';
                 this.mouseInput.isStrafeRequested = false;
             }
 
+            if (!this.mouseInput.isRotateRequested) {
+                this.mouseInput.startOrbitPos = [...this.mouseInput.lastWorldPos];
+            }
+
             // rotate
             if (this.mouseInput.isRotateRequested && (this.mouseInput.unprocessedDX !== 0 || this.mouseInput.unprocessedDY !== 0)) {
                 let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
@@ -798,7 +799,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                 let xRot = -this.mouseInput.unprocessedDY * 0.01 * rotateFactor;
                 let yRot = -this.mouseInput.unprocessedDX * 0.01 * rotateFactor;
                 let camPos = new THREE.Vector3().fromArray(this.position);
-                let target = new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos);
+                let target = new THREE.Vector3().fromArray(this.mouseInput.startOrbitPos);
                 this.orbit(xRot, yRot, camPos, camLookAt, target);
 
                 this.deselectTarget();
