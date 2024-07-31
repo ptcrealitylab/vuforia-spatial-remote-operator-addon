@@ -55,6 +55,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                 first: { x: 0, y: 0 },
                 last: { x: 0, y: 0 },
                 lastWorldPos: [0, 0, 0],
+                startOrbitPos: [0, 0, 0],
                 latest: {x: 0, y: 0},
             };
             this.mouseFlyInput = {
@@ -639,6 +640,7 @@ import Splatting from '../../src/splatting/Splatting.js';
             this.position = [this.initialPosition[0], this.initialPosition[1], this.initialPosition[2]];
             this.targetPosition = [0, 0, 0];
             this.mouseInput.lastWorldPos = [0, 0, 0];
+            this.mouseInput.startOrbitPos = [0, 0, 0];
             this.focusTargetCube.position.copy(new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos));
         }
         adjustEnvVars(distanceToTarget) {
@@ -789,6 +791,10 @@ import Splatting from '../../src/splatting/Splatting.js';
                 this.mouseInput.isStrafeRequested = false;
             }
 
+            if (!this.mouseInput.isRotateRequested) {
+                this.mouseInput.startOrbitPos = [...this.mouseInput.lastWorldPos];
+            }
+
             // rotate
             if (this.mouseInput.isRotateRequested && (this.mouseInput.unprocessedDX !== 0 || this.mouseInput.unprocessedDY !== 0)) {
                 let camLookAt = new THREE.Vector3().fromArray(this.getCameraDirection());
@@ -798,7 +804,7 @@ import Splatting from '../../src/splatting/Splatting.js';
                 let xRot = -this.mouseInput.unprocessedDY * 0.01 * rotateFactor;
                 let yRot = -this.mouseInput.unprocessedDX * 0.01 * rotateFactor;
                 let camPos = new THREE.Vector3().fromArray(this.position);
-                let target = new THREE.Vector3().fromArray(this.mouseInput.lastWorldPos);
+                let target = new THREE.Vector3().fromArray(this.mouseInput.startOrbitPos);
                 this.orbit(xRot, yRot, camPos, camLookAt, target);
 
                 this.deselectTarget();
