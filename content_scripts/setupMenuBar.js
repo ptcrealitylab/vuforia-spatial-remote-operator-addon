@@ -44,7 +44,6 @@ import Splatting from '../../src/splatting/Splatting.js';
         ActivateProfiler: 'Activate Profiler',
         ToggleFlyMode: 'Fly Mode',
         FocusCamera: 'Focus Camera',
-        ShowAIChatbot: 'AI Assist',
         ReloadPage: 'Reload Page',
         GSSettingsPanel: 'GS Settings Panel',
         GSToggleRaycast: 'GS Toggle Raycast',
@@ -200,15 +199,6 @@ import Splatting from '../../src/splatting/Splatting.js';
             }
         });
         menuBar.addItemToMenu(MENU.Help, showDeveloper);
-
-        const showAIChat = new MenuItem(ITEM.ShowAIChatbot, { toggle: true }, (checked) => {
-            if (checked) {
-                realityEditor.ai.showDialogue();
-            } else {
-                realityEditor.ai.hideDialogue();
-            }
-        });
-        menuBar.addItemToMenu(MENU.Help, showAIChat);
 
         const gsSettingsPanel = new MenuItem(ITEM.GSSettingsPanel, { toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
