@@ -1066,12 +1066,14 @@ import Splatting from '../../src/splatting/Splatting.js';
 
             const APPLY_SMOOTHING_TO_LOCK_ON_MODE = false; // this didn't look too good when I turned it on, but we could further experiment with it in future
 
+            // only apply the update from lockOnMode if the camera has changed more than a certain epsilon
+            let totalDifference = sumOfElementDifferences(lockedOnWorldMatrix, this.cameraNode.localMatrix);
+            if (totalDifference < 0.0001) {
+                return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
+            }
+
             let newCameraMatrix;
             if (APPLY_SMOOTHING_TO_LOCK_ON_MODE) {
-                let totalDifference = sumOfElementDifferences(lockedOnWorldMatrix, this.cameraNode.localMatrix);
-                if (totalDifference < 0.00001) {
-                    return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
-                }
                 let animationSpeed = 0.3;
                 newCameraMatrix = tweenMatrix(this.cameraNode.localMatrix, lockedOnWorldMatrix, animationSpeed);
             } else {
