@@ -1080,12 +1080,56 @@ import Splatting from '../../src/splatting/Splatting.js';
                 newCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(lockedOnWorldMatrix);
             }
 
+            // keep the position/targetPosition variables up to date with the current matrix,
+            // so that when we stop following we'll stay in the right spot
+            const { position, targetPosition } = this.calculateCameraPositionAndDirection(newCameraMatrix);
+            this.position = [...position];
+            this.targetPosition = [...targetPosition];
+
             // update the three.js camera position
             if (this.cameraNode.id === 'CAMERA') {
                 realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
                 let cameraNode = realityEditor.sceneGraph.getCameraNode();
                 cameraNode.needsRerender = true;
             }
+        }
+        /**
+         * Given a camera matrix, converts it into the corresponding position/direction/targetPosition
+         * @param {number[]} newCameraMatrix
+         * @return {{targetPosition: number[], position: number[], direction: number[]}}
+         */
+        calculateCameraPositionAndDirection(newCameraMatrix) {
+            // adjust using the ground plane matrix first
+            let cameraRelativeToGroundPlane = [];
+            let groundPlaneMatrixArray = realityEditor.sceneGraph.getGroundPlaneNode().worldMatrix;
+            realityEditor.gui.ar.utilities.multiplyMatrix(newCameraMatrix, realityEditor.gui.ar.utilities.invertMatrix(groundPlaneMatrixArray), cameraRelativeToGroundPlane);
+
+            // Extract position from the last row (indices 12, 13, 14)
+            const position = [
+                cameraRelativeToGroundPlane[12],
+                cameraRelativeToGroundPlane[13],
+                cameraRelativeToGroundPlane[14]
+            ];
+
+            // Extract direction from the third row (indices 8, 9, 10), and negate
+            let direction = [
+                -cameraRelativeToGroundPlane[8],
+                -cameraRelativeToGroundPlane[9],
+                -cameraRelativeToGroundPlane[10]
+            ];
+
+            // Normalize the direction vector
+            const magnitude = Math.sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
+            direction = direction.map(component => component / magnitude);
+
+            // Calculate target position as position + direction (but move the focus a certain distance in front)
+            const targetPosition = [
+                position[0] + direction[0] * FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER,
+                position[1] + direction[1] * FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER,
+                position[2] + direction[2] * FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER
+            ];
+
+            return { position, direction, targetPosition };
         }
         // trigger this in the main update loop each frame while we are following, to perform the following camera motion
         updateFollowing() {
