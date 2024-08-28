@@ -195,7 +195,11 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ResetCameraPosition, () => {
             console.log('reset camera position');
-            virtualCamera.reset();
+            if (virtualCamera.lockOnMode) {
+                virtualCamera.cancelLockOnMode();
+            } else {
+                virtualCamera.reset();
+            }
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.OrbitCamera, (value) => {
@@ -352,8 +356,10 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
 
                 if (newLockOnMode) {
                     let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
-                    let description = `Press <Escape> to stop viewing ${avatarDescription} perspective`;
-                    addScreenBorder(color, description);
+                    let description = `Press <Escape> to stop viewing ${avatarDescription} perspective, or click here`;
+                    addScreenBorder(color, description, () => {
+                        virtualCamera.cancelLockOnMode();
+                    });
                     realityEditor.avatar.writeMyLockOnMode(avatarToLockOntoId);
                 } else {
                     removeScreenBorder();
@@ -437,8 +443,9 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
      * For lockOnMode: add "screen share"-style border to edge of screen to indicate that you are following another user
      * @param {string} color - hsl/rgb/hex string
      * @param {string} descriptionText - what text to display on the screen while following
+     * @param {function} stopLockOnButtonHandler - function to call when you click the stop button
      */
-    function addScreenBorder(color, descriptionText) {
+    function addScreenBorder(color, descriptionText, stopLockOnButtonHandler) {
         let existingBorder = document.getElementById('avatar-follow-border');
         if (existingBorder) {
             changeBorderColor(color);
@@ -453,6 +460,12 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
             let textDiv = document.createElement('div');
             textDiv.classList.add('fullscreenSubtitle');
             textDiv.textContent = descriptionText;
+
+            if (typeof stopLockOnButtonHandler === 'function') {
+                textDiv.style.pointerEvents = 'auto';
+                textDiv.addEventListener('pointerup', stopLockOnButtonHandler);
+            }
+
             border.appendChild(textDiv);
         }
 
