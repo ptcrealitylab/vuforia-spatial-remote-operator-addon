@@ -754,6 +754,9 @@ import Splatting from '../../src/splatting/Splatting.js';
             // lockOnMode exactly snaps your viewpoint to match the lockOn target's sceneNode matrix
             if (this.lockOnMode) {
                 this.updateLockOnMode();
+                this.mouseInput.unprocessedDX = 0; // keep these at 0 or camera will jump after exiting lockOnMode
+                this.mouseInput.unprocessedDY = 0;
+                this.mouseInput.unprocessedScroll = 0;
                 return; // stop executing - cannot zoom or pan while in lock-on mode
             }
 
@@ -1111,23 +1114,15 @@ import Splatting from '../../src/splatting/Splatting.js';
                 cameraRelativeToGroundPlane[14]
             ];
 
-            // Extract direction from the third row (indices 8, 9, 10), and negate
-            let direction = [
+            // Extract direction from the third row (indices 8, 9, 10), and negate. normalize just in case.
+            let direction = normalize([
                 -cameraRelativeToGroundPlane[8],
                 -cameraRelativeToGroundPlane[9],
                 -cameraRelativeToGroundPlane[10]
-            ];
-
-            // Normalize the direction vector
-            const magnitude = Math.sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
-            direction = direction.map(component => component / magnitude);
+            ]);
 
             // Calculate target position as position + direction (but move the focus a certain distance in front)
-            const targetPosition = [
-                position[0] + direction[0] * FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER,
-                position[1] + direction[1] * FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER,
-                position[2] + direction[2] * FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER
-            ];
+            const targetPosition = add(position, scalarMultiply(direction, FOCUS_DISTANCE_MM_IN_FRONT_OF_VIRTUALIZER));
 
             return { position, direction, targetPosition };
         }
