@@ -356,7 +356,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
 
                 if (newLockOnMode) {
                     let avatarDescription = avatarProfile.name ? `${avatarProfile.name}'s` : `Anonymous User's`;
-                    let description = `Press <Escape> to stop viewing ${avatarDescription} perspective, or click here`;
+                    let description = `Press <Escape> to stop viewing ${avatarDescription} perspective, or click here.`;
                     addScreenBorder(color, description, () => {
                         virtualCamera.cancelLockOnMode();
                     });

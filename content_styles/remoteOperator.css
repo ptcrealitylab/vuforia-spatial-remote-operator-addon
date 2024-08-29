@@ -264,6 +264,7 @@ body > * {
     background-color: rgba(0,0,0,0.5);
     padding: 8px 16px;
     border-radius: 15px;
+    cursor: pointer;
 }
 
 #touchControlsContainer {
