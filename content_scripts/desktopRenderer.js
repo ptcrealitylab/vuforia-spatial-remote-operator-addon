@@ -324,8 +324,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
         primaryBackgroundCanvas = document.createElement('canvas');
         secondaryBackgroundCanvas = document.createElement('canvas');
 
-        updateCanvasSize();
-        window.addEventListener('resize', updateCanvasSize);
+        realityEditor.device.layout.onWindowResized(updateCanvasSize);
 
         // backgroundRenderer.src = "https://www.youtube.com/embed/XOacA3RYrXk?enablejsapi=1&rel=0&amp;controls=0&playsinline=1&vq=large";
 
@@ -456,13 +455,15 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
     /**
      * Updates canvas size for resize events
      */
-    function updateCanvasSize() {
-        backgroundCanvas.width = window.innerWidth;
-        backgroundCanvas.height = window.innerHeight;
-        primaryBackgroundCanvas.width = window.innerWidth;
-        primaryBackgroundCanvas.height = window.innerHeight;
-        secondaryBackgroundCanvas.width = window.innerWidth;
-        secondaryBackgroundCanvas.height = window.innerHeight;
+    function updateCanvasSize({width, height, left, top}) {
+        [backgroundCanvas, primaryBackgroundCanvas, secondaryBackgroundCanvas].forEach(thisCanvas => {
+            thisCanvas.width = width;
+            thisCanvas.height = height;
+            thisCanvas.style.width = width + 'px';
+            thisCanvas.style.height = height + 'px';
+            thisCanvas.style.left = left + 'px';
+            thisCanvas.style.top = top + 'px';
+        });
         primaryDrawn = false;
         secondaryDrawn = false;
     }
