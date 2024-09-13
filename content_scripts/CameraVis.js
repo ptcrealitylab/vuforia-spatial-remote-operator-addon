@@ -228,7 +228,8 @@ export class CameraVis extends Followable {
         });
         this.debugColorCube = new THREE.Mesh(new THREE.PlaneGeometry(100, 100 * 1080 / 1920), debugColor);
         // this.container.add(debugColorCube);
-        this.debugColorCube.position.set(-180 * window.innerWidth / window.innerHeight, 140, -1000);
+        let viewportBbox = realityEditor.device.layout.getViewportBoundingBox();
+        this.debugColorCube.position.set(-180 * viewportBbox.width / viewportBbox.height, 140, -1000);
         this.debugColorCube.rotation.z = Math.PI;
     }
 
@@ -249,7 +250,8 @@ export class CameraVis extends Followable {
             // this.container.add(debugColorCube);
             this.debugColorCube.rotation.z = Math.PI;
         }
-        let x = -180 * window.innerWidth / window.innerHeight;
+        let viewportBbox = realityEditor.device.layout.getViewportBoundingBox();
+        let x = -180 * viewportBbox.width / viewportBbox.height;
         let y = 140 - i * 100;
         this.debugColorCube.position.set(x, y, -1000);
         realityEditor.gui.threejsScene.addToScene(this.debugColorCube, {parentToCamera: true});

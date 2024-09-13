@@ -95,7 +95,8 @@ createNameSpace('realityEditor.device.desktopAdapter');
             addSocketListeners(); // HACK. this needs to happen after realtime module finishes loading
         }, 100);
 
-        calculateProjectionMatrices(window.innerWidth, window.innerHeight);
+        let viewportBbox = realityEditor.device.layout.getViewportBoundingBox();
+        calculateProjectionMatrices(viewportBbox.width, viewportBbox.height);
 
         function setupKeyboardWhenReady() {
             if (realityEditor.device.KeyboardListener) {
@@ -421,7 +422,9 @@ createNameSpace('realityEditor.device.desktopAdapter');
         // start the update loop when the remote operator is shown
         realityEditor.device.modeTransition.onRemoteOperatorShown(() => {
             realityEditor.gui.threejsScene.getInternals().setAnimationLoop(update); // start update loop
-            calculateProjectionMatrices(window.innerWidth, window.innerHeight); // update proj matrices
+
+            let viewportBbox = realityEditor.device.layout.getViewportBoundingBox();
+            calculateProjectionMatrices(viewportBbox.width, viewportBbox.height); // update proj matrices
         });
     }
 

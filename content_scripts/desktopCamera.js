@@ -725,7 +725,8 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
 
             // get the current camera target position, so we maintain the same perspective when we turn on the scene
             // defaults the target position to 1 meter in front of the camera
-            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth / 2, window.innerHeight / 2, 1000, worldNode, deviceNode);
+            let viewportCenter = realityEditor.device.layout.getViewportCenter();
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(viewportCenter.x, viewportCenter.y, 1000, worldNode, deviceNode);
             let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
 
             if (position) {
@@ -760,7 +761,8 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
 
             // get the current camera target position, so we maintain the same perspective when we turn on the scene
             // defaults the target position to 1 meter in front of the camera
-            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(window.innerWidth / 2, window.innerHeight / 2, 1000, groundPlaneNode, deviceNode);
+            let viewportCenter = realityEditor.device.layout.getViewportCenter();
+            let targetPositionObj = realityEditor.sceneGraph.getPointAtDistanceFromCamera(viewportCenter.x, viewportCenter.y, 1000, groundPlaneNode, deviceNode);
             let targetPosition = [targetPositionObj.x, targetPositionObj.y, targetPositionObj.z];
 
             if (position) {

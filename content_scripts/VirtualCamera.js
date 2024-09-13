@@ -190,6 +190,7 @@ import Splatting from '../../src/splatting/Splatting.js';
         addNormalModePrompt() {
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
             if (this.isFlying) return;
+            if (realityEditor.device.environment.variables.hideCameraModePrompts) return;
 
             // add normal mode prompt
             let promptTitle = 'Entered normal mode';
@@ -201,6 +202,7 @@ import Splatting from '../../src/splatting/Splatting.js';
         addFlyModePrompt() {
             if (realityEditor.device.environment.isWithinToolboxApp()) return;
             if (!this.isFlying) return;
+            if (realityEditor.device.environment.variables.hideCameraModePrompts) return;
 
             // add fly mode prompt
             let promptTitle = 'Entered fly mode';

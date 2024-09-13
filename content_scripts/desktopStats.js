@@ -38,7 +38,8 @@ createNameSpace('realityEditor.device.desktopStats');
         stats.dom.position = 'absolute';
         stats.dom.style.top = realityEditor.device.environment.variables.screenTopOffset + 'px';
         document.body.appendChild(stats.dom);
-        stats.dom.style.left = (window.innerWidth - stats.dom.getBoundingClientRect().width) + 'px';
+        let viewportBbox = realityEditor.device.layout.getViewportBoundingBox();
+        stats.dom.style.left = (viewportBbox.left + viewportBbox.width - stats.dom.getBoundingClientRect().width) + 'px';
 
         imagesPerSecondElement = document.createElement('div');
         imagesPerSecondElement.style.color = 'white';
