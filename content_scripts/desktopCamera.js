@@ -336,6 +336,57 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                     }
                 });
             });
+
+            // add handler for tools to programmatically store the current camera position/direction
+            realityEditor.network.addPostMessageHandler('requestCameraPerspective', (_, fullMessageData) => {
+                try {
+                    let cameraPerspective = getCameraPositionDirection();
+
+                    // send texture and depth texture to the frame that requested the capture
+                    realityEditor.network.postMessageIntoFrame(fullMessageData.frame, {
+                        cameraPerspectiveData: {
+                            position: cameraPerspective.position,
+                            direction: cameraPerspective.direction,
+                        }
+                    });
+                } catch (e) {
+                    // send error message into the frame that requested the capture
+                    realityEditor.network.postMessageIntoFrame(fullMessageData.frame, {
+                        cameraPerspectiveError: {
+                            reason: e.message
+                        }
+                    });
+                }
+            });
+
+            // add a handler for a tool to request that the application move the virtual camera to a certain position/direction
+            realityEditor.network.addPostMessageHandler('requestSetCameraPerspective', (msgData, fullMessageData) => {
+                try {
+                    let position = msgData.position;
+                    let direction = msgData.direction;
+                    // let cameraPerspective = getCameraPositionDirection();
+
+                    if (virtualCamera.lockOnMode) {
+                        throw new Error('Cannot set camera perspective while in lockOnMode');
+                    }
+                    virtualCamera.position = [...position];
+                    virtualCamera.setCameraDirection(direction);
+
+                    // send texture and depth texture to the frame that requested the capture
+                    realityEditor.network.postMessageIntoFrame(fullMessageData.frame, {
+                        setCameraPerspectiveData: {
+                            success: true
+                        }
+                    });
+                } catch (e) {
+                    // send error message into the frame that requested the capture
+                    realityEditor.network.postMessageIntoFrame(fullMessageData.frame, {
+                        setCameraPerspectiveError: {
+                            reason: e.message
+                        }
+                    });
+                }
+            });
         });
 
         /**
