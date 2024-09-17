@@ -343,7 +343,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                     let cameraPerspective = getCameraPositionDirection();
 
                     // send texture and depth texture to the frame that requested the capture
-                    realityEditor.network.postMessageIntoFrame(fullMessageData.frame, {
+                    realityEditor.network.postMessageIntoFrame(fullMessageData.iframeId, {
                         cameraPerspectiveData: {
                             position: cameraPerspective.position,
                             direction: cameraPerspective.direction,
@@ -351,7 +351,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                     });
                 } catch (e) {
                     // send error message into the frame that requested the capture
-                    realityEditor.network.postMessageIntoFrame(fullMessageData.frame, {
+                    realityEditor.network.postMessageIntoFrame(fullMessageData.iframeId, {
                         cameraPerspectiveError: {
                             reason: e.message
                         }
@@ -471,6 +471,10 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
             realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
         });
 
+        realityEditor.device.layout.onWindowResized(({width, height, left, top}) => {
+            adjustScreenBorderBbox({width, height, left, top});
+        });
+
         if (realityEditor.ai && realityEditor.ai.registerCallback) {
             realityEditor.ai.registerCallback('shouldFocusVirtualCamera', function (params) {
                 focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z));
@@ -521,6 +525,9 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
         }
 
         document.body.appendChild(border);
+
+        let viewportBbox = realityEditor.device.layout.getViewportBoundingBox();
+        adjustScreenBorderBbox(viewportBbox);
     }
 
     /**
@@ -541,6 +548,16 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
         let border = document.getElementById('avatar-follow-border');
         if (border) {
             border.style.border = '8px solid ' + color;
+        }
+    }
+
+    function adjustScreenBorderBbox({left, top, width, height}) {
+        let border = document.getElementById('avatar-follow-border');
+        if (border) {
+            border.style.left = `${left}px`;
+            border.style.top = `${top}px`;
+            border.style.width = `${width - (2 * 8)}px`; // subtract the border size
+            border.style.height = `${height - (2 * 8)}px`; // subtract the border size
         }
     }
 
