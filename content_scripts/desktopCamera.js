@@ -521,6 +521,10 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                 textDiv.addEventListener('pointerup', stopLockOnButtonHandler);
             }
 
+            let viewportBbox = realityEditor.device.layout.getViewportBoundingBox();
+            textDiv.style.left = (viewportBbox.width / 2) + 'px'; // nested inside of border, so doesn't need extra left
+            textDiv.style.bottom = (70) + 'px';
+
             border.appendChild(textDiv);
         }
 
