@@ -471,7 +471,8 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
             realityEditor.avatar.network.subscribeToAvatarPublicData(myAvatarObject, subscriptionCallbacks);
         });
 
-        realityEditor.device.layout.onWindowResized(({width, height, left, top}) => {
+        realityEditor.device.layout.onWindowResized(({viewport}) => {
+            let {width, height, left, top} = viewport;
             adjustScreenBorderBbox({width, height, left, top});
         });
 
