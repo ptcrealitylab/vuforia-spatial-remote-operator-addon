@@ -455,7 +455,8 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
     /**
      * Updates canvas size for resize events
      */
-    function updateCanvasSize({width, height, left, top}) {
+    function updateCanvasSize({viewport}) {
+        let {left, top, width, height} = viewport;
         [backgroundCanvas, primaryBackgroundCanvas, secondaryBackgroundCanvas].forEach(thisCanvas => {
             thisCanvas.width = width;
             thisCanvas.height = height;
