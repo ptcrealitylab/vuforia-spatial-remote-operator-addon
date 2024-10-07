@@ -5,6 +5,16 @@
 createNameSpace('realityEditor.device');
 
 (function(exports) {
+    let inputIsBlocked = false;
+
+    function blockKeyboardListenerInput() {
+        inputIsBlocked = true;
+    }
+
+    function unblockKeyboardListenerInput() {
+        inputIsBlocked = false;
+    }
+
     class KeyboardListener {
         constructor() {
             /**
@@ -98,6 +108,9 @@ createNameSpace('realityEditor.device');
         initListeners() {
             // when a key is pressed down, automatically update that entry in keyStates and trigger callbacks
             document.addEventListener('keydown', function(event) {
+                if (inputIsBlocked) {
+                    return;
+                }
                 var code = event.keyCode ? event.keyCode : event.which;
                 if (this.keyStates.hasOwnProperty(code)) {
                     this.keyStates[code] = 'down';
@@ -109,6 +122,9 @@ createNameSpace('realityEditor.device');
 
             // when a key is released, automatically update that entry in keyStates and trigger callbacks
             document.addEventListener('keyup', function(event) {
+                if (inputIsBlocked) {
+                    return;
+                }
                 var code = event.keyCode ? event.keyCode : event.which;
                 if (this.keyStates.hasOwnProperty(code)) {
                     this.keyStates[code] = 'up';
@@ -141,4 +157,6 @@ createNameSpace('realityEditor.device');
     }
 
     exports.KeyboardListener = KeyboardListener;
+    exports.blockKeyboardListenerInput = blockKeyboardListenerInput;
+    exports.unblockKeyboardListenerInput = unblockKeyboardListenerInput;
 })(realityEditor.device);
