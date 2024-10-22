@@ -178,6 +178,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
 
                     gltf = createdMesh;
                     gltf.name = 'areaTargetMesh';
+                    staticModelMode = true;
 
                     const greyMaterial = new THREE.MeshBasicMaterial({
                         color: 0x777777,
@@ -332,17 +333,7 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
         // add the Reality Zone background behind everything else
         document.body.insertBefore(backgroundCanvas, document.body.childNodes[0]);
 
-        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelVisibility, (value) => {
-            if (!gltf) { return; }
-            staticModelMode = value;
-            if (staticModelMode) {
-                gltf.visible = true;
-                console.log('show gtlf');
-            } else {
-                gltf.visible = false;
-                console.log('hide gltf');
-            }
-        });
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelVisibility, setModelVisibility);
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.ModelTexture, () => {
             if (!gltf) {
@@ -377,6 +368,30 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';
             }
         );
     }
+
+    /**
+     * @param {boolean} value
+     */
+    function setModelVisibility(value) {
+        if (!gltf) { return; }
+        staticModelMode = value;
+        if (staticModelMode) {
+            gltf.visible = true;
+            console.log('show gtlf');
+        } else {
+            gltf.visible = false;
+            console.log('hide gltf');
+        }
+    }
+    exports.setModelVisibility = setModelVisibility;
+
+    /**
+     * @return {boolean}
+     */
+    function getModelVisibility() {
+        return staticModelMode;
+    }
+    exports.getModelVisibility = getModelVisibility;
 
     /**
      * Take care of any initialization steps that should happen as soon as a valid world object has been discovered
