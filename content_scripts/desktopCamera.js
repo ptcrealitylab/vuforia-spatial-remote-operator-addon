@@ -13,6 +13,7 @@ import { CameraFollowCoordinator } from './CameraFollowCoordinator.js';
 import { MotionStudyFollowable } from './MotionStudyFollowable.js';
 import { TouchControlButtons } from './TouchControlButtons.js';
 import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
+import SplatManager from '../../src/splatting/SplatManager.js';
 
 /**
  * @fileOverview realityEditor.device.desktopCamera.js
@@ -203,6 +204,15 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
         });
 
         realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.OrbitCamera, (value) => {
+            if (value === false) {
+                virtualCamera.timestamp = 0;
+                virtualCamera.frameCount = 0;
+                // virtualCamera.initScreenCaptureLog();
+            }
+            let focusPosition = new Vector3(0, 1570, 200); // valve engine scene focus position
+            focusPosition.y += 350;
+            let focusDirection = new Vector3(0, -0.5, 1).normalize();
+            virtualCamera.focus(focusPosition, focusDirection);
             virtualCamera.idleOrbitting = value;
         });
 
@@ -425,6 +435,11 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                 focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z), new Vector3(params.dir.x, params.dir.y, params.dir.z));
             });
         }
+        
+        SplatManager.registerCallback('shouldFocusVirtualCamera', function (params) {
+            console.log('virtual camera focus start');
+            focusVirtualCamera(new Vector3(params.pos.x, params.pos.y, params.pos.z));
+        });
     }
 
     /**
@@ -618,8 +633,13 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
     /**
      * Update loop governed by requestAnimationFrame
      */
-    function onFrame() {
-        update(false);
+    // original implementation
+    // function onFrame() {
+    //     update(false);
+    //     requestAnimationFrame(onFrame);
+    // }
+    function onFrame(timestamp) {
+        update(false, timestamp);
         requestAnimationFrame(onFrame);
     }
 
@@ -628,7 +648,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
      * @param forceCameraUpdate - Whether this update forces virtualCamera to
      * update even if it's in 2d (locked follow) mode
      */
-    function update(forceCameraUpdate) {
+    function update(forceCameraUpdate, timestamp) {
         if (virtualCamera && virtualCameraEnabled) {
             try {
                 if (followCoordinator) {
@@ -641,7 +661,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
                     followCoordinator.currentFollowTarget.followable.doesOverrideCameraUpdatesInFirstPerson();
 
                 let skipApplying = skipUpdate && !forceCameraUpdate;
-                virtualCamera.update({ skipApplying: skipApplying });
+                virtualCamera.update({ skipApplying: skipApplying, timestamp: timestamp });
 
                 let worldObject = realityEditor.worldObjects.getBestWorldObject();
                 if (worldObject) {
@@ -813,6 +833,7 @@ import { CameraPositionMemoryBar } from './CameraPositionMemoryBar.js';
     function focusVirtualCamera(pos, dir) {
         if (!virtualCamera || !virtualCameraEnabled) return;
         virtualCamera.focus(pos, dir);
+        console.log('virtual camera focus finished');
     }
 
     exports.update = update;

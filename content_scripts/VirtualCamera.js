@@ -6,6 +6,7 @@ createNameSpace('realityEditor.device');
 
 import * as THREE from '../../thirdPartyCode/three/three.module.js';
 import Splatting from '../../src/splatting/Splatting.js';
+import { captureScreenshot, captureScreenshotMultiple } from '../../src/gui/sceneCapture.js';
 
 (function (exports) {
 
@@ -103,6 +104,13 @@ import Splatting from '../../src/splatting/Splatting.js';
             this.threeJsContainer.position.y = -floorOffset;
             this.threeJsContainer.rotation.x = Math.PI / 2;
             realityEditor.gui.threejsScene.addToScene(this.threeJsContainer);
+            
+            this.updateDuration = 1000;
+            this.timestamp = 0;
+            this.frameCount = 0;
+            this.screenCaptureLog = null;
+            this.initScreenCaptureLog();
+            window.getScreenCaptureLog = this.getScreenCaptureLog.bind(this);
         }
 
         /**
@@ -246,7 +254,7 @@ import Splatting from '../../src/splatting/Splatting.js';
             }
 
             let scrollTimeout = null;
-            window.addEventListener('wheel', function (event) {
+            window.addEventListener('wheel', async function (event) {
                 // restrict deltaY between [-100, 100], to prevent mouse wheel deltaY so large that camera cannot focus on focus point when zooming in
                 let wheelAmt = Math.max(-40, Math.min(40, event.deltaY));
                 this.mouseInput.unprocessedScroll += wheelAmt;
@@ -257,12 +265,15 @@ import Splatting from '../../src/splatting/Splatting.js';
                 this.preRotateDistanceToTarget = null; // if we rotate and scroll, don't lock zoom to pre-rotate level
 
                 if (scrollTimeout !== null) {
-                    Splatting.toggleGSRaycast(false);
+                    // Splatting.toggleGSRaycast(false);
+                    Splatting.toggleGSRaycast(true);
+                    await this.setFocusTargetCube(event, true);
                     clearTimeout(scrollTimeout);
                 }
                 scrollTimeout = setTimeout(function () {
                     this.triggerScaleCallbacks(false);
                     this.preRotateDistanceToTarget = null;
+                    Splatting.toggleForceSort();
                     Splatting.toggleGSRaycast(false);
 
                 }.bind(this), 150);
@@ -699,7 +710,7 @@ import Splatting from '../../src/splatting/Splatting.js';
         // if specify a focus direction, the camera will look into that direction. Note that dir is expected to be a unit vector
         // if not, move the camera while keeping its lookAt direction
         focus(pos, dir) {
-            let zoomFactor = 3000;
+            let zoomFactor = 2000;
             this.targetPosition[0] = pos.x;
             this.targetPosition[1] = pos.y;
             this.targetPosition[2] = pos.z;
@@ -713,6 +724,9 @@ import Splatting from '../../src/splatting/Splatting.js';
                 this.position[1] = this.targetPosition[1] - camDir[1] * zoomFactor;
                 this.position[2] = this.targetPosition[2] - camDir[2] * zoomFactor;
             }
+            this.mouseInput.startOrbitPos[0] = pos.x;
+            this.mouseInput.startOrbitPos[1] = pos.y;
+            this.mouseInput.startOrbitPos[2] = pos.z;
         }
         orbit(xRot, yRot, camPos, camLookAt, target) {
             const yaxis = new THREE.Vector3(0, 1, 0);
@@ -742,7 +756,7 @@ import Splatting from '../../src/splatting/Splatting.js';
             this.targetPosition = relLookAt.toArray();
         }
         // this needs to be called externally each frame that you want it to update
-        update(options = { skipApplying: false }) {
+        update(options = { skipApplying: false, timestamp: 0 }) {
             this.velocity = [0, 0, 0];
             this.targetVelocity = [0, 0, 0];
 
@@ -783,8 +797,35 @@ import Splatting from '../../src/splatting/Splatting.js';
             let distanceToFocus = magnitude(sub(this.position, this.mouseInput.lastWorldPos));
             let distancePanFactor = Math.max(2, distanceToFocus / 1000); // speed when 1 meter units away, scales up w/ distance
 
+            // original implementation
+            // if (this.idleOrbitting) {
+            //     this.mouseInput.unprocessedDX = 0.15;
+            //     this.mouseInput.isRotateRequested = true;
+            //     this.mouseInput.isStrafeRequested = false;
+            // }
+            
+            // auto rotate
+            // if (this.idleOrbitting) {
+            //     let multiplier = 10;
+            //     // let multiplier = 1;
+            //     this.mouseInput.unprocessedDX = 0.15 * multiplier;
+            //     this.mouseInput.unprocessedDY = 0.01 * multiplier;
+            //     this.mouseInput.isRotateRequested = true;
+            //     this.mouseInput.isStrafeRequested = false;
+            // }
+            
+            // incremental rotate
+            // console.log(options.timestamp);
             if (this.idleOrbitting) {
-                this.mouseInput.unprocessedDX = 0.15;
+                if (options.timestamp - this.timestamp < this.updateDuration) return;
+
+                this.timestamp = options.timestamp;
+                this.frameCount++;
+                
+                console.log('incremental rotate!');
+                let multiplier = 50;
+                this.mouseInput.unprocessedDX = 0.15 * multiplier;
+                this.mouseInput.unprocessedDY = 0.01 * multiplier;
                 this.mouseInput.isRotateRequested = true;
                 this.mouseInput.isStrafeRequested = false;
             }
@@ -961,6 +1002,69 @@ import Splatting from '../../src/splatting/Splatting.js';
             });
             this.afterNFrames = this.afterNFrames.filter(entry => entry.n > 0);
             callbacksToTrigger.forEach(cb => cb());
+
+            if (!this.idleOrbitting) return;
+            let canvasIds = ['mainThreejsCanvas', 'CreoViewWebGLDiv_CreoViewCanvas0'];
+            let outputWidth = 1000, useJpgCompression = true, jpgQuality = 0.7;
+            
+            
+            
+            captureScreenshotMultiple(canvasIds, { outputWidth: outputWidth, useJpgCompression: useJpgCompression, jpgQuality: jpgQuality }).then(res => {
+                // Automatically download the image
+                let fileName = `frame_${this.frameCount}`;
+                let fileExtension = useJpgCompression ? 'jpg' : 'png';
+                let link = document.createElement('a');
+                link.href = res.imageSrc;
+                link.download = `${fileName}.${fileExtension}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                // console.log(`frame_${this.frameCount} downloaded`);
+                
+                
+                this.updateScreenCaptureLog(res.focalLength, res.imageSize, this.frameCount, this.position, res.rotation, Date.now());
+            });
+
+            // captureScreenshot(canvasIds[0], { outputWidth: outputWidth, useJpgCompression: useJpgCompression, jpgQuality: jpgQuality }).then(screenshotImageSrc => {
+            //     // Automatically download the image
+            //     let fileName = `frame_${this.frameCount}`;
+            //     let fileExtension = useJpgCompression ? 'jpg' : 'png';
+            //     let link = document.createElement('a');
+            //     link.href = screenshotImageSrc;
+            //     link.download = `${fileName}.${fileExtension}`;
+            //     document.body.appendChild(link);
+            //     link.click();
+            //     document.body.removeChild(link);
+            //     console.log(`frame_${this.frameCount} downloaded`);
+            // });
+        }
+        
+        initScreenCaptureLog() {
+            this.screenCaptureLog = {
+                "analyticsData":{
+                    "areaTargetCaptureId":"5a4ed81fa33e4ce7876f77a52ea08077","matterportAuthentication":"None","scannerType":"Apple-iPhone14,3","sdkversion":"10.13.3","sourceFormat":"atcaptureapi"},
+                "cubes":[],
+                "keyframes":[],
+                "version": 6
+            }
+        }
+        
+        updateScreenCaptureLog(focalLength, imageSize, frameCount, position, rotation, timestamp) {
+            this.screenCaptureLog.keyframes.push({
+                "color_camera": {
+                "focal_length":[focalLength,focalLength],
+                    "image_size":[imageSize[0], imageSize[1]],
+                    "principal_point":[imageSize[0]/2, imageSize[1]/2]
+                },
+                "image":`frame_${frameCount}.jpg`,
+                "position":[position[0] / 1000, position[1] / 1000, position[2] / 1000],
+                "rotation":[rotation[0], rotation[1], rotation[2]],
+                "timestamp":timestamp
+            })
+        }
+        
+        getScreenCaptureLog() {
+            console.log(this.screenCaptureLog);
         }
 
         // returns the position [xDist,yDist,zDist] within the coordinate system defined by startPosition and startTargetPosition
